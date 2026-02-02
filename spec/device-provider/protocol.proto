@@ -1,0 +1,385 @@
+syntax = "proto3";
+
+package anolis.deviceprovider.v0;
+
+import "google/protobuf/timestamp.proto";
+
+// ADPP v0 is an RPC-style protocol intended to be used over a byte-stream with
+// message framing defined in semantics.md. The protocol itself is transport-agnostic.
+
+// -----------------------------
+// Top-level envelope messages
+// -----------------------------
+
+message Request {
+  // Set by the client (Anolis). Must be unique per in-flight request for a given
+  // transport session. Used for correlation.
+  uint64 request_id = 1;
+
+  oneof payload {
+    HelloRequest hello = 10;
+    ListDevicesRequest list_devices = 11;
+    DescribeDeviceRequest describe_device = 12;
+    ReadSignalsRequest read_signals = 13;
+    CallRequest call = 14;
+    GetHealthRequest get_health = 15;
+  }
+}
+
+message Response {
+  // Must match the request_id from the corresponding Request.
+  uint64 request_id = 1;
+
+  // Status is always present. If code != OK, payload may be omitted.
+  Status status = 2;
+
+  oneof payload {
+    HelloResponse hello = 10;
+    ListDevicesResponse list_devices = 11;
+    DescribeDeviceResponse describe_device = 12;
+    ReadSignalsResponse read_signals = 13;
+    CallResponse call = 14;
+    GetHealthResponse get_health = 15;
+  }
+}
+
+// -----------------------------
+// Status / Error model
+// -----------------------------
+
+message Status {
+  enum Code {
+    CODE_UNSPECIFIED = 0;
+    CODE_OK = 1;
+
+    // Client errors
+    CODE_INVALID_ARGUMENT = 10;
+    CODE_NOT_FOUND = 11;
+    CODE_FAILED_PRECONDITION = 12;
+    CODE_OUT_OF_RANGE = 13;
+    CODE_UNIMPLEMENTED = 14;
+
+    // Runtime / transport-adjacent errors
+    CODE_DEADLINE_EXCEEDED = 20;
+    CODE_UNAVAILABLE = 21;
+    CODE_RESOURCE_EXHAUSTED = 22;
+
+    // Provider/internal errors
+    CODE_INTERNAL = 30;
+    CODE_DATA_LOSS = 31;
+  }
+
+  Code code = 1;
+  string message = 2;
+
+  // Optional structured details for debugging/diagnostics. Not required for v0.
+  // Keys should be stable snake_case identifiers.
+  map<string, string> details = 3;
+}
+
+// -----------------------------
+// Handshake
+// -----------------------------
+
+message HelloRequest {
+  // Protocol version expected by the client. For ADPP v0, this must be "v0".
+  string protocol_version = 1;
+
+  // Optional client identity (e.g., "anolis-core").
+  string client_name = 2;
+  string client_version = 3;
+}
+
+message HelloResponse {
+  // Protocol version supported by the provider. For ADPP v0, this must be "v0".
+  string protocol_version = 1;
+
+  // Provider identity (e.g., "crumbs-provider", "gpio-provider", "sim-provider").
+  string provider_name = 2;
+  string provider_version = 3;
+
+  // Optional freeform metadata (build, git sha, platform).
+  map<string, string> metadata = 4;
+}
+
+// -----------------------------
+// Inventory / Discovery
+// -----------------------------
+
+message ListDevicesRequest {
+  // If true, include minimal per-device health in the response.
+  bool include_health = 1;
+}
+
+message ListDevicesResponse {
+  repeated Device devices = 1;
+
+  // Optional per-device health snapshot when include_health=true.
+  repeated DeviceHealth device_health = 2;
+}
+
+message DescribeDeviceRequest {
+  string device_id = 1;
+}
+
+message DescribeDeviceResponse {
+  Device device = 1;
+  CapabilitySet capabilities = 2;
+}
+
+// -----------------------------
+// Telemetry
+// -----------------------------
+
+message ReadSignalsRequest {
+  // If empty, provider should read all "default" signals for the device
+  // (see semantics.md for how providers choose defaults).
+  string device_id = 1;
+  repeated string signal_ids = 2;
+
+  // Optional: allow client to indicate maximum acceptable age for cached values.
+  // If set to 0, provider may return cached or live values at its discretion.
+  // If set > 0, provider should attempt to satisfy freshness if possible.
+  google.protobuf.Timestamp min_timestamp = 3;
+}
+
+message ReadSignalsResponse {
+  string device_id = 1;
+  repeated SignalValue values = 2;
+}
+
+// -----------------------------
+// Function calls
+// -----------------------------
+
+message CallRequest {
+  string device_id = 1;
+
+  // Function may be addressed by id (preferred) or name (fallback).
+  // If both are provided, provider must prefer function_id.
+  uint32 function_id = 2;
+  string function_name = 3;
+
+  // Typed arguments for the function.
+  // Semantics of required/optional arguments are described by ArgSpec in CapabilitySet.
+  map<string, Value> args = 4;
+
+  // Optional: idempotency key for client retries. Provider may ignore in v0.
+  string idempotency_key = 5;
+
+  // Optional: call deadline hint. Provider may ignore in v0 and rely on transport deadlines.
+  google.protobuf.Timestamp deadline = 6;
+}
+
+message CallResponse {
+  string device_id = 1;
+
+  // Optional typed return values.
+  // For commands that are "fire-and-forget", provider may return empty results with CODE_OK.
+  map<string, Value> results = 2;
+
+  // Optional: provider-generated execution identifier for async operations.
+  // If present, the call may have been accepted but not yet fully applied.
+  string operation_id = 3;
+}
+
+// -----------------------------
+// Health
+// -----------------------------
+
+message GetHealthRequest {}
+
+message GetHealthResponse {
+  ProviderHealth provider = 1;
+  repeated DeviceHealth devices = 2;
+}
+
+// -----------------------------
+// Shared types
+// -----------------------------
+
+message Device {
+  // Stable identifier unique within the provider.
+  // Recommended: a UUID string, or a stable composite like "i2c:1:0x12".
+  string device_id = 1;
+
+  // Provider name that owns this device (matches HelloResponse.provider_name).
+  string provider_name = 2;
+
+  // Device type identity (family/model).
+  // Example: "crumbs.relay8.v1" or "gpio.temperature.v0".
+  string type_id = 3;
+  string type_version = 4;
+
+  // Human-readable label (optional).
+  string label = 5;
+
+  // Transport-specific addressing (optional, for debugging/UX).
+  // Example: "i2c-1@0x12", "ble:AA:BB:CC:DD:EE:FF".
+  string address = 6;
+
+  // User/installer tags (location, role, etc.).
+  map<string, string> tags = 7;
+}
+
+message CapabilitySet {
+  repeated FunctionSpec functions = 1;
+  repeated SignalSpec signals = 2;
+}
+
+message FunctionSpec {
+  uint32 function_id = 1;
+  string name = 2;
+  string description = 3;
+
+  // Policy metadata used by Anolis for arbitration and UI.
+  FunctionPolicy policy = 4;
+
+  // Typed argument and result metadata.
+  repeated ArgSpec args = 5;
+  repeated ArgSpec results = 6;
+}
+
+message FunctionPolicy {
+  enum Category {
+    CATEGORY_UNSPECIFIED = 0;
+    CATEGORY_READ = 1;
+    CATEGORY_CONFIG = 2;
+    CATEGORY_ACTUATE = 3;
+  }
+
+  Category category = 1;
+
+  // Allowed Anolis modes for this function (Anolis enforces; provider may also validate).
+  // Examples: "AUTO", "MANUAL", "IDLE", "MAINTENANCE", "SAFE".
+  repeated string allowed_modes = 2;
+
+  // If true, Anolis should require a manual lease token before invoking in MANUAL.
+  bool requires_lease = 3;
+
+  // Optional safety profile tag for Anolis guard selection (e.g., "heater", "valve").
+  string safety_profile = 4;
+
+  // Optional: suggested minimum interval between successive calls.
+  // If 0, no recommendation.
+  uint32 min_interval_ms = 5;
+
+  // Optional: hint that repeated calls with identical args are safe.
+  bool is_idempotent = 6;
+}
+
+message SignalSpec {
+  string signal_id = 1;
+  string name = 2;
+  string description = 3;
+
+  // Data typing metadata.
+  ValueType value_type = 4;
+  string unit = 5;
+
+  // Polling guidance (provider may ignore; Anolis may use).
+  // 0 means unspecified.
+  double poll_hint_hz = 6;
+
+  // Staleness guidance in milliseconds (0 means unspecified).
+  uint32 stale_after_ms = 7;
+}
+
+message SignalValue {
+  string signal_id = 1;
+  Value value = 2;
+
+  // Timestamp of when the measurement was observed at the source (preferred).
+  // If unknown, provider may set to the time the value was produced.
+  google.protobuf.Timestamp timestamp = 3;
+
+  Quality quality = 4;
+
+  // Optional debug metadata (e.g., raw ADC counts, CRC error count).
+  map<string, string> metadata = 5;
+
+  enum Quality {
+    QUALITY_UNSPECIFIED = 0;
+    QUALITY_OK = 1;
+    QUALITY_STALE = 2;
+    QUALITY_FAULT = 3;
+    QUALITY_UNKNOWN = 4;
+  }
+}
+
+message ProviderHealth {
+  enum State {
+    STATE_UNSPECIFIED = 0;
+    STATE_OK = 1;
+    STATE_DEGRADED = 2;
+    STATE_FAULT = 3;
+  }
+
+  State state = 1;
+  string message = 2;
+
+  // Optional metadata (uptime, bus error counts, etc.).
+  map<string, string> metrics = 3;
+}
+
+message DeviceHealth {
+  string device_id = 1;
+
+  enum State {
+    STATE_UNSPECIFIED = 0;
+    STATE_OK = 1;
+    STATE_STALE = 2;
+    STATE_UNREACHABLE = 3;
+    STATE_FAULT = 4;
+  }
+
+  State state = 2;
+  string message = 3;
+
+  google.protobuf.Timestamp last_seen = 4;
+
+  map<string, string> metrics = 5;
+}
+
+message ArgSpec {
+  string name = 1;
+  ValueType type = 2;
+  string unit = 3;
+  string description = 4;
+
+  // If true, arg must be present in CallRequest.args.
+  bool required = 5;
+
+  // Numeric constraints (optional; apply to DOUBLE/INT64/UINT64).
+  double min_double = 6;
+  double max_double = 7;
+
+  int64 min_int64 = 8;
+  int64 max_int64 = 9;
+
+  uint64 min_uint64 = 10;
+  uint64 max_uint64 = 11;
+}
+
+enum ValueType {
+  VALUE_TYPE_UNSPECIFIED = 0;
+  VALUE_TYPE_BOOL = 1;
+  VALUE_TYPE_INT64 = 2;
+  VALUE_TYPE_UINT64 = 3;
+  VALUE_TYPE_DOUBLE = 4;
+  VALUE_TYPE_STRING = 5;
+  VALUE_TYPE_BYTES = 6;
+}
+
+message Value {
+  ValueType type = 1;
+
+  oneof kind {
+    bool bool_value = 2;
+    int64 int64_value = 3;
+    uint64 uint64_value = 4;
+    double double_value = 5;
+    string string_value = 6;
+    bytes bytes_value = 7;
+  }
+}
