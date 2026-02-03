@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+# vcpkg commit from official release 2026.01.16
+# https://github.com/microsoft/vcpkg/releases/tag/2026.01.16
+env:
+  VCPKG_COMMIT: "66c0373dc7fca549e5803087b9487edfe3aca0a1"
+
 jobs:
   build-linux:
     name: Linux (Ubuntu 22.04)
@@ -35,7 +40,7 @@ jobs:
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
         with:
-          vcpkgGitCommitId: "a34c873a9717a888f58dc05268dea15592c2f0ff"
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
 
       - name: Build anolis
         run: |
@@ -83,7 +88,7 @@ jobs:
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
         with:
-          vcpkgGitCommitId: "a34c873a9717a888f58dc05268dea15592c2f0ff"
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
 
       - name: Build anolis
         run: |
