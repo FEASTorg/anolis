@@ -127,11 +127,13 @@ def kill_processes(names: List[str]) -> None:
             except Exception:
                 pass
     else:
-        # First try graceful SIGTERM
+        # On Linux, use pgrep/pkill with exact binary name match (-x flag)
+        # to avoid killing Python processes or matching directory paths
         for name in names:
             try:
+                # First try graceful SIGTERM with exact name match
                 subprocess.run(
-                    ["pkill", "-f", name], capture_output=True, timeout=5
+                    ["pkill", "-x", name], capture_output=True, timeout=5
                 )
             except Exception:
                 pass
@@ -141,7 +143,7 @@ def kill_processes(names: List[str]) -> None:
         for name in names:
             try:
                 subprocess.run(
-                    ["pkill", "-9", "-f", name], capture_output=True, timeout=5
+                    ["pkill", "-9", "-x", name], capture_output=True, timeout=5
                 )
             except Exception:
                 pass
