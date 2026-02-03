@@ -1,4 +1,4 @@
-# Anolis Runtime — CMake Build Configuration
+# Anolis Runtime - CMake Build Configuration
 cmake_minimum_required(VERSION 3.20)
 project(anolis LANGUAGES CXX)
 

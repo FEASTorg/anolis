@@ -6,6 +6,9 @@ It provides a **hardware-agnostic core** that discovers devices, understands the
 
 Anolis is designed to sit **between low-level device interfaces and high-level behavior**, acting as the system’s operational brain.
 
+> Just as anoles adapt to diverse environments,
+> Anolis adapts to diverse hardware ecosystems.
+
 ---
 
 ## What Anolis Is

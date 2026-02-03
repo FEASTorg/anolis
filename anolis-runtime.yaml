@@ -1,0 +1,16 @@
+# Anolis Runtime Configuration
+# Phase 3B: Basic provider config + polling settings
+
+providers:
+  - id: sim0
+    command: ../../../../anolis-provider-sim/build/Release/anolis-provider-sim.exe
+    args: []
+    # Note: Relative path assumes runtime runs from anolis/build/core/Release/
+    # Adjust path based on your directory structure
+    # TODO: We should eventually have a better way to locate provider binaries
+
+polling:
+  interval_ms: 500  # Default polling interval (min 100ms)
+
+logging:
+  level: info  # debug, info, warn, error
