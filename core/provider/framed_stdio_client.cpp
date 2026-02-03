@@ -12,8 +12,17 @@
 namespace anolis {
 namespace provider {
 
+namespace {
+// Invalid handle value for each platform
+#ifdef _WIN32
+constexpr FramedStdioClient::PipeHandle kInvalidHandle = nullptr;
+#else
+constexpr FramedStdioClient::PipeHandle kInvalidHandle = -1;
+#endif
+}  // namespace
+
 FramedStdioClient::FramedStdioClient()
-    : stdin_write_(nullptr), stdout_read_(nullptr) {}
+    : stdin_write_(kInvalidHandle), stdout_read_(kInvalidHandle) {}
 
 FramedStdioClient::~FramedStdioClient() {
     // Note: Handles closed by ProviderProcess, not here

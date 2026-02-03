@@ -15,7 +15,7 @@ jobs:
   build-linux:
     name: Linux (Ubuntu 22.04)
     runs-on: ubuntu-22.04
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Checkout anolis
@@ -54,7 +54,7 @@ jobs:
           cd anolis-provider-sim
           cmake -B build -S . \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
+            -DCMAKE_PREFIX_PATH=$GITHUB_WORKSPACE/build/vcpkg_installed/x64-linux
           cmake --build build --config Release --parallel
 
       - name: Run tests
@@ -98,7 +98,7 @@ jobs:
       - name: Build anolis-provider-sim
         run: |
           cd anolis-provider-sim
-          cmake -B build -S . -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+          cmake -B build -S . -DCMAKE_BUILD_TYPE=Release "-DCMAKE_PREFIX_PATH=$env:GITHUB_WORKSPACE/build/vcpkg_installed/x64-windows"
           cmake --build build --config Release
 
       - name: Run tests

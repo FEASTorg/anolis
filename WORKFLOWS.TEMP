@@ -1,0 +1,1054 @@
+
+CI
+fix(ci): use vcpkg 2026.01.16 official release #4
+
+    All jobs
+    Run details
+
+Annotations
+3 errors
+Linux (Ubuntu 22.04)
+failed 12 minutes ago in 11m 6s
+1s
+Current runner version: '2.331.0'
+Runner Image Provisioner
+Operating System
+Runner Image
+GITHUB_TOKEN Permissions
+Secret source: Actions
+Prepare workflow directory
+Prepare all required actions
+Getting action download info
+Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+Download action repository 'lukka/run-vcpkg@v11' (SHA:7d259227a1fb6471a0253dd5ab7419835228f7d7)
+Complete job name: Linux (Ubuntu 22.04)
+1s
+Run actions/checkout@v4
+Syncing repository: FEASTorg/anolis
+Getting Git version info
+Temporarily overriding HOME='/home/runner/work/_temp/ac32cea6-92d8-49f5-9e63-2d0dece95e8d' before making global git config changes
+Adding repository directory to the temporary git global config as a safe directory
+/usr/bin/git config --global --add safe.directory /home/runner/work/anolis/anolis
+Deleting the contents of '/home/runner/work/anolis/anolis'
+Initializing the repository
+Disabling automatic garbage collection
+Setting up auth
+Fetching the repository
+Determining the checkout info
+/usr/bin/git sparse-checkout disable
+/usr/bin/git config --local --unset-all extensions.worktreeConfig
+Checking out the ref
+Setting up auth for fetching submodules
+Fetching submodules
+Persisting credentials for submodules
+/usr/bin/git log -1 --format=%H
+da7ee38d7a7a1014969a69b98b8e890d4a620fdd
+2s
+Run actions/checkout@v4
+Syncing repository: FEASTorg/anolis-provider-sim
+Getting Git version info
+Temporarily overriding HOME='/home/runner/work/_temp/042523d2-edb7-444c-98f8-ad763475a907' before making global git config changes
+Adding repository directory to the temporary git global config as a safe directory
+/usr/bin/git config --global --add safe.directory /home/runner/work/anolis/anolis/anolis-provider-sim
+Initializing the repository
+Disabling automatic garbage collection
+Setting up auth
+Determining the default branch
+Fetching the repository
+Determining the checkout info
+/usr/bin/git sparse-checkout disable
+/usr/bin/git config --local --unset-all extensions.worktreeConfig
+Checking out the ref
+Setting up auth for fetching submodules
+Fetching submodules
+Persisting credentials for submodules
+/usr/bin/git log -1 --format=%H
+bf9ad1421c9f9bb028aac85060fa404983267201
+15s
+Run sudo apt-get update
+Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+Hit:2 http://azure.archive.ubuntu.com/ubuntu jammy InRelease
+Get:3 http://azure.archive.ubuntu.com/ubuntu jammy-updates InRelease [128 kB]
+Get:6 https://packages.microsoft.com/repos/azure-cli jammy InRelease [3596 B]
+Get:4 http://azure.archive.ubuntu.com/ubuntu jammy-backports InRelease [127 kB]
+Get:5 http://azure.archive.ubuntu.com/ubuntu jammy-security InRelease [129 kB]
+Get:7 https://packages.microsoft.com/ubuntu/22.04/prod jammy InRelease [3632 B]
+Get:8 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 Packages [3195 kB]
+Get:9 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main Translation-en [489 kB]
+Get:10 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 c-n-f Metadata [19.1 kB]
+Get:11 http://azure.archive.ubuntu.com/ubuntu jammy-updates/restricted amd64 Packages [5188 kB]
+Get:18 https://packages.microsoft.com/repos/azure-cli jammy/main amd64 Packages [3332 B]
+Get:19 https://packages.microsoft.com/repos/azure-cli jammy/main all Packages [1154 B]
+Get:12 http://azure.archive.ubuntu.com/ubuntu jammy-updates/restricted Translation-en [973 kB]
+Get:13 http://azure.archive.ubuntu.com/ubuntu jammy-updates/restricted amd64 c-n-f Metadata [676 B]
+Get:14 http://azure.archive.ubuntu.com/ubuntu jammy-updates/universe amd64 Packages [1252 kB]
+Get:15 http://azure.archive.ubuntu.com/ubuntu jammy-updates/universe Translation-en [313 kB]
+Get:16 http://azure.archive.ubuntu.com/ubuntu jammy-updates/universe amd64 c-n-f Metadata [30.2 kB]
+Get:17 http://azure.archive.ubuntu.com/ubuntu jammy-updates/multiverse amd64 c-n-f Metadata [612 B]
+Get:20 http://azure.archive.ubuntu.com/ubuntu jammy-security/main amd64 Packages [2905 kB]
+Get:21 http://azure.archive.ubuntu.com/ubuntu jammy-security/main Translation-en [419 kB]
+Get:22 http://azure.archive.ubuntu.com/ubuntu jammy-security/main amd64 c-n-f Metadata [14.1 kB]
+Get:23 http://azure.archive.ubuntu.com/ubuntu jammy-security/restricted amd64 Packages [4947 kB]
+Get:24 http://azure.archive.ubuntu.com/ubuntu jammy-security/restricted Translation-en [929 kB]
+Get:32 https://packages.microsoft.com/ubuntu/22.04/prod jammy/main amd64 Packages [301 kB]
+Get:25 http://azure.archive.ubuntu.com/ubuntu jammy-security/restricted amd64 c-n-f Metadata [680 B]
+Get:26 http://azure.archive.ubuntu.com/ubuntu jammy-security/universe amd64 Packages [1014 kB]
+Get:33 https://packages.microsoft.com/ubuntu/22.04/prod jammy/main arm64 Packages [120 kB]
+Get:27 http://azure.archive.ubuntu.com/ubuntu jammy-security/universe Translation-en [223 kB]
+Get:28 http://azure.archive.ubuntu.com/ubuntu jammy-security/universe amd64 c-n-f Metadata [22.5 kB]
+Get:29 http://azure.archive.ubuntu.com/ubuntu jammy-security/multiverse amd64 Packages [51.9 kB]
+Get:30 http://azure.archive.ubuntu.com/ubuntu jammy-security/multiverse Translation-en [10.6 kB]
+Get:31 http://azure.archive.ubuntu.com/ubuntu jammy-security/multiverse amd64 c-n-f Metadata [388 B]
+Fetched 22.8 MB in 3s (8771 kB/s)
+Reading package lists...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+g++ is already the newest version (4:11.2.0-1ubuntu1).
+python3 is already the newest version (3.10.6-1~22.04.1).
+python3-pip is already the newest version (22.0.2+dfsg-1ubuntu0.7).
+The following additional packages will be installed:
+  cmake-data dh-elpa-helper libjsoncpp25 librhash0
+Suggested packages:
+  cmake-doc ninja-build cmake-format
+The following NEW packages will be installed:
+  cmake cmake-data dh-elpa-helper libjsoncpp25 librhash0
+0 upgraded, 5 newly installed, 0 to remove and 33 not upgraded.
+Need to get 7135 kB of archives.
+After this operation, 31.8 MB of additional disk space will be used.
+Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+Get:2 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libjsoncpp25 amd64 1.9.5-3 [80.0 kB]
+Get:3 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 librhash0 amd64 1.4.2-1ubuntu1 [125 kB]
+Get:4 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 dh-elpa-helper all 2.0.9ubuntu1 [7610 B]
+Get:5 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 cmake-data all 3.22.1-1ubuntu1.22.04.2 [1913 kB]
+Get:6 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 cmake amd64 3.22.1-1ubuntu1.22.04.2 [5010 kB]
+Fetched 7135 kB in 0s (23.8 MB/s)
+Selecting previously unselected package libjsoncpp25:amd64.
+(Reading database ... 
+(Reading database ... 5%
+(Reading database ... 10%
+(Reading database ... 15%
+(Reading database ... 20%
+(Reading database ... 25%
+(Reading database ... 30%
+(Reading database ... 35%
+(Reading database ... 40%
+(Reading database ... 45%
+(Reading database ... 50%
+(Reading database ... 55%
+(Reading database ... 60%
+(Reading database ... 65%
+(Reading database ... 70%
+(Reading database ... 75%
+(Reading database ... 80%
+(Reading database ... 85%
+(Reading database ... 90%
+(Reading database ... 95%
+(Reading database ... 100%
+(Reading database ... 266838 files and directories currently installed.)
+Preparing to unpack .../libjsoncpp25_1.9.5-3_amd64.deb ...
+Unpacking libjsoncpp25:amd64 (1.9.5-3) ...
+Selecting previously unselected package librhash0:amd64.
+Preparing to unpack .../librhash0_1.4.2-1ubuntu1_amd64.deb ...
+Unpacking librhash0:amd64 (1.4.2-1ubuntu1) ...
+Selecting previously unselected package dh-elpa-helper.
+Preparing to unpack .../dh-elpa-helper_2.0.9ubuntu1_all.deb ...
+Unpacking dh-elpa-helper (2.0.9ubuntu1) ...
+Selecting previously unselected package cmake-data.
+Preparing to unpack .../cmake-data_3.22.1-1ubuntu1.22.04.2_all.deb ...
+Unpacking cmake-data (3.22.1-1ubuntu1.22.04.2) ...
+Selecting previously unselected package cmake.
+Preparing to unpack .../cmake_3.22.1-1ubuntu1.22.04.2_amd64.deb ...
+Unpacking cmake (3.22.1-1ubuntu1.22.04.2) ...
+Setting up dh-elpa-helper (2.0.9ubuntu1) ...
+Setting up libjsoncpp25:amd64 (1.9.5-3) ...
+Setting up librhash0:amd64 (1.4.2-1ubuntu1) ...
+Setting up cmake-data (3.22.1-1ubuntu1.22.04.2) ...
+Setting up cmake (3.22.1-1ubuntu1.22.04.2) ...
+Processing triggers for man-db (2.10.2-1) ...
+Not building database; man-db/auto-update is not 'true'.
+Processing triggers for libc-bin (2.35-0ubuntu3.11) ...
+
+Running kernel seems to be up-to-date.
+
+No services need to be restarted.
+
+No containers need to be restarted.
+
+No user sessions are running outdated binaries.
+
+No VM guests are running outdated hypervisor (qemu) binaries on this host.
+Defaulting to user installation because normal site-packages is not writeable
+Requirement already satisfied: pip in /usr/lib/python3/dist-packages (22.0.2)
+Collecting pip
+  Downloading pip-26.0-py3-none-any.whl (1.8 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 28.6 MB/s eta 0:00:00
+Installing collected packages: pip
+Successfully installed pip-26.0
+Defaulting to user installation because normal site-packages is not writeable
+Requirement already satisfied: requests in /usr/lib/python3/dist-packages (2.25.1)
+12s
+Run lukka/run-vcpkg@v11
+Prepare output directories
+⏱ elapsed: 0.002 seconds
+Running command '/usr/bin/git' with args 'submodule,status,/home/runner/work/anolis/anolis/vcpkg' in current directory '/home/runner/work/anolis/anolis'.
+error: pathspec '/home/runner/work/anolis/anolis/vcpkg' did not match any file(s) known to git
+Setup to run on GitHub Action runners
+⏱ elapsed: 0.001 seconds
+Retrieving the vcpkg Git commit id at: '/home/runner/work/anolis/anolis/vcpkg'
+⏱ elapsed: 0.006 seconds
+Check whether vcpkg repository is up to date
+⏱ elapsed: 0.000 seconds
+Download vcpkg source code repository
+10m 33s
+0s
+0s
+0s
+0s
+0s
+
+
+
+
+
+
+
+
+Skip to content
+
+    FEASTorg
+    anolis
+
+Repository navigation
+
+    Code
+    Issues
+    Pull requests
+    Agents
+    Actions
+    Projects
+    Security
+    Insights
+    Settings
+
+CI
+fix(ci): use vcpkg 2026.01.16 official release #4
+
+    All jobs
+    Run details
+
+Annotations
+2 errors
+Windows (MSVC 2022)
+failed 3 minutes ago in 20m 5s
+1s
+12s
+9s
+26s
+Run python -m pip install --upgrade pip
+Requirement already satisfied: pip in c:\hostedtoolcache\windows\python\3.12.10\x64\lib\site-packages (25.3)
+Collecting pip
+  Downloading pip-26.0-py3-none-any.whl.metadata (4.7 kB)
+Downloading pip-26.0-py3-none-any.whl (1.8 MB)
+   ---------------------------------------- 1.8/1.8 MB 8.9 MB/s  0:00:00
+Installing collected packages: pip
+  Attempting uninstall: pip
+    Found existing installation: pip 25.3
+    Uninstalling pip-25.3:
+      Successfully uninstalled pip-25.3
+Successfully installed pip-26.0
+Collecting requests
+  Downloading requests-2.32.5-py3-none-any.whl.metadata (4.9 kB)
+Collecting charset_normalizer<4,>=2 (from requests)
+  Downloading charset_normalizer-3.4.4-cp312-cp312-win_amd64.whl.metadata (38 kB)
+Collecting idna<4,>=2.5 (from requests)
+  Downloading idna-3.11-py3-none-any.whl.metadata (8.4 kB)
+Collecting urllib3<3,>=1.21.1 (from requests)
+  Downloading urllib3-2.6.3-py3-none-any.whl.metadata (6.9 kB)
+Collecting certifi>=2017.4.17 (from requests)
+  Downloading certifi-2026.1.4-py3-none-any.whl.metadata (2.5 kB)
+Downloading requests-2.32.5-py3-none-any.whl (64 kB)
+Downloading charset_normalizer-3.4.4-cp312-cp312-win_amd64.whl (107 kB)
+Downloading idna-3.11-py3-none-any.whl (71 kB)
+Downloading urllib3-2.6.3-py3-none-any.whl (131 kB)
+Downloading certifi-2026.1.4-py3-none-any.whl (152 kB)
+Installing collected packages: urllib3, idna, charset_normalizer, certifi, requests
+
+Successfully installed certifi-2026.1.4 charset_normalizer-3.4.4 idna-3.11 requests-2.32.5 urllib3-2.6.3
+22s
+Run lukka/run-vcpkg@v11
+Prepare output directories
+⏱ elapsed: 0.004 seconds
+Running command '"C:\Program Files\Git\bin\git.exe"' with args '^"submodule^",^"status^",^"D:\a\anolis\anolis\vcpkg^"' in current directory 'D:\a\anolis\anolis'.
+error: pathspec 'D:\a\anolis\anolis\vcpkg' did not match any file(s) known to git
+Setup to run on GitHub Action runners
+⏱ elapsed: 0.002 seconds
+Retrieving the vcpkg Git commit id at: 'D:\a\anolis\anolis\vcpkg'
+⏱ elapsed: 0.139 seconds
+Check whether vcpkg repository is up to date
+⏱ elapsed: 0.001 seconds
+Download vcpkg source code repository
+⏱ elapsed: 18.111 seconds
+Build vcpkg executable
+⏱ elapsed: 2.086 seconds
+Add to PATH vcpkg at 'D:\a\anolis\anolis\vcpkg'
+⏱ elapsed: 0.000 seconds
+Set output environment variables
+⏱ elapsed: 0.001 seconds
+run-vcpkg action execution succeeded
+18m 40s
+Run cmake -B build -S . -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+-- Building for: Visual Studio 17 2022
+-- Running vcpkg install
+A suitable version of cmake was not found (required v3.31.10).
+Downloading https://github.com/Kitware/CMake/releases/download/v3.31.10/cmake-3.31.10-windows-x86_64.zip -> cmake-3.31.10-windows-x86_64.zip
+Successfully downloaded cmake-3.31.10-windows-x86_64.zip
+Extracting cmake...
+Detecting compiler hash for triplet x64-windows...
+A suitable version of powershell-core was not found (required v7.5.4).
+Downloading https://github.com/PowerShell/PowerShell/releases/download/v7.5.4/PowerShell-7.5.4-win-x64.zip -> PowerShell-7.5.4-win-x64.zip
+Successfully downloaded PowerShell-7.5.4-win-x64.zip
+Extracting powershell-core...
+Compiler found: C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe
+The following packages will be built and installed:
+  * abseil:x64-windows@20250814.1
+  * brotli:x64-windows@1.2.0
+    cpp-httplib[brotli,core]:x64-windows@0.30.1
+    nlohmann-json:x64-windows@3.12.0#2
+    protobuf:x64-windows@5.29.5#3
+  * utf8-range:x64-windows@5.29.5
+  * vcpkg-cmake:x64-windows@2024-04-23
+  * vcpkg-cmake-config:x64-windows@2024-05-23
+    yaml-cpp:x64-windows@0.8.0#3
+Additional packages (*) will be modified to complete this operation.
+%VCPKG_BINARY_SOURCES%: warning: The 'x-gha' binary caching backend has been removed. Consider using a NuGet-based binary caching provider instead, see extended documentation at https://learn.microsoft.com/vcpkg/users/binarycaching?WT.mc_id=vcpkg_inproduct_cli.
+  on expression: clear;x-gha,readwrite
+                                      ^
+Installing 1/9 vcpkg-cmake-config:x64-windows@2024-05-23...
+Building vcpkg-cmake-config:x64-windows@2024-05-23...
+-- Installing: D:/a/anolis/anolis/vcpkg/packages/vcpkg-cmake-config_x64-windows/share/vcpkg-cmake-config/vcpkg_cmake_config_fixup.cmake
+-- Installing: D:/a/anolis/anolis/vcpkg/packages/vcpkg-cmake-config_x64-windows/share/vcpkg-cmake-config/vcpkg-port-config.cmake
+-- Installing: D:/a/anolis/anolis/vcpkg/packages/vcpkg-cmake-config_x64-windows/share/vcpkg-cmake-config/copyright
+-- Skipping post-build validation due to VCPKG_POLICY_EMPTY_PACKAGE
+Elapsed time to handle vcpkg-cmake-config:x64-windows: 51.4 ms
+vcpkg-cmake-config:x64-windows package ABI: 80b139a16db9586821822493e1e2c117ce59f6a4def1a9780e1db8b1651a6af3
+Installing 2/9 vcpkg-cmake:x64-windows@2024-04-23...
+Building vcpkg-cmake:x64-windows@2024-04-23...
+-- Installing: D:/a/anolis/anolis/vcpkg/packages/vcpkg-cmake_x64-windows/share/vcpkg-cmake/vcpkg_cmake_configure.cmake
+-- Installing: D:/a/anolis/anolis/vcpkg/packages/vcpkg-cmake_x64-windows/share/vcpkg-cmake/vcpkg_cmake_build.cmake
+-- Installing: D:/a/anolis/anolis/vcpkg/packages/vcpkg-cmake_x64-windows/share/vcpkg-cmake/vcpkg_cmake_install.cmake
+-- Installing: D:/a/anolis/anolis/vcpkg/packages/vcpkg-cmake_x64-windows/share/vcpkg-cmake/vcpkg-port-config.cmake
+-- Installing: D:/a/anolis/anolis/vcpkg/packages/vcpkg-cmake_x64-windows/share/vcpkg-cmake/copyright
+-- Performing post-build validation
+Elapsed time to handle vcpkg-cmake:x64-windows: 54.1 ms
+vcpkg-cmake:x64-windows package ABI: 3bd510eceea8a3d0b3fbfceee813237350df6d1459b992833bbdf80b082a856f
+Installing 3/9 brotli:x64-windows@1.2.0...
+Building brotli:x64-windows@1.2.0...
+Downloading https://github.com/google/brotli/archive/v1.2.0.tar.gz -> google-brotli-v1.2.0.tar.gz
+Successfully downloaded google-brotli-v1.2.0.tar.gz
+-- Extracting source D:/a/anolis/anolis/vcpkg/downloads/google-brotli-v1.2.0.tar.gz
+-- Applying patch install.patch
+-- Applying patch pkgconfig.patch
+-- Using source at D:/a/anolis/anolis/vcpkg/buildtrees/brotli/src/v1.2.0-7af7ca71ad.clean
+-- Configuring x64-windows
+-- Building x64-windows-dbg
+-- Building x64-windows-rel
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/brotli_x64-windows/lib/pkgconfig/libbrotlicommon.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/brotli_x64-windows/lib/pkgconfig/libbrotlidec.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/brotli_x64-windows/lib/pkgconfig/libbrotlienc.pc
+Downloading msys2-mingw-w64-x86_64-pkgconf-1~2.5.1-1-any.pkg.tar.zst, trying https://mirror.msys2.org/mingw/mingw64/mingw-w64-x86_64-pkgconf-1~2.5.1-1-any.pkg.tar.zst
+Successfully downloaded msys2-mingw-w64-x86_64-pkgconf-1~2.5.1-1-any.pkg.tar.zst
+Downloading msys2-msys2-runtime-3.6.5-1-x86_64.pkg.tar.zst, trying https://mirror.msys2.org/msys/x86_64/msys2-runtime-3.6.5-1-x86_64.pkg.tar.zst
+Successfully downloaded msys2-msys2-runtime-3.6.5-1-x86_64.pkg.tar.zst
+-- Using msys root at D:/a/anolis/anolis/vcpkg/downloads/tools/msys2/3e71d1f8e22ab23f
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/brotli_x64-windows/debug/lib/pkgconfig/libbrotlicommon.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/brotli_x64-windows/debug/lib/pkgconfig/libbrotlidec.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/brotli_x64-windows/debug/lib/pkgconfig/libbrotlienc.pc
+-- Installing: D:/a/anolis/anolis/vcpkg/packages/brotli_x64-windows/share/brotli/usage
+-- Installing: D:/a/anolis/anolis/vcpkg/packages/brotli_x64-windows/share/brotli/copyright
+-- Performing post-build validation
+Elapsed time to handle brotli:x64-windows: 23 s
+brotli:x64-windows package ABI: 404445dc947a02ddfb1ea70afb8a916f353453283f5129e8a8d888bfd6c22ca5
+Installing 4/9 cpp-httplib[brotli,core]:x64-windows@0.30.1...
+Building cpp-httplib[brotli,core]:x64-windows@0.30.1...
+Downloading https://github.com/yhirose/cpp-httplib/archive/v0.30.1.tar.gz -> yhirose-cpp-httplib-v0.30.1.tar.gz
+Successfully downloaded yhirose-cpp-httplib-v0.30.1.tar.gz
+-- Extracting source D:/a/anolis/anolis/vcpkg/downloads/yhirose-cpp-httplib-v0.30.1.tar.gz
+-- Applying patch fix-find-brotli.patch
+-- Using source at D:/a/anolis/anolis/vcpkg/buildtrees/cpp-httplib/src/v0.30.1-da2253ad29.clean
+-- Configuring x64-windows
+-- Building x64-windows-rel
+-- Installing: D:/a/anolis/anolis/vcpkg/packages/cpp-httplib_x64-windows/share/cpp-httplib/copyright
+-- Installing: D:/a/anolis/anolis/vcpkg/packages/cpp-httplib_x64-windows/share/cpp-httplib/usage
+-- Performing post-build validation
+Elapsed time to handle cpp-httplib:x64-windows: 3.2 s
+cpp-httplib:x64-windows package ABI: 4339bbb05bc3304d69894209ed2769d958884139db815e12b930dd988717411f
+Installing 5/9 nlohmann-json:x64-windows@3.12.0#2...
+Building nlohmann-json:x64-windows@3.12.0#2...
+Downloading https://github.com/nlohmann/json/archive/v3.12.0.tar.gz -> nlohmann-json-v3.12.0.tar.gz
+Successfully downloaded nlohmann-json-v3.12.0.tar.gz
+-- Extracting source D:/a/anolis/anolis/vcpkg/downloads/nlohmann-json-v3.12.0.tar.gz
+-- Applying patch fix-4736_char8_t.patch
+-- Applying patch fix-4742_std_optional.patch
+-- Using source at D:/a/anolis/anolis/vcpkg/buildtrees/nlohmann-json/src/v3.12.0-89fed620e6.clean
+-- Configuring x64-windows
+-- Building x64-windows-dbg
+-- Building x64-windows-rel
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/nlohmann-json_x64-windows/share/pkgconfig/nlohmann_json.pc
+-- Using cached msys2-mingw-w64-x86_64-pkgconf-1~2.5.1-1-any.pkg.tar.zst
+-- Using cached msys2-msys2-runtime-3.6.5-1-x86_64.pkg.tar.zst
+-- Using msys root at D:/a/anolis/anolis/vcpkg/downloads/tools/msys2/3e71d1f8e22ab23f
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/nlohmann-json_x64-windows/debug/share/pkgconfig/nlohmann_json.pc
+-- Installing: D:/a/anolis/anolis/vcpkg/packages/nlohmann-json_x64-windows/share/nlohmann-json/copyright
+-- Performing post-build validation
+Elapsed time to handle nlohmann-json:x64-windows: 2.1 s
+nlohmann-json:x64-windows package ABI: cda3815327fd2c70cea385aa8d489efb39936f9b845075b4200320ce8858f92b
+Installing 6/9 abseil:x64-windows@20250814.1...
+Building abseil:x64-windows@20250814.1...
+Downloading https://github.com/abseil/abseil-cpp/archive/20250814.1.tar.gz -> abseil-abseil-cpp-20250814.1.tar.gz
+Successfully downloaded abseil-abseil-cpp-20250814.1.tar.gz
+-- Extracting source D:/a/anolis/anolis/vcpkg/downloads/abseil-abseil-cpp-20250814.1.tar.gz
+-- Applying patch 001-mingw-dll.patch
+-- Applying patch 002-string-view.patch
+-- Applying patch 003-force-cxx-17.patch
+-- Using source at D:/a/anolis/anolis/vcpkg/buildtrees/abseil/src/20250814.1-a96f5d5fc6.clean
+-- Configuring x64-windows-dbg
+-- Configuring x64-windows-rel
+-- Building x64-windows-dbg
+-- Building x64-windows-rel
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/abseil_dll.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_absl_check.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_absl_log.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_absl_vlog_is_on.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_algorithm.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_algorithm_container.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_any.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_any_invocable.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_atomic_hook.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_bad_any_cast.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_bad_optional_access.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_bad_variant_access.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_base.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_base_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_bind_front.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_bits.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_bounded_utf8_length_sequence.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_btree.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_charset.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_check.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_city.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_civil_time.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_cleanup.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_cleanup_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_common_policy_traits.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_compare.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_compressed_tuple.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_config.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_container_common.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_container_memory.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_cord.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_cord_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_cordz_functions.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_cordz_handle.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_cordz_info.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_cordz_sample_token.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_cordz_statistics.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_cordz_update_scope.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_cordz_update_tracker.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_core_headers.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_crc32c.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_crc_cord_state.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_crc_cpu_detect.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_crc_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_debugging.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_debugging_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_decode_rust_punycode.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_demangle_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_demangle_rust.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_die_if_null.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_dynamic_annotations.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_endian.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_errno_saver.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_examine_stack.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_exponential_biased.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_failure_signal_handler.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_fast_type_id.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_fixed_array.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_flags.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_flags_commandlineflag.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_flags_commandlineflag_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_flags_config.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_flags_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_flags_marshalling.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_flags_parse.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_flags_path_util.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_flags_private_handle_accessor.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_flags_program_name.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_flags_reflection.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_flags_usage.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_flags_usage_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_flat_hash_map.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_flat_hash_set.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_function_ref.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_graphcycles_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_has_ostream_operator.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_hash.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_hash_container_defaults.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_hash_function_defaults.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_hash_policy_traits.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_hashtable_control_bytes.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_hashtable_debug.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_hashtable_debug_hooks.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_hashtable_profiler.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_hashtablez_sampler.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_inlined_vector.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_inlined_vector_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_int128.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_iterator_traits_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_iterator_traits_test_helper_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_kernel_timeout_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_layout.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_leak_check.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_entry.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_flags.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_globals.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_initialize.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_internal_append_truncated.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_internal_check_impl.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_internal_check_op.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_internal_conditions.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_internal_config.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_internal_flags.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_internal_fnmatch.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_internal_format.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_internal_globals.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_internal_log_impl.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_internal_log_sink_set.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_internal_message.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_internal_nullguard.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_internal_nullstream.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_internal_proto.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_internal_strip.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_internal_structured.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_internal_structured_proto.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_internal_voidify.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_severity.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_sink.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_sink_registry.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_streamer.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_log_structured.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_malloc_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_memory.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_meta.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_no_destructor.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_node_hash_map.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_node_hash_set.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_node_slot_policy.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_non_temporal_arm_intrinsics.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_non_temporal_memcpy.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_nullability.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_numeric.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_numeric_representation.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_optional.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_overload.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_periodic_sampler.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_poison.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_prefetch.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_pretty_function.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_profile_builder.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_bit_gen_ref.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_distributions.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_internal_distribution_caller.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_internal_distribution_test_util.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_internal_entropy_pool.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_internal_fast_uniform_bits.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_internal_fastmath.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_internal_generate_real.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_internal_iostream_state_saver.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_internal_mock_helpers.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_internal_nonsecure_base.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_internal_pcg_engine.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_internal_platform.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_internal_randen.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_internal_randen_engine.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_internal_randen_hwaes.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_internal_randen_hwaes_impl.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_internal_randen_slow.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_internal_salted_seed_seq.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_internal_seed_material.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_internal_traits.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_internal_uniform_helper.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_internal_wide_multiply.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_random.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_seed_gen_exception.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_random_seed_sequences.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_raw_hash_map.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_raw_hash_set.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_raw_hash_set_resize_impl.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_raw_logging_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_sample_recorder.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_scoped_set_env.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_span.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_spinlock_wait.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_stacktrace.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_status.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_statusor.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_str_format.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_str_format_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_strerror.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_string_view.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_strings.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_strings_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_symbolize.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_synchronization.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_throw_delegate.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_time.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_time_zone.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_tracing_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_type_traits.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_utf8_for_code_point.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_utility.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_variant.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_vlog_config_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_vlog_is_on.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/lib/pkgconfig/absl_weakly_mixed_integer.pc
+-- Using cached msys2-mingw-w64-x86_64-pkgconf-1~2.5.1-1-any.pkg.tar.zst
+-- Using cached msys2-msys2-runtime-3.6.5-1-x86_64.pkg.tar.zst
+-- Using msys root at D:/a/anolis/anolis/vcpkg/downloads/tools/msys2/3e71d1f8e22ab23f
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/abseil_dll.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_absl_check.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_absl_log.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_absl_vlog_is_on.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_algorithm.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_algorithm_container.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_any.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_any_invocable.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_atomic_hook.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_bad_any_cast.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_bad_optional_access.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_bad_variant_access.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_base.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_base_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_bind_front.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_bits.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_bounded_utf8_length_sequence.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_btree.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_charset.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_check.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_city.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_civil_time.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_cleanup.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_cleanup_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_common_policy_traits.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_compare.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_compressed_tuple.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_config.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_container_common.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_container_memory.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_cord.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_cord_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_cordz_functions.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_cordz_handle.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_cordz_info.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_cordz_sample_token.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_cordz_statistics.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_cordz_update_scope.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_cordz_update_tracker.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_core_headers.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_crc32c.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_crc_cord_state.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_crc_cpu_detect.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_crc_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_debugging.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_debugging_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_decode_rust_punycode.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_demangle_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_demangle_rust.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_die_if_null.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_dynamic_annotations.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_endian.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_errno_saver.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_examine_stack.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_exponential_biased.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_failure_signal_handler.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_fast_type_id.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_fixed_array.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_flags.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_flags_commandlineflag.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_flags_commandlineflag_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_flags_config.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_flags_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_flags_marshalling.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_flags_parse.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_flags_path_util.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_flags_private_handle_accessor.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_flags_program_name.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_flags_reflection.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_flags_usage.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_flags_usage_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_flat_hash_map.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_flat_hash_set.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_function_ref.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_graphcycles_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_has_ostream_operator.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_hash.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_hash_container_defaults.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_hash_function_defaults.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_hash_policy_traits.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_hashtable_control_bytes.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_hashtable_debug.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_hashtable_debug_hooks.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_hashtable_profiler.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_hashtablez_sampler.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_inlined_vector.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_inlined_vector_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_int128.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_iterator_traits_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_iterator_traits_test_helper_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_kernel_timeout_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_layout.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_leak_check.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_entry.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_flags.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_globals.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_initialize.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_internal_append_truncated.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_internal_check_impl.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_internal_check_op.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_internal_conditions.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_internal_config.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_internal_flags.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_internal_fnmatch.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_internal_format.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_internal_globals.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_internal_log_impl.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_internal_log_sink_set.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_internal_message.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_internal_nullguard.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_internal_nullstream.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_internal_proto.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_internal_strip.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_internal_structured.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_internal_structured_proto.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_internal_voidify.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_severity.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_sink.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_sink_registry.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_streamer.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_log_structured.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_malloc_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_memory.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_meta.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_no_destructor.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_node_hash_map.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_node_hash_set.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_node_slot_policy.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_non_temporal_arm_intrinsics.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_non_temporal_memcpy.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_nullability.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_numeric.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_numeric_representation.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_optional.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_overload.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_periodic_sampler.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_poison.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_prefetch.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_pretty_function.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_profile_builder.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_bit_gen_ref.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_distributions.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_internal_distribution_caller.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_internal_distribution_test_util.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_internal_entropy_pool.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_internal_fast_uniform_bits.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_internal_fastmath.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_internal_generate_real.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_internal_iostream_state_saver.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_internal_mock_helpers.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_internal_nonsecure_base.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_internal_pcg_engine.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_internal_platform.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_internal_randen.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_internal_randen_engine.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_internal_randen_hwaes.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_internal_randen_hwaes_impl.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_internal_randen_slow.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_internal_salted_seed_seq.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_internal_seed_material.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_internal_traits.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_internal_uniform_helper.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_internal_wide_multiply.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_random.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_seed_gen_exception.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_random_seed_sequences.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_raw_hash_map.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_raw_hash_set.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_raw_hash_set_resize_impl.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_raw_logging_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_sample_recorder.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_scoped_set_env.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_span.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_spinlock_wait.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_stacktrace.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_status.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_statusor.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_str_format.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_str_format_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_strerror.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_string_view.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_strings.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_strings_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_symbolize.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_synchronization.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_throw_delegate.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_time.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_time_zone.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_tracing_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_type_traits.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_utf8_for_code_point.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_utility.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_variant.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_vlog_config_internal.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_vlog_is_on.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/debug/lib/pkgconfig/absl_weakly_mixed_integer.pc
+-- Installing: D:/a/anolis/anolis/vcpkg/packages/abseil_x64-windows/share/abseil/copyright
+-- Performing post-build validation
+Elapsed time to handle abseil:x64-windows: 2.2 min
+abseil:x64-windows package ABI: b4e8cb90f1de8168573a351a0cdd87d03be2bb31580032de044bca46a7be3f9c
+Installing 7/9 utf8-range:x64-windows@5.29.5...
+Building utf8-range:x64-windows@5.29.5...
+-- Note: utf8-range only supports static library linkage. Building static library.
+Downloading https://github.com/protocolbuffers/protobuf/archive/v5.29.5.tar.gz -> protocolbuffers-protobuf-v5.29.5.tar.gz
+Successfully downloaded protocolbuffers-protobuf-v5.29.5.tar.gz
+-- Extracting source D:/a/anolis/anolis/vcpkg/downloads/protocolbuffers-protobuf-v5.29.5.tar.gz
+-- Applying patch fix-cmake.patch
+-- Using source at D:/a/anolis/anolis/vcpkg/buildtrees/utf8-range/src/v5.29.5-196482051e.clean
+-- Configuring x64-windows
+-- Building x64-windows-dbg
+-- Building x64-windows-rel
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/utf8-range_x64-windows/lib/pkgconfig/utf8_range.pc
+-- Using cached msys2-mingw-w64-x86_64-pkgconf-1~2.5.1-1-any.pkg.tar.zst
+-- Using cached msys2-msys2-runtime-3.6.5-1-x86_64.pkg.tar.zst
+-- Using msys root at D:/a/anolis/anolis/vcpkg/downloads/tools/msys2/3e71d1f8e22ab23f
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/utf8-range_x64-windows/debug/lib/pkgconfig/utf8_range.pc
+-- Installing: D:/a/anolis/anolis/vcpkg/packages/utf8-range_x64-windows/share/utf8-range/copyright
+-- Performing post-build validation
+Elapsed time to handle utf8-range:x64-windows: 4.8 s
+utf8-range:x64-windows package ABI: bbc65a738cfc2082547d191825fc04cd121ae6626c4fa04e6d50c6614dcaf6b9
+Installing 8/9 protobuf:x64-windows@5.29.5#3...
+Building protobuf:x64-windows@5.29.5#3...
+-- Using cached protocolbuffers-protobuf-v5.29.5.tar.gz
+-- Extracting source D:/a/anolis/anolis/vcpkg/downloads/protocolbuffers-protobuf-v5.29.5.tar.gz
+-- Applying patch fix-static-build.patch
+-- Applying patch fix-default-proto-file-path.patch
+-- Applying patch fix-utf8-range.patch
+-- Applying patch fix-install-dirs.patch
+-- Applying patch fix-mingw-tail-call.patch
+-- Applying patch fix-abseil.patch
+-- Applying patch fix-constinit-with-clang-cl.patch
+-- Using source at D:/a/anolis/anolis/vcpkg/buildtrees/protobuf/src/v5.29.5-b70d3f2205.clean
+-- Configuring x64-windows
+-- Building x64-windows-dbg
+-- Building x64-windows-rel
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/protobuf_x64-windows/lib/pkgconfig/protobuf-lite.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/protobuf_x64-windows/lib/pkgconfig/protobuf.pc
+-- Using cached msys2-mingw-w64-x86_64-pkgconf-1~2.5.1-1-any.pkg.tar.zst
+-- Using cached msys2-msys2-runtime-3.6.5-1-x86_64.pkg.tar.zst
+-- Using msys root at D:/a/anolis/anolis/vcpkg/downloads/tools/msys2/3e71d1f8e22ab23f
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/protobuf_x64-windows/debug/lib/pkgconfig/protobuf-lite.pc
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/protobuf_x64-windows/debug/lib/pkgconfig/protobuf.pc
+-- Installing: D:/a/anolis/anolis/vcpkg/packages/protobuf_x64-windows/share/protobuf/copyright
+-- Performing post-build validation
+Elapsed time to handle protobuf:x64-windows: 14 min
+protobuf:x64-windows package ABI: 7cda7db447da45be8c9408265225e32017fbe1239c0cc7bb6df25cfdc7561af2
+Installing 9/9 yaml-cpp:x64-windows@0.8.0#3...
+Building yaml-cpp:x64-windows@0.8.0#3...
+Downloading https://github.com/jbeder/yaml-cpp/archive/0.8.0.tar.gz -> jbeder-yaml-cpp-0.8.0.tar.gz
+Successfully downloaded jbeder-yaml-cpp-0.8.0.tar.gz
+-- Extracting source D:/a/anolis/anolis/vcpkg/downloads/jbeder-yaml-cpp-0.8.0.tar.gz
+-- Applying patch yaml-cpp-pr-1212.patch
+-- Applying patch yaml-cpp-pr-1310.patch
+-- Using source at D:/a/anolis/anolis/vcpkg/buildtrees/yaml-cpp/src/0.8.0-440b586ece.clean
+-- Configuring x64-windows
+-- Building x64-windows-dbg
+-- Building x64-windows-rel
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/yaml-cpp_x64-windows/lib/pkgconfig/yaml-cpp.pc
+-- Using cached msys2-mingw-w64-x86_64-pkgconf-1~2.5.1-1-any.pkg.tar.zst
+-- Using cached msys2-msys2-runtime-3.6.5-1-x86_64.pkg.tar.zst
+-- Using msys root at D:/a/anolis/anolis/vcpkg/downloads/tools/msys2/3e71d1f8e22ab23f
+-- Fixing pkgconfig file: D:/a/anolis/anolis/vcpkg/packages/yaml-cpp_x64-windows/debug/lib/pkgconfig/yaml-cpp.pc
+-- Installing: D:/a/anolis/anolis/vcpkg/packages/yaml-cpp_x64-windows/share/yaml-cpp/copyright
+-- Performing post-build validation
+Elapsed time to handle yaml-cpp:x64-windows: 24 s
+yaml-cpp:x64-windows package ABI: abef890d0a0f846464857098df87a11af5d8a9509d8e2537bf060788886d53b3
+Installed contents are licensed to you by owners. Microsoft is not responsible for, nor does it grant any licenses to, third-party packages.
+Packages installed in this vcpkg installation declare the following licenses:
+Apache-2.0
+BSD-3-Clause
+MIT
+cpp-httplib provides CMake targets:
+
+    find_package(httplib CONFIG REQUIRED)
+    target_link_libraries(main PRIVATE httplib::httplib)
+
+The package nlohmann-json provides CMake targets:
+
+    find_package(nlohmann_json CONFIG REQUIRED)
+    target_link_libraries(main PRIVATE nlohmann_json::nlohmann_json)
+
+The package nlohmann-json can be configured to not provide implicit conversions via a custom triplet file:
+
+    set(nlohmann-json_IMPLICIT_CONVERSIONS OFF)
+
+For more information, see the docs here:
+    
+    https://json.nlohmann.me/api/macros/json_use_implicit_conversions/
+
+protobuf provides CMake targets:
+
+  # this is heuristically generated, and may not be correct
+  find_package(protobuf CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE protobuf::libprotoc protobuf::libprotobuf protobuf::libprotobuf-lite)
+
+protobuf provides pkg-config modules:
+
+  # Google's Data Interchange Format
+  protobuf-lite
+
+  # Google's Data Interchange Format
+  protobuf
+
+yaml-cpp provides CMake targets:
+
+  # this is heuristically generated, and may not be correct
+  find_package(yaml-cpp CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE yaml-cpp::yaml-cpp)
+
+yaml-cpp provides pkg-config modules:
+
+  # A YAML parser and emitter for C++
+  yaml-cpp
+
+All requested installations completed successfully in: 17 min
+-- Running vcpkg install - done
+-- The CXX compiler identification is MSVC 19.44.35222.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - not found
+-- Found Threads: TRUE
+-- Found Protobuf: D:/a/anolis/anolis/build/vcpkg_installed/x64-windows/tools/protobuf/protoc.exe (found version "29.5.0")
+-- Found httplib: D:/a/anolis/anolis/build/vcpkg_installed/x64-windows/include/httplib.h (found version "0.30.1")
+-- Found nlohmann_json: D:/a/anolis/anolis/build/vcpkg_installed/x64-windows/share/nlohmann_json/nlohmann_jsonConfig.cmake (found version "3.12.0")
+-- Configuring done (1057.7s)
+-- Generating done (0.1s)
+-- Build files have been written to: D:/a/anolis/anolis/build
+MSBuild version 17.14.40+3e7442088 for .NET Framework
+
+  1>Checking Build System
+  Running cpp protocol buffer compiler on D:/a/anolis/anolis/core/../spec/device-provider/protocol.proto
+  Building Custom Rule D:/a/anolis/anolis/core/CMakeLists.txt
+  protocol.pb.cc
+  anolis_proto.vcxproj -> D:\a\anolis\anolis\build\core\anolis_proto.dir\Release\anolis_proto.lib
+  Building Custom Rule D:/a/anolis/anolis/core/CMakeLists.txt
+  framed_stdio_client.cpp
+  provider_process.cpp
+  provider_handle.cpp
+  Generating Code...
+  anolis_provider.vcxproj -> D:\a\anolis\anolis\build\core\Release\anolis_provider.lib
+  Building Custom Rule D:/a/anolis/anolis/core/CMakeLists.txt
+  device_registry.cpp
+  anolis_registry.vcxproj -> D:\a\anolis\anolis\build\core\Release\anolis_registry.lib
+  Building Custom Rule D:/a/anolis/anolis/core/CMakeLists.txt
+  state_cache.cpp
+  anolis_state.vcxproj -> D:\a\anolis\anolis\build\core\Release\anolis_state.lib
+  Building Custom Rule D:/a/anolis/anolis/core/CMakeLists.txt
+  call_router.cpp
+  anolis_control.vcxproj -> D:\a\anolis\anolis\build\core\Release\anolis_control.lib
+  Building Custom Rule D:/a/anolis/anolis/core/CMakeLists.txt
+  json.cpp
+  server.cpp
+  handlers.cpp
+  Generating Code...
+  anolis_http.vcxproj -> D:\a\anolis\anolis\build\core\Release\anolis_http.lib
+  Building Custom Rule D:/a/anolis/anolis/core/CMakeLists.txt
+  config.cpp
+  Defining YAML_CPP_API for DLL import
+  runtime.cpp
+  Generating Code...
+  anolis_runtime.vcxproj -> D:\a\anolis\anolis\build\core\Release\anolis_runtime.lib
+  Building Custom Rule D:/a/anolis/anolis/core/CMakeLists.txt
+  main.cpp
+  anolis-runtime.vcxproj -> D:\a\anolis\anolis\build\core\Release\anolis-runtime.exe
+  Building Custom Rule D:/a/anolis/anolis/CMakeLists.txt
+7s
+Run cd anolis-provider-sim
+-- Building for: Visual Studio 17 2022
+-- The CXX compiler identification is MSVC 19.44.35222.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+CMake Error at C:/Program Files/CMake/share/cmake-3.31/Modules/FindPackageHandleStandardArgs.cmake:233 (message):
+Error:   Could NOT find Protobuf (missing: Protobuf_INCLUDE_DIR)
+Call Stack (most recent call first):
+  C:/Program Files/CMake/share/cmake-3.31/Modules/FindPackageHandleStandardArgs.cmake:603 (_FPHSA_FAILURE_MESSAGE)
+  C:/Program Files/CMake/share/cmake-3.31/Modules/FindProtobuf.cmake:772 (FIND_PACKAGE_HANDLE_STANDARD_ARGS)
+  D:/a/anolis/anolis/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)
+  CMakeLists.txt:9 (find_package)
+
+
+-- Configuring incomplete, errors occurred!
+MSBuild version 17.14.40+3e7442088 for .NET Framework
+MSBUILD : error MSB1009: Project file does not exist.
+Switch: ALL_BUILD.vcxproj
+Error: Process completed with exit code 1.
+0s
+4s
+Post job cleanup.
+"C:\Program Files\Git\bin\git.exe" version
+git version 2.52.0.windows.1
+Temporarily overriding HOME='D:\a\_temp\638d03e1-e9f3-44e8-90fc-62e9aeaebf0b' before making global git config changes
+Adding repository directory to the temporary git global config as a safe directory
+"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\anolis\anolis\anolis-provider-sim
+"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+Entering 'external/anolis'
+"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+http.https://github.com/.extraheader
+"C:\Program Files\Git\bin\git.exe" config --local --unset-all http.https://github.com/.extraheader
+"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+Entering 'external/anolis'
+http.https://github.com/.extraheader
+"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+Entering 'external/anolis'
+file:D:/a/anolis/anolis/anolis-provider-sim/.git/modules/external/anolis/config	remote.origin.url
+"C:\Program Files\Git\bin\git.exe" config --file D:/a/anolis/anolis/anolis-provider-sim/.git/modules/external/anolis/config --name-only --get-regexp ^includeIf\.gitdir:
+2s
+Post job cleanup.
+"C:\Program Files\Git\bin\git.exe" version
+git version 2.52.0.windows.1
+Temporarily overriding HOME='D:\a\_temp\7f334566-fe74-4aa4-99d7-aef95520de83' before making global git config changes
+Adding repository directory to the temporary git global config as a safe directory
+"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\anolis\anolis
+"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+http.https://github.com/.extraheader
+"C:\Program Files\Git\bin\git.exe" config --local --unset-all http.https://github.com/.extraheader
+"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+0s
+Cleaning up orphan processes
