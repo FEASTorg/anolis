@@ -37,16 +37,16 @@ jobs:
         with:
           vcpkgGitCommitId: "a34c873a9717a888f58dc05268dea15592c2f0ff"
 
-      - name: Build anolis-provider-sim
+      - name: Build anolis
         run: |
-          cd anolis-provider-sim
           cmake -B build -S . \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
           cmake --build build --config Release --parallel
 
-      - name: Build anolis
+      - name: Build anolis-provider-sim
         run: |
+          cd anolis-provider-sim
           cmake -B build -S . \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
@@ -85,14 +85,14 @@ jobs:
         with:
           vcpkgGitCommitId: "a34c873a9717a888f58dc05268dea15592c2f0ff"
 
-      - name: Build anolis-provider-sim
+      - name: Build anolis
         run: |
-          cd anolis-provider-sim
           cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
           cmake --build build --config Release
 
-      - name: Build anolis
+      - name: Build anolis-provider-sim
         run: |
+          cd anolis-provider-sim
           cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
           cmake --build build --config Release
 
