@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [main]
 
-# vcpkg commit from official release 2026.01.16
+# vcpkg commit from the official release 2026.01.16
 # https://github.com/microsoft/vcpkg/releases/tag/2026.01.16
 env:
   VCPKG_COMMIT: "66c0373dc7fca549e5803087b9487edfe3aca0a1"
