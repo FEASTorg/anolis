@@ -251,6 +251,141 @@ logging:
         except Exception as e:
             return {"status_code": 0, "error": str(e)}
 
+    def test_sse_endpoint(self) -> bool:
+        """Test SSE /v0/events endpoint."""
+        import threading
+        
+        # Test 1: SSE endpoint exists and returns correct content-type
+        try:
+            resp = requests.get(
+                f"{self.base_url}/v0/events?provider_id=sim0&device_id=tempctl0",
+                stream=True,
+                timeout=2,
+                headers={"Accept": "text/event-stream"}
+            )
+            
+            content_type = resp.headers.get("Content-Type", "")
+            if "text/event-stream" not in content_type:
+                self.record(
+                    "SSE content-type",
+                    False,
+                    f"Expected text/event-stream, got {content_type}"
+                )
+                resp.close()
+                return False
+            self.record("SSE content-type correct", True)
+            
+        except requests.exceptions.Timeout:
+            # Timeout is expected for SSE since it's a long-running connection
+            pass
+        except Exception as e:
+            self.record("SSE endpoint accessible", False, str(e))
+            return False
+        
+        # Test 2: Receive actual events
+        events_received = []
+        stop_event = threading.Event()
+        
+        def collect_events():
+            try:
+                resp = requests.get(
+                    f"{self.base_url}/v0/events?provider_id=sim0&device_id=tempctl0",
+                    stream=True,
+                    timeout=10,
+                    headers={"Accept": "text/event-stream"}
+                )
+                
+                buffer = ""
+                for chunk in resp.iter_content(chunk_size=1, decode_unicode=True):
+                    if stop_event.is_set():
+                        break
+                    if chunk:
+                        buffer += chunk
+                        # Look for complete events (double newline)
+                        while "\n\n" in buffer:
+                            event_str, buffer = buffer.split("\n\n", 1)
+                            if event_str.strip():
+                                events_received.append(event_str)
+                                if len(events_received) >= 3:
+                                    stop_event.set()
+                                    break
+                resp.close()
+            except:
+                pass
+        
+        # Collect events for up to 3 seconds
+        collector = threading.Thread(target=collect_events, daemon=True)
+        collector.start()
+        collector.join(timeout=3.0)
+        stop_event.set()
+        
+        if len(events_received) < 1:
+            self.record("SSE events received", False, "No events received in 3 seconds")
+            return False
+        self.record(f"SSE events received ({len(events_received)})", True)
+        
+        # Test 3: Verify event format
+        first_event = events_received[0]
+        
+        # Check for required fields
+        if "event: state_update" not in first_event:
+            self.record("SSE event type", False, f"Missing 'event:' field: {first_event}")
+            return False
+        self.record("SSE event type present", True)
+        
+        if "id: " not in first_event:
+            self.record("SSE event id", False, f"Missing 'id:' field: {first_event}")
+            return False
+        self.record("SSE event id present", True)
+        
+        if "data: " not in first_event:
+            self.record("SSE data field", False, f"Missing 'data:' field: {first_event}")
+            return False
+        self.record("SSE data field present", True)
+        
+        # Parse data JSON
+        try:
+            data_line = [l for l in first_event.split("\n") if l.startswith("data: ")][0]
+            data_json = json.loads(data_line[6:])  # Strip "data: " prefix
+            
+            # Check required fields in data
+            required_fields = ["provider_id", "device_id", "signal_id", "value", "quality", "timestamp_ms"]
+            for field in required_fields:
+                if field not in data_json:
+                    self.record(f"SSE data.{field}", False, f"Missing field in: {data_json}")
+                    return False
+            self.record("SSE data fields complete", True)
+            
+            # Check value has type
+            value = data_json.get("value", {})
+            if "type" not in value:
+                self.record("SSE value.type", False, f"Missing type in value: {value}")
+                return False
+            self.record("SSE value has type", True)
+            
+        except Exception as e:
+            self.record("SSE data JSON parse", False, str(e))
+            return False
+        
+        # Test 4: Test filtering works
+        try:
+            resp = requests.get(
+                f"{self.base_url}/v0/events?provider_id=sim0&device_id=nonexistent",
+                stream=True,
+                timeout=1.5,
+                headers={"Accept": "text/event-stream"}
+            )
+            # Should connect but receive no events for nonexistent device
+            self.record("SSE filter accepts connection", True)
+            resp.close()
+        except requests.exceptions.Timeout:
+            self.record("SSE filter accepts connection", True)
+        except Exception as e:
+            self.record("SSE filter test", False, str(e))
+            return False
+        
+        return True
+
     def wait_for_http_ready(self, timeout: float = 15.0) -> bool:
         """Poll /v0/runtime/status until server is ready."""
         deadline = time.time() + timeout
@@ -599,6 +734,16 @@ logging:
                 )
             else:
                 self.record(f"Type {expected_type} present", True)
+
+        # ========================================
+        # 11. GET /v0/events (SSE endpoint)
+        # ========================================
+        print("\n11. SSE Event Streaming")
+
+        # Test SSE endpoint returns correct content-type and events
+        sse_result = self.test_sse_endpoint()
+        if not sse_result:
+            return False
 
         # ========================================
         # Summary

@@ -1,5 +1,6 @@
 #include "server.hpp"
 #include "errors.hpp"
+#include "events/event_emitter.hpp"
 #include <iostream>
 
 namespace anolis
@@ -11,8 +12,10 @@ namespace anolis
                                registry::DeviceRegistry &registry,
                                state::StateCache &state_cache,
                                control::CallRouter &call_router,
-                               ProviderMap &providers)
-            : config_(config), registry_(registry), state_cache_(state_cache), call_router_(call_router), providers_(providers) {}
+                               ProviderMap &providers,
+                               std::shared_ptr<events::EventEmitter> event_emitter)
+            : config_(config), registry_(registry), state_cache_(state_cache), 
+              call_router_(call_router), providers_(providers), event_emitter_(event_emitter) {}
 
         HttpServer::~HttpServer()
         {
@@ -35,6 +38,11 @@ namespace anolis
             // Configure server
             server_->set_read_timeout(5, 0);  // 5 seconds
             server_->set_write_timeout(5, 0); // 5 seconds
+            
+            // Set thread pool size to handle SSE + REST concurrently
+            // Rule: thread_pool_size >= max_sse_clients + headroom for REST
+            // MAX_SSE_CLIENTS = 32, so we use 40 threads (32 + 8 headroom)
+            server_->new_task_queue = [] { return new httplib::ThreadPool(40); };
 
             // Add CORS headers to all responses (dev-only, Phase 8 will add proper CORS)
             server_->set_post_routing_handler([](const httplib::Request &req, httplib::Response &res)
@@ -180,6 +188,10 @@ namespace anolis
             server_->Get("/v0/runtime/status", [this](const httplib::Request &req, httplib::Response &res)
                          { handle_get_runtime_status(req, res); });
 
+            // GET /v0/events - SSE event stream (Phase 6)
+            server_->Get("/v0/events", [this](const httplib::Request &req, httplib::Response &res)
+                         { handle_get_events(req, res); });
+
             std::cerr << "[HTTP] Routes configured:\n";
             std::cerr << "[HTTP]   GET  /v0/devices\n";
             std::cerr << "[HTTP]   GET  /v0/devices/{provider_id}/{device_id}/capabilities\n";
@@ -187,6 +199,7 @@ namespace anolis
             std::cerr << "[HTTP]   GET  /v0/state/{provider_id}/{device_id}\n";
             std::cerr << "[HTTP]   POST /v0/call\n";
             std::cerr << "[HTTP]   GET  /v0/runtime/status\n";
+            std::cerr << "[HTTP]   GET  /v0/events (SSE)\n";
         }
 
     } // namespace http

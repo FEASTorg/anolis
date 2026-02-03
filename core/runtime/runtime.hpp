@@ -6,6 +6,7 @@
 #include "state/state_cache.hpp"
 #include "control/call_router.hpp"
 #include "http/server.hpp"
+#include "events/event_emitter.hpp"
 #include <memory>
 #include <unordered_map>
 
@@ -30,6 +31,7 @@ public:
     registry::DeviceRegistry& get_registry() { return *registry_; }
     state::StateCache& get_state_cache() { return *state_cache_; }
     control::CallRouter& get_call_router() { return *call_router_; }
+    events::EventEmitter& get_event_emitter() { return *event_emitter_; }
     
     // Provider map access (for HTTP layer)
     std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>>& get_providers() {
@@ -41,6 +43,7 @@ private:
     
     std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>> providers_;
     std::unique_ptr<registry::DeviceRegistry> registry_;
+    std::shared_ptr<events::EventEmitter> event_emitter_;  // Shared with StateCache + HTTP
     std::unique_ptr<state::StateCache> state_cache_;
     std::unique_ptr<control::CallRouter> call_router_;
     std::unique_ptr<http::HttpServer> http_server_;

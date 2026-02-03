@@ -48,8 +48,16 @@ bool Runtime::initialize(std::string& error) {
     
     std::cerr << "[Runtime] All providers started\n";
     
+    // Create event emitter (Phase 6)
+    // Default: 100 events per subscriber queue, max 32 SSE clients
+    event_emitter_ = std::make_shared<events::EventEmitter>(100, 32);
+    std::cerr << "[Runtime] Event emitter created (max " << event_emitter_->max_subscribers() << " subscribers)\n";
+    
     // Create state cache
     state_cache_ = std::make_unique<state::StateCache>(*registry_, config_.polling.interval_ms);
+    
+    // Wire event emitter to state cache
+    state_cache_->set_event_emitter(event_emitter_);
     
     if (!state_cache_->initialize()) {
         error = "State cache initialization failed: " + state_cache_->last_error();
@@ -67,7 +75,8 @@ bool Runtime::initialize(std::string& error) {
             *registry_,
             *state_cache_,
             *call_router_,
-            providers_
+            providers_,
+            event_emitter_  // Pass event emitter for SSE
         );
         
         std::string http_error;

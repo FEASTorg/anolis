@@ -10,6 +10,9 @@
 #include "registry/device_registry.hpp"
 #include "provider/provider_handle.hpp"
 
+// Forward declaration
+namespace anolis { namespace events { class EventEmitter; } }
+
 namespace anolis {
 namespace state {
 
@@ -42,6 +45,16 @@ public:
     // Initialize: Build polling lists from registry
     bool initialize();
     
+    /**
+     * @brief Set event emitter for change notifications (Phase 6)
+     * 
+     * When set, StateCache will emit events on value/quality changes.
+     * Must be called before start_polling().
+     * 
+     * @param emitter Shared pointer to EventEmitter (can be nullptr to disable)
+     */
+    void set_event_emitter(std::shared_ptr<events::EventEmitter> emitter);
+    
     // Start polling thread (v0: runs in main thread)
     void start_polling(std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>>& providers);
     
@@ -68,6 +81,9 @@ private:
     const registry::DeviceRegistry& registry_;
     std::string error_;
     
+    // Event emitter for change notifications (Phase 6)
+    std::shared_ptr<events::EventEmitter> event_emitter_;
+    
     // Cached state (indexed by device_handle)
     std::unordered_map<std::string, DeviceState> device_states_;
     
@@ -89,9 +105,26 @@ private:
                     const std::vector<std::string>& signal_ids,
                     provider::ProviderHandle& provider);
     
-    // Helper: Update cached values from ReadSignalsResponse
+    // Helper: Update cached values from ReadSignalsResponse (emits events on change)
     void update_device_state(const std::string& device_handle,
+                            const std::string& provider_id,
+                            const std::string& device_id,
                             const anolis::deviceprovider::v0::ReadSignalsResponse& response);
+    
+    // Helper: Check if value changed (uses bitwise comparison for doubles)
+    bool value_changed(const anolis::deviceprovider::v0::Value& old_val,
+                       const anolis::deviceprovider::v0::Value& new_val) const;
+    
+    // Helper: Check if quality changed
+    bool quality_changed(anolis::deviceprovider::v0::SignalValue_Quality old_q,
+                         anolis::deviceprovider::v0::SignalValue_Quality new_q) const;
+    
+    // Helper: Emit state update event
+    void emit_state_update(const std::string& provider_id,
+                          const std::string& device_id,
+                          const std::string& signal_id,
+                          const anolis::deviceprovider::v0::Value& value,
+                          anolis::deviceprovider::v0::SignalValue_Quality quality);
 };
 
 } // namespace state

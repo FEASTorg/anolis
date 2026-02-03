@@ -10,6 +10,7 @@
 #include "registry/device_registry.hpp"
 #include "state/state_cache.hpp"
 #include "control/call_router.hpp"
+#include "events/event_emitter.hpp"
 #include <chrono>
 
 namespace anolis {
@@ -348,6 +349,174 @@ void HttpServer::handle_get_runtime_status(const httplib::Request& req, httplib:
     };
     
     send_json(res, StatusCode::OK, response);
+}
+
+//=============================================================================
+// GET /v0/events (SSE - Server-Sent Events)
+//=============================================================================
+void HttpServer::handle_get_events(const httplib::Request& req, httplib::Response& res) {
+    // Check if event emitter is available
+    if (!event_emitter_) {
+        nlohmann::json error_response = make_error_response(
+            StatusCode::UNAVAILABLE, "Event streaming not enabled");
+        send_json(res, StatusCode::UNAVAILABLE, error_response);
+        return;
+    }
+    
+    // Check SSE client limit
+    int current_clients = sse_client_count_.load();
+    if (current_clients >= MAX_SSE_CLIENTS) {
+        std::cerr << "[SSE] Client rejected: max clients (" << MAX_SSE_CLIENTS << ") reached\n";
+        nlohmann::json error_response = make_error_response(
+            StatusCode::UNAVAILABLE, "Too many SSE clients");
+        res.status = 503;  // Service Unavailable
+        res.set_content(error_response.dump(), "application/json");
+        return;
+    }
+    
+    // Parse optional filters
+    events::EventFilter filter;
+    if (req.has_param("provider_id")) {
+        filter.provider_id = req.get_param_value("provider_id");
+    }
+    if (req.has_param("device_id")) {
+        filter.device_id = req.get_param_value("device_id");
+    }
+    if (req.has_param("signal_id")) {
+        filter.signal_id = req.get_param_value("signal_id");
+    }
+    
+    // Subscribe to events (convert to shared_ptr for lambda capture)
+    std::string client_name = "sse-" + std::to_string(current_clients + 1);
+    std::shared_ptr<events::Subscription> subscription(
+        event_emitter_->subscribe(filter, 100, client_name).release());
+    
+    if (!subscription) {
+        std::cerr << "[SSE] Failed to create subscription\n";
+        nlohmann::json error_response = make_error_response(
+            StatusCode::UNAVAILABLE, "Failed to subscribe to events");
+        res.status = 503;
+        res.set_content(error_response.dump(), "application/json");
+        return;
+    }
+    
+    sse_client_count_++;
+    std::cerr << "[SSE] Client connected: " << client_name 
+              << " (total: " << sse_client_count_.load() << ")\n";
+    
+    // Set SSE headers
+    res.set_header("Content-Type", "text/event-stream");
+    res.set_header("Cache-Control", "no-cache");
+    res.set_header("Connection", "keep-alive");
+    res.set_header("X-Accel-Buffering", "no");  // Disable nginx buffering
+    
+    // Per-client keep-alive counter (shared_ptr for lambda capture)
+    auto keepalive_counter = std::make_shared<int>(0);
+    
+    // Use chunked content provider for streaming
+    res.set_chunked_content_provider(
+        "text/event-stream",
+        [this, subscription, client_name, keepalive_counter](size_t offset, httplib::DataSink& sink) {
+            // Check if server is still running
+            if (!running_.load()) {
+                std::cerr << "[SSE] Server stopping, closing " << client_name << "\n";
+                return false;  // Stop streaming
+            }
+            
+            // Try to get event with timeout (allows periodic keep-alive)
+            auto event_opt = subscription->pop(1000);  // 1 second timeout
+            
+            if (event_opt) {
+                // Format and send event
+                std::string sse_data = format_sse_event(*event_opt);
+                if (!sink.write(sse_data.c_str(), sse_data.size())) {
+                    std::cerr << "[SSE] Write failed for " << client_name << "\n";
+                    return false;
+                }
+                *keepalive_counter = 0;  // Reset on successful event
+            } else {
+                // No event - send keep-alive comment every ~15 seconds
+                if (++(*keepalive_counter) >= 15) {
+                    std::string keepalive = ": keepalive\n\n";
+                    if (!sink.write(keepalive.c_str(), keepalive.size())) {
+                        std::cerr << "[SSE] Keep-alive failed for " << client_name << "\n";
+                        return false;
+                    }
+                    *keepalive_counter = 0;
+                }
+            }
+            
+            return true;  // Continue streaming
+        },
+        [this, client_name](bool success) {
+            // Cleanup callback when stream ends
+            sse_client_count_--;
+            std::cerr << "[SSE] Client disconnected: " << client_name 
+                      << " (remaining: " << sse_client_count_.load() << ")\n";
+        }
+    );
+}
+
+// Helper: Format event as SSE message
+std::string HttpServer::format_sse_event(const events::Event& event) {
+    std::string result;
+    
+    std::visit([&result](auto&& e) {
+        using T = std::decay_t<decltype(e)>;
+        
+        nlohmann::json data;
+        
+        if constexpr (std::is_same_v<T, events::StateUpdateEvent>) {
+            result = "event: state_update\n";
+            result += "id: " + std::to_string(e.event_id) + "\n";
+            
+            data["provider_id"] = e.provider_id;
+            data["device_id"] = e.device_id;
+            data["signal_id"] = e.signal_id;
+            data["timestamp_ms"] = e.timestamp_ms;
+            data["quality"] = events::quality_to_string(e.quality);
+            
+            // Encode value in Phase 4 format
+            std::visit([&data](auto&& val) {
+                using V = std::decay_t<decltype(val)>;
+                if constexpr (std::is_same_v<V, double>) {
+                    data["value"] = {{"type", "double"}, {"double", val}};
+                } else if constexpr (std::is_same_v<V, int64_t>) {
+                    data["value"] = {{"type", "int64"}, {"int64", val}};
+                } else if constexpr (std::is_same_v<V, uint64_t>) {
+                    data["value"] = {{"type", "uint64"}, {"uint64", val}};
+                } else if constexpr (std::is_same_v<V, bool>) {
+                    data["value"] = {{"type", "bool"}, {"bool", val}};
+                } else if constexpr (std::is_same_v<V, std::string>) {
+                    data["value"] = {{"type", "string"}, {"string", val}};
+                }
+            }, e.value);
+            
+        } else if constexpr (std::is_same_v<T, events::QualityChangeEvent>) {
+            result = "event: quality_change\n";
+            result += "id: " + std::to_string(e.event_id) + "\n";
+            
+            data["provider_id"] = e.provider_id;
+            data["device_id"] = e.device_id;
+            data["signal_id"] = e.signal_id;
+            data["old_quality"] = events::quality_to_string(e.old_quality);
+            data["new_quality"] = events::quality_to_string(e.new_quality);
+            data["timestamp_ms"] = e.timestamp_ms;
+            
+        } else if constexpr (std::is_same_v<T, events::DeviceAvailabilityEvent>) {
+            result = "event: device_availability\n";
+            result += "id: " + std::to_string(e.event_id) + "\n";
+            
+            data["provider_id"] = e.provider_id;
+            data["device_id"] = e.device_id;
+            data["available"] = e.available;
+            data["timestamp_ms"] = e.timestamp_ms;
+        }
+        
+        result += "data: " + data.dump() + "\n\n";
+    }, event);
+    
+    return result;
 }
 
 } // namespace http

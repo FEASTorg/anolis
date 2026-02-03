@@ -48,6 +48,14 @@ target_link_libraries(anolis_registry PUBLIC
     protobuf::libprotobuf
 )
 
+# Events library (Phase 6 - header-only for now)
+add_library(anolis_events INTERFACE)
+
+target_include_directories(anolis_events INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
 # State cache library
 add_library(anolis_state STATIC
     state/state_cache.cpp
@@ -62,6 +70,7 @@ target_link_libraries(anolis_state PUBLIC
     anolis_proto
     anolis_provider
     anolis_registry
+    anolis_events
     protobuf::libprotobuf
 )
 

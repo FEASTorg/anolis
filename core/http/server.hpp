@@ -14,6 +14,7 @@
 #include <httplib.h>
 #include "runtime/config.hpp"
 #include "provider/provider_handle.hpp"
+#include "events/event_types.hpp"
 
 // Forward declarations
 namespace anolis {
@@ -21,6 +22,7 @@ namespace runtime { class Runtime; }
 namespace registry { class DeviceRegistry; }
 namespace state { class StateCache; }
 namespace control { class CallRouter; }
+namespace events { class EventEmitter; }
 }
 
 // Typedef for provider map
@@ -56,12 +58,14 @@ public:
      * @param state_cache State cache for reading device state
      * @param call_router Call router for executing device functions
      * @param providers Provider map for call execution
+     * @param event_emitter Event emitter for SSE streaming (Phase 6)
      */
     HttpServer(const runtime::HttpConfig& config,
                registry::DeviceRegistry& registry,
                state::StateCache& state_cache,
                control::CallRouter& call_router,
-               ProviderMap& providers);
+               ProviderMap& providers,
+               std::shared_ptr<events::EventEmitter> event_emitter = nullptr);
     
     ~HttpServer();
     
@@ -104,6 +108,11 @@ private:
     state::StateCache& state_cache_;
     control::CallRouter& call_router_;
     ProviderMap& providers_;
+    std::shared_ptr<events::EventEmitter> event_emitter_;  // Phase 6 SSE
+    
+    // SSE client tracking
+    std::atomic<int> sse_client_count_{0};
+    static constexpr int MAX_SSE_CLIENTS = 32;
     
     // Server state
     std::unique_ptr<httplib::Server> server_;
@@ -120,6 +129,10 @@ private:
     void handle_get_device_state(const httplib::Request& req, httplib::Response& res);
     void handle_post_call(const httplib::Request& req, httplib::Response& res);
     void handle_get_runtime_status(const httplib::Request& req, httplib::Response& res);
+    
+    // SSE handler (Phase 6)
+    void handle_get_events(const httplib::Request& req, httplib::Response& res);
+    std::string format_sse_event(const events::Event& event);
 };
 
 } // namespace http
