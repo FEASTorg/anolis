@@ -63,6 +63,8 @@ jobs:
         env:
           LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/lib
         run: |
+          set +e  # Don't exit on error so we can capture diagnostics
+          
           # Smoke test: verify binaries can start
           echo "=== Smoke test: runtime --help ==="
           timeout 10 build/core/anolis-runtime --help || echo "Runtime help exit: $?"
@@ -73,24 +75,25 @@ jobs:
           echo "=== Memory status before tests ==="
           free -m
           
-          echo "=== Running tests (non-verbose to prevent OOM) ==="
+          echo "=== Running tests ==="
           python3 scripts/test_all.py --timeout=120 \
-            --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim \
-            || TEST_EXIT=$?
+            --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim
+          TEST_EXIT=$?
           
-          # On failure, show OOM diagnostics
-          if [ "${TEST_EXIT:-0}" -ne 0 ]; then
+          # On failure, show diagnostics
+          if [ $TEST_EXIT -ne 0 ]; then
             echo "=== Test failed with exit code $TEST_EXIT ==="
             echo "=== Memory status after tests ==="
             free -m
             echo "=== Checking for OOM kills ==="
-            dmesg | grep -i "oom\|killed" | tail -20 || true
+            dmesg 2>/dev/null | grep -i "oom\|killed" | tail -20 || true
             echo "=== Top memory consumers ==="
             ps aux --sort=-rss | head -10 || true
             echo "=== Test log tails ==="
             tail -100 build/test-logs/*.log 2>/dev/null || true
-            exit $TEST_EXIT
           fi
+          
+          exit $TEST_EXIT
 
   build-windows:
     name: Windows (MSVC 2022)

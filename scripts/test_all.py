@@ -271,11 +271,6 @@ def run_test_script(
 
     except subprocess.TimeoutExpired:
         duration = time.time() - start_time
-        # Kill any hanging process
-        try:
-            process.kill()
-        except Exception:
-            pass
         error_tail = read_tail_lines(log_file_path, 30)
         return TestSuiteResult(
             name=script_name,
