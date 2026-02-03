@@ -9,5 +9,6 @@ Minimal living documentation for Anolis Core.
 - [getting-started.md](getting-started.md) - Build and run instructions
 - [http-api.md](http-api.md) - HTTP REST API reference
 - [providers.md](providers.md) - Provider protocol and development
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Development guide and common pitfalls
 
 Keep docs short. Update as system evolves.

@@ -151,6 +151,7 @@ anolis/
 ## Getting Help
 
 - Check the [documentation](docs/README.md)
+- See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for common pitfalls and CI troubleshooting
 - Review existing issues
 - Ask in discussions
 
