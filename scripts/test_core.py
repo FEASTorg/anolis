@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-Phase 3C Integration Test for Anolis Core Runtime
+Anolis Core Runtime Integration Test
 
-This script validates all Phase 3 functionality:
-- Phase 3.1: Provider Host (spawn, ADPP, framing)
-- Phase 3.2: Device Registry (discovery, capabilities)
-- Phase 3.3: State Cache (polling, staleness)
-- Phase 3.4: Call Router (validation, execution)
-- Phase 3.5: Runtime Bootstrap (config, lifecycle)
+This script validates core runtime functionality:
+- Provider Host (spawn, ADPP, framing)
+- Device Registry (discovery, capabilities)
+- State Cache (polling, staleness)
+- Call Router (validation, execution)
+- Runtime Bootstrap (config, lifecycle)
 
 Usage:
-    python scripts/test_phase3.py [--runtime PATH] [--provider PATH] [--timeout SECONDS]
+    python scripts/test_core.py [--runtime PATH] [--provider PATH] [--timeout SECONDS]
 """
 
 import subprocess

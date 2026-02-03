@@ -1,5 +1,7 @@
 # anolis
 
+[![CI](https://github.com/FEASTorg/anolis/actions/workflows/ci.yml/badge.svg)](https://github.com/FEASTorg/anolis/actions/workflows/ci.yml)
+
 **Anolis** is a modular control runtime for building machines from heterogeneous devices.
 
 It provides a **hardware-agnostic core** that discovers devices, understands their capabilities, maintains live state, and coordinates control actions — independent of how the hardware is connected or implemented.
@@ -119,20 +121,45 @@ Examples:
 
 ---
 
-## Quick Start (HTTP API)
+## Quick Start
 
-### Running the Runtime
+### Setup (First Time)
 
 ```bash
-# Build (requires vcpkg with protobuf, yaml-cpp, cpp-httplib, nlohmann-json)
-cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=[vcpkg-root]/scripts/buildsystems/vcpkg.cmake
-cmake --build build --config Release
+# Clone repositories
+git clone https://github.com/FEASTorg/anolis.git
+git clone https://github.com/FEASTorg/anolis-provider-sim.git
+cd anolis
 
-# Run with config
-./build/core/Release/anolis-runtime --config=anolis-runtime.yaml
+# Run setup script
+./scripts/setup.sh      # Linux/macOS
+.\scripts\setup.ps1     # Windows
 ```
 
-### HTTP API Examples
+### Build
+
+```bash
+./scripts/build.sh      # Linux/macOS
+.\scripts\build.ps1     # Windows
+```
+
+### Run
+
+```bash
+./scripts/run.sh        # Linux/macOS
+.\scripts\run.ps1       # Windows
+```
+
+### Test
+
+```bash
+./scripts/test.sh       # Linux/macOS
+.\scripts\test.ps1      # Windows
+```
+
+---
+
+## HTTP API Examples
 
 ```bash
 # List devices
@@ -160,14 +187,14 @@ curl -s http://127.0.0.1:8080/v0/runtime/status | jq
 
 ### API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/v0/devices` | GET | List all devices |
-| `/v0/devices/{provider}/{device}/capabilities` | GET | Get signals and functions |
-| `/v0/state` | GET | Get all device states |
-| `/v0/state/{provider}/{device}` | GET | Get single device state |
-| `/v0/call` | POST | Execute device function |
-| `/v0/runtime/status` | GET | Get runtime status |
+| Endpoint                                       | Method | Description               |
+| ---------------------------------------------- | ------ | ------------------------- |
+| `/v0/devices`                                  | GET    | List all devices          |
+| `/v0/devices/{provider}/{device}/capabilities` | GET    | Get signals and functions |
+| `/v0/state`                                    | GET    | Get all device states     |
+| `/v0/state/{provider}/{device}`                | GET    | Get single device state   |
+| `/v0/call`                                     | POST   | Execute device function   |
+| `/v0/runtime/status`                           | GET    | Get runtime status        |
 
 See [docs/http-api.md](docs/http-api.md) for full API reference.
 

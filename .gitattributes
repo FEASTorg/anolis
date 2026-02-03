@@ -1,0 +1,55 @@
+# Anolis Git Attributes
+# Normalize line endings for cross-platform development
+
+# Default: auto-detect and normalize to LF in repo
+* text=auto
+
+# Force LF for source files (critical for cross-platform builds)
+*.cpp text eol=lf
+*.hpp text eol=lf
+*.h text eol=lf
+*.c text eol=lf
+*.cc text eol=lf
+*.proto text eol=lf
+*.cmake text eol=lf
+CMakeLists.txt text eol=lf
+
+# Scripts: LF for Unix, CRLF for Windows
+*.sh text eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Python: LF
+*.py text eol=lf
+
+# Config files: LF
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+
+# Markdown and docs: LF
+*.md text eol=lf
+*.txt text eol=lf
+
+# Web files: LF
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+
+# Binary files: no conversion
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.a binary
+*.lib binary
+*.o binary
+*.obj binary
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.zip binary
+*.tar.gz binary

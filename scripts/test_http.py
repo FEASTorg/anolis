@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Phase 4 HTTP Gateway Integration Test for Anolis Core Runtime
+Anolis HTTP Gateway Integration Test
 
-This script validates all Phase 4 HTTP API functionality:
+This script validates HTTP API functionality:
 - GET /v0/devices (list all devices)
 - GET /v0/devices/{provider}/{device}/capabilities (device capabilities)
 - GET /v0/state (all device states)
@@ -13,10 +13,10 @@ This script validates all Phase 4 HTTP API functionality:
 - Provider failure -> UNAVAILABLE transition
 
 Usage:
-    python scripts/test_phase4_http.py [--runtime PATH] [--provider PATH] [--port PORT]
+    python scripts/test_http.py [--runtime PATH] [--provider PATH] [--port PORT]
 
 Prerequisites:
-    - Phase 3 tests must pass
+    - Core tests must pass (test_core.py)
     - Runtime and provider executables must be built
 """
 

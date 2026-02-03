@@ -3,38 +3,54 @@
 ## Prerequisites
 
 - **Windows**: Visual Studio 2022 with C++ desktop development
-- **Linux**: gcc 11+, cmake 3.20+
+- **Linux**: GCC 11+, CMake 3.20+
 - **vcpkg**: For dependency management
-- **Git**: For cloning repos
+- **Python 3**: For running tests
+- **Git**: For version control
 
-## Clone Repositories
+## Quick Start (Recommended)
+
+Use the setup scripts to bootstrap your environment:
 
 ```bash
-# Runtime
+# Clone repositories
 git clone https://github.com/FEASTorg/anolis.git
-cd anolis
-
-# Example provider (for testing)
 git clone https://github.com/FEASTorg/anolis-provider-sim.git
-```
-
-## Build anolis-provider-sim
-
-```bash
-cd anolis-provider-sim
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
-cmake --build build --config Release
-```
-
-## Build Anolis Core
-
-```bash
 cd anolis
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=[path-to-vcpkg]/scripts/buildsystems/vcpkg.cmake
-cmake --build build --config Release
+
+# Run setup (installs dependencies, builds both repos)
+./scripts/setup.sh      # Linux/macOS
+.\scripts\setup.ps1     # Windows
+
+# Run tests
+./scripts/test.sh       # Linux/macOS
+.\scripts\test.ps1      # Windows
+
+# Start the runtime
+./scripts/run.sh        # Linux/macOS
+.\scripts\run.ps1       # Windows
 ```
 
-**Note**: Set `CMAKE_TOOLCHAIN_FILE` to your vcpkg installation path.
+## Manual Build
+
+If you prefer manual setup:
+
+```bash
+# Set VCPKG_ROOT to your vcpkg installation
+export VCPKG_ROOT=~/vcpkg  # or wherever vcpkg is installed
+
+# Build provider-sim
+cd anolis-provider-sim
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
+cmake --build build --config Release
+
+# Build anolis
+cd ../anolis
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
+cmake --build build --config Release
+```
 
 ## Run the Runtime
 
