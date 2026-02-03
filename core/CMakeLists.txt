@@ -56,6 +56,21 @@ target_include_directories(anolis_events INTERFACE
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+# Telemetry library (Phase 6B - InfluxDB sink)
+add_library(anolis_telemetry STATIC
+    telemetry/influx_sink.cpp
+)
+
+target_include_directories(anolis_telemetry PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+target_link_libraries(anolis_telemetry PUBLIC
+    anolis_events
+    httplib::httplib
+)
+
 # State cache library
 add_library(anolis_state STATIC
     state/state_cache.cpp
@@ -138,6 +153,7 @@ target_link_libraries(anolis_runtime PUBLIC
     anolis_state
     anolis_control
     anolis_http
+    anolis_telemetry
     yaml-cpp::yaml-cpp
     protobuf::libprotobuf
 )

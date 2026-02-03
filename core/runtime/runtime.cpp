@@ -90,6 +90,32 @@ bool Runtime::initialize(std::string& error) {
         std::cerr << "[Runtime] HTTP server disabled in config\n";
     }
     
+    // Start telemetry sink if enabled (Phase 6B)
+    if (config_.telemetry.enabled) {
+        std::cerr << "[Runtime] Creating telemetry sink\n";
+        
+        telemetry::InfluxConfig influx_config;
+        influx_config.enabled = true;
+        influx_config.url = config_.telemetry.influx_url;
+        influx_config.org = config_.telemetry.influx_org;
+        influx_config.bucket = config_.telemetry.influx_bucket;
+        influx_config.token = config_.telemetry.influx_token;
+        influx_config.batch_size = config_.telemetry.batch_size;
+        influx_config.flush_interval_ms = config_.telemetry.flush_interval_ms;
+        influx_config.queue_size = config_.telemetry.queue_size;
+        
+        telemetry_sink_ = std::make_unique<telemetry::InfluxSink>(influx_config);
+        
+        if (!telemetry_sink_->start(event_emitter_)) {
+            std::cerr << "[Runtime] WARNING: Telemetry sink failed to start\n";
+            // Don't fail runtime initialization - telemetry is optional
+        } else {
+            std::cerr << "[Runtime] Telemetry sink started\n";
+        }
+    } else {
+        std::cerr << "[Runtime] Telemetry disabled in config\n";
+    }
+    
     std::cerr << "[Runtime] Initialization complete\n";
     return true;
 }
@@ -126,6 +152,12 @@ void Runtime::shutdown() {
     if (http_server_) {
         std::cerr << "[Runtime] Stopping HTTP server\n";
         http_server_->stop();
+    }
+    
+    // Stop telemetry sink
+    if (telemetry_sink_) {
+        std::cerr << "[Runtime] Stopping telemetry sink\n";
+        telemetry_sink_->stop();
     }
     
     if (state_cache_) {

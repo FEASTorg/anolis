@@ -1,0 +1,56 @@
+# Anolis Observability Stack (Phase 6B)
+#
+# Development-only stack for InfluxDB + Grafana telemetry visualization.
+# NOT for production use - uses insecure default credentials.
+#
+# Usage:
+#   cd tools/docker
+#   cp .env.example .env  # Optional: customize credentials
+#   docker compose -f docker-compose.observability.yml up -d
+#
+# Access:
+#   - InfluxDB: http://localhost:8086 (admin / anolis123)
+#   - Grafana:  http://localhost:3000 (admin / anolis123)
+
+services:
+  influxdb:
+    image: influxdb:2.7
+    container_name: anolis-influxdb
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_USERNAME:-admin}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD:-anolis123}
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG:-anolis}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET:-anolis}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN:-dev-token}
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  grafana:
+    image: grafana/grafana:10.3.1
+    container_name: anolis-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-anolis123}
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/signal-history.json
+    depends_on:
+      influxdb:
+        condition: service_healthy
+
+volumes:
+  influxdb-data:
+  grafana-data:

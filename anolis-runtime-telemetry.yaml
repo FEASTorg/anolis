@@ -1,0 +1,41 @@
+# Anolis Runtime Configuration with Telemetry
+# Phase 6B: InfluxDB Telemetry enabled
+#
+# PREREQUISITES:
+#   1. Start InfluxDB + Grafana:
+#      cd tools/docker && docker-compose -f docker-compose.observability.yml up -d
+#   2. Set INFLUXDB_TOKEN environment variable OR use token below
+#
+# DASHBOARDS:
+#   - Open http://localhost:3000 (admin/anolis123)
+#   - Navigate to Dashboards → Signal History or Device Health
+
+runtime:
+  mode: MANUAL
+
+http:
+  enabled: true
+  bind: 127.0.0.1
+  port: 8080
+
+providers:
+  - id: sim0
+    command: D:/repos_feast/anolis-provider-sim/build/Release/anolis-provider-sim.exe
+    args: []
+    timeout_ms: 5000
+
+polling:
+  interval_ms: 500
+
+telemetry:
+  enabled: true
+  influxdb:
+    url: http://localhost:8086
+    org: anolis
+    bucket: anolis
+    token: dev-token  # Or set INFLUXDB_TOKEN env var
+    batch_size: 100   # Flush batch when this size reached
+    flush_interval_ms: 1000  # Flush every second
+
+logging:
+  level: info

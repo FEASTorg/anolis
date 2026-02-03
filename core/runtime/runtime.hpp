@@ -7,6 +7,7 @@
 #include "control/call_router.hpp"
 #include "http/server.hpp"
 #include "events/event_emitter.hpp"
+#include "telemetry/influx_sink.hpp"
 #include <memory>
 #include <unordered_map>
 
@@ -47,6 +48,7 @@ private:
     std::unique_ptr<state::StateCache> state_cache_;
     std::unique_ptr<control::CallRouter> call_router_;
     std::unique_ptr<http::HttpServer> http_server_;
+    std::unique_ptr<telemetry::InfluxSink> telemetry_sink_;  // Phase 6B
     
     bool running_ = false;
 };

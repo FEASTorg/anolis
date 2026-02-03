@@ -1,0 +1,361 @@
+#pragma once
+
+/**
+ * @file influx_sink.hpp
+ * @brief InfluxDB telemetry sink for Anolis observability layer (Phase 6B)
+ * 
+ * This sink subscribes to the EventEmitter and writes state changes to
+ * InfluxDB using the v2 Line Protocol. Features:
+ * - Async batched writes (don't block state cache)
+ * - Configurable batch size and flush interval
+ * - Graceful degradation on connection failure
+ * - Per-type value fields (value_double, value_int, value_bool)
+ * 
+ * InfluxDB Schema:
+ * - Measurement: anolis_signal
+ * - Tags: provider_id, device_id, signal_id
+ * - Fields: value_double|value_int|value_bool, quality
+ * - Timestamp: epoch milliseconds (precision=ms)
+ */
+
+#include "../events/event_emitter.hpp"
+#include "../events/event_types.hpp"
+#include <string>
+#include <vector>
+#include <thread>
+#include <atomic>
+#include <mutex>
+#include <condition_variable>
+#include <memory>
+#include <chrono>
+#include <sstream>
+#include <iostream>
+#include <cmath>
+
+// Forward declaration for cpp-httplib client
+namespace httplib {
+    class Client;
+}
+
+namespace anolis {
+namespace telemetry {
+
+/**
+ * @brief Configuration for InfluxDB telemetry sink
+ */
+struct InfluxConfig {
+    bool enabled = false;           // Enable telemetry sink
+    std::string url = "http://localhost:8086";  // InfluxDB URL
+    std::string org = "anolis";     // InfluxDB organization
+    std::string bucket = "anolis";  // InfluxDB bucket
+    std::string token;              // InfluxDB API token
+    
+    // Batching configuration
+    size_t batch_size = 100;        // Flush when batch reaches this size
+    int flush_interval_ms = 1000;   // Flush every N milliseconds
+    
+    // Connection settings
+    int timeout_ms = 5000;          // HTTP request timeout
+    int retry_interval_ms = 10000;  // Retry interval on connection failure
+    
+    // Queue settings (larger than SSE since persistence is important)
+    size_t queue_size = 10000;      // Event queue size
+};
+
+/**
+ * @brief Escapes special characters in InfluxDB line protocol
+ * 
+ * Tag keys/values and field keys need escaping of: comma, equals, space
+ * Field string values need escaping of: double quote, backslash
+ */
+inline std::string escape_tag(const std::string& s) {
+    std::string result;
+    result.reserve(s.size() + 10);  // Reserve extra for escapes
+    for (char c : s) {
+        if (c == ',' || c == '=' || c == ' ') {
+            result += '\\';
+        }
+        result += c;
+    }
+    return result;
+}
+
+inline std::string escape_field_string(const std::string& s) {
+    std::string result;
+    result.reserve(s.size() + 10);
+    for (char c : s) {
+        if (c == '"' || c == '\\') {
+            result += '\\';
+        }
+        result += c;
+    }
+    return result;
+}
+
+/**
+ * @brief Format a StateUpdateEvent as InfluxDB line protocol
+ * 
+ * Format:
+ *   anolis_signal,provider_id=X,device_id=Y,signal_id=Z value_TYPE=V,quality="Q" TIMESTAMP
+ * 
+ * Type-specific fields:
+ * - double: value_double=23.5
+ * - int64: value_int=1200i
+ * - uint64: value_uint=1200u
+ * - bool: value_bool=true
+ * - string: value_string="hello"
+ */
+inline std::string format_line_protocol(const events::StateUpdateEvent& event) {
+    std::ostringstream line;
+    
+    // Measurement and tags
+    line << "anolis_signal"
+         << ",provider_id=" << escape_tag(event.provider_id)
+         << ",device_id=" << escape_tag(event.device_id)
+         << ",signal_id=" << escape_tag(event.signal_id);
+    
+    // Field set (space before fields)
+    line << " ";
+    
+    // Value field (type-specific)
+    std::visit([&line](auto&& arg) {
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, double>) {
+            // Handle special float values
+            if (std::isnan(arg)) {
+                // InfluxDB doesn't support NaN, skip value field
+                // We still write quality
+            } else if (std::isinf(arg)) {
+                // InfluxDB doesn't support Inf, skip value field
+            } else {
+                line << "value_double=" << arg;
+            }
+        } else if constexpr (std::is_same_v<T, int64_t>) {
+            line << "value_int=" << arg << "i";
+        } else if constexpr (std::is_same_v<T, uint64_t>) {
+            line << "value_uint=" << arg << "u";
+        } else if constexpr (std::is_same_v<T, bool>) {
+            line << "value_bool=" << (arg ? "true" : "false");
+        } else if constexpr (std::is_same_v<T, std::string>) {
+            line << "value_string=\"" << escape_field_string(arg) << "\"";
+        }
+    }, event.value);
+    
+    // Quality field (always present)
+    // Check if we already wrote a value field
+    std::string current = line.str();
+    if (current.back() != ' ') {
+        line << ",";  // Separator between fields
+    }
+    line << "quality=\"" << events::quality_to_string(event.quality) << "\"";
+    
+    // Timestamp (epoch milliseconds)
+    line << " " << event.timestamp_ms;
+    
+    return line.str();
+}
+
+/**
+ * @brief InfluxDB telemetry sink
+ * 
+ * Subscribes to EventEmitter and asynchronously writes events to InfluxDB.
+ * Runs a background thread that batches writes for efficiency.
+ */
+class InfluxSink {
+public:
+    /**
+     * @brief Create sink (does not start automatically)
+     */
+    explicit InfluxSink(const InfluxConfig& config)
+        : config_(config), 
+          running_(false),
+          connected_(false),
+          total_written_(0),
+          total_failed_(0) {}
+    
+    ~InfluxSink() {
+        stop();
+    }
+    
+    // Non-copyable
+    InfluxSink(const InfluxSink&) = delete;
+    InfluxSink& operator=(const InfluxSink&) = delete;
+    
+    /**
+     * @brief Start the sink with the given event emitter
+     * 
+     * Subscribes to events and starts background flush thread.
+     * 
+     * @param emitter Event emitter to subscribe to
+     * @return true if started successfully
+     */
+    bool start(std::shared_ptr<events::EventEmitter> emitter) {
+        if (running_.load()) {
+            std::cerr << "[InfluxSink] Already running\n";
+            return false;
+        }
+        
+        if (!config_.enabled) {
+            std::cerr << "[InfluxSink] Telemetry disabled in config\n";
+            return false;
+        }
+        
+        if (config_.token.empty()) {
+            std::cerr << "[InfluxSink] No API token configured\n";
+            return false;
+        }
+        
+        emitter_ = emitter;
+        
+        // Subscribe with telemetry-sized queue
+        subscription_ = emitter_->subscribe(
+            events::EventFilter::all(),
+            config_.queue_size,
+            "telemetry-sink"
+        );
+        
+        if (!subscription_) {
+            std::cerr << "[InfluxSink] Failed to subscribe to events\n";
+            return false;
+        }
+        
+        running_.store(true);
+        flush_thread_ = std::thread(&InfluxSink::flush_loop, this);
+        
+        std::cerr << "[InfluxSink] Started, writing to " << config_.url 
+                  << "/" << config_.bucket << "\n";
+        return true;
+    }
+    
+    /**
+     * @brief Stop the sink
+     * 
+     * Flushes remaining events and stops background thread.
+     */
+    void stop() {
+        if (!running_.load()) return;
+        
+        running_.store(false);
+        
+        // Unsubscribe to unblock the pop() call
+        if (subscription_) {
+            subscription_->unsubscribe();
+        }
+        
+        if (flush_thread_.joinable()) {
+            flush_thread_.join();
+        }
+        
+        subscription_.reset();
+        emitter_.reset();
+        
+        std::cerr << "[InfluxSink] Stopped. Written: " << total_written_ 
+                  << ", Failed: " << total_failed_ << "\n";
+    }
+    
+    /**
+     * @brief Check if sink is running
+     */
+    bool is_running() const {
+        return running_.load();
+    }
+    
+    /**
+     * @brief Check if connected to InfluxDB
+     */
+    bool is_connected() const {
+        return connected_.load();
+    }
+    
+    /**
+     * @brief Get total events written
+     */
+    size_t total_written() const {
+        return total_written_.load();
+    }
+    
+    /**
+     * @brief Get total events failed
+     */
+    size_t total_failed() const {
+        return total_failed_.load();
+    }
+    
+    /**
+     * @brief Get current batch size
+     */
+    size_t current_batch_size() const {
+        std::lock_guard<std::mutex> lock(batch_mutex_);
+        return batch_.size();
+    }
+
+private:
+    /**
+     * @brief Background thread that collects events and flushes batches
+     */
+    void flush_loop() {
+        auto last_flush = std::chrono::steady_clock::now();
+        
+        while (running_.load()) {
+            // Pop events from subscription queue
+            auto event_opt = subscription_->pop(100);  // 100ms timeout
+            
+            if (event_opt) {
+                // Only process StateUpdateEvents for telemetry
+                // (QualityChangeEvents are redundant since StateUpdateEvent has quality)
+                if (std::holds_alternative<events::StateUpdateEvent>(*event_opt)) {
+                    const auto& update = std::get<events::StateUpdateEvent>(*event_opt);
+                    
+                    std::lock_guard<std::mutex> lock(batch_mutex_);
+                    batch_.push_back(format_line_protocol(update));
+                }
+            }
+            
+            // Check if we should flush
+            auto now = std::chrono::steady_clock::now();
+            auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                now - last_flush).count();
+            
+            bool should_flush = false;
+            {
+                std::lock_guard<std::mutex> lock(batch_mutex_);
+                should_flush = !batch_.empty() && 
+                    (batch_.size() >= config_.batch_size || 
+                     elapsed_ms >= config_.flush_interval_ms);
+            }
+            
+            if (should_flush) {
+                flush_batch();
+                last_flush = now;
+            }
+        }
+        
+        // Final flush on shutdown
+        flush_batch();
+    }
+    
+    /**
+     * @brief Flush current batch to InfluxDB
+     */
+    void flush_batch();  // Implemented in .cpp to avoid httplib include
+    
+    InfluxConfig config_;
+    std::shared_ptr<events::EventEmitter> emitter_;
+    std::unique_ptr<events::Subscription> subscription_;
+    
+    std::atomic<bool> running_;
+    std::atomic<bool> connected_;
+    std::thread flush_thread_;
+    
+    mutable std::mutex batch_mutex_;
+    std::vector<std::string> batch_;  // Line protocol strings
+    
+    std::atomic<size_t> total_written_;
+    std::atomic<size_t> total_failed_;
+    
+    // Last connection error time for rate-limited logging
+    std::chrono::steady_clock::time_point last_error_log_;
+};
+
+} // namespace telemetry
+} // namespace anolis

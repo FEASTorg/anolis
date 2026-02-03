@@ -32,7 +32,20 @@ struct RuntimeModeConfig {
 };
 
 struct TelemetryConfig {
-    bool enabled = false;        // Phase 5 (TSDB sink)
+    bool enabled = false;        // Enable telemetry sink
+    
+    // InfluxDB settings
+    std::string influx_url = "http://localhost:8086";  // InfluxDB URL
+    std::string influx_org = "anolis";     // InfluxDB organization
+    std::string influx_bucket = "anolis";  // InfluxDB bucket
+    std::string influx_token;              // InfluxDB API token (from env)
+    
+    // Batching configuration
+    size_t batch_size = 100;        // Flush when batch reaches this size
+    int flush_interval_ms = 1000;   // Flush every N milliseconds
+    
+    // Queue settings
+    size_t queue_size = 10000;      // Event queue size
 };
 
 struct RuntimeConfig {

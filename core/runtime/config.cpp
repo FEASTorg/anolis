@@ -2,6 +2,7 @@
 #include <yaml-cpp/yaml.h>
 #include <fstream>
 #include <iostream>
+#include <cstdlib>
 
 namespace anolis {
 namespace runtime {
@@ -98,8 +99,39 @@ bool load_config(const std::string& config_path, RuntimeConfig& config, std::str
         if (yaml["telemetry"]) {
             if (yaml["telemetry"]["enabled"]) {
                 config.telemetry.enabled = yaml["telemetry"]["enabled"].as<bool>();
-                if (config.telemetry.enabled) {
-                    std::cerr << "[Config] WARNING: Telemetry not implemented in Phase 4\n";
+            }
+            
+            // InfluxDB settings
+            if (yaml["telemetry"]["influxdb"]) {
+                auto influx = yaml["telemetry"]["influxdb"];
+                
+                if (influx["url"]) {
+                    config.telemetry.influx_url = influx["url"].as<std::string>();
+                }
+                if (influx["org"]) {
+                    config.telemetry.influx_org = influx["org"].as<std::string>();
+                }
+                if (influx["bucket"]) {
+                    config.telemetry.influx_bucket = influx["bucket"].as<std::string>();
+                }
+                if (influx["token"]) {
+                    config.telemetry.influx_token = influx["token"].as<std::string>();
+                }
+                
+                // Batching settings
+                if (influx["batch_size"]) {
+                    config.telemetry.batch_size = influx["batch_size"].as<size_t>();
+                }
+                if (influx["flush_interval_ms"]) {
+                    config.telemetry.flush_interval_ms = influx["flush_interval_ms"].as<int>();
+                }
+            }
+            
+            // Check for token from environment variable if not in config
+            if (config.telemetry.enabled && config.telemetry.influx_token.empty()) {
+                const char* token_env = std::getenv("INFLUXDB_TOKEN");
+                if (token_env) {
+                    config.telemetry.influx_token = token_env;
                 }
             }
         }
@@ -128,6 +160,12 @@ bool load_config(const std::string& config_path, RuntimeConfig& config, std::str
         }
         std::cerr << "\n";
         std::cerr << "[Config] Polling interval: " << config.polling.interval_ms << "ms\n";
+        std::cerr << "[Config] Telemetry: " << (config.telemetry.enabled ? "enabled" : "disabled");
+        if (config.telemetry.enabled) {
+            std::cerr << " (" << config.telemetry.influx_url << "/" 
+                      << config.telemetry.influx_bucket << ")";
+        }
+        std::cerr << "\n";
         std::cerr << "[Config] Log level: " << config.logging.level << "\n";
         
         return true;

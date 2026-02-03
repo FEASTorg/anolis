@@ -1,0 +1,133 @@
+/**
+ * @file influx_sink.cpp
+ * @brief Implementation of InfluxDB telemetry sink
+ */
+
+#include "influx_sink.hpp"
+
+// Include cpp-httplib (header-only, no SSL for local InfluxDB)
+#include <httplib.h>
+
+#include <chrono>
+
+namespace anolis {
+namespace telemetry {
+
+void InfluxSink::flush_batch() {
+    // Move batch out under lock (minimize lock time)
+    std::vector<std::string> lines_to_write;
+    {
+        std::lock_guard<std::mutex> lock(batch_mutex_);
+        if (batch_.empty()) return;
+        lines_to_write = std::move(batch_);
+        batch_.clear();
+    }
+    
+    // Build line protocol body (newline separated)
+    std::string body;
+    size_t total_size = 0;
+    for (const auto& line : lines_to_write) {
+        total_size += line.size() + 1;  // +1 for newline
+    }
+    body.reserve(total_size);
+    
+    for (const auto& line : lines_to_write) {
+        body += line;
+        body += '\n';
+    }
+    
+    // Parse URL for host and port
+    std::string host = config_.url;
+    int port = 8086;
+    bool use_ssl = false;
+    
+    // Strip protocol prefix
+    if (host.find("https://") == 0) {
+        host = host.substr(8);
+        use_ssl = true;
+        port = 443;
+    } else if (host.find("http://") == 0) {
+        host = host.substr(7);
+    }
+    
+    // Extract port if present
+    auto port_pos = host.find(':');
+    if (port_pos != std::string::npos) {
+        port = std::stoi(host.substr(port_pos + 1));
+        host = host.substr(0, port_pos);
+    }
+    
+    // Create HTTP client
+    std::unique_ptr<httplib::Client> client;
+    if (use_ssl) {
+        client = std::make_unique<httplib::Client>(host, port);
+    } else {
+        client = std::make_unique<httplib::Client>(host, port);
+    }
+    
+    client->set_connection_timeout(std::chrono::milliseconds(config_.timeout_ms));
+    client->set_read_timeout(std::chrono::milliseconds(config_.timeout_ms));
+    client->set_write_timeout(std::chrono::milliseconds(config_.timeout_ms));
+    
+    // Build URL path with query params
+    std::string path = "/api/v2/write?org=" + config_.org + 
+                       "&bucket=" + config_.bucket + 
+                       "&precision=ms";
+    
+    // Set authorization header
+    httplib::Headers headers = {
+        {"Authorization", "Token " + config_.token},
+        {"Content-Type", "text/plain; charset=utf-8"}
+    };
+    
+    // Send request
+    auto result = client->Post(path.c_str(), headers, body, "text/plain");
+    
+    if (result) {
+        if (result->status >= 200 && result->status < 300) {
+            // Success
+            connected_.store(true);
+            total_written_.fetch_add(lines_to_write.size());
+            
+            // Log periodically (every 1000 writes)
+            if (total_written_.load() % 1000 == 0) {
+                std::cerr << "[InfluxSink] Written " << total_written_.load() 
+                          << " events to InfluxDB\n";
+            }
+        } else {
+            // HTTP error
+            connected_.store(false);
+            total_failed_.fetch_add(lines_to_write.size());
+            
+            // Rate-limit error logging
+            auto now = std::chrono::steady_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
+                now - last_error_log_).count();
+            
+            if (elapsed >= 10) {  // Log at most every 10 seconds
+                std::cerr << "[InfluxSink] HTTP error " << result->status 
+                          << ": " << result->body << "\n";
+                last_error_log_ = now;
+            }
+        }
+    } else {
+        // Connection error
+        connected_.store(false);
+        total_failed_.fetch_add(lines_to_write.size());
+        
+        // Rate-limit error logging
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
+            now - last_error_log_).count();
+        
+        if (elapsed >= 10) {
+            auto err = result.error();
+            std::cerr << "[InfluxSink] Connection error: " 
+                      << httplib::to_string(err) << "\n";
+            last_error_log_ = now;
+        }
+    }
+}
+
+} // namespace telemetry
+} // namespace anolis
