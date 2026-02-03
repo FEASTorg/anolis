@@ -1,0 +1,7 @@
+{
+  "name": "anolis",
+  "version": "0.1.0",
+  "dependencies": [
+    "protobuf"
+  ]
+}
