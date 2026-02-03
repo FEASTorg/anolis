@@ -60,7 +60,17 @@ jobs:
           cmake --build build --config Release --parallel
 
       - name: Run tests
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/lib
         run: |
+          # Debug: verify binaries exist and are executable
+          echo "Checking runtime..."
+          ls -la build/core/anolis-runtime
+          ldd build/core/anolis-runtime || true
+          echo "Checking provider..."
+          ls -la $GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim
+          ldd $GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim || true
+          echo "Running tests..."
           python3 scripts/test_all.py --timeout=120 \
             --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim
 
