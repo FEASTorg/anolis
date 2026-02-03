@@ -11,21 +11,6 @@
 namespace anolis {
 namespace registry {
 
-// Forward declarations
-struct SignalSpec;
-struct FunctionSpec;
-
-// Immutable device capabilities (populated from DescribeDevice)
-// Named DeviceCapabilitySet to avoid Windows macro collision with DeviceCapabilities
-struct DeviceCapabilitySet {
-    // Raw protobuf (for serialization/inspection)
-    anolis::deviceprovider::v0::Device proto;
-
-    // Lookup maps (for fast validation)
-    std::unordered_map<std::string, SignalSpec> signals_by_id;
-    std::unordered_map<std::string, FunctionSpec> functions_by_id;
-};
-
 // Signal specification for quick lookup
 struct SignalSpec {
     std::string signal_id;
@@ -42,6 +27,17 @@ struct FunctionSpec {
     std::string function_name;
     std::string label;
     std::vector<std::string> param_ids;
+};
+
+// Immutable device capabilities (populated from DescribeDevice)
+// Named DeviceCapabilitySet to avoid Windows macro collision with DeviceCapabilities
+struct DeviceCapabilitySet {
+    // Raw protobuf (for serialization/inspection)
+    anolis::deviceprovider::v0::Device proto;
+
+    // Lookup maps (for fast validation)
+    std::unordered_map<std::string, SignalSpec> signals_by_id;
+    std::unordered_map<std::string, FunctionSpec> functions_by_id;
 };
 
 // Registered device (provider + device metadata)
