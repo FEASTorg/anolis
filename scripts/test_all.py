@@ -20,6 +20,7 @@ import os
 import time
 import signal
 import argparse
+import shutil
 from pathlib import Path
 from dataclasses import dataclass
 from typing import List, Optional
@@ -114,7 +115,7 @@ def find_provider_path() -> Optional[Path]:
 
 
 def kill_processes(names: List[str]) -> None:
-    """Kill any running processes by name."""
+    """Kill any running processes by name. Uses graceful shutdown first on Linux."""
     if sys.platform == "win32":
         for name in names:
             try:
@@ -126,6 +127,17 @@ def kill_processes(names: List[str]) -> None:
             except Exception:
                 pass
     else:
+        # First try graceful SIGTERM
+        for name in names:
+            try:
+                subprocess.run(
+                    ["pkill", "-f", name], capture_output=True, timeout=5
+                )
+            except Exception:
+                pass
+        # Brief delay to let processes exit gracefully
+        time.sleep(0.5)
+        # Then force kill any remaining
         for name in names:
             try:
                 subprocess.run(
@@ -133,6 +145,13 @@ def kill_processes(names: List[str]) -> None:
                 )
             except Exception:
                 pass
+
+
+def get_log_dir() -> Path:
+    """Get or create the test logs directory."""
+    log_dir = get_repo_root() / "build" / "test-logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    return log_dir
 
 
 def cleanup_between_tests() -> None:
@@ -143,6 +162,17 @@ def cleanup_between_tests() -> None:
     time.sleep(1)
 
 
+def read_tail_lines(file_path: Path, num_lines: int = 50) -> str:
+    """Read the last N lines of a file."""
+    try:
+        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()
+            tail = lines[-num_lines:] if len(lines) > num_lines else lines
+            return "".join(tail)
+    except Exception as e:
+        return f"(Could not read log: {e})"
+
+
 def run_test_script(
     script_name: str,
     runtime_path: Path,
@@ -151,7 +181,7 @@ def run_test_script(
     verbose: bool,
     extra_args: List[str] = None,
 ) -> TestSuiteResult:
-    """Run a single test script and capture results."""
+    """Run a single test script, streaming output to log file to prevent OOM."""
     script_path = get_script_dir() / script_name
 
     if not script_path.exists():
@@ -173,20 +203,51 @@ def run_test_script(
     if extra_args:
         cmd.extend(extra_args)
 
+    # Create log file for this test
+    log_dir = get_log_dir()
+    log_file_path = log_dir / f"{script_name}.log"
+
     start_time = time.time()
 
     try:
-        result = subprocess.run(
-            cmd,
-            capture_output=not verbose,
-            text=True,
-            timeout=timeout + 30,  # Extra buffer for test overhead
-            cwd=get_repo_root(),
-        )
+        # Stream output to log file instead of buffering in memory
+        # This prevents OOM on Linux CI when tests produce lots of output
+        with open(log_file_path, "w", encoding="utf-8") as log_file:
+            if verbose:
+                # In verbose mode, tee to both file and stdout
+                process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    cwd=get_repo_root(),
+                )
+                
+                # Read and write line by line
+                while True:
+                    line = process.stdout.readline()
+                    if not line and process.poll() is not None:
+                        break
+                    if line:
+                        print(line, end="", flush=True)
+                        log_file.write(line)
+                        log_file.flush()
+                
+                result_code = process.wait(timeout=timeout + 30)
+            else:
+                # Non-verbose: just stream to file
+                result = subprocess.run(
+                    cmd,
+                    stdout=log_file,
+                    stderr=subprocess.STDOUT,
+                    timeout=timeout + 30,
+                    cwd=get_repo_root(),
+                )
+                result_code = result.returncode
 
         duration = time.time() - start_time
 
-        if result.returncode == 0:
+        if result_code == 0:
             return TestSuiteResult(
                 name=script_name,
                 passed=True,
@@ -194,28 +255,31 @@ def run_test_script(
                 message="All tests passed",
             )
         else:
-            error_msg = (
-                result.stderr
-                if result.stderr
-                else result.stdout if result.stdout else "Unknown error"
-            )
-            # Truncate long error messages
-            if len(error_msg) > 500:
-                error_msg = error_msg[:500] + "..."
+            # Read last 50 lines of log for error context
+            error_tail = read_tail_lines(log_file_path, 50)
+            # Truncate if still too long
+            if len(error_tail) > 2000:
+                error_tail = error_tail[-2000:]
             return TestSuiteResult(
                 name=script_name,
                 passed=False,
                 duration=duration,
-                message=f"Exit code {result.returncode}: {error_msg}",
+                message=f"Exit code {result_code}. Log tail:\n{error_tail}",
             )
 
     except subprocess.TimeoutExpired:
         duration = time.time() - start_time
+        # Kill any hanging process
+        try:
+            process.kill()
+        except Exception:
+            pass
+        error_tail = read_tail_lines(log_file_path, 30)
         return TestSuiteResult(
             name=script_name,
             passed=False,
             duration=duration,
-            message=f"Timeout after {timeout + 30}s (subprocess timeout)",
+            message=f"Timeout after {timeout + 30}s. Log tail:\n{error_tail}",
         )
     except Exception as e:
         duration = time.time() - start_time

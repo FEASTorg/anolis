@@ -70,12 +70,27 @@ jobs:
           echo "=== Smoke test: provider-sim --help ==="
           timeout 10 $GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim --help || echo "Provider help exit: $?"
           
-          echo "=== Memory status ==="
+          echo "=== Memory status before tests ==="
           free -m
           
-          echo "=== Running tests ==="
-          python3 scripts/test_all.py --timeout=120 --verbose \
-            --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim
+          echo "=== Running tests (non-verbose to prevent OOM) ==="
+          python3 scripts/test_all.py --timeout=120 \
+            --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim \
+            || TEST_EXIT=$?
+          
+          # On failure, show OOM diagnostics
+          if [ "${TEST_EXIT:-0}" -ne 0 ]; then
+            echo "=== Test failed with exit code $TEST_EXIT ==="
+            echo "=== Memory status after tests ==="
+            free -m
+            echo "=== Checking for OOM kills ==="
+            dmesg | grep -i "oom\|killed" | tail -20 || true
+            echo "=== Top memory consumers ==="
+            ps aux --sort=-rss | head -10 || true
+            echo "=== Test log tails ==="
+            tail -100 build/test-logs/*.log 2>/dev/null || true
+            exit $TEST_EXIT
+          fi
 
   build-windows:
     name: Windows (MSVC 2022)
