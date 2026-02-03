@@ -12,6 +12,18 @@ This document describes the HTTP REST API exposed by `anolis-runtime` for device
 
 No authentication in v0. The server binds to localhost only by default.
 
+## CORS
+
+The server includes CORS headers for browser-based clients:
+
+- `Access-Control-Allow-Origin: *`
+- `Access-Control-Allow-Methods: GET, POST, OPTIONS`
+- `Access-Control-Allow-Headers: Content-Type`
+
+This allows the Operator UI (`tools/operator-ui/`) to connect from any origin.
+
+> **Note**: Wildcard CORS is for development only. Phase 8 will add configurable origin whitelist.
+
 ## Response Format
 
 All responses include a `status` object:
@@ -21,22 +33,22 @@ All responses include a `status` object:
   "status": {
     "code": "OK",
     "message": "ok"
-  },
+  }
   // ... endpoint-specific data
 }
 ```
 
 ### Status Codes
 
-| Code | HTTP Status | Description |
-|------|-------------|-------------|
-| `OK` | 200 | Success |
-| `INVALID_ARGUMENT` | 400 | Bad request or invalid parameters |
-| `NOT_FOUND` | 404 | Resource not found |
-| `FAILED_PRECONDITION` | 409 | Precondition not met |
-| `UNAVAILABLE` | 503 | Provider or device unavailable |
-| `DEADLINE_EXCEEDED` | 504 | Request timeout |
-| `INTERNAL` | 500 | Internal server error |
+| Code                  | HTTP Status | Description                       |
+| --------------------- | ----------- | --------------------------------- |
+| `OK`                  | 200         | Success                           |
+| `INVALID_ARGUMENT`    | 400         | Bad request or invalid parameters |
+| `NOT_FOUND`           | 404         | Resource not found                |
+| `FAILED_PRECONDITION` | 409         | Precondition not met              |
+| `UNAVAILABLE`         | 503         | Provider or device unavailable    |
+| `DEADLINE_EXCEEDED`   | 504         | Request timeout                   |
+| `INTERNAL`            | 500         | Internal server error             |
 
 ---
 
@@ -46,7 +58,7 @@ All responses include a `status` object:
 
 Get runtime status, mode, and provider health.
 
-**Response**
+**Response:**
 
 ```json
 {
@@ -65,16 +77,16 @@ Get runtime status, mode, and provider health.
 }
 ```
 
-**Fields**
+**Fields:**
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `mode` | string | Runtime mode: `MANUAL` (always in v0) |
-| `uptime_seconds` | integer | Seconds since runtime started |
-| `polling_interval_ms` | integer | State polling interval |
-| `device_count` | integer | Total devices across all providers |
-| `providers` | array | Provider status list |
-| `providers[].state` | string | `AVAILABLE`, `UNAVAILABLE`, `STARTING`, `CRASHED` |
+| Field                 | Type    | Description                                       |
+| --------------------- | ------- | ------------------------------------------------- |
+| `mode`                | string  | Runtime mode: `MANUAL` (always in v0)             |
+| `uptime_seconds`      | integer | Seconds since runtime started                     |
+| `polling_interval_ms` | integer | State polling interval                            |
+| `device_count`        | integer | Total devices across all providers                |
+| `providers`           | array   | Provider status list                              |
+| `providers[].state`   | string  | `AVAILABLE`, `UNAVAILABLE`, `STARTING`, `CRASHED` |
 
 ---
 
@@ -82,7 +94,7 @@ Get runtime status, mode, and provider health.
 
 List all discovered devices.
 
-**Response**
+**Response:**
 
 ```json
 {
@@ -102,13 +114,13 @@ List all discovered devices.
 }
 ```
 
-**Fields**
+**Fields:**
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `devices[].provider_id` | string | Provider that owns this device |
-| `devices[].device_id` | string | Unique device identifier (within provider) |
-| `devices[].type` | string | Device type identifier |
+| Field                   | Type   | Description                                |
+| ----------------------- | ------ | ------------------------------------------ |
+| `devices[].provider_id` | string | Provider that owns this device             |
+| `devices[].device_id`   | string | Unique device identifier (within provider) |
+| `devices[].type`        | string | Device type identifier                     |
 
 ---
 
@@ -116,7 +128,7 @@ List all discovered devices.
 
 Get device capabilities (signals and functions).
 
-**Response**
+**Response:**
 
 ```json
 {
@@ -163,22 +175,22 @@ Get device capabilities (signals and functions).
 }
 ```
 
-**Signal Fields**
+**Signal Fields:**
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `signal_id` | string | Signal identifier |
-| `label` | string | Human-readable label |
+| Field        | Type   | Description                                                        |
+| ------------ | ------ | ------------------------------------------------------------------ |
+| `signal_id`  | string | Signal identifier                                                  |
+| `label`      | string | Human-readable label                                               |
 | `value_type` | string | Value type: `double`, `int64`, `uint64`, `bool`, `string`, `bytes` |
 
-**Function Fields**
+**Function Fields:**
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `function_id` | integer | Numeric function ID for calls |
-| `name` | string | Function name |
-| `label` | string | Human-readable description |
-| `args` | object | Argument names (values are type hints) |
+| Field         | Type    | Description                            |
+| ------------- | ------- | -------------------------------------- |
+| `function_id` | integer | Numeric function ID for calls          |
+| `name`        | string  | Function name                          |
+| `label`       | string  | Human-readable description             |
+| `args`        | object  | Argument names (values are type hints) |
 
 ---
 
@@ -186,7 +198,7 @@ Get device capabilities (signals and functions).
 
 Get latest cached state for all devices.
 
-**Response**
+**Response:**
 
 ```json
 {
@@ -218,21 +230,21 @@ Get latest cached state for all devices.
 }
 ```
 
-**Device Fields**
+**Device Fields:**
 
-| Field | Type | Description |
-|-------|------|-------------|
+| Field     | Type   | Description                               |
+| --------- | ------ | ----------------------------------------- |
 | `quality` | string | Overall device quality (worst of signals) |
 
-**Value Fields**
+**Value Fields:**
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `signal_id` | string | Signal identifier |
-| `value` | object | Typed value (see Value Types below) |
-| `quality` | string | Signal quality: `OK`, `STALE`, `UNAVAILABLE`, `FAULT` |
-| `timestamp_epoch_ms` | integer | When value was polled (Unix ms) |
-| `age_ms` | integer | Milliseconds since poll |
+| Field                | Type    | Description                                           |
+| -------------------- | ------- | ----------------------------------------------------- |
+| `signal_id`          | string  | Signal identifier                                     |
+| `value`              | object  | Typed value (see Value Types below)                   |
+| `quality`            | string  | Signal quality: `OK`, `STALE`, `UNAVAILABLE`, `FAULT` |
+| `timestamp_epoch_ms` | integer | When value was polled (Unix ms)                       |
+| `age_ms`             | integer | Milliseconds since poll                               |
 
 ---
 
@@ -240,7 +252,7 @@ Get latest cached state for all devices.
 
 Get state for a single device.
 
-**Response**
+**Response:**
 
 ```json
 {
@@ -267,7 +279,7 @@ Get state for a single device.
 
 Execute a device function.
 
-**Request**
+**Request:**
 
 ```json
 {
@@ -281,16 +293,16 @@ Execute a device function.
 }
 ```
 
-**Request Fields**
+**Request Fields:**
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `provider_id` | string | Yes | Target provider |
-| `device_id` | string | Yes | Target device |
-| `function_id` | integer | Yes | Function ID from capabilities |
-| `args` | object | No | Function arguments (typed values) |
+| Field         | Type    | Required | Description                       |
+| ------------- | ------- | -------- | --------------------------------- |
+| `provider_id` | string  | Yes      | Target provider                   |
+| `device_id`   | string  | Yes      | Target device                     |
+| `function_id` | integer | Yes      | Function ID from capabilities     |
+| `args`        | object  | No       | Function arguments (typed values) |
 
-**Response (Success)**
+**Response (Success):**
 
 ```json
 {
@@ -302,7 +314,7 @@ Execute a device function.
 }
 ```
 
-**Response (Error)**
+**Response (Error):**
 
 ```json
 {
@@ -319,25 +331,25 @@ Execute a device function.
 
 All values use a typed JSON encoding:
 
-| Type | JSON Format | Example |
-|------|-------------|---------|
-| `double` | `{"type": "double", "double": 1.23}` | Temperature, duty cycle |
-| `int64` | `{"type": "int64", "int64": -42}` | Signed integers |
-| `uint64` | `{"type": "uint64", "uint64": 12345}` | Counters, timestamps |
-| `bool` | `{"type": "bool", "bool": true}` | Relay states, flags |
-| `string` | `{"type": "string", "string": "open"}` | Mode, status text |
-| `bytes` | `{"type": "bytes", "base64": "AAECAw=="}` | Binary data (base64) |
+| Type     | JSON Format                               | Example                 |
+| -------- | ----------------------------------------- | ----------------------- |
+| `double` | `{"type": "double", "double": 1.23}`      | Temperature, duty cycle |
+| `int64`  | `{"type": "int64", "int64": -42}`         | Signed integers         |
+| `uint64` | `{"type": "uint64", "uint64": 12345}`     | Counters, timestamps    |
+| `bool`   | `{"type": "bool", "bool": true}`          | Relay states, flags     |
+| `string` | `{"type": "string", "string": "open"}`    | Mode, status text       |
+| `bytes`  | `{"type": "bytes", "base64": "AAECAw=="}` | Binary data (base64)    |
 
 ---
 
 ## Quality Values
 
-| Quality | Description |
-|---------|-------------|
-| `OK` | Fresh data, recently polled |
-| `STALE` | Provider reachable but data is old |
-| `UNAVAILABLE` | Provider or device unreachable |
-| `FAULT` | Device-reported fault condition |
+| Quality       | Description                        |
+| ------------- | ---------------------------------- |
+| `OK`          | Fresh data, recently polled        |
+| `STALE`       | Provider reachable but data is old |
+| `UNAVAILABLE` | Provider or device unreachable     |
+| `FAULT`       | Device-reported fault condition    |
 
 Device-level quality is the worst-case of its signal qualities.
 
@@ -358,15 +370,15 @@ All errors follow the same format:
 
 ### Common Errors
 
-| Scenario | HTTP | Code |
-|----------|------|------|
-| Unknown route | 404 | `NOT_FOUND` |
-| Unknown device | 404 | `NOT_FOUND` |
-| Invalid JSON body | 400 | `INVALID_ARGUMENT` |
-| Missing required field | 400 | `INVALID_ARGUMENT` |
-| Provider unavailable | 503 | `UNAVAILABLE` |
-| Call timeout | 504 | `DEADLINE_EXCEEDED` |
-| Internal error | 500 | `INTERNAL` |
+| Scenario               | HTTP | Code                |
+| ---------------------- | ---- | ------------------- |
+| Unknown route          | 404  | `NOT_FOUND`         |
+| Unknown device         | 404  | `NOT_FOUND`         |
+| Invalid JSON body      | 400  | `INVALID_ARGUMENT`  |
+| Missing required field | 400  | `INVALID_ARGUMENT`  |
+| Provider unavailable   | 503  | `UNAVAILABLE`       |
+| Call timeout           | 504  | `DEADLINE_EXCEEDED` |
+| Internal error         | 500  | `INTERNAL`          |
 
 ---
 
@@ -376,9 +388,9 @@ HTTP server is configured in `anolis-runtime.yaml`:
 
 ```yaml
 http:
-  enabled: true       # Enable HTTP server (default: true)
-  bind: 127.0.0.1     # Bind address (default: 127.0.0.1)
-  port: 8080          # Port (default: 8080)
+  enabled: true # Enable HTTP server (default: true)
+  bind: 127.0.0.1 # Bind address (default: 127.0.0.1)
+  port: 8080 # Port (default: 8080)
 ```
 
 ---

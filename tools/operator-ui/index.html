@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Anolis Operator UI</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Anolis Operator UI</h1>
+      <div id="runtime-status">
+        <span class="label">Runtime:</span>
+        <span id="runtime-badge" class="badge unknown">Unknown</span>
+      </div>
+    </header>
+
+    <main>
+      <aside id="device-panel">
+        <h2>Devices</h2>
+        <div id="device-list">
+          <p class="placeholder">Loading...</p>
+        </div>
+      </aside>
+
+      <section id="detail-panel">
+        <div id="no-selection">
+          <p>Select a device from the list</p>
+        </div>
+
+        <div id="device-detail" class="hidden">
+          <h2 id="device-title">Device</h2>
+
+          <div class="section">
+            <div class="section-header">
+              <h3>State</h3>
+              <div class="polling-controls">
+                <span id="polling-status">Polling: 500ms</span>
+                <button id="toggle-polling">Pause</button>
+              </div>
+            </div>
+            <div id="state-container">
+              <table id="state-table">
+                <thead>
+                  <tr>
+                    <th>Signal</th>
+                    <th>Value</th>
+                    <th>Type</th>
+                    <th>Quality</th>
+                    <th>Age</th>
+                  </tr>
+                </thead>
+                <tbody id="state-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="section">
+            <h3>Functions</h3>
+            <div id="functions-container">
+              <p class="placeholder">No functions available</p>
+            </div>
+          </div>
+
+          <div class="section">
+            <h3>Capabilities</h3>
+            <details>
+              <summary>View raw capabilities</summary>
+              <pre id="capabilities-raw"></pre>
+            </details>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div id="last-error" class="hidden"></div>
+      <div id="status-bar">
+        <span id="last-update">Last update: --</span>
+      </div>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>
