@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "dependencies": [
     "protobuf",
-    "yaml-cpp"
+    "yaml-cpp",
+    "cpp-httplib",
+    "nlohmann-json"
   ]
 }

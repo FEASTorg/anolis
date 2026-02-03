@@ -59,6 +59,28 @@ bool Runtime::initialize(std::string& error) {
     // Create call router
     call_router_ = std::make_unique<control::CallRouter>(*registry_, *state_cache_);
     
+    // Create and start HTTP server if enabled
+    if (config_.http.enabled) {
+        std::cerr << "[Runtime] Creating HTTP server\n";
+        http_server_ = std::make_unique<http::HttpServer>(
+            config_.http,
+            *registry_,
+            *state_cache_,
+            *call_router_,
+            providers_
+        );
+        
+        std::string http_error;
+        if (!http_server_->start(http_error)) {
+            error = "HTTP server failed to start: " + http_error;
+            return false;
+        }
+        std::cerr << "[Runtime] HTTP server started on " << config_.http.bind 
+                  << ":" << config_.http.port << "\n";
+    } else {
+        std::cerr << "[Runtime] HTTP server disabled in config\n";
+    }
+    
     std::cerr << "[Runtime] Initialization complete\n";
     return true;
 }
@@ -91,6 +113,12 @@ void Runtime::run() {
 }
 
 void Runtime::shutdown() {
+    // Stop HTTP server first
+    if (http_server_) {
+        std::cerr << "[Runtime] Stopping HTTP server\n";
+        http_server_->stop();
+    }
+    
     if (state_cache_) {
         state_cache_->stop_polling();
     }

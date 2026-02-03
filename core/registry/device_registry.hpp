@@ -16,7 +16,8 @@ struct SignalSpec;
 struct FunctionSpec;
 
 // Immutable device capabilities (populated from DescribeDevice)
-struct DeviceCapabilities {
+// Named DeviceCapabilitySet to avoid Windows macro collision with DeviceCapabilities
+struct DeviceCapabilitySet {
     // Raw protobuf (for serialization/inspection)
     anolis::deviceprovider::v0::Device proto;
 
@@ -47,7 +48,7 @@ struct FunctionSpec {
 struct RegisteredDevice {
     std::string provider_id;  // Configured name (e.g., "sim0")
     std::string device_id;    // Provider-local ID (e.g., "tempctl0")
-    DeviceCapabilities capabilities;
+    DeviceCapabilitySet capabilities;
     
     // Composite key for global device handle
     std::string get_handle() const {
@@ -87,7 +88,7 @@ private:
     // Helper: Build capability maps from protobuf
     bool build_capabilities(const anolis::deviceprovider::v0::Device& proto_device,
                            const anolis::deviceprovider::v0::CapabilitySet& proto_caps,
-                           DeviceCapabilities& caps);
+                           DeviceCapabilitySet& caps);
 };
 
 } // namespace registry

@@ -91,7 +91,7 @@ std::vector<const RegisteredDevice*> DeviceRegistry::get_devices_for_provider(
 
 bool DeviceRegistry::build_capabilities(const anolis::deviceprovider::v0::Device& proto_device,
                                         const anolis::deviceprovider::v0::CapabilitySet& proto_caps,
-                                        DeviceCapabilities& caps) {
+                                        DeviceCapabilitySet& caps) {
     // Store raw proto
     caps.proto = proto_device;
     

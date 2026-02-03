@@ -119,6 +119,60 @@ Examples:
 
 ---
 
+## Quick Start (HTTP API)
+
+### Running the Runtime
+
+```bash
+# Build (requires vcpkg with protobuf, yaml-cpp, cpp-httplib, nlohmann-json)
+cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=[vcpkg-root]/scripts/buildsystems/vcpkg.cmake
+cmake --build build --config Release
+
+# Run with config
+./build/core/Release/anolis-runtime --config=anolis-runtime.yaml
+```
+
+### HTTP API Examples
+
+```bash
+# List devices
+curl -s http://127.0.0.1:8080/v0/devices | jq
+
+# Get device state
+curl -s http://127.0.0.1:8080/v0/state/sim0/motorctl0 | jq
+
+# Set motor duty to 75%
+curl -s -X POST http://127.0.0.1:8080/v0/call \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider_id": "sim0",
+    "device_id": "motorctl0",
+    "function_id": 10,
+    "args": {
+      "motor_index": {"type": "int64", "int64": 1},
+      "duty": {"type": "double", "double": 0.75}
+    }
+  }' | jq
+
+# Get runtime status
+curl -s http://127.0.0.1:8080/v0/runtime/status | jq
+```
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/v0/devices` | GET | List all devices |
+| `/v0/devices/{provider}/{device}/capabilities` | GET | Get signals and functions |
+| `/v0/state` | GET | Get all device states |
+| `/v0/state/{provider}/{device}` | GET | Get single device state |
+| `/v0/call` | POST | Execute device function |
+| `/v0/runtime/status` | GET | Get runtime status |
+
+See [docs/http-api.md](docs/http-api.md) for full API reference.
+
+---
+
 ## Design Goals
 
 - **Hardware-agnostic**

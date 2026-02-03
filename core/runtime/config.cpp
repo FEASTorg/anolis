@@ -10,6 +10,36 @@ bool load_config(const std::string& config_path, RuntimeConfig& config, std::str
     try {
         YAML::Node yaml = YAML::LoadFile(config_path);
         
+        // Load runtime mode config
+        if (yaml["runtime"]) {
+            if (yaml["runtime"]["mode"]) {
+                config.runtime.mode = yaml["runtime"]["mode"].as<std::string>();
+                // v0: Only MANUAL is valid
+                if (config.runtime.mode != "MANUAL") {
+                    std::cerr << "[Config] WARNING: Only MANUAL mode supported in v0, ignoring: " 
+                              << config.runtime.mode << "\n";
+                    config.runtime.mode = "MANUAL";
+                }
+            }
+        }
+        
+        // Load HTTP config
+        if (yaml["http"]) {
+            if (yaml["http"]["enabled"]) {
+                config.http.enabled = yaml["http"]["enabled"].as<bool>();
+            }
+            if (yaml["http"]["bind"]) {
+                config.http.bind = yaml["http"]["bind"].as<std::string>();
+            }
+            if (yaml["http"]["port"]) {
+                config.http.port = yaml["http"]["port"].as<int>();
+                if (config.http.port < 1 || config.http.port > 65535) {
+                    error = "HTTP port must be between 1 and 65535";
+                    return false;
+                }
+            }
+        }
+        
         // Load providers
         if (yaml["providers"]) {
             for (const auto& provider_node : yaml["providers"]) {
@@ -34,6 +64,15 @@ bool load_config(const std::string& config_path, RuntimeConfig& config, std::str
                     }
                 }
                 
+                // Optional timeout
+                if (provider_node["timeout_ms"]) {
+                    provider.timeout_ms = provider_node["timeout_ms"].as<int>();
+                    if (provider.timeout_ms < 100) {
+                        error = "Provider timeout must be >= 100ms";
+                        return false;
+                    }
+                }
+                
                 config.providers.push_back(provider);
             }
         }
@@ -55,6 +94,16 @@ bool load_config(const std::string& config_path, RuntimeConfig& config, std::str
             }
         }
         
+        // Load telemetry config
+        if (yaml["telemetry"]) {
+            if (yaml["telemetry"]["enabled"]) {
+                config.telemetry.enabled = yaml["telemetry"]["enabled"].as<bool>();
+                if (config.telemetry.enabled) {
+                    std::cerr << "[Config] WARNING: Telemetry not implemented in Phase 4\n";
+                }
+            }
+        }
+        
         // Load logging config
         if (yaml["logging"]) {
             if (yaml["logging"]["level"]) {
@@ -72,6 +121,12 @@ bool load_config(const std::string& config_path, RuntimeConfig& config, std::str
         }
         
         std::cerr << "[Config] Loaded " << config.providers.size() << " provider(s)\n";
+        std::cerr << "[Config] Runtime mode: " << config.runtime.mode << "\n";
+        std::cerr << "[Config] HTTP: " << (config.http.enabled ? "enabled" : "disabled");
+        if (config.http.enabled) {
+            std::cerr << " (" << config.http.bind << ":" << config.http.port << ")";
+        }
+        std::cerr << "\n";
         std::cerr << "[Config] Polling interval: " << config.polling.interval_ms << "ms\n";
         std::cerr << "[Config] Log level: " << config.logging.level << "\n";
         

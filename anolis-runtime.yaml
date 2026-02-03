@@ -1,16 +1,25 @@
 # Anolis Runtime Configuration
-# Phase 3B: Basic provider config + polling settings
+# Phase 4: HTTP Gateway + Basic provider config
+
+runtime:
+  mode: MANUAL  # Always MANUAL in v0
+
+http:
+  enabled: true
+  bind: 127.0.0.1
+  port: 8080
 
 providers:
   - id: sim0
-    command: ../../../../anolis-provider-sim/build/Release/anolis-provider-sim.exe
+    command: D:/repos_feast/anolis-provider-sim/build/Release/anolis-provider-sim.exe
     args: []
-    # Note: Relative path assumes runtime runs from anolis/build/core/Release/
-    # Adjust path based on your directory structure
-    # TODO: We should eventually have a better way to locate provider binaries
+    timeout_ms: 5000
 
 polling:
   interval_ms: 500  # Default polling interval (min 100ms)
+
+telemetry:
+  enabled: false
 
 logging:
   level: info  # debug, info, warn, error

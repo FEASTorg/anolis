@@ -83,6 +83,32 @@ target_link_libraries(anolis_control PUBLIC
     protobuf::libprotobuf
 )
 
+# HTTP server library (Phase 4)
+find_package(httplib CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
+
+add_library(anolis_http STATIC
+    http/json.cpp
+    http/server.cpp
+    http/handlers.cpp
+)
+
+target_include_directories(anolis_http PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+target_link_libraries(anolis_http PUBLIC
+    anolis_proto
+    anolis_provider
+    anolis_registry
+    anolis_state
+    anolis_control
+    httplib::httplib
+    nlohmann_json::nlohmann_json
+    protobuf::libprotobuf
+)
+
 # Runtime library (config + bootstrap)
 find_package(yaml-cpp CONFIG REQUIRED)
 
@@ -102,6 +128,7 @@ target_link_libraries(anolis_runtime PUBLIC
     anolis_registry
     anolis_state
     anolis_control
+    anolis_http
     yaml-cpp::yaml-cpp
     protobuf::libprotobuf
 )
@@ -123,6 +150,7 @@ target_link_libraries(anolis-runtime PRIVATE
     anolis_registry
     anolis_state
     anolis_control
+    anolis_http
     anolis_proto
     yaml-cpp::yaml-cpp
     protobuf::libprotobuf
