@@ -176,6 +176,67 @@ bool load_config(const std::string& config_path, RuntimeConfig& config, std::str
                 }
             }
             
+            // Phase 7C: Load parameters
+            if (yaml["automation"]["parameters"]) {
+                for (const auto& param_node : yaml["automation"]["parameters"]) {
+                    ParameterConfig param;
+                    
+                    if (!param_node["name"]) {
+                        error = "Parameter missing 'name' field";
+                        return false;
+                    }
+                    param.name = param_node["name"].as<std::string>();
+                    
+                    if (!param_node["type"]) {
+                        error = "Parameter '" + param.name + "' missing 'type' field";
+                        return false;
+                    }
+                    param.type = param_node["type"].as<std::string>();
+                    
+                    // Validate type
+                    if (param.type != "double" && param.type != "int64" && 
+                        param.type != "bool" && param.type != "string") {
+                        error = "Parameter '" + param.name + "' has invalid type: " + param.type;
+                        return false;
+                    }
+                    
+                    // Parse default value based on type
+                    if (!param_node["default"]) {
+                        error = "Parameter '" + param.name + "' missing 'default' field";
+                        return false;
+                    }
+                    
+                    if (param.type == "double") {
+                        param.double_value = param_node["default"].as<double>();
+                    } else if (param.type == "int64") {
+                        param.int64_value = param_node["default"].as<int64_t>();
+                    } else if (param.type == "bool") {
+                        param.bool_value = param_node["default"].as<bool>();
+                    } else if (param.type == "string") {
+                        param.string_value = param_node["default"].as<std::string>();
+                    }
+                    
+                    // Parse constraints (numeric types)
+                    if (param_node["min"]) {
+                        param.has_min = true;
+                        param.min_value = param_node["min"].as<double>();
+                    }
+                    if (param_node["max"]) {
+                        param.has_max = true;
+                        param.max_value = param_node["max"].as<double>();
+                    }
+                    
+                    // Parse allowed_values (string enums)
+                    if (param_node["allowed_values"]) {
+                        for (const auto& val : param_node["allowed_values"]) {
+                            param.allowed_values.push_back(val.as<std::string>());
+                        }
+                    }
+                    
+                    config.automation.parameters.push_back(param);
+                }
+            }
+            
             // Validate behavior_tree path is set if enabled
             if (config.automation.enabled && config.automation.behavior_tree.empty()) {
                 error = "Automation enabled but behavior_tree path not specified";
@@ -201,7 +262,8 @@ bool load_config(const std::string& config_path, RuntimeConfig& config, std::str
         std::cerr << "[Config] Automation: " << (config.automation.enabled ? "enabled" : "disabled");
         if (config.automation.enabled) {
             std::cerr << " (BT: " << config.automation.behavior_tree 
-                      << ", tick rate: " << config.automation.tick_rate_hz << " Hz)";
+                      << ", tick rate: " << config.automation.tick_rate_hz << " Hz, "
+                      << config.automation.parameters.size() << " parameters)";
         }
         std::cerr << "\n";
         

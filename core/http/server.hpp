@@ -23,7 +23,7 @@ namespace registry { class DeviceRegistry; }
 namespace state { class StateCache; }
 namespace control { class CallRouter; }
 namespace events { class EventEmitter; }
-namespace automation { class ModeManager; }
+namespace automation { class ModeManager; class ParameterManager; }  // Phase 7B + 7C
 }
 
 // Typedef for provider map
@@ -61,6 +61,7 @@ public:
      * @param providers Provider map for call execution
      * @param event_emitter Event emitter for SSE streaming (Phase 6)
      * @param mode_manager Mode manager for automation control (Phase 7B, optional)
+     * @param parameter_manager Parameter manager for runtime parameters (Phase 7C, optional)
      */
     HttpServer(const runtime::HttpConfig& config,
                registry::DeviceRegistry& registry,
@@ -68,7 +69,8 @@ public:
                control::CallRouter& call_router,
                ProviderMap& providers,
                std::shared_ptr<events::EventEmitter> event_emitter = nullptr,
-               automation::ModeManager* mode_manager = nullptr);
+               automation::ModeManager* mode_manager = nullptr,
+               automation::ParameterManager* parameter_manager = nullptr);
     
     ~HttpServer();
     
@@ -111,6 +113,7 @@ private:
     state::StateCache& state_cache_;
     control::CallRouter& call_router_;
     ProviderMap& providers_;
+    automation::ParameterManager* parameter_manager_;  // Phase 7C (optional)
     std::shared_ptr<events::EventEmitter> event_emitter_;  // Phase 6 SSE
     automation::ModeManager* mode_manager_;  // Phase 7B (optional)
     
@@ -135,6 +138,8 @@ private:
     void handle_get_runtime_status(const httplib::Request& req, httplib::Response& res);
     void handle_get_mode(const httplib::Request& req, httplib::Response& res);
     void handle_post_mode(const httplib::Request& req, httplib::Response& res);
+    void handle_get_parameters(const httplib::Request& req, httplib::Response& res);  // Phase 7C
+    void handle_post_parameters(const httplib::Request& req, httplib::Response& res);  // Phase 7C
     
     // SSE handler (Phase 6)
     void handle_get_events(const httplib::Request& req, httplib::Response& res);

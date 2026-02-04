@@ -1,4 +1,5 @@
 #include "automation/bt_nodes.hpp"
+#include "automation/parameter_manager.hpp"  // Phase 7C
 #include "state/state_cache.hpp"
 #include "control/call_router.hpp"
 
@@ -310,6 +311,79 @@ state::StateCache* CheckQualityNode::get_state_cache() {
     if (!ptr) return nullptr;
     
     return static_cast<state::StateCache*>(ptr);
+}
+
+//-----------------------------------------------------------------------------
+// GetParameterNode (Phase 7C)
+//-----------------------------------------------------------------------------
+
+GetParameterNode::GetParameterNode(const std::string& name, const BT::NodeConfig& config)
+    : BT::SyncActionNode(name, config)
+{}
+
+BT::PortsList GetParameterNode::providedPorts() {
+    return {
+        BT::InputPort<std::string>("name", "Parameter name"),
+        BT::OutputPort<double>("value", "Parameter value (as double, if applicable)")
+    };
+}
+
+BT::NodeStatus GetParameterNode::tick() {
+    auto parameter_manager = get_parameter_manager();
+    if (!parameter_manager) {
+        std::cerr << "[GetParameterNode] ERROR: ParameterManager not available in blackboard" << std::endl;
+        return BT::NodeStatus::FAILURE;
+    }
+    
+    // Get input port
+    auto param_name = getInput<std::string>("name");
+    if (!param_name) {
+        std::cerr << "[GetParameterNode] ERROR: Missing 'name' input port" << std::endl;
+        return BT::NodeStatus::FAILURE;
+    }
+    
+    // Read parameter value
+    auto value_opt = parameter_manager->get(param_name.value());
+    if (!value_opt.has_value()) {
+        std::cerr << "[GetParameterNode] ERROR: Parameter not found: " << param_name.value() << std::endl;
+        return BT::NodeStatus::FAILURE;
+    }
+    
+    // Convert value to double for output port
+    // Note: This is a simplification - in reality we'd need type-specific output ports
+    // or a way to handle different types dynamically
+    double output_value = 0.0;
+    const auto& param_value = value_opt.value();
+    
+    if (std::holds_alternative<double>(param_value)) {
+        output_value = std::get<double>(param_value);
+    } else if (std::holds_alternative<int64_t>(param_value)) {
+        output_value = static_cast<double>(std::get<int64_t>(param_value));
+    } else if (std::holds_alternative<bool>(param_value)) {
+        output_value = std::get<bool>(param_value) ? 1.0 : 0.0;
+    } else if (std::holds_alternative<std::string>(param_value)) {
+        // Cannot convert string to double, return failure
+        std::cerr << "[GetParameterNode] ERROR: Parameter '" << param_name.value() 
+                  << "' is a string, cannot convert to double" << std::endl;
+        return BT::NodeStatus::FAILURE;
+    }
+    
+    setOutput("value", output_value);
+    
+    std::cout << "[GetParameterNode] Read parameter '" << param_name.value() 
+              << "' = " << output_value << std::endl;
+    
+    return BT::NodeStatus::SUCCESS;
+}
+
+automation::ParameterManager* GetParameterNode::get_parameter_manager() {
+    auto blackboard = config().blackboard;
+    if (!blackboard) return nullptr;
+    
+    auto ptr = blackboard->get<void*>("parameter_manager");
+    if (!ptr) return nullptr;
+    
+    return static_cast<automation::ParameterManager*>(ptr);
 }
 
 }  // namespace automation

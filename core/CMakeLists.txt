@@ -78,6 +78,7 @@ add_library(anolis_automation STATIC
     automation/bt_runtime.cpp
     automation/bt_nodes.cpp
     automation/mode_manager.cpp
+    automation/parameter_manager.cpp
 )
 
 target_include_directories(anolis_automation PUBLIC

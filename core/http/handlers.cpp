@@ -12,6 +12,7 @@
 #include "control/call_router.hpp"
 #include "events/event_emitter.hpp"
 #include "automation/mode_manager.hpp"
+#include "automation/parameter_manager.hpp"  // Phase 7C
 #include <chrono>
 
 namespace anolis {
@@ -615,6 +616,192 @@ void HttpServer::handle_post_mode(const httplib::Request& req, httplib::Response
     nlohmann::json response = {
         {"status", make_status(StatusCode::OK)},
         {"mode", current_str}
+    };
+    
+    send_json(res, StatusCode::OK, response);
+}
+
+//=============================================================================
+// GET /v0/parameters - Get all parameters (Phase 7C)
+//=============================================================================
+void HttpServer::handle_get_parameters(const httplib::Request& req, httplib::Response& res) {
+    // If parameter manager not available, return error
+    if (!parameter_manager_) {
+        nlohmann::json response = make_error_response(
+            StatusCode::UNAVAILABLE,
+            "Parameter system not enabled"
+        );
+        send_json(res, StatusCode::UNAVAILABLE, response);
+        return;
+    }
+    
+    // Get all parameter definitions
+    auto params = parameter_manager_->get_all_definitions();
+    
+    nlohmann::json parameters_json = nlohmann::json::array();
+    for (const auto& [name, def] : params) {
+        nlohmann::json param_json = {
+            {"name", name},
+            {"type", automation::parameter_type_to_string(def.type)}
+        };
+        
+        // Add current value based on type
+        if (std::holds_alternative<double>(def.value)) {
+            param_json["value"] = std::get<double>(def.value);
+        } else if (std::holds_alternative<int64_t>(def.value)) {
+            param_json["value"] = std::get<int64_t>(def.value);
+        } else if (std::holds_alternative<bool>(def.value)) {
+            param_json["value"] = std::get<bool>(def.value);
+        } else if (std::holds_alternative<std::string>(def.value)) {
+            param_json["value"] = std::get<std::string>(def.value);
+        }
+        
+        // Add constraints if present
+        if (def.min.has_value()) {
+            param_json["min"] = def.min.value();
+        }
+        if (def.max.has_value()) {
+            param_json["max"] = def.max.value();
+        }
+        if (def.allowed_values.has_value() && !def.allowed_values.value().empty()) {
+            param_json["allowed_values"] = def.allowed_values.value();
+        }
+        
+        parameters_json.push_back(param_json);
+    }
+    
+    nlohmann::json response = {
+        {"status", make_status(StatusCode::OK)},
+        {"parameters", parameters_json}
+    };
+    
+    send_json(res, StatusCode::OK, response);
+}
+
+//=============================================================================
+// POST /v0/parameters - Update parameter value (Phase 7C)
+//=============================================================================
+void HttpServer::handle_post_parameters(const httplib::Request& req, httplib::Response& res) {
+    // If parameter manager not available, return error
+    if (!parameter_manager_) {
+        nlohmann::json response = make_error_response(
+            StatusCode::UNAVAILABLE,
+            "Parameter system not enabled"
+        );
+        send_json(res, StatusCode::UNAVAILABLE, response);
+        return;
+    }
+    
+    // Parse request body
+    nlohmann::json body;
+    try {
+        body = nlohmann::json::parse(req.body);
+    } catch (const std::exception& e) {
+        nlohmann::json response = make_error_response(
+            StatusCode::INVALID_ARGUMENT,
+            std::string("Invalid JSON: ") + e.what()
+        );
+        send_json(res, StatusCode::INVALID_ARGUMENT, response);
+        return;
+    }
+    
+    // Validate required fields
+    if (!body.contains("name") || !body["name"].is_string()) {
+        nlohmann::json response = make_error_response(
+            StatusCode::INVALID_ARGUMENT,
+            "Missing or invalid 'name' field (expected string)"
+        );
+        send_json(res, StatusCode::INVALID_ARGUMENT, response);
+        return;
+    }
+    
+    if (!body.contains("value")) {
+        nlohmann::json response = make_error_response(
+            StatusCode::INVALID_ARGUMENT,
+            "Missing 'value' field"
+        );
+        send_json(res, StatusCode::INVALID_ARGUMENT, response);
+        return;
+    }
+    
+    std::string param_name = body["name"];
+    
+    // Get parameter definition to determine type
+    auto def_opt = parameter_manager_->get_definition(param_name);
+    if (!def_opt.has_value()) {
+        nlohmann::json response = make_error_response(
+            StatusCode::NOT_FOUND,
+            "Parameter '" + param_name + "' not found"
+        );
+        send_json(res, StatusCode::NOT_FOUND, response);
+        return;
+    }
+    
+    const auto& def = def_opt.value();
+    
+    // Parse value based on parameter type
+    automation::ParameterValue new_value;
+    try {
+        if (def.type == automation::ParameterType::DOUBLE) {
+            if (!body["value"].is_number()) {
+                throw std::runtime_error("Expected number for double parameter");
+            }
+            new_value = body["value"].get<double>();
+        } else if (def.type == automation::ParameterType::INT64) {
+            if (!body["value"].is_number_integer()) {
+                throw std::runtime_error("Expected integer for int64 parameter");
+            }
+            new_value = body["value"].get<int64_t>();
+        } else if (def.type == automation::ParameterType::BOOL) {
+            if (!body["value"].is_boolean()) {
+                throw std::runtime_error("Expected boolean for bool parameter");
+            }
+            new_value = body["value"].get<bool>();
+        } else if (def.type == automation::ParameterType::STRING) {
+            if (!body["value"].is_string()) {
+                throw std::runtime_error("Expected string for string parameter");
+            }
+            new_value = body["value"].get<std::string>();
+        }
+    } catch (const std::exception& e) {
+        nlohmann::json response = make_error_response(
+            StatusCode::INVALID_ARGUMENT,
+            std::string("Invalid value: ") + e.what()
+        );
+        send_json(res, StatusCode::INVALID_ARGUMENT, response);
+        return;
+    }
+    
+    // Set parameter value with validation
+    std::string error;
+    if (!parameter_manager_->set(param_name, new_value, error)) {
+        nlohmann::json response = make_error_response(
+            StatusCode::INVALID_ARGUMENT,
+            error
+        );
+        send_json(res, StatusCode::INVALID_ARGUMENT, response);
+        return;
+    }
+    
+    // Success - return updated parameter
+    auto updated_value = parameter_manager_->get(param_name).value();
+    nlohmann::json value_json;
+    if (std::holds_alternative<double>(updated_value)) {
+        value_json = std::get<double>(updated_value);
+    } else if (std::holds_alternative<int64_t>(updated_value)) {
+        value_json = std::get<int64_t>(updated_value);
+    } else if (std::holds_alternative<bool>(updated_value)) {
+        value_json = std::get<bool>(updated_value);
+    } else if (std::holds_alternative<std::string>(updated_value)) {
+        value_json = std::get<std::string>(updated_value);
+    }
+    
+    nlohmann::json response = {
+        {"status", make_status(StatusCode::OK)},
+        {"parameter", {
+            {"name", param_name},
+            {"value", value_json}
+        }}
     };
     
     send_json(res, StatusCode::OK, response);

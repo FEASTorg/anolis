@@ -14,6 +14,8 @@ namespace provider { class ProviderHandle; }
 
 namespace automation {
 
+class ParameterManager;  // Phase 7C
+
 /**
  * ReadSignalNode - BT action node for reading device signals
  * 
@@ -114,6 +116,36 @@ public:
     
 private:
     state::StateCache* get_state_cache();
+};
+
+/**
+ * GetParameterNode - BT action node for reading runtime parameters (Phase 7C)
+ * 
+ * Reads a parameter value from ParameterManager via blackboard.
+ * 
+ * XML Port Configuration:
+ * - name (input): Parameter name
+ * - value (output): Parameter value (double/int64/bool/string)
+ * 
+ * Returns:
+ * - SUCCESS: Parameter read successfully, value written to output
+ * - FAILURE: Parameter not found or ParameterManager unavailable
+ * 
+ * Example XML:
+ * <GetParameter name="temp_setpoint" value="{target_temp}"/>
+ * <CallDevice device_handle="sim/tempctl0" function_name="set_target_temp"
+ *             arg_target="{target_temp}"/>
+ */
+class GetParameterNode : public BT::SyncActionNode {
+public:
+    GetParameterNode(const std::string& name, const BT::NodeConfig& config);
+    
+    BT::NodeStatus tick() override;
+    
+    static BT::PortsList providedPorts();
+    
+private:
+    automation::ParameterManager* get_parameter_manager();
 };
 
 }  // namespace automation

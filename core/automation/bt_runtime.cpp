@@ -1,6 +1,7 @@
 #include "automation/bt_runtime.hpp"
 #include "automation/bt_nodes.hpp"
 #include "automation/mode_manager.hpp"
+#include "automation/parameter_manager.hpp"  // Phase 7C
 #include "state/state_cache.hpp"
 #include "control/call_router.hpp"
 
@@ -18,11 +19,13 @@ namespace automation {
 BTRuntime::BTRuntime(state::StateCache& state_cache, 
                      control::CallRouter& call_router,
                      std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>>& providers,
-                     ModeManager& mode_manager)
+                     ModeManager& mode_manager,
+                     ParameterManager* parameter_manager)
     : state_cache_(state_cache)
     , call_router_(call_router)
     , providers_(providers)
     , mode_manager_(mode_manager)
+    , parameter_manager_(parameter_manager)
     , factory_(std::make_unique<BT::BehaviorTreeFactory>())
 {
     std::cout << "[BTRuntime] Initialized" << std::endl;
@@ -31,6 +34,7 @@ BTRuntime::BTRuntime(state::StateCache& state_cache,
     factory_->registerNodeType<ReadSignalNode>("ReadSignal");
     factory_->registerNodeType<CallDeviceNode>("CallDevice");
     factory_->registerNodeType<CheckQualityNode>("CheckQuality");
+    factory_->registerNodeType<GetParameterNode>("GetParameter");  // Phase 7C
     
     std::cout << "[BTRuntime] Registered custom node types" << std::endl;
 }
@@ -188,7 +192,6 @@ void BTRuntime::populate_blackboard() {
     // Store CallRouter reference for CallDeviceNode (Phase 7A.3)
     // BT nodes will cast this back to CallRouter* when needed
     blackboard->set("call_router", static_cast<void*>(&call_router_));
-    
     // Store StateCache reference for ReadSignalNode (Phase 7A.3)
     // BT nodes will cast this back to StateCache* when needed
     blackboard->set("state_cache", static_cast<void*>(&state_cache_));
@@ -197,8 +200,10 @@ void BTRuntime::populate_blackboard() {
     // CallRouter::execute_call() requires providers map
     blackboard->set("providers", static_cast<void*>(&providers_));
     
-    // Phase 7C: Add parameters to blackboard
-    // blackboard->set("parameters", static_cast<void*>(&parameter_manager_));
+    // Phase 7C: Add parameter_manager to blackboard
+    if (parameter_manager_) {
+        blackboard->set("parameter_manager", static_cast<void*>(parameter_manager_));
+    }
     
     // Note: We pass references, not snapshots, for efficiency.
     // StateCache's get_signal_value() is already thread-safe.
@@ -207,6 +212,7 @@ void BTRuntime::populate_blackboard() {
     // 2. BT execution is fast compared to poll rate
     // 3. If a value changes mid-tick, next tick will see the change
     // 4. BT is for orchestration policy, not hard real-time control
+    // 5. Parameters are READ-ONLY from BT perspective - GetParameterNode queries ParameterManager
 }
 
 }  // namespace automation

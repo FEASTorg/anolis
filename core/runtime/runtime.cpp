@@ -83,7 +83,8 @@ bool Runtime::initialize(std::string& error) {
             *call_router_,
             providers_,
             event_emitter_,  // Pass event emitter for SSE
-            mode_manager_.get()  // Pass mode manager (nullptr if automation disabled)
+            mode_manager_.get(),  // Pass mode manager (nullptr if automation disabled)
+            parameter_manager_.get()  // Phase 7C: Pass parameter manager (nullptr if automation disabled)
         );
         
         std::string http_error;
@@ -142,10 +143,98 @@ bool Runtime::initialize(std::string& error) {
         });
     }
     
+    // Create and initialize ParameterManager if automation enabled (Phase 7C)
+    if (config_.automation.enabled) {
+        std::cerr << "[Runtime] Creating parameter manager\n";
+        parameter_manager_ = std::make_unique<automation::ParameterManager>();
+        
+        // Load parameters from config
+        for (const auto& param_config : config_.automation.parameters) {
+            automation::ParameterType type;
+            if (param_config.type == "double") {
+                type = automation::ParameterType::DOUBLE;
+            } else if (param_config.type == "int64") {
+                type = automation::ParameterType::INT64;
+            } else if (param_config.type == "bool") {
+                type = automation::ParameterType::BOOL;
+            } else if (param_config.type == "string") {
+                type = automation::ParameterType::STRING;
+            } else {
+                std::cerr << "[Runtime] WARNING: Invalid parameter type: " << param_config.type << "\n";
+                continue;
+            }
+            
+            automation::ParameterValue value;
+            if (param_config.type == "double") {
+                value = param_config.double_value;
+            } else if (param_config.type == "int64") {
+                value = param_config.int64_value;
+            } else if (param_config.type == "bool") {
+                value = param_config.bool_value;
+            } else if (param_config.type == "string") {
+                value = param_config.string_value;
+            }
+            
+            std::optional<double> min = param_config.has_min ? std::make_optional(param_config.min_value) : std::nullopt;
+            std::optional<double> max = param_config.has_max ? std::make_optional(param_config.max_value) : std::nullopt;
+            std::optional<std::vector<std::string>> allowed = 
+                param_config.allowed_values.empty() ? std::nullopt : std::make_optional(param_config.allowed_values);
+            
+            if (!parameter_manager_->define(param_config.name, type, value, min, max, allowed)) {
+                std::cerr << "[Runtime] WARNING: Failed to define parameter: " << param_config.name << "\n";
+            }
+        }
+        
+        std::cerr << "[Runtime] Parameter manager initialized with " 
+                  << parameter_manager_->parameter_count() << " parameters\n";
+        
+        // Register callback to emit parameter change events
+        parameter_manager_->on_parameter_change([this](
+            const std::string& name,
+            const automation::ParameterValue& old_value,
+            const automation::ParameterValue& new_value
+        ) {
+            if (event_emitter_) {
+                // Convert values to strings for telemetry
+                auto value_to_string = [](const automation::ParameterValue& v) -> std::string {
+                    if (std::holds_alternative<double>(v)) {
+                        return std::to_string(std::get<double>(v));
+                    } else if (std::holds_alternative<int64_t>(v)) {
+                        return std::to_string(std::get<int64_t>(v));
+                    } else if (std::holds_alternative<bool>(v)) {
+                        return std::get<bool>(v) ? "true" : "false";
+                    } else if (std::holds_alternative<std::string>(v)) {
+                        return std::get<std::string>(v);
+                    }
+                    return "";
+                };
+                
+                events::ParameterChangeEvent event;
+                event.event_id = event_emitter_->next_event_id();
+                event.parameter_name = name;
+                event.old_value_str = value_to_string(old_value);
+                event.new_value_str = value_to_string(new_value);
+                event.timestamp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::system_clock::now().time_since_epoch()
+                ).count();
+                
+                event_emitter_->emit(event);
+                std::cerr << "[Runtime] Parameter '" << name << "' changed: " 
+                          << event.old_value_str << " -> " << event.new_value_str << "\n";
+            }
+        });
+    }
+    
     // Create and initialize BTRuntime if enabled (Phase 7)
     if (config_.automation.enabled) {
         std::cerr << "[Runtime] Creating BT runtime\n";
-        bt_runtime_ = std::make_unique<automation::BTRuntime>(*state_cache_, *call_router_, providers_, *mode_manager_);
+        bt_runtime_ = std::make_unique<automation::BTRuntime>(
+            *state_cache_, 
+            *call_router_, 
+            providers_, 
+            *mode_manager_,
+            parameter_manager_.get()  // Phase 7C: Pass parameter manager
+        );
         
         if (!bt_runtime_->load_tree(config_.automation.behavior_tree)) {
             error = "Failed to load behavior tree: " + config_.automation.behavior_tree;

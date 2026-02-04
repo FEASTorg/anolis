@@ -48,12 +48,32 @@ struct TelemetryConfig {
     size_t queue_size = 10000;      // Event queue size
 };
 
+// Phase 7C: Parameter definition
+struct ParameterConfig {
+    std::string name;
+    std::string type;  // "double", "int64", "bool", "string"
+    
+    // Value variants (parsed based on type)
+    double double_value = 0.0;
+    int64_t int64_value = 0;
+    bool bool_value = false;
+    std::string string_value;
+    
+    // Constraints
+    bool has_min = false;
+    double min_value = 0.0;
+    bool has_max = false;
+    double max_value = 0.0;
+    std::vector<std::string> allowed_values;  // For string enums
+};
+
 // Phase 7: Automation configuration
 struct AutomationConfig {
     bool enabled = false;
     std::string behavior_tree;      // Path to BT XML file
     int tick_rate_hz = 10;          // BT tick rate (1-1000 Hz)
     std::string manual_gating_policy = "BLOCK";  // BLOCK or OVERRIDE (Phase 7B.2)
+    std::vector<ParameterConfig> parameters;      // Phase 7C: Runtime parameters
 };
 
 struct RuntimeConfig {

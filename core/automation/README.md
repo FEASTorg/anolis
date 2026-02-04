@@ -90,7 +90,14 @@ FAULT mode is *policy*, not a certified safety mechanism.
   - 7B.6: Integration testing ✅
   - 7B.7: Documentation ✅
 
-- **Phase 7C**: Parameters & Configuration ⏳ PLANNED
+- **Phase 7C**: Parameters & Configuration ✅ COMPLETE
+  - 7C.1: Parameter schema design ✅
+  - 7C.2: YAML parameter configuration ✅
+  - 7C.3: BT blackboard integration ✅
+  - 7C.4: HTTP endpoints (GET/POST /v0/parameters) ✅
+  - 7C.5: Parameter change telemetry ✅
+  - 7C.6: Demo BT with parameters ✅
+  - 7C.7: Testing ✅
 
 Demo behavior tree available at: `behaviors/demo.xml`
 Comprehensive documentation: `docs/automation.md`

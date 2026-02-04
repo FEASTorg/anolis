@@ -25,6 +25,7 @@ namespace provider { class ProviderHandle; }
 namespace automation {
 
 class ModeManager;
+class ParameterManager;  // Phase 7C
 
 /**
  * BT Runtime - Phase 7A Foundation
@@ -65,11 +66,13 @@ public:
      * @param call_router Reference to call router (for device calls)
      * @param providers Provider map (for CallRouter::execute_call)
      * @param mode_manager Mode state machine (for AUTO/MANUAL gating)
+     * @param parameter_manager Parameter manager (Phase 7C, nullptr if not used)
      */
     BTRuntime(state::StateCache& state_cache, 
              control::CallRouter& call_router,
              std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>>& providers,
-             ModeManager& mode_manager);
+             ModeManager& mode_manager,
+             ParameterManager* parameter_manager = nullptr);
     
     ~BTRuntime();
 
@@ -133,6 +136,7 @@ private:
     control::CallRouter& call_router_;
     std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>>& providers_;
     ModeManager& mode_manager_;
+    ParameterManager* parameter_manager_;  // Phase 7C (nullable)
 
     // BT state
     std::unique_ptr<BT::BehaviorTreeFactory> factory_;

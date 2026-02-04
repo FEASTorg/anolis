@@ -180,6 +180,30 @@ inline std::string format_mode_change_line_protocol(const events::ModeChangeEven
 }
 
 /**
+ * @brief Format ParameterChangeEvent as InfluxDB line protocol (Phase 7C)
+ * 
+ * Measurement: parameter_change
+ * Tags: parameter_name
+ * Fields: old_value, new_value
+ * Timestamp: epoch milliseconds
+ */
+inline std::string format_parameter_change_line_protocol(const events::ParameterChangeEvent& event) {
+    std::ostringstream line;
+    
+    // Measurement with tag
+    line << "parameter_change,parameter_name=" << escape_tag(event.parameter_name);
+    
+    // Field set
+    line << " old_value=\"" << escape_field_string(event.old_value_str) << "\""
+         << ",new_value=\"" << escape_field_string(event.new_value_str) << "\"";
+    
+    // Timestamp (epoch milliseconds)
+    line << " " << event.timestamp_ms;
+    
+    return line.str();
+}
+
+/**
  * @brief InfluxDB telemetry sink
  * 
  * Subscribes to EventEmitter and asynchronously writes events to InfluxDB.
@@ -325,7 +349,7 @@ private:
             auto event_opt = subscription_->pop(100);  // 100ms timeout
             
             if (event_opt) {
-                // Process both StateUpdateEvents and ModeChangeEvents
+                // Process StateUpdateEvents, ModeChangeEvents, and ParameterChangeEvents
                 if (std::holds_alternative<events::StateUpdateEvent>(*event_opt)) {
                     const auto& update = std::get<events::StateUpdateEvent>(*event_opt);
                     
@@ -336,6 +360,11 @@ private:
                     
                     std::lock_guard<std::mutex> lock(batch_mutex_);
                     batch_.push_back(format_mode_change_line_protocol(mode_change));
+                } else if (std::holds_alternative<events::ParameterChangeEvent>(*event_opt)) {
+                    const auto& param_change = std::get<events::ParameterChangeEvent>(*event_opt);
+                    
+                    std::lock_guard<std::mutex> lock(batch_mutex_);
+                    batch_.push_back(format_parameter_change_line_protocol(param_change));
                 }
             }
             

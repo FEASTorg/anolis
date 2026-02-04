@@ -189,11 +189,24 @@ struct ModeChangeEvent {
 };
 
 /**
+ * @brief Parameter change event (Phase 7C)
+ * 
+ * Emitted when a runtime parameter value is updated.
+ */
+struct ParameterChangeEvent {
+    uint64_t event_id;
+    std::string parameter_name;
+    std::string old_value_str;  // String representation for telemetry
+    std::string new_value_str;  // String representation for telemetry
+    int64_t timestamp_ms;
+};
+
+/**
  * @brief Union of all event types
  * 
  * Subscribers receive Event variants and can dispatch on type.
  */
-using Event = std::variant<StateUpdateEvent, QualityChangeEvent, DeviceAvailabilityEvent, ModeChangeEvent>;
+using Event = std::variant<StateUpdateEvent, QualityChangeEvent, DeviceAvailabilityEvent, ModeChangeEvent, ParameterChangeEvent>;
 
 /**
  * @brief Get event ID from any event type
