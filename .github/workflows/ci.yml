@@ -35,7 +35,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake g++ python3 python3-pip
           python3 -m pip install --upgrade pip
-          python3 -m pip install requests
+          python3 -m pip install -r requirements.txt
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
@@ -116,7 +116,7 @@ jobs:
       - name: Install Python packages
         run: |
           python -m pip install --upgrade pip
-          python -m pip install requests
+          python -m pip install -r requirements.txt
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11

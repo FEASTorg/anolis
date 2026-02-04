@@ -1,0 +1,3 @@
+# Convenience deps for running Python test scripts locally/CI.
+requests
+pyyaml

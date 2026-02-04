@@ -97,10 +97,17 @@ add_executable(bt_nodes_sanity
     automation/bt_nodes_sanity.cpp
 )
 
-target_link_libraries(bt_nodes_sanity PRIVATE
-    anolis_automation
-    BT::behaviortree_cpp
-)
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_link_libraries(bt_nodes_sanity PRIVATE
+        $<LINK_GROUP:RESCAN,anolis_automation,anolis_control>
+        BT::behaviortree_cpp
+    )
+else()
+    target_link_libraries(bt_nodes_sanity PRIVATE
+        anolis_automation
+        BT::behaviortree_cpp
+    )
+endif()
 
 # State cache library
 add_library(anolis_state STATIC
