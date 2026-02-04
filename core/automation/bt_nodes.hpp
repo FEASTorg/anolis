@@ -145,7 +145,7 @@ public:
     static BT::PortsList providedPorts();
     
 private:
-    automation::ParameterManager* get_parameter_manager();
+    ParameterManager* get_parameter_manager();
 };
 
 }  // namespace automation

@@ -73,6 +73,52 @@ bool Runtime::initialize(std::string& error) {
         call_router_->set_mode_manager(mode_manager_.get(), config_.automation.manual_gating_policy);
     }
     
+    // Create and initialize ParameterManager BEFORE HTTP server (Phase 7C)
+    if (config_.automation.enabled) {
+        std::cerr << "[Runtime] Creating parameter manager\n";
+        parameter_manager_ = std::make_unique<automation::ParameterManager>();
+        
+        // Load parameters from config
+        for (const auto& param_config : config_.automation.parameters) {
+            automation::ParameterType type;
+            if (param_config.type == "double") {
+                type = automation::ParameterType::DOUBLE;
+            } else if (param_config.type == "int64") {
+                type = automation::ParameterType::INT64;
+            } else if (param_config.type == "bool") {
+                type = automation::ParameterType::BOOL;
+            } else if (param_config.type == "string") {
+                type = automation::ParameterType::STRING;
+            } else {
+                std::cerr << "[Runtime] WARNING: Invalid parameter type: " << param_config.type << "\n";
+                continue;
+            }
+            
+            automation::ParameterValue value;
+            if (param_config.type == "double") {
+                value = param_config.double_value;
+            } else if (param_config.type == "int64") {
+                value = param_config.int64_value;
+            } else if (param_config.type == "bool") {
+                value = param_config.bool_value;
+            } else if (param_config.type == "string") {
+                value = param_config.string_value;
+            }
+            
+            std::optional<double> min = param_config.has_min ? std::make_optional(param_config.min_value) : std::nullopt;
+            std::optional<double> max = param_config.has_max ? std::make_optional(param_config.max_value) : std::nullopt;
+            std::optional<std::vector<std::string>> allowed = 
+                param_config.allowed_values.empty() ? std::nullopt : std::make_optional(param_config.allowed_values);
+            
+            if (!parameter_manager_->define(param_config.name, type, value, min, max, allowed)) {
+                std::cerr << "[Runtime] WARNING: Failed to define parameter: " << param_config.name << "\n";
+            }
+        }
+        
+        std::cerr << "[Runtime] Parameter manager initialized with " 
+                  << parameter_manager_->parameter_count() << " parameters\n";
+    }
+    
     // Create and start HTTP server if enabled
     if (config_.http.enabled) {
         std::cerr << "[Runtime] Creating HTTP server\n";
@@ -143,52 +189,8 @@ bool Runtime::initialize(std::string& error) {
         });
     }
     
-    // Create and initialize ParameterManager if automation enabled (Phase 7C)
-    if (config_.automation.enabled) {
-        std::cerr << "[Runtime] Creating parameter manager\n";
-        parameter_manager_ = std::make_unique<automation::ParameterManager>();
-        
-        // Load parameters from config
-        for (const auto& param_config : config_.automation.parameters) {
-            automation::ParameterType type;
-            if (param_config.type == "double") {
-                type = automation::ParameterType::DOUBLE;
-            } else if (param_config.type == "int64") {
-                type = automation::ParameterType::INT64;
-            } else if (param_config.type == "bool") {
-                type = automation::ParameterType::BOOL;
-            } else if (param_config.type == "string") {
-                type = automation::ParameterType::STRING;
-            } else {
-                std::cerr << "[Runtime] WARNING: Invalid parameter type: " << param_config.type << "\n";
-                continue;
-            }
-            
-            automation::ParameterValue value;
-            if (param_config.type == "double") {
-                value = param_config.double_value;
-            } else if (param_config.type == "int64") {
-                value = param_config.int64_value;
-            } else if (param_config.type == "bool") {
-                value = param_config.bool_value;
-            } else if (param_config.type == "string") {
-                value = param_config.string_value;
-            }
-            
-            std::optional<double> min = param_config.has_min ? std::make_optional(param_config.min_value) : std::nullopt;
-            std::optional<double> max = param_config.has_max ? std::make_optional(param_config.max_value) : std::nullopt;
-            std::optional<std::vector<std::string>> allowed = 
-                param_config.allowed_values.empty() ? std::nullopt : std::make_optional(param_config.allowed_values);
-            
-            if (!parameter_manager_->define(param_config.name, type, value, min, max, allowed)) {
-                std::cerr << "[Runtime] WARNING: Failed to define parameter: " << param_config.name << "\n";
-            }
-        }
-        
-        std::cerr << "[Runtime] Parameter manager initialized with " 
-                  << parameter_manager_->parameter_count() << " parameters\n";
-        
-        // Register callback to emit parameter change events
+    // Register callback to emit parameter change events (if parameter manager exists)
+    if (parameter_manager_) {
         parameter_manager_->on_parameter_change([this](
             const std::string& name,
             const automation::ParameterValue& old_value,

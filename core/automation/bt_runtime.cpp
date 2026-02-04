@@ -53,6 +53,10 @@ bool BTRuntime::load_tree(const std::string& path) {
 
     tree_path_ = path;
 
+    // MUST populate blackboard before creating tree!
+    // BT nodes access blackboard during construction/initialization
+    populate_blackboard();
+
     try {
         tree_ = std::make_unique<BT::Tree>(factory_->createTreeFromFile(path));
         tree_loaded_ = true;

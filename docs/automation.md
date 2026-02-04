@@ -277,7 +277,13 @@ Example (response):
 
 ### BT Access
 
-Behavior Trees can access parameters via the `GetParameter` node (available in the default node registry). The `GetParameter` node reads a parameter by name from the blackboard and returns SUCCESS with the value available on an output port.
+Behavior Trees can access parameters via the `GetParameter` node (available in the default node registry). The `GetParameter` node reads a parameter by name from the blackboard using the `param` input port and returns SUCCESS with the value available on the `value` output port.
+
+Example:
+
+```xml
+<GetParameter param="temp_setpoint" value="{target_temp}"/>
+```
 
 ---
 

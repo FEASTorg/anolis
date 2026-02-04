@@ -12,6 +12,7 @@
     Device: tempctl0 (simulated temperature controller)
     Signals: temperature (current temp reading)
     Functions: set_target_temp(target: double)
+    
     -->
     
     <BehaviorTree ID="TempRampSequence">
@@ -25,7 +26,7 @@
             
             <!-- Read temp_setpoint parameter (Phase 7C) -->
             <GetParameter 
-                name="temp_setpoint"
+                param="temp_setpoint"
                 value="{target_temp}"
                 name="ReadTempSetpoint"/>
             

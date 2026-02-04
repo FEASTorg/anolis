@@ -152,7 +152,7 @@ BT::PortsList CallDeviceNode::providedPorts() {
     return {
         BT::InputPort<std::string>("device_handle", "Device handle (provider_id/device_id)"),
         BT::InputPort<std::string>("function_name", "Function identifier"),
-        BT::InputPort<std::string>("arg_target", "Target argument (for functions like set_target_temp)"),
+        BT::InputPort<double>("arg_target", "Target argument (for functions like set_target_temp)"),
         BT::OutputPort<bool>("success", "Call result (true/false)"),
         BT::OutputPort<std::string>("error", "Error message if call failed")
     };
@@ -321,9 +321,9 @@ GetParameterNode::GetParameterNode(const std::string& name, const BT::NodeConfig
     : BT::SyncActionNode(name, config)
 {}
 
-BT::PortsList GetParameterNode::providedPorts() {
+/*static*/ BT::PortsList GetParameterNode::providedPorts() {
     return {
-        BT::InputPort<std::string>("name", "Parameter name"),
+        BT::InputPort<std::string>("param", "Parameter name"),
         BT::OutputPort<double>("value", "Parameter value (as double, if applicable)")
     };
 }
@@ -336,9 +336,9 @@ BT::NodeStatus GetParameterNode::tick() {
     }
     
     // Get input port
-    auto param_name = getInput<std::string>("name");
+    auto param_name = getInput<std::string>("param");
     if (!param_name) {
-        std::cerr << "[GetParameterNode] ERROR: Missing 'name' input port" << std::endl;
+        std::cerr << "[GetParameterNode] ERROR: Missing 'param' input port" << std::endl;
         return BT::NodeStatus::FAILURE;
     }
     
@@ -376,14 +376,14 @@ BT::NodeStatus GetParameterNode::tick() {
     return BT::NodeStatus::SUCCESS;
 }
 
-automation::ParameterManager* GetParameterNode::get_parameter_manager() {
+ParameterManager* GetParameterNode::get_parameter_manager() {
     auto blackboard = config().blackboard;
     if (!blackboard) return nullptr;
     
     auto ptr = blackboard->get<void*>("parameter_manager");
     if (!ptr) return nullptr;
     
-    return static_cast<automation::ParameterManager*>(ptr);
+    return static_cast<ParameterManager*>(ptr);
 }
 
 }  // namespace automation

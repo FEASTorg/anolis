@@ -108,18 +108,19 @@ class AutomationTester:
     def start_runtime(self):
         """Start runtime process"""
         log_info(f"Starting runtime: {self.runtime_path}")
+        # Don't redirect stdout/stderr - let runtime output go to console
+        # This avoids handle inheritance issues with provider subprocesses
         self.runtime_process = subprocess.Popen(
             [self.runtime_path, "--config", self.config_file],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
+            stdin=subprocess.DEVNULL,
+            cwd="d:\\repos_feast\\anolis",  # Set working directory so relative paths work
         )
 
         # Wait for startup
         time.sleep(3)
 
         if self.runtime_process.poll() is not None:
-            raise RuntimeError("Runtime process terminated immediately")
+            raise RuntimeError(f"Runtime process terminated with exit code {self.runtime_process.returncode}")
 
         # Verify HTTP endpoint is up
         for _ in range(10):
