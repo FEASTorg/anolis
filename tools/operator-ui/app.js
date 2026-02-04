@@ -5,7 +5,7 @@
  * This is a MIRROR of the API - no new semantics.
  *
  * Capability-driven only - no device-type assumptions.
- * 
+ *
  * Phase 6: Uses SSE for real-time updates with polling fallback.
  */
 
@@ -24,7 +24,7 @@ let lastCapabilities = null;
 let eventSource = null;
 let sseConnected = false;
 let lastEventId = null;
-let cachedState = {};  // signal_id -> signal data (for delta updates)
+let cachedState = {}; // signal_id -> signal data (for delta updates)
 
 // DOM Elements
 const elements = {
@@ -134,12 +134,12 @@ function updateConnectionBadge(status) {
  */
 async function connectSSE() {
   if (!selectedDevice) return;
-  
+
   // Close any existing connection
   disconnectSSE();
-  
+
   const { provider_id, device_id } = selectedDevice;
-  
+
   // Step 1: Seed initial state via REST (race-proof pattern)
   updateConnectionBadge("connecting");
   try {
@@ -158,13 +158,13 @@ async function connectSSE() {
     fallbackToPolling("Seed failed");
     return;
   }
-  
+
   // Step 2: Open SSE connection for deltas
   const sseUrl = `${API_BASE}/v0/events?provider_id=${encodeURIComponent(provider_id)}&device_id=${encodeURIComponent(device_id)}`;
-  
+
   try {
     eventSource = new EventSource(sseUrl);
-    
+
     eventSource.onopen = () => {
       console.log("[SSE] Connected");
       sseConnected = true;
@@ -172,15 +172,15 @@ async function connectSSE() {
       elements.pollingStatus.textContent = "SSE: Real-time";
       clearError();
     };
-    
+
     eventSource.addEventListener("state_update", (event) => {
       handleStateUpdateEvent(event);
     });
-    
+
     eventSource.addEventListener("quality_change", (event) => {
       handleQualityChangeEvent(event);
     });
-    
+
     eventSource.onerror = (err) => {
       console.error("[SSE] Error:", err);
       if (eventSource.readyState === EventSource.CLOSED) {
@@ -195,7 +195,6 @@ async function connectSSE() {
         }, SSE_RECONNECT_DELAY_MS);
       }
     };
-    
   } catch (err) {
     console.error("[SSE] Failed to create EventSource:", err);
     fallbackToPolling("SSE unavailable");
@@ -218,12 +217,12 @@ function handleStateUpdateEvent(event) {
   try {
     const data = JSON.parse(event.data);
     lastEventId = event.lastEventId;
-    
+
     // Only update if this is for our selected device
     if (!selectedDevice) return;
     if (data.provider_id !== selectedDevice.provider_id) return;
     if (data.device_id !== selectedDevice.device_id) return;
-    
+
     // Update cached state
     const signalId = data.signal_id;
     cachedState[signalId] = {
@@ -232,11 +231,10 @@ function handleStateUpdateEvent(event) {
       quality: data.quality,
       timestamp_ms: data.timestamp_ms,
     };
-    
+
     // Re-render with change highlight
     renderStateFromCache(signalId);
     updateLastUpdateTime();
-    
   } catch (err) {
     console.error("[SSE] Failed to parse state_update:", err);
   }
@@ -249,12 +247,12 @@ function handleQualityChangeEvent(event) {
   try {
     const data = JSON.parse(event.data);
     lastEventId = event.lastEventId;
-    
+
     // Only update if this is for our selected device
     if (!selectedDevice) return;
     if (data.provider_id !== selectedDevice.provider_id) return;
     if (data.device_id !== selectedDevice.device_id) return;
-    
+
     // Update quality in cached state
     const signalId = data.signal_id;
     if (cachedState[signalId]) {
@@ -262,7 +260,6 @@ function handleQualityChangeEvent(event) {
       renderStateFromCache(signalId);
       updateLastUpdateTime();
     }
-    
   } catch (err) {
     console.error("[SSE] Failed to parse quality_change:", err);
   }
@@ -377,7 +374,7 @@ function renderState(deviceState) {
  */
 function renderStateFromCache(changedSignalId = null) {
   const signals = Object.values(cachedState);
-  
+
   if (signals.length === 0) {
     elements.stateBody.innerHTML =
       '<tr><td colspan="5" class="placeholder">No state available</td></tr>';
@@ -386,7 +383,9 @@ function renderStateFromCache(changedSignalId = null) {
 
   // If we have an existing table and a specific signal changed, update just that row
   if (changedSignalId && elements.stateBody.children.length > 0) {
-    const existingRow = elements.stateBody.querySelector(`tr[data-signal-id="${changedSignalId}"]`);
+    const existingRow = elements.stateBody.querySelector(
+      `tr[data-signal-id="${changedSignalId}"]`,
+    );
     if (existingRow) {
       updateSignalRow(existingRow, cachedState[changedSignalId]);
       return;
@@ -411,7 +410,7 @@ function createSignalRowHtml(signal, isChanged = false) {
   const rawQuality = signal.quality || "UNKNOWN";
   const validQualities = ["OK", "STALE", "UNAVAILABLE", "FAULT", "UNKNOWN"];
   const quality = validQualities.includes(rawQuality) ? rawQuality : "UNKNOWN";
-  
+
   let age = "--";
   if (signal.timestamp_ms) {
     const ageMs = Date.now() - signal.timestamp_ms;
@@ -419,7 +418,7 @@ function createSignalRowHtml(signal, isChanged = false) {
   } else if (signal.age_ms !== undefined) {
     age = `${signal.age_ms}ms`;
   }
-  
+
   const changeClass = isChanged ? "value-changed" : "";
 
   return `
@@ -442,7 +441,7 @@ function updateSignalRow(row, signal) {
   const rawQuality = signal.quality || "UNKNOWN";
   const validQualities = ["OK", "STALE", "UNAVAILABLE", "FAULT", "UNKNOWN"];
   const quality = validQualities.includes(rawQuality) ? rawQuality : "UNKNOWN";
-  
+
   let age = "--";
   if (signal.timestamp_ms) {
     const ageMs = Date.now() - signal.timestamp_ms;
@@ -450,14 +449,14 @@ function updateSignalRow(row, signal) {
   } else if (signal.age_ms !== undefined) {
     age = `${signal.age_ms}ms`;
   }
-  
+
   // Update cell contents
   const cells = row.cells;
-  cells[1].textContent = value;  // value-cell
-  cells[2].textContent = signal.value?.type || "--";  // type-cell
+  cells[1].textContent = value; // value-cell
+  cells[2].textContent = signal.value?.type || "--"; // type-cell
   cells[3].innerHTML = `<span class="badge ${quality.toLowerCase()}">${escapeHtml(quality)}</span>`;
-  cells[4].textContent = age;  // age-cell
-  
+  cells[4].textContent = age; // age-cell
+
   // Trigger animation by removing and re-adding class
   row.classList.remove("value-changed");
   // Force reflow to restart animation
@@ -550,7 +549,7 @@ async function selectDevice(providerId, deviceId) {
   // Stop any existing polling and SSE
   stopPolling();
   disconnectSSE();
-  cachedState = {};  // Clear cached state for new device
+  cachedState = {}; // Clear cached state for new device
   isPaused = false;
   elements.togglePolling.textContent = "Pause";
 

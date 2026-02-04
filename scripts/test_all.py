@@ -152,9 +152,7 @@ def kill_processes(names: List[str]) -> None:
         for name in names:
             try:
                 # First try graceful SIGTERM with exact name match
-                subprocess.run(
-                    ["pkill", "-x", name], capture_output=True, timeout=5
-                )
+                subprocess.run(["pkill", "-x", name], capture_output=True, timeout=5)
             except Exception:
                 pass
         # Brief delay to let processes exit gracefully
@@ -244,7 +242,7 @@ def run_test_script(
                     text=True,
                     cwd=get_repo_root(),
                 )
-                
+
                 # Read and write line by line
                 while True:
                     line = process.stdout.readline()
@@ -254,7 +252,7 @@ def run_test_script(
                         print(line, end="", flush=True)
                         log_file.write(line)
                         log_file.flush()
-                
+
                 result_code = process.wait(timeout=timeout + 30)
             else:
                 # Non-verbose: just stream to file
@@ -409,7 +407,9 @@ def main() -> int:
             duration = time.time() - start
             passed = proc.returncode == 0
             message = "" if passed else (proc.stderr.strip() or proc.stdout.strip())
-            results.append(TestSuiteResult("bt_nodes_sanity", passed, duration, message))
+            results.append(
+                TestSuiteResult("bt_nodes_sanity", passed, duration, message)
+            )
             status = "[PASS]" if passed else "[FAIL]"
             print(f"{status} bt_nodes_sanity ({duration:.1f}s)")
             if not passed:

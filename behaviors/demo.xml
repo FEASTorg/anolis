@@ -14,56 +14,56 @@
     Functions: set_target_temp(target: double)
     
     -->
-    
+
     <BehaviorTree ID="TempRampSequence">
         <Sequence>
             <!-- Check if temperature signal is available and OK quality -->
-            <CheckQuality 
-                device_handle="sim0/tempctl0" 
-                signal_id="temperature" 
+            <CheckQuality
+                device_handle="sim0/tempctl0"
+                signal_id="temperature"
                 expected_quality="OK"
-                name="VerifyTempSensorQuality"/>
-            
+                name="VerifyTempSensorQuality" />
+
             <!-- Read temp_setpoint parameter (Phase 7C) -->
-            <GetParameter 
+            <GetParameter
                 param="temp_setpoint"
                 value="{target_temp}"
-                name="ReadTempSetpoint"/>
-            
+                name="ReadTempSetpoint" />
+
             <!-- Ramp to parameter-defined setpoint -->
             <Sequence>
-                <CallDevice 
-                    device_handle="sim0/tempctl0" 
+                <CallDevice
+                    device_handle="sim0/tempctl0"
                     function_name="set_target_temp"
                     arg_target="{target_temp}"
                     success="{call_success}"
                     error="{call_error}"
-                    name="SetTargetTempFromParameter"/>
-                
-                <ReadSignal 
-                    device_handle="sim0/tempctl0" 
+                    name="SetTargetTempFromParameter" />
+
+                <ReadSignal
+                    device_handle="sim0/tempctl0"
                     signal_id="temperature"
                     value="{current_temp}"
                     quality="{temp_quality}"
-                    name="ReadCurrentTemp"/>
+                    name="ReadCurrentTemp" />
             </Sequence>
-            
+
             <!-- Ramp to 30°C (hardcoded example) -->
             <Sequence>
-                <CallDevice 
-                    device_handle="sim0/tempctl0" 
+                <CallDevice
+                    device_handle="sim0/tempctl0"
                     function_name="set_target_temp"
                     arg_target="30.0"
                     success="{call_success}"
                     error="{call_error}"
-                    name="SetTargetTemp30C"/>
-                
-                <ReadSignal 
-                    device_handle="sim0/tempctl0" 
+                    name="SetTargetTemp30C" />
+
+                <ReadSignal
+                    device_handle="sim0/tempctl0"
                     signal_id="temperature"
                     value="{current_temp}"
                     quality="{temp_quality}"
-                    name="ReadCurrentTemp30"/>
+                    name="ReadCurrentTemp30" />
             </Sequence>
         </Sequence>
     </BehaviorTree>

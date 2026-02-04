@@ -3,176 +3,215 @@
 #include <thread>
 #include <chrono>
 
-namespace anolis {
-namespace runtime {
+namespace anolis
+{
+    namespace runtime
+    {
 
-Runtime::Runtime(const RuntimeConfig& config) 
-    : config_(config) {}
+        Runtime::Runtime(const RuntimeConfig &config)
+            : config_(config) {}
 
-Runtime::~Runtime() {
-    shutdown();
-}
+        Runtime::~Runtime()
+        {
+            shutdown();
+        }
 
-bool Runtime::initialize(std::string& error) {
-    std::cerr << "[Runtime] Initializing Anolis Core\n";
-    
-    // Create registry
-    registry_ = std::make_unique<registry::DeviceRegistry>();
-    
-    // Start all providers and discover
-    for (const auto& provider_config : config_.providers) {
-        std::cerr << "[Runtime] Starting provider: " << provider_config.id << "\n";
-        std::cerr << "[Runtime]   Command: " << provider_config.command << "\n";
-        
-        auto provider = std::make_shared<provider::ProviderHandle>(
-            provider_config.id, 
-            provider_config.command,
-            provider_config.args
-        );
-        
-        if (!provider->start()) {
-            error = "Failed to start provider '" + provider_config.id + "': " + provider->last_error();
-            return false;
-        }
-        
-        std::cerr << "[Runtime] Provider " << provider_config.id << " started\n";
-        
-        // Discover devices
-        if (!registry_->discover_provider(provider_config.id, *provider)) {
-            error = "Discovery failed for provider '" + provider_config.id + "': " + registry_->last_error();
-            return false;
-        }
-        
-        providers_[provider_config.id] = provider;
-    }
-    
-    std::cerr << "[Runtime] All providers started\n";
-    
-    // Create event emitter (Phase 6)
-    // Default: 100 events per subscriber queue, max 32 SSE clients
-    event_emitter_ = std::make_shared<events::EventEmitter>(100, 32);
-    std::cerr << "[Runtime] Event emitter created (max " << event_emitter_->max_subscribers() << " subscribers)\n";
-    
-    // Create state cache
-    state_cache_ = std::make_unique<state::StateCache>(*registry_, config_.polling.interval_ms);
-    
-    // Wire event emitter to state cache
-    state_cache_->set_event_emitter(event_emitter_);
-    
-    if (!state_cache_->initialize()) {
-        error = "State cache initialization failed: " + state_cache_->last_error();
-        return false;
-    }
-    
-    // Create call router
-    call_router_ = std::make_unique<control::CallRouter>(*registry_, *state_cache_);
-    
-    // Create ModeManager and wire to CallRouter if automation enabled (Phase 7B)
-    if (config_.automation.enabled) {
-        mode_manager_ = std::make_unique<automation::ModeManager>(automation::RuntimeMode::MANUAL);
-        call_router_->set_mode_manager(mode_manager_.get(), config_.automation.manual_gating_policy);
-    }
-    
-    // Create and initialize ParameterManager BEFORE HTTP server (Phase 7C)
-    if (config_.automation.enabled) {
-        std::cerr << "[Runtime] Creating parameter manager\n";
-        parameter_manager_ = std::make_unique<automation::ParameterManager>();
-        
-        // Load parameters from config
-        for (const auto& param_config : config_.automation.parameters) {
-            automation::ParameterType type;
-            if (param_config.type == "double") {
-                type = automation::ParameterType::DOUBLE;
-            } else if (param_config.type == "int64") {
-                type = automation::ParameterType::INT64;
-            } else if (param_config.type == "bool") {
-                type = automation::ParameterType::BOOL;
-            } else if (param_config.type == "string") {
-                type = automation::ParameterType::STRING;
-            } else {
-                std::cerr << "[Runtime] WARNING: Invalid parameter type: " << param_config.type << "\n";
-                continue;
+        bool Runtime::initialize(std::string &error)
+        {
+            std::cerr << "[Runtime] Initializing Anolis Core\n";
+
+            // Create registry
+            registry_ = std::make_unique<registry::DeviceRegistry>();
+
+            // Start all providers and discover
+            for (const auto &provider_config : config_.providers)
+            {
+                std::cerr << "[Runtime] Starting provider: " << provider_config.id << "\n";
+                std::cerr << "[Runtime]   Command: " << provider_config.command << "\n";
+
+                auto provider = std::make_shared<provider::ProviderHandle>(
+                    provider_config.id,
+                    provider_config.command,
+                    provider_config.args);
+
+                if (!provider->start())
+                {
+                    error = "Failed to start provider '" + provider_config.id + "': " + provider->last_error();
+                    return false;
+                }
+
+                std::cerr << "[Runtime] Provider " << provider_config.id << " started\n";
+
+                // Discover devices
+                if (!registry_->discover_provider(provider_config.id, *provider))
+                {
+                    error = "Discovery failed for provider '" + provider_config.id + "': " + registry_->last_error();
+                    return false;
+                }
+
+                providers_[provider_config.id] = provider;
             }
-            
-            automation::ParameterValue value;
-            if (param_config.type == "double") {
-                value = param_config.double_value;
-            } else if (param_config.type == "int64") {
-                value = param_config.int64_value;
-            } else if (param_config.type == "bool") {
-                value = param_config.bool_value;
-            } else if (param_config.type == "string") {
-                value = param_config.string_value;
+
+            std::cerr << "[Runtime] All providers started\n";
+
+            // Create event emitter (Phase 6)
+            // Default: 100 events per subscriber queue, max 32 SSE clients
+            event_emitter_ = std::make_shared<events::EventEmitter>(100, 32);
+            std::cerr << "[Runtime] Event emitter created (max " << event_emitter_->max_subscribers() << " subscribers)\n";
+
+            // Create state cache
+            state_cache_ = std::make_unique<state::StateCache>(*registry_, config_.polling.interval_ms);
+
+            // Wire event emitter to state cache
+            state_cache_->set_event_emitter(event_emitter_);
+
+            if (!state_cache_->initialize())
+            {
+                error = "State cache initialization failed: " + state_cache_->last_error();
+                return false;
             }
-            
-            std::optional<double> min = param_config.has_min ? std::make_optional(param_config.min_value) : std::nullopt;
-            std::optional<double> max = param_config.has_max ? std::make_optional(param_config.max_value) : std::nullopt;
-            std::optional<std::vector<std::string>> allowed = 
-                param_config.allowed_values.empty() ? std::nullopt : std::make_optional(param_config.allowed_values);
-            
-            if (!parameter_manager_->define(param_config.name, type, value, min, max, allowed)) {
-                std::cerr << "[Runtime] WARNING: Failed to define parameter: " << param_config.name << "\n";
+
+            // Create call router
+            call_router_ = std::make_unique<control::CallRouter>(*registry_, *state_cache_);
+
+            // Create ModeManager and wire to CallRouter if automation enabled (Phase 7B)
+            if (config_.automation.enabled)
+            {
+                mode_manager_ = std::make_unique<automation::ModeManager>(automation::RuntimeMode::MANUAL);
+                call_router_->set_mode_manager(mode_manager_.get(), config_.automation.manual_gating_policy);
             }
-        }
-        
-        std::cerr << "[Runtime] Parameter manager initialized with " 
-                  << parameter_manager_->parameter_count() << " parameters\n";
-    }
-    
-    // Create and start HTTP server if enabled
-    if (config_.http.enabled) {
-        std::cerr << "[Runtime] Creating HTTP server\n";
-        http_server_ = std::make_unique<http::HttpServer>(
-            config_.http,
-            *registry_,
-            *state_cache_,
-            *call_router_,
-            providers_,
-            event_emitter_,  // Pass event emitter for SSE
-            mode_manager_.get(),  // Pass mode manager (nullptr if automation disabled)
-            parameter_manager_.get()  // Phase 7C: Pass parameter manager (nullptr if automation disabled)
-        );
-        
-        std::string http_error;
-        if (!http_server_->start(http_error)) {
-            error = "HTTP server failed to start: " + http_error;
-            return false;
-        }
-        std::cerr << "[Runtime] HTTP server started on " << config_.http.bind 
-                  << ":" << config_.http.port << "\n";
-    } else {
-        std::cerr << "[Runtime] HTTP server disabled in config\n";
-    }
-    
-    // Start telemetry sink if enabled (Phase 6B)
-    if (config_.telemetry.enabled) {
-        std::cerr << "[Runtime] Creating telemetry sink\n";
-        
-        telemetry::InfluxConfig influx_config;
-        influx_config.enabled = true;
-        influx_config.url = config_.telemetry.influx_url;
-        influx_config.org = config_.telemetry.influx_org;
-        influx_config.bucket = config_.telemetry.influx_bucket;
-        influx_config.token = config_.telemetry.influx_token;
-        influx_config.batch_size = config_.telemetry.batch_size;
-        influx_config.flush_interval_ms = config_.telemetry.flush_interval_ms;
-        influx_config.queue_size = config_.telemetry.queue_size;
-        
-        telemetry_sink_ = std::make_unique<telemetry::InfluxSink>(influx_config);
-        
-        if (!telemetry_sink_->start(event_emitter_)) {
-            std::cerr << "[Runtime] WARNING: Telemetry sink failed to start\n";
-            // Don't fail runtime initialization - telemetry is optional
-        } else {
-            std::cerr << "[Runtime] Telemetry sink started\n";
-        }
-    } else {
-        std::cerr << "[Runtime] Telemetry disabled in config\n";
-    }
-    
-    // Register mode change callback to emit telemetry events (only if automation enabled)
-    if (mode_manager_) {
-        mode_manager_->on_mode_change([this](automation::RuntimeMode prev, automation::RuntimeMode next) {
+
+            // Create and initialize ParameterManager BEFORE HTTP server (Phase 7C)
+            if (config_.automation.enabled)
+            {
+                std::cerr << "[Runtime] Creating parameter manager\n";
+                parameter_manager_ = std::make_unique<automation::ParameterManager>();
+
+                // Load parameters from config
+                for (const auto &param_config : config_.automation.parameters)
+                {
+                    automation::ParameterType type;
+                    if (param_config.type == "double")
+                    {
+                        type = automation::ParameterType::DOUBLE;
+                    }
+                    else if (param_config.type == "int64")
+                    {
+                        type = automation::ParameterType::INT64;
+                    }
+                    else if (param_config.type == "bool")
+                    {
+                        type = automation::ParameterType::BOOL;
+                    }
+                    else if (param_config.type == "string")
+                    {
+                        type = automation::ParameterType::STRING;
+                    }
+                    else
+                    {
+                        std::cerr << "[Runtime] WARNING: Invalid parameter type: " << param_config.type << "\n";
+                        continue;
+                    }
+
+                    automation::ParameterValue value;
+                    if (param_config.type == "double")
+                    {
+                        value = param_config.double_value;
+                    }
+                    else if (param_config.type == "int64")
+                    {
+                        value = param_config.int64_value;
+                    }
+                    else if (param_config.type == "bool")
+                    {
+                        value = param_config.bool_value;
+                    }
+                    else if (param_config.type == "string")
+                    {
+                        value = param_config.string_value;
+                    }
+
+                    std::optional<double> min = param_config.has_min ? std::make_optional(param_config.min_value) : std::nullopt;
+                    std::optional<double> max = param_config.has_max ? std::make_optional(param_config.max_value) : std::nullopt;
+                    std::optional<std::vector<std::string>> allowed =
+                        param_config.allowed_values.empty() ? std::nullopt : std::make_optional(param_config.allowed_values);
+
+                    if (!parameter_manager_->define(param_config.name, type, value, min, max, allowed))
+                    {
+                        std::cerr << "[Runtime] WARNING: Failed to define parameter: " << param_config.name << "\n";
+                    }
+                }
+
+                std::cerr << "[Runtime] Parameter manager initialized with "
+                          << parameter_manager_->parameter_count() << " parameters\n";
+            }
+
+            // Create and start HTTP server if enabled
+            if (config_.http.enabled)
+            {
+                std::cerr << "[Runtime] Creating HTTP server\n";
+                http_server_ = std::make_unique<http::HttpServer>(
+                    config_.http,
+                    *registry_,
+                    *state_cache_,
+                    *call_router_,
+                    providers_,
+                    event_emitter_,          // Pass event emitter for SSE
+                    mode_manager_.get(),     // Pass mode manager (nullptr if automation disabled)
+                    parameter_manager_.get() // Phase 7C: Pass parameter manager (nullptr if automation disabled)
+                );
+
+                std::string http_error;
+                if (!http_server_->start(http_error))
+                {
+                    error = "HTTP server failed to start: " + http_error;
+                    return false;
+                }
+                std::cerr << "[Runtime] HTTP server started on " << config_.http.bind
+                          << ":" << config_.http.port << "\n";
+            }
+            else
+            {
+                std::cerr << "[Runtime] HTTP server disabled in config\n";
+            }
+
+            // Start telemetry sink if enabled (Phase 6B)
+            if (config_.telemetry.enabled)
+            {
+                std::cerr << "[Runtime] Creating telemetry sink\n";
+
+                telemetry::InfluxConfig influx_config;
+                influx_config.enabled = true;
+                influx_config.url = config_.telemetry.influx_url;
+                influx_config.org = config_.telemetry.influx_org;
+                influx_config.bucket = config_.telemetry.influx_bucket;
+                influx_config.token = config_.telemetry.influx_token;
+                influx_config.batch_size = config_.telemetry.batch_size;
+                influx_config.flush_interval_ms = config_.telemetry.flush_interval_ms;
+                influx_config.queue_size = config_.telemetry.queue_size;
+
+                telemetry_sink_ = std::make_unique<telemetry::InfluxSink>(influx_config);
+
+                if (!telemetry_sink_->start(event_emitter_))
+                {
+                    std::cerr << "[Runtime] WARNING: Telemetry sink failed to start\n";
+                    // Don't fail runtime initialization - telemetry is optional
+                }
+                else
+                {
+                    std::cerr << "[Runtime] Telemetry sink started\n";
+                }
+            }
+            else
+            {
+                std::cerr << "[Runtime] Telemetry disabled in config\n";
+            }
+
+            // Register mode change callback to emit telemetry events (only if automation enabled)
+            if (mode_manager_)
+            {
+                mode_manager_->on_mode_change([this](automation::RuntimeMode prev, automation::RuntimeMode next)
+                                              {
             if (event_emitter_) {
                 events::ModeChangeEvent event;
                 event.event_id = event_emitter_->next_event_id();
@@ -185,17 +224,17 @@ bool Runtime::initialize(std::string& error) {
                 event_emitter_->emit(event);
                 std::cout << "[Runtime] Mode change event emitted: " 
                           << event.previous_mode << " -> " << event.new_mode << "\\n";
+            } });
             }
-        });
-    }
-    
-    // Register callback to emit parameter change events (if parameter manager exists)
-    if (parameter_manager_) {
-        parameter_manager_->on_parameter_change([this](
-            const std::string& name,
-            const automation::ParameterValue& old_value,
-            const automation::ParameterValue& new_value
-        ) {
+
+            // Register callback to emit parameter change events (if parameter manager exists)
+            if (parameter_manager_)
+            {
+                parameter_manager_->on_parameter_change([this](
+                                                            const std::string &name,
+                                                            const automation::ParameterValue &old_value,
+                                                            const automation::ParameterValue &new_value)
+                                                        {
             if (event_emitter_) {
                 // Convert values to strings for telemetry
                 auto value_to_string = [](const automation::ParameterValue& v) -> std::string {
@@ -223,103 +262,122 @@ bool Runtime::initialize(std::string& error) {
                 event_emitter_->emit(event);
                 std::cerr << "[Runtime] Parameter '" << name << "' changed: " 
                           << event.old_value_str << " -> " << event.new_value_str << "\n";
+            } });
             }
-        });
-    }
-    
-    // Create and initialize BTRuntime if enabled (Phase 7)
-    if (config_.automation.enabled) {
-        std::cerr << "[Runtime] Creating BT runtime\n";
-        bt_runtime_ = std::make_unique<automation::BTRuntime>(
-            *state_cache_, 
-            *call_router_, 
-            providers_, 
-            *mode_manager_,
-            parameter_manager_.get()  // Phase 7C: Pass parameter manager
-        );
-        
-        if (!bt_runtime_->load_tree(config_.automation.behavior_tree)) {
-            error = "Failed to load behavior tree: " + config_.automation.behavior_tree;
-            return false;
-        }
-        
-        std::cerr << "[Runtime] Behavior tree loaded: " << config_.automation.behavior_tree << "\n";
-    } else {
-        std::cerr << "[Runtime] Automation disabled in config\n";
-    }
-    
-    std::cerr << "[Runtime] Initialization complete\n";
-    return true;
-}
 
-void Runtime::run() {
-    std::cerr << "[Runtime] Starting main loop\n";
-    running_ = true;
-    
-    // Start state cache polling
-    state_cache_->start_polling(providers_);
-    
-    std::cerr << "[Runtime] State cache polling active\n" << std::flush;
-    
-    // Start BT tick loop if automation enabled (Phase 7)
-    if (bt_runtime_) {
-        if (!bt_runtime_->start(config_.automation.tick_rate_hz)) {
-            std::cerr << "[Runtime] WARNING: BT runtime failed to start\n";
-        } else {
-            std::cerr << "[Runtime] BT runtime started (tick rate: " 
-                      << config_.automation.tick_rate_hz << " Hz)\n";
-        }
-    }
-    
-    std::cerr << "[Runtime] Press Ctrl+C to exit\n\n" << std::flush;
-    
-    // Main loop (v0: just keep polling alive)
-    // Future: HTTP server, BT engine, etc. will run here
-    while (running_) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        
-        // Check provider health
-        for (const auto& [id, provider] : providers_) {
-            if (!provider->is_available()) {
-                std::cerr << "[Runtime] WARNING: Provider " << id << " unavailable\n";
+            // Create and initialize BTRuntime if enabled (Phase 7)
+            if (config_.automation.enabled)
+            {
+                std::cerr << "[Runtime] Creating BT runtime\n";
+                bt_runtime_ = std::make_unique<automation::BTRuntime>(
+                    *state_cache_,
+                    *call_router_,
+                    providers_,
+                    *mode_manager_,
+                    parameter_manager_.get() // Phase 7C: Pass parameter manager
+                );
+
+                if (!bt_runtime_->load_tree(config_.automation.behavior_tree))
+                {
+                    error = "Failed to load behavior tree: " + config_.automation.behavior_tree;
+                    return false;
+                }
+
+                std::cerr << "[Runtime] Behavior tree loaded: " << config_.automation.behavior_tree << "\n";
             }
+            else
+            {
+                std::cerr << "[Runtime] Automation disabled in config\n";
+            }
+
+            std::cerr << "[Runtime] Initialization complete\n";
+            return true;
         }
-    }
-    
-    std::cerr << "[Runtime] Shutting down\n";
-    state_cache_->stop_polling();
-}
 
-void Runtime::shutdown() {
-    // Stop BT runtime first (Phase 7)
-    if (bt_runtime_) {
-        std::cerr << "[Runtime] Stopping BT runtime\n";
-        bt_runtime_->stop();
-    }
-    
-    // Stop HTTP server
-    if (http_server_) {
-        std::cerr << "[Runtime] Stopping HTTP server\n";
-        http_server_->stop();
-    }
-    
-    // Stop telemetry sink
-    if (telemetry_sink_) {
-        std::cerr << "[Runtime] Stopping telemetry sink\n";
-        telemetry_sink_->stop();
-    }
-    
-    if (state_cache_) {
-        state_cache_->stop_polling();
-    }
-    
-    for (auto& [id, provider] : providers_) {
-        std::cerr << "[Runtime] Stopping provider: " << id << "\n";
-        // ProviderHandle/ProviderProcess destructor handles cleanup
-    }
-    
-    providers_.clear();
-}
+        void Runtime::run()
+        {
+            std::cerr << "[Runtime] Starting main loop\n";
+            running_ = true;
 
-} // namespace runtime
+            // Start state cache polling
+            state_cache_->start_polling(providers_);
+
+            std::cerr << "[Runtime] State cache polling active\n"
+                      << std::flush;
+
+            // Start BT tick loop if automation enabled (Phase 7)
+            if (bt_runtime_)
+            {
+                if (!bt_runtime_->start(config_.automation.tick_rate_hz))
+                {
+                    std::cerr << "[Runtime] WARNING: BT runtime failed to start\n";
+                }
+                else
+                {
+                    std::cerr << "[Runtime] BT runtime started (tick rate: "
+                              << config_.automation.tick_rate_hz << " Hz)\n";
+                }
+            }
+
+            std::cerr << "[Runtime] Press Ctrl+C to exit\n\n"
+                      << std::flush;
+
+            // Main loop (v0: just keep polling alive)
+            // Future: HTTP server, BT engine, etc. will run here
+            while (running_)
+            {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+
+                // Check provider health
+                for (const auto &[id, provider] : providers_)
+                {
+                    if (!provider->is_available())
+                    {
+                        std::cerr << "[Runtime] WARNING: Provider " << id << " unavailable\n";
+                    }
+                }
+            }
+
+            std::cerr << "[Runtime] Shutting down\n";
+            state_cache_->stop_polling();
+        }
+
+        void Runtime::shutdown()
+        {
+            // Stop BT runtime first (Phase 7)
+            if (bt_runtime_)
+            {
+                std::cerr << "[Runtime] Stopping BT runtime\n";
+                bt_runtime_->stop();
+            }
+
+            // Stop HTTP server
+            if (http_server_)
+            {
+                std::cerr << "[Runtime] Stopping HTTP server\n";
+                http_server_->stop();
+            }
+
+            // Stop telemetry sink
+            if (telemetry_sink_)
+            {
+                std::cerr << "[Runtime] Stopping telemetry sink\n";
+                telemetry_sink_->stop();
+            }
+
+            if (state_cache_)
+            {
+                state_cache_->stop_polling();
+            }
+
+            for (auto &[id, provider] : providers_)
+            {
+                std::cerr << "[Runtime] Stopping provider: " << id << "\n";
+                // ProviderHandle/ProviderProcess destructor handles cleanup
+            }
+
+            providers_.clear();
+        }
+
+    } // namespace runtime
 } // namespace anolis

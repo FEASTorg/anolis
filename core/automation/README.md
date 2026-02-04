@@ -6,12 +6,12 @@ Phase 7 automation components for behavior tree orchestration.
 
 The automation layer is a **consumer of kernel services**, NOT a replacement for core IO:
 
-| Constraint | Implementation |
-|-----------|---------------|
-| **BT nodes read via StateCache** | No direct provider access; all state via blackboard snapshot |
-| **BT nodes act via CallRouter** | All device calls go through validated control path |
-| **No new provider protocol features** | Automation uses existing ADPP v0 capabilities |
-| **No device-specific logic in BT engine** | BT runtime is capability-agnostic |
+| Constraint                                | Implementation                                               |
+| ----------------------------------------- | ------------------------------------------------------------ |
+| **BT nodes read via StateCache**          | No direct provider access; all state via blackboard snapshot |
+| **BT nodes act via CallRouter**           | All device calls go through validated control path           |
+| **No new provider protocol features**     | Automation uses existing ADPP v0 capabilities                |
+| **No device-specific logic in BT engine** | BT runtime is capability-agnostic                            |
 
 ## Blackboard Contract (Phase 7A.2)
 
@@ -40,8 +40,9 @@ blackboard->set("parameters", static_cast<void*>(&parameter_manager_));
 ```
 
 **Important:** We pass **references**, not full snapshots, for efficiency. StateCache's `get_signal_value()` is thread-safe. This design is acceptable because:
+
 1. Polling happens every 500ms, ticks every 100ms (10 Hz)
-2. BT execution is fast compared to poll rate  
+2. BT execution is fast compared to poll rate
 3. If a value changes mid-tick, next tick will see the change
 4. BT is for orchestration policy, not hard real-time control
 
@@ -68,7 +69,7 @@ All nodes registered with BehaviorTree.CPP factory.
 
 External safety systems (e.g., E-stops, interlocks) are still required for real hardware.
 
-FAULT mode is *policy*, not a certified safety mechanism.
+FAULT mode is _policy_, not a certified safety mechanism.
 
 ## Phase Status
 
@@ -103,12 +104,13 @@ Demo behavior tree available at: `behaviors/demo.xml`
 Comprehensive documentation: `docs/automation.md`
 
 Enable automation in `anolis-runtime.yaml`:
+
 ```yaml
 automation:
   enabled: true
   behavior_tree: ./behaviors/demo.xml
   tick_rate_hz: 10
-  manual_gating_policy: BLOCK  # or OVERRIDE
+  manual_gating_policy: BLOCK # or OVERRIDE
 ```
 
 ## References

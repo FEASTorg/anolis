@@ -90,13 +90,29 @@ class AutomationTester:
                 "tick_rate_hz": 10,
                 "manual_gating_policy": manual_gating_policy,
                 "parameters": [
-                    {"name": "temp_setpoint", "type": "double", "default": 25.0, "min": 10.0, "max": 50.0},
-                    {"name": "motor_duty_cycle", "type": "int64", "default": 50, "min": 0, "max": 100},
+                    {
+                        "name": "temp_setpoint",
+                        "type": "double",
+                        "default": 25.0,
+                        "min": 10.0,
+                        "max": 50.0,
+                    },
+                    {
+                        "name": "motor_duty_cycle",
+                        "type": "int64",
+                        "default": 50,
+                        "min": 0,
+                        "max": 100,
+                    },
                     {"name": "control_enabled", "type": "bool", "default": True},
-                    {"name": "operating_mode", "type": "string", "default": "normal", "allowed_values": ["normal", "test", "emergency"]}
-                ]
+                    {
+                        "name": "operating_mode",
+                        "type": "string",
+                        "default": "normal",
+                        "allowed_values": ["normal", "test", "emergency"],
+                    },
+                ],
             },
-
             "logging": {"level": "info"},
         }
 
@@ -121,7 +137,9 @@ class AutomationTester:
         time.sleep(3)
 
         if self.runtime_process.poll() is not None:
-            raise RuntimeError(f"Runtime process terminated with exit code {self.runtime_process.returncode}")
+            raise RuntimeError(
+                f"Runtime process terminated with exit code {self.runtime_process.returncode}"
+            )
 
         # Verify HTTP endpoint is up
         for _ in range(10):
@@ -357,7 +375,11 @@ class AutomationTester:
         log_test("POST /v0/parameters (valid)")
 
         try:
-            resp = requests.post(f"{self.base_url}/v0/parameters", json={"name": "temp_setpoint", "value": 30.0}, timeout=2)
+            resp = requests.post(
+                f"{self.base_url}/v0/parameters",
+                json={"name": "temp_setpoint", "value": 30.0},
+                timeout=2,
+            )
             if resp.status_code != 200:
                 log_fail(f"Expected 200 OK, got {resp.status_code} - {resp.text}")
                 return False
@@ -377,7 +399,11 @@ class AutomationTester:
         log_test("POST /v0/parameters (out-of-range)")
 
         try:
-            resp = requests.post(f"{self.base_url}/v0/parameters", json={"name": "temp_setpoint", "value": 100.0}, timeout=2)
+            resp = requests.post(
+                f"{self.base_url}/v0/parameters",
+                json={"name": "temp_setpoint", "value": 100.0},
+                timeout=2,
+            )
             # Expect 400 with INVALID_ARGUMENT
             if resp.status_code == 200:
                 log_fail("Expected rejection but got 200 OK")
@@ -478,7 +504,10 @@ def main():
         "--port", type=int, default=18080, help="HTTP port to use (default: 18080)"
     )
     parser.add_argument(
-        "--timeout", type=int, default=120, help="Test timeout in seconds (default: 120)"
+        "--timeout",
+        type=int,
+        default=120,
+        help="Test timeout in seconds (default: 120)",
     )
     args = parser.parse_args()
 

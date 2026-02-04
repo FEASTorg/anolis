@@ -33,9 +33,9 @@ telemetry:
     url: http://localhost:8086
     org: anolis
     bucket: anolis
-    token: dev-token  # Or set INFLUXDB_TOKEN env var
-    batch_size: 100   # Flush batch when this size reached
-    flush_interval_ms: 1000  # Flush every second
+    token: dev-token # Or set INFLUXDB_TOKEN env var
+    batch_size: 100 # Flush batch when this size reached
+    flush_interval_ms: 1000 # Flush every second
 
 logging:
   level: info

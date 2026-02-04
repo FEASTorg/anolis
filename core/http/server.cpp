@@ -14,9 +14,9 @@ namespace anolis
                                control::CallRouter &call_router,
                                ProviderMap &providers,
                                std::shared_ptr<events::EventEmitter> event_emitter,
-                               automation::ModeManager* mode_manager,
-                               automation::ParameterManager* parameter_manager)
-            : config_(config), registry_(registry), state_cache_(state_cache), 
+                               automation::ModeManager *mode_manager,
+                               automation::ParameterManager *parameter_manager)
+            : config_(config), registry_(registry), state_cache_(state_cache),
               call_router_(call_router), providers_(providers), event_emitter_(event_emitter),
               mode_manager_(mode_manager), parameter_manager_(parameter_manager) {}
 
@@ -41,11 +41,12 @@ namespace anolis
             // Configure server
             server_->set_read_timeout(5, 0);  // 5 seconds
             server_->set_write_timeout(5, 0); // 5 seconds
-            
+
             // Set thread pool size to handle SSE + REST concurrently
             // Rule: thread_pool_size >= max_sse_clients + headroom for REST
             // MAX_SSE_CLIENTS = 32, so we use 40 threads (32 + 8 headroom)
-            server_->new_task_queue = [] { return new httplib::ThreadPool(40); };
+            server_->new_task_queue = []
+            { return new httplib::ThreadPool(40); };
 
             // Add CORS headers to all responses (dev-only, Phase 8 will add proper CORS)
             server_->set_post_routing_handler([](const httplib::Request &req, httplib::Response &res)
