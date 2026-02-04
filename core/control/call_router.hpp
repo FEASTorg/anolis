@@ -11,6 +11,10 @@
 #include "state/state_cache.hpp"
 
 namespace anolis {
+
+// Forward declarations
+namespace automation { class ModeManager; }
+
 namespace control {
 
 // Call request - High-level API for executing device functions
@@ -33,6 +37,12 @@ public:
     CallRouter(const registry::DeviceRegistry& registry,
               state::StateCache& state_cache);
     
+    /**
+     * Set mode manager for manual/auto gating (Phase 7B.2).
+     * Must be called before execute_call if automation is enabled.
+     */
+    void set_mode_manager(automation::ModeManager* mode_manager, const std::string& gating_policy);
+    
     // Execute a function call
     // This is the ONLY way to execute control actions in Anolis
     CallResult execute_call(const CallRequest& request,
@@ -44,6 +54,8 @@ public:
 private:
     const registry::DeviceRegistry& registry_;
     state::StateCache& state_cache_;
+    automation::ModeManager* mode_manager_ = nullptr;  // Phase 7B.2 (optional)
+    std::string manual_gating_policy_ = "BLOCK";      // Phase 7B.2
     
     // Per-provider mutexes for serialized access (v0: prevent concurrent calls to same provider)
     std::map<std::string, std::mutex> provider_locks_;

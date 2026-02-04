@@ -67,6 +67,14 @@ bool Runtime::initialize(std::string& error) {
     // Create call router
     call_router_ = std::make_unique<control::CallRouter>(*registry_, *state_cache_);
     
+    // Create ModeManager (Phase 7B)
+    mode_manager_ = std::make_unique<automation::ModeManager>(automation::RuntimeMode::MANUAL);
+    
+    // Wire mode manager to call router for manual/auto gating (Phase 7B.2)
+    if (config_.automation.enabled) {
+        call_router_->set_mode_manager(mode_manager_.get(), config_.automation.manual_gating_policy);
+    }
+    
     // Create and start HTTP server if enabled
     if (config_.http.enabled) {
         std::cerr << "[Runtime] Creating HTTP server\n";
@@ -115,9 +123,6 @@ bool Runtime::initialize(std::string& error) {
     } else {
         std::cerr << "[Runtime] Telemetry disabled in config\n";
     }
-    
-    // Create ModeManager (Phase 7B)
-    mode_manager_ = std::make_unique<automation::ModeManager>(automation::RuntimeMode::MANUAL);
     
     // Register mode change callback to emit telemetry events
     mode_manager_->on_mode_change([this](automation::RuntimeMode prev, automation::RuntimeMode next) {

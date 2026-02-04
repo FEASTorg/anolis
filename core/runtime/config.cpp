@@ -167,6 +167,14 @@ bool load_config(const std::string& config_path, RuntimeConfig& config, std::str
                     return false;
                 }
             }
+            if (yaml["automation"]["manual_gating_policy"]) {
+                config.automation.manual_gating_policy = yaml["automation"]["manual_gating_policy"].as<std::string>();
+                if (config.automation.manual_gating_policy != "BLOCK" && 
+                    config.automation.manual_gating_policy != "OVERRIDE") {
+                    error = "Invalid manual_gating_policy: must be BLOCK or OVERRIDE";
+                    return false;
+                }
+            }
             
             // Validate behavior_tree path is set if enabled
             if (config.automation.enabled && config.automation.behavior_tree.empty()) {

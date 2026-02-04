@@ -1,4 +1,5 @@
 #include "call_router.hpp"
+#include "automation/mode_manager.hpp"
 #include <iostream>
 #include <sstream>
 
@@ -9,10 +10,28 @@ CallRouter::CallRouter(const registry::DeviceRegistry& registry,
                       state::StateCache& state_cache)
     : registry_(registry), state_cache_(state_cache) {}
 
+void CallRouter::set_mode_manager(automation::ModeManager* mode_manager, const std::string& gating_policy) {
+    mode_manager_ = mode_manager;
+    manual_gating_policy_ = gating_policy;
+    std::cout << "[CallRouter] Mode manager configured with " << gating_policy << " policy\n";
+}
+
 CallResult CallRouter::execute_call(const CallRequest& request,
                                    std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>>& providers) {
     CallResult result;
     result.success = false;
+    
+    // Phase 7B.2: Check manual/auto contention
+    if (mode_manager_ && mode_manager_->current_mode() == automation::RuntimeMode::AUTO) {
+        if (manual_gating_policy_ == "BLOCK") {
+            result.error_message = "Manual call blocked in AUTO mode (policy: BLOCK)";
+            std::cerr << "[CallRouter] WARNING: " << result.error_message << "\n";
+            return result;
+        } else if (manual_gating_policy_ == "OVERRIDE") {
+            std::cout << "[CallRouter] INFO: Manual call in AUTO mode (policy: OVERRIDE) - allowing\n";
+            // Allow call to proceed
+        }
+    }
     
     std::cerr << "[CallRouter] Executing call: " << request.device_handle 
               << "." << request.function_name << "\n";
