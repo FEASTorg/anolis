@@ -5,6 +5,15 @@
 #include <atomic>
 #include <thread>
 
+// BehaviorTree.CPP includes
+#include <behaviortree_cpp/basic_types.h>
+
+// BehaviorTree.CPP forward declarations  
+namespace BT {
+    class Tree;
+    class BehaviorTreeFactory;
+}
+
 namespace anolis {
 
 // Forward declarations
@@ -93,9 +102,9 @@ public:
      * 
      * Note: Normally called by tick loop thread, but exposed for unit testing.
      * 
-     * @return BT status (SUCCESS, FAILURE, RUNNING)
+     * @return BT::NodeStatus (SUCCESS, FAILURE, RUNNING)
      */
-    // int tick();  // Uncomment when BehaviorTree.CPP integrated
+    BT::NodeStatus tick();
 
 private:
     /**
@@ -115,7 +124,8 @@ private:
     control::CallRouter& call_router_;
 
     // BT state
-    // std::unique_ptr<BT::Tree> tree_;  // Uncomment when BehaviorTree.CPP integrated
+    std::unique_ptr<BT::BehaviorTreeFactory> factory_;
+    std::unique_ptr<BT::Tree> tree_;
     std::string tree_path_;
     bool tree_loaded_ = false;
 

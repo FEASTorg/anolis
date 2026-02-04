@@ -7,9 +7,8 @@
 #include <chrono>
 #include <thread>
 
-// TODO: Uncomment when BehaviorTree.CPP integration is complete
-// #include <behaviortree_cpp/bt_factory.h>
-// #include <behaviortree_cpp/blackboard.h>
+#include <behaviortree_cpp/bt_factory.h>
+#include <behaviortree_cpp/blackboard.h>
 
 namespace anolis {
 namespace automation {
@@ -17,8 +16,14 @@ namespace automation {
 BTRuntime::BTRuntime(state::StateCache& state_cache, control::CallRouter& call_router)
     : state_cache_(state_cache)
     , call_router_(call_router)
+    , factory_(std::make_unique<BT::BehaviorTreeFactory>())
 {
-    std::cout << "[BTRuntime] Initialized (Phase 7A skeleton)" << std::endl;
+    std::cout << "[BTRuntime] Initialized" << std::endl;
+    
+    // Phase 7A.3: Register custom nodes here
+    // factory_->registerNodeType<ReadSignalNode>("ReadSignal");
+    // factory_->registerNodeType<CallDeviceNode>("CallDevice");
+    // factory_->registerNodeType<CheckQualityNode>("CheckQuality");
 }
 
 BTRuntime::~BTRuntime() {
@@ -34,32 +39,19 @@ bool BTRuntime::load_tree(const std::string& path) {
     }
 
     tree_path_ = path;
-    tree_loaded_ = false;  // Will be set to true when BehaviorTree.CPP integration is complete
 
-    std::cout << "[BTRuntime] BT file located: " << path << std::endl;
-    std::cout << "[BTRuntime] NOTE: BehaviorTree.CPP integration pending (Phase 7A.3+)" << std::endl;
-
-    // TODO: Implement BT loading when BehaviorTree.CPP is integrated
-    // BT::BehaviorTreeFactory factory;
-    // 
-    // // Register custom nodes (Phase 7A.3)
-    // // factory.registerNodeType<ReadSignalNode>("ReadSignal");
-    // // factory.registerNodeType<CallDeviceNode>("CallDevice");
-    // // factory.registerNodeType<CheckQualityNode>("CheckQuality");
-    // 
-    // try {
-    //     tree_ = factory.createTreeFromFile(path);
-    //     tree_loaded_ = true;
-    //     std::cout << "[BTRuntime] BT loaded successfully: " << path << std::endl;
-    //     return true;
-    // } catch (const std::exception& e) {
-    //     std::cerr << "[BTRuntime] ERROR loading BT: " << e.what() << std::endl;
-    //     return false;
-    // }
-
-    // Temporary: return true to allow skeleton testing
-    tree_loaded_ = true;
-    return true;
+    try {
+        tree_ = std::make_unique<BT::Tree>(factory_->createTreeFromFile(path));
+        tree_loaded_ = true;
+        
+        std::cout << "[BTRuntime] BT loaded successfully: " << path << std::endl;
+        return true;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "[BTRuntime] ERROR loading BT: " << e.what() << std::endl;
+        tree_loaded_ = false;
+        return false;
+    }
 }
 
 bool BTRuntime::start(int tick_rate_hz) {
@@ -108,6 +100,15 @@ bool BTRuntime::is_running() const {
     return running_;
 }
 
+BT::NodeStatus BTRuntime::tick() {
+    if (!tree_) {
+        std::cerr << "[BTRuntime] ERROR: Cannot tick, no tree loaded" << std::endl;
+        return BT::NodeStatus::FAILURE;
+    }
+    
+    return tree_->tickOnce();
+}
+
 void BTRuntime::tick_loop() {
     using namespace std::chrono;
 
@@ -122,17 +123,26 @@ void BTRuntime::tick_loop() {
         populate_blackboard();
 
         // Execute single BT tick
-        // TODO: Uncomment when BehaviorTree.CPP is integrated
-        // auto status = tree_->tickOnce();
-        // 
-        // // Log tick result (optional, can be verbose)
-        // // std::cout << "[BTRuntime] Tick status: " << toStr(status) << std::endl;
-        //
-        // // Phase 7B: Check mode before next tick
-        // // if (mode_manager_->current_mode() != RuntimeMode::AUTO) {
-        // //     std::cout << "[BTRuntime] Not in AUTO mode, pausing tick" << std::endl;
-        // //     break;
-        // // }
+        try {
+            auto status = tick();
+            
+            // Log terminal states (optional, can be verbose)
+            if (status == BT::NodeStatus::SUCCESS) {
+                std::cout << "[BTRuntime] BT completed successfully" << std::endl;
+            } else if (status == BT::NodeStatus::FAILURE) {
+                std::cout << "[BTRuntime] BT failed" << std::endl;
+            }
+            // RUNNING status is normal, don't log
+            
+        } catch (const std::exception& e) {
+            std::cerr << "[BTRuntime] ERROR during tick: " << e.what() << std::endl;
+        }
+        
+        // Phase 7B: Check mode before next tick
+        // if (mode_manager_->current_mode() != RuntimeMode::AUTO) {
+        //     std::cout << "[BTRuntime] Not in AUTO mode, pausing tick" << std::endl;
+        //     break;
+        // }
 
         // Sleep until next tick
         std::this_thread::sleep_until(next_tick);
@@ -143,37 +153,39 @@ void BTRuntime::tick_loop() {
 }
 
 void BTRuntime::populate_blackboard() {
+    if (!tree_) {
+        return;
+    }
+    
     // Snapshot StateCache before tick
     // This ensures BT sees consistent state, no mid-tick changes visible
-    
-    // TODO: Implement blackboard population (Phase 7A.2)
-    // 
+    //
     // Critical design notes (from Phase 7 review):
     // - BT sees tick-consistent snapshot, NOT continuous state
     // - BT logic is edge-triggered by events, but state visibility is per-tick
     // - No mid-tick state changes visible to BT nodes
     // - BT is NOT for hard real-time control; call latency acceptable
-    //
-    // Blackboard schema (Phase 7A.2):
-    // - StateCache snapshot: map<signal_id, {value, quality}>
-    // - CallRouter reference (for device calls)
-    // - Runtime parameters (Phase 7C placeholder)
-    //
-    // Example implementation:
-    // auto blackboard = tree_->rootBlackboard();
-    // 
-    // // Get all signals from StateCache
-    // auto signals = state_cache_.get_all_signals();
-    // for (const auto& [signal_id, signal_data] : signals) {
-    //     blackboard->set("signal_" + signal_id, signal_data.value);
-    //     blackboard->set("quality_" + signal_id, signal_data.quality);
-    // }
-    // 
-    // // Store CallRouter reference for CallDeviceNode
-    // blackboard->set("call_router", &call_router_);
-    //
-    // // Phase 7C: Add parameters to blackboard
-    // // blackboard->set("parameters", &parameter_manager_);
+    
+    auto blackboard = tree_->rootBlackboard();
+    
+    // Store CallRouter reference for CallDeviceNode (Phase 7A.3)
+    // BT nodes will cast this back to CallRouter* when needed
+    blackboard->set("call_router", static_cast<void*>(&call_router_));
+    
+    // Store StateCache reference for ReadSignalNode (Phase 7A.3)
+    // BT nodes will cast this back to StateCache* when needed
+    blackboard->set("state_cache", static_cast<void*>(&state_cache_));
+    
+    // Phase 7C: Add parameters to blackboard
+    // blackboard->set("parameters", static_cast<void*>(&parameter_manager_));
+    
+    // Note: We pass references, not snapshots, for efficiency.
+    // StateCache's get_signal_value() is already thread-safe.
+    // This is acceptable because:
+    // 1. Polling happens every 500ms, ticks every 100ms (10 Hz)
+    // 2. BT execution is fast compared to poll rate
+    // 3. If a value changes mid-tick, next tick will see the change
+    // 4. BT is for orchestration policy, not hard real-time control
 }
 
 }  // namespace automation

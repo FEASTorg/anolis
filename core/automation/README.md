@@ -29,16 +29,21 @@ This design prevents incorrect assumptions about "reacting instantly" to mid-tic
 Populated before each tick in `BTRuntime::populate_blackboard()`:
 
 ```cpp
-// StateCache snapshot
-blackboard->set("signal_<id>", value);          // Signal values
-blackboard->set("quality_<id>", quality);       // Signal quality (OK/STALE/FAULT)
+// StateCache reference (BT nodes will query on demand)
+blackboard->set("state_cache", static_cast<void*>(&state_cache_));
 
 // CallRouter reference (for device calls)
-blackboard->set("call_router", &call_router_);
+blackboard->set("call_router", static_cast<void*>(&call_router_));
 
 // Parameters (Phase 7C)
-blackboard->set("parameters", &parameter_manager_);
+blackboard->set("parameters", static_cast<void*>(&parameter_manager_));
 ```
+
+**Important:** We pass **references**, not full snapshots, for efficiency. StateCache's `get_signal_value()` is thread-safe. This design is acceptable because:
+1. Polling happens every 500ms, ticks every 100ms (10 Hz)
+2. BT execution is fast compared to poll rate  
+3. If a value changes mid-tick, next tick will see the change
+4. BT is for orchestration policy, not hard real-time control
 
 ## Thread Model
 
@@ -69,8 +74,8 @@ FAULT mode is *policy*, not a certified safety mechanism.
 
 - **Phase 7A**: BT Engine Foundation (IN PROGRESS)
   - 7A.1: Library integration ✅
-  - 7A.2: Blackboard design (NEXT)
-  - 7A.3: Custom node API (TODO)
+  - 7A.2: Blackboard design ✅
+  - 7A.3: Custom node API (NEXT)
   - 7A.4: BT Runtime lifecycle (TODO)
   - 7A.5: Integration with Runtime (TODO)
   - 7A.6: Demo BT (TODO)
