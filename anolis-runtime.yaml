@@ -21,5 +21,10 @@ polling:
 telemetry:
   enabled: false
 
+automation:
+  enabled: false  # Set to true to enable behavior tree automation
+  behavior_tree: ./behaviors/demo.xml
+  tick_rate_hz: 10  # 1-1000 Hz
+
 logging:
   level: info  # debug, info, warn, error

@@ -1,0 +1,80 @@
+<?xml version="1.0"?>
+<root BTCPP_format="4">
+    <!-- 
+    Phase 7A.6 Demo Behavior Tree
+    
+    This BT demonstrates basic automation with anolis-provider-sim:
+    1. Check tempctl0 temperature quality
+    2. If OK, ramp through temperature setpoints (20, 25, 30°C)
+    3. If STALE/FAULT, log and halt
+    
+    Device: tempctl0 (simulated temperature controller)
+    Signals: temperature (current temp reading)
+    Functions: set_target_temp(target: double)
+    -->
+    
+    <BehaviorTree ID="TempRampSequence">
+        <Sequence>
+            <!-- Check if temperature signal is available and OK quality -->
+            <CheckQuality 
+                device_handle="sim/tempctl0" 
+                signal_id="temperature" 
+                expected_quality="OK"
+                name="VerifyTempSensorQuality"/>
+            
+            <!-- Ramp to 20°C -->
+            <Sequence>
+                <CallDevice 
+                    device_handle="sim/tempctl0" 
+                    function_name="set_target_temp"
+                    arg_target="20.0"
+                    success="{call_success}"
+                    error="{call_error}"
+                    name="SetTargetTemp20C"/>
+                
+                <ReadSignal 
+                    device_handle="sim/tempctl0" 
+                    signal_id="temperature"
+                    value="{current_temp}"
+                    quality="{temp_quality}"
+                    name="ReadCurrentTemp20"/>
+            </Sequence>
+            
+            <!-- Ramp to 25°C -->
+            <Sequence>
+                <CallDevice 
+                    device_handle="sim/tempctl0" 
+                    function_name="set_target_temp"
+                    arg_target="25.0"
+                    success="{call_success}"
+                    error="{call_error}"
+                    name="SetTargetTemp25C"/>
+                
+                <ReadSignal 
+                    device_handle="sim/tempctl0" 
+                    signal_id="temperature"
+                    value="{current_temp}"
+                    quality="{temp_quality}"
+                    name="ReadCurrentTemp25"/>
+            </Sequence>
+            
+            <!-- Ramp to 30°C -->
+            <Sequence>
+                <CallDevice 
+                    device_handle="sim/tempctl0" 
+                    function_name="set_target_temp"
+                    arg_target="30.0"
+                    success="{call_success}"
+                    error="{call_error}"
+                    name="SetTargetTemp30C"/>
+                
+                <ReadSignal 
+                    device_handle="sim/tempctl0" 
+                    signal_id="temperature"
+                    value="{current_temp}"
+                    quality="{temp_quality}"
+                    name="ReadCurrentTemp30"/>
+            </Sequence>
+        </Sequence>
+    </BehaviorTree>
+</root>
