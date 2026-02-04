@@ -3,8 +3,30 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "working/**"
+      - "**/*.md"
+      - "**/*.png"
+      - "**/*.svg"
+      - "**/*.jpg"
+      - "**/*.jpeg"
+      - "**/*.gif"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "working/**"
+      - "**/*.md"
+      - "**/*.png"
+      - "**/*.svg"
+      - "**/*.jpg"
+      - "**/*.jpeg"
+      - "**/*.gif"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 # vcpkg commit from the official release 2026.01.16
 # https://github.com/microsoft/vcpkg/releases/tag/2026.01.16
@@ -33,30 +55,57 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake g++ python3 python3-pip
+          sudo apt-get install -y ninja-build ccache g++ python3 python3-pip
           python3 -m pip install --upgrade pip
-          python3 -m pip install -r requirements.txt
+          # Configure ccache
+          /usr/sbin/update-ccache-symlinks
+          echo 'export PATH="/usr/lib/ccache:$PATH"' >> $GITHUB_ENV
+          export PATH="/usr/lib/ccache:$PATH"
+          ccache --set-config=max_size=1G
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-linux-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            ccache-linux-${{ github.ref_name }}-
+            ccache-linux-
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
+
+      - name: Install Python packages
+        run: |
+          python -m pip install -r requirements.txt
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+          doNotCache: false
 
       - name: Build anolis
         run: |
-          cmake -B build -S . \
+          cmake -B build -S . -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
+            -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           cmake --build build --config Release --parallel
 
       - name: Build anolis-provider-sim
         run: |
           cd anolis-provider-sim
-          cmake -B build -S . \
+          cmake -B build -S . -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
             -DVCPKG_INSTALLED_DIR=$GITHUB_WORKSPACE/build/vcpkg_installed \
-            -DVCPKG_MANIFEST_INSTALL=OFF
+            -DVCPKG_MANIFEST_INSTALL=OFF \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           cmake --build build --config Release --parallel
 
       - name: Run tests
@@ -64,22 +113,22 @@ jobs:
           LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/lib
         run: |
           set +e  # Don't exit on error so we can capture diagnostics
-          
+
           # Smoke test: verify binaries can start
           echo "=== Smoke test: runtime --help ==="
           timeout 10 build/core/anolis-runtime --help || echo "Runtime help exit: $?"
-          
+
           echo "=== Smoke test: provider-sim --help ==="
           timeout 10 $GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim --help || echo "Provider help exit: $?"
-          
+
           echo "=== Memory status before tests ==="
           free -m
-          
+
           echo "=== Running tests ==="
           python3 scripts/test_all.py --timeout=120 \
             --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim
           TEST_EXIT=$?
-          
+
           # On failure, show diagnostics
           if [ $TEST_EXIT -ne 0 ]; then
             echo "=== Test failed with exit code $TEST_EXIT ==="
@@ -91,9 +140,15 @@ jobs:
             ps aux --sort=-rss | head -10 || true
             echo "=== Test log tails ==="
             tail -100 build/test-logs/*.log 2>/dev/null || true
-          fi
-          
+          ccache -s
           exit $TEST_EXIT
+
+      - name: Upload Test Logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-linux
+          path: build/test-logs/
 
   build-windows:
     name: Windows (MSVC 2022)
@@ -113,6 +168,13 @@ jobs:
           path: anolis-provider-sim
           submodules: recursive
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
+
       - name: Install Python packages
         run: |
           python -m pip install --upgrade pip
@@ -122,11 +184,12 @@ jobs:
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+          doNotCache: false
 
       - name: Build anolis
         run: |
           cmake -B build -S . -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
-          cmake --build build --config Release
+          cmake --build build --config Release --parallel
 
       - name: Build anolis-provider-sim
         run: |
@@ -135,8 +198,15 @@ jobs:
             "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
             "-DVCPKG_INSTALLED_DIR=$env:GITHUB_WORKSPACE/build/vcpkg_installed" `
             "-DVCPKG_MANIFEST_INSTALL=OFF"
-          cmake --build build --config Release
+          cmake --build build --config Release --parallel
 
       - name: Run tests
         run: |
           python scripts/test_all.py --timeout=120 "--provider=$env:GITHUB_WORKSPACE/anolis-provider-sim/build/Release/anolis-provider-sim.exe"
+
+      - name: Upload Test Logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-windows
+          path: build/test-logs/
