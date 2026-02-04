@@ -61,6 +61,7 @@ class AutomationTester:
         self.provider_path = provider_path
         self.port = port
         self.base_url = f"http://127.0.0.1:{port}"
+        self.repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
         self.runtime_process: Optional[subprocess.Popen] = None
         self.config_file: Optional[str] = None
         self.tests_passed = 0
@@ -85,7 +86,7 @@ class AutomationTester:
             "telemetry": {"enabled": False},
             "automation": {
                 "enabled": automation_enabled,
-                "behavior_tree": "./behaviors/demo.xml",
+                "behavior_tree": os.path.join(self.repo_root, "behaviors", "demo.xml"),
                 "tick_rate_hz": 10,
                 "manual_gating_policy": manual_gating_policy,
                 "parameters": [
@@ -113,7 +114,7 @@ class AutomationTester:
         self.runtime_process = subprocess.Popen(
             [self.runtime_path, "--config", self.config_file],
             stdin=subprocess.DEVNULL,
-            cwd="d:\\repos_feast\\anolis",  # Set working directory so relative paths work
+            cwd=self.repo_root,  # Set working directory so relative paths work
         )
 
         # Wait for startup
