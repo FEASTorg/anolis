@@ -152,6 +152,29 @@ bool load_config(const std::string& config_path, RuntimeConfig& config, std::str
             }
         }
         
+        // Load automation config (Phase 7)
+        if (yaml["automation"]) {
+            if (yaml["automation"]["enabled"]) {
+                config.automation.enabled = yaml["automation"]["enabled"].as<bool>();
+            }
+            if (yaml["automation"]["behavior_tree"]) {
+                config.automation.behavior_tree = yaml["automation"]["behavior_tree"].as<std::string>();
+            }
+            if (yaml["automation"]["tick_rate_hz"]) {
+                config.automation.tick_rate_hz = yaml["automation"]["tick_rate_hz"].as<int>();
+                if (config.automation.tick_rate_hz < 1 || config.automation.tick_rate_hz > 1000) {
+                    error = "Automation tick_rate_hz must be between 1 and 1000 Hz";
+                    return false;
+                }
+            }
+            
+            // Validate behavior_tree path is set if enabled
+            if (config.automation.enabled && config.automation.behavior_tree.empty()) {
+                error = "Automation enabled but behavior_tree path not specified";
+                return false;
+            }
+        }
+        
         std::cerr << "[Config] Loaded " << config.providers.size() << " provider(s)\n";
         std::cerr << "[Config] Runtime mode: " << config.runtime.mode << "\n";
         std::cerr << "[Config] HTTP: " << (config.http.enabled ? "enabled" : "disabled");
@@ -167,6 +190,12 @@ bool load_config(const std::string& config_path, RuntimeConfig& config, std::str
         }
         std::cerr << "\n";
         std::cerr << "[Config] Log level: " << config.logging.level << "\n";
+        std::cerr << "[Config] Automation: " << (config.automation.enabled ? "enabled" : "disabled");
+        if (config.automation.enabled) {
+            std::cerr << " (BT: " << config.automation.behavior_tree 
+                      << ", tick rate: " << config.automation.tick_rate_hz << " Hz)";
+        }
+        std::cerr << "\n";
         
         return true;
         

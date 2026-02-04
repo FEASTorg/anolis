@@ -48,6 +48,13 @@ struct TelemetryConfig {
     size_t queue_size = 10000;      // Event queue size
 };
 
+// Phase 7: Automation configuration
+struct AutomationConfig {
+    bool enabled = false;
+    std::string behavior_tree;      // Path to BT XML file
+    int tick_rate_hz = 10;          // BT tick rate (1-1000 Hz)
+};
+
 struct RuntimeConfig {
     RuntimeModeConfig runtime;
     HttpConfig http;
@@ -55,6 +62,7 @@ struct RuntimeConfig {
     PollingConfig polling;
     TelemetryConfig telemetry;
     LoggingConfig logging;
+    AutomationConfig automation;  // Phase 7
 };
 
 // Load config from YAML file

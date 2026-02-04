@@ -8,6 +8,7 @@
 #include "http/server.hpp"
 #include "events/event_emitter.hpp"
 #include "telemetry/influx_sink.hpp"
+#include "automation/bt_runtime.hpp"  // Phase 7
 #include <memory>
 #include <unordered_map>
 
@@ -49,6 +50,7 @@ private:
     std::unique_ptr<control::CallRouter> call_router_;
     std::unique_ptr<http::HttpServer> http_server_;
     std::unique_ptr<telemetry::InfluxSink> telemetry_sink_;  // Phase 6B
+    std::unique_ptr<automation::BTRuntime> bt_runtime_;      // Phase 7
     
     bool running_ = false;
 };

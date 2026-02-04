@@ -116,6 +116,21 @@ bool Runtime::initialize(std::string& error) {
         std::cerr << "[Runtime] Telemetry disabled in config\n";
     }
     
+    // Create and initialize BTRuntime if enabled (Phase 7)
+    if (config_.automation.enabled) {
+        std::cerr << "[Runtime] Creating BT runtime\n";
+        bt_runtime_ = std::make_unique<automation::BTRuntime>(*state_cache_, *call_router_);
+        
+        if (!bt_runtime_->load_tree(config_.automation.behavior_tree)) {
+            error = "Failed to load behavior tree: " + config_.automation.behavior_tree;
+            return false;
+        }
+        
+        std::cerr << "[Runtime] Behavior tree loaded: " << config_.automation.behavior_tree << "\n";
+    } else {
+        std::cerr << "[Runtime] Automation disabled in config\n";
+    }
+    
     std::cerr << "[Runtime] Initialization complete\n";
     return true;
 }
@@ -128,6 +143,17 @@ void Runtime::run() {
     state_cache_->start_polling(providers_);
     
     std::cerr << "[Runtime] State cache polling active\n" << std::flush;
+    
+    // Start BT tick loop if automation enabled (Phase 7)
+    if (bt_runtime_) {
+        if (!bt_runtime_->start(config_.automation.tick_rate_hz)) {
+            std::cerr << "[Runtime] WARNING: BT runtime failed to start\n";
+        } else {
+            std::cerr << "[Runtime] BT runtime started (tick rate: " 
+                      << config_.automation.tick_rate_hz << " Hz)\n";
+        }
+    }
+    
     std::cerr << "[Runtime] Press Ctrl+C to exit\n\n" << std::flush;
     
     // Main loop (v0: just keep polling alive)
@@ -148,7 +174,13 @@ void Runtime::run() {
 }
 
 void Runtime::shutdown() {
-    // Stop HTTP server first
+    // Stop BT runtime first (Phase 7)
+    if (bt_runtime_) {
+        std::cerr << "[Runtime] Stopping BT runtime\n";
+        bt_runtime_->stop();
+    }
+    
+    // Stop HTTP server
     if (http_server_) {
         std::cerr << "[Runtime] Stopping HTTP server\n";
         http_server_->stop();
