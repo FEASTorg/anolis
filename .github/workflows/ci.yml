@@ -140,6 +140,7 @@ jobs:
             ps aux --sort=-rss | head -10 || true
             echo "=== Test log tails ==="
             tail -100 build/test-logs/*.log 2>/dev/null || true
+          fi
           ccache -s
           exit $TEST_EXIT
 
