@@ -11,6 +11,7 @@
 #include "state/state_cache.hpp"
 #include "control/call_router.hpp"
 #include "events/event_emitter.hpp"
+#include "automation/mode_manager.hpp"
 #include <chrono>
 
 namespace anolis {
@@ -517,6 +518,106 @@ std::string HttpServer::format_sse_event(const events::Event& event) {
     }, event);
     
     return result;
+}
+
+//=============================================================================
+// GET /v0/mode - Get current automation mode
+//=============================================================================
+void HttpServer::handle_get_mode(const httplib::Request& req, httplib::Response& res) {
+    // If automation not enabled, return error
+    if (!mode_manager_) {
+        nlohmann::json response = make_error_response(
+            StatusCode::UNAVAILABLE,
+            "Automation layer not enabled"
+        );
+        send_json(res, StatusCode::UNAVAILABLE, response);
+        return;
+    }
+    
+    auto current = mode_manager_->current_mode();
+    std::string mode_str = automation::mode_to_string(current);
+    
+    nlohmann::json response = {
+        {"status", make_status(StatusCode::OK)},
+        {"mode", mode_str}
+    };
+    
+    send_json(res, StatusCode::OK, response);
+}
+
+//=============================================================================
+// POST /v0/mode - Set automation mode
+//=============================================================================
+void HttpServer::handle_post_mode(const httplib::Request& req, httplib::Response& res) {
+    // If automation not enabled, return error
+    if (!mode_manager_) {
+        nlohmann::json response = make_error_response(
+            StatusCode::UNAVAILABLE,
+            "Automation layer not enabled"
+        );
+        send_json(res, StatusCode::UNAVAILABLE, response);
+        return;
+    }
+    
+    // Parse request body
+    nlohmann::json body;
+    try {
+        body = nlohmann::json::parse(req.body);
+    } catch (const std::exception& e) {
+        nlohmann::json response = make_error_response(
+            StatusCode::INVALID_ARGUMENT,
+            std::string("Invalid JSON: ") + e.what()
+        );
+        send_json(res, StatusCode::INVALID_ARGUMENT, response);
+        return;
+    }
+    
+    // Validate required field
+    if (!body.contains("mode") || !body["mode"].is_string()) {
+        nlohmann::json response = make_error_response(
+            StatusCode::INVALID_ARGUMENT,
+            "Missing or invalid 'mode' field (expected string: MANUAL, AUTO, IDLE, or FAULT)"
+        );
+        send_json(res, StatusCode::INVALID_ARGUMENT, response);
+        return;
+    }
+    
+    std::string mode_str = body["mode"];
+    
+    // Validate mode string (must be exact match)
+    if (mode_str != "MANUAL" && mode_str != "AUTO" && mode_str != "IDLE" && mode_str != "FAULT") {
+        nlohmann::json response = make_error_response(
+            StatusCode::INVALID_ARGUMENT,
+            "Invalid mode: '" + mode_str + "' (must be MANUAL, AUTO, IDLE, or FAULT)"
+        );
+        send_json(res, StatusCode::INVALID_ARGUMENT, response);
+        return;
+    }
+    
+    // Parse mode string
+    auto new_mode = automation::string_to_mode(mode_str);
+    
+    // Attempt mode transition
+    std::string error;
+    if (!mode_manager_->set_mode(new_mode, error)) {
+        nlohmann::json response = make_error_response(
+            StatusCode::FAILED_PRECONDITION,
+            error
+        );
+        send_json(res, StatusCode::FAILED_PRECONDITION, response);
+        return;
+    }
+    
+    // Success - return new mode
+    auto current = mode_manager_->current_mode();
+    std::string current_str = automation::mode_to_string(current);
+    
+    nlohmann::json response = {
+        {"status", make_status(StatusCode::OK)},
+        {"mode", current_str}
+    };
+    
+    send_json(res, StatusCode::OK, response);
 }
 
 } // namespace http

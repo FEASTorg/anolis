@@ -23,6 +23,7 @@ namespace registry { class DeviceRegistry; }
 namespace state { class StateCache; }
 namespace control { class CallRouter; }
 namespace events { class EventEmitter; }
+namespace automation { class ModeManager; }
 }
 
 // Typedef for provider map
@@ -59,13 +60,15 @@ public:
      * @param call_router Call router for executing device functions
      * @param providers Provider map for call execution
      * @param event_emitter Event emitter for SSE streaming (Phase 6)
+     * @param mode_manager Mode manager for automation control (Phase 7B, optional)
      */
     HttpServer(const runtime::HttpConfig& config,
                registry::DeviceRegistry& registry,
                state::StateCache& state_cache,
                control::CallRouter& call_router,
                ProviderMap& providers,
-               std::shared_ptr<events::EventEmitter> event_emitter = nullptr);
+               std::shared_ptr<events::EventEmitter> event_emitter = nullptr,
+               automation::ModeManager* mode_manager = nullptr);
     
     ~HttpServer();
     
@@ -109,6 +112,7 @@ private:
     control::CallRouter& call_router_;
     ProviderMap& providers_;
     std::shared_ptr<events::EventEmitter> event_emitter_;  // Phase 6 SSE
+    automation::ModeManager* mode_manager_;  // Phase 7B (optional)
     
     // SSE client tracking
     std::atomic<int> sse_client_count_{0};
@@ -129,6 +133,8 @@ private:
     void handle_get_device_state(const httplib::Request& req, httplib::Response& res);
     void handle_post_call(const httplib::Request& req, httplib::Response& res);
     void handle_get_runtime_status(const httplib::Request& req, httplib::Response& res);
+    void handle_get_mode(const httplib::Request& req, httplib::Response& res);
+    void handle_post_mode(const httplib::Request& req, httplib::Response& res);
     
     // SSE handler (Phase 6)
     void handle_get_events(const httplib::Request& req, httplib::Response& res);

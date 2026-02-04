@@ -151,7 +151,7 @@ BT::PortsList CallDeviceNode::providedPorts() {
     return {
         BT::InputPort<std::string>("device_handle", "Device handle (provider_id/device_id)"),
         BT::InputPort<std::string>("function_name", "Function identifier"),
-        // Note: Arguments are accessed dynamically via getInput("arg_*")
+        BT::InputPort<std::string>("arg_target", "Target argument (for functions like set_target_temp)"),
         BT::OutputPort<bool>("success", "Call result (true/false)"),
         BT::OutputPort<std::string>("error", "Error message if call failed")
     };

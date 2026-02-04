@@ -84,7 +84,8 @@ bool Runtime::initialize(std::string& error) {
             *state_cache_,
             *call_router_,
             providers_,
-            event_emitter_  // Pass event emitter for SSE
+            event_emitter_,  // Pass event emitter for SSE
+            mode_manager_.get()  // Pass mode manager (nullptr if automation disabled)
         );
         
         std::string http_error;

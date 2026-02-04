@@ -22,10 +22,10 @@ telemetry:
   enabled: false
 
 automation:
-  enabled: false  # Set to true to enable behavior tree automation
+  enabled: true  # Set to true to enable behavior tree automation
   behavior_tree: ./behaviors/demo.xml
   tick_rate_hz: 10  # 1-1000 Hz
-  manual_gating_policy: BLOCK  # BLOCK or OVERRIDE (Phase 7B.2)
+  manual_gating_policy: BLOCK  # BLOCK or OVERRIDE
 
 logging:
   level: info  # debug, info, warn, error

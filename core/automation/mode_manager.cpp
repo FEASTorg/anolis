@@ -37,33 +37,36 @@ RuntimeMode ModeManager::current_mode() const {
 }
 
 bool ModeManager::set_mode(RuntimeMode new_mode, std::string& error) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    RuntimeMode previous_mode;
+    std::vector<ModeChangeCallback> callbacks_copy;
     
-    // No-op if already in requested mode
-    if (current_mode_ == new_mode) {
-        return true;
-    }
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        
+        // No-op if already in requested mode
+        if (current_mode_ == new_mode) {
+            return true;
+        }
+        
+        // Validate transition
+        if (!is_valid_transition(current_mode_, new_mode)) {
+            error = std::string("Invalid mode transition: ") +
+                    mode_to_string(current_mode_) + " -> " + mode_to_string(new_mode);
+            std::cerr << "[ModeManager] " << error << "\n";
+            return false;
+        }
+        
+        previous_mode = current_mode_;
+        current_mode_ = new_mode;
+        
+        std::cout << "[ModeManager] Mode changed: " << mode_to_string(previous_mode) 
+                  << " -> " << mode_to_string(new_mode) << "\n";
+        
+        // Copy callbacks while holding lock
+        callbacks_copy = callbacks_;
+    }  // Lock released here
     
-    // Validate transition
-    if (!is_valid_transition(current_mode_, new_mode)) {
-        error = std::string("Invalid mode transition: ") +
-                mode_to_string(current_mode_) + " -> " + mode_to_string(new_mode);
-        std::cerr << "[ModeManager] " << error << "\n";
-        return false;
-    }
-    
-    RuntimeMode previous_mode = current_mode_;
-    current_mode_ = new_mode;
-    
-    std::cout << "[ModeManager] Mode changed: " << mode_to_string(previous_mode) 
-              << " -> " << mode_to_string(new_mode) << "\n";
-    
-    // Notify callbacks (with lock released to prevent deadlocks)
-    // Copy callbacks vector while holding lock
-    auto callbacks_copy = callbacks_;
-    
-    // Release lock before calling callbacks
-    mutex_.unlock();
+    // Notify callbacks without holding lock (prevents deadlocks)
     for (const auto& callback : callbacks_copy) {
         try {
             callback(previous_mode, new_mode);
@@ -71,8 +74,6 @@ bool ModeManager::set_mode(RuntimeMode new_mode, std::string& error) {
             std::cerr << "[ModeManager] ERROR in mode change callback: " << e.what() << "\n";
         }
     }
-    // Note: lock is already released, will be re-acquired by lock_guard destructor
-    // but that's harmless since we're returning
     
     return true;
 }
