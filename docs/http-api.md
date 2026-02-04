@@ -134,7 +134,13 @@ List all runtime parameters with current values and constraints.
 {
   "status": { "code": "OK", "message": "ok" },
   "parameters": [
-    { "name": "temp_setpoint", "type": "double", "value": 25.0, "min": 10.0, "max": 50.0 }
+    {
+      "name": "temp_setpoint",
+      "type": "double",
+      "value": 25.0,
+      "min": 10.0,
+      "max": 50.0
+    }
   ]
 }
 ```
@@ -154,7 +160,10 @@ Update a runtime parameter (validated against constraints).
 **Response:**
 
 ```json
-{ "status": { "code": "OK", "message": "ok" }, "parameter": { "name": "temp_setpoint", "value": 30.0 } }
+{
+  "status": { "code": "OK", "message": "ok" },
+  "parameter": { "name": "temp_setpoint", "value": 30.0 }
+}
 ```
 
 ---

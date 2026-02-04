@@ -23,7 +23,7 @@ docker compose -f docker-compose.observability.yml ps
 
 Expected output:
 
-```
+```sh
 NAME              STATUS                   PORTS
 anolis-grafana    Up About a minute        0.0.0.0:3000->3000/tcp
 anolis-influxdb   Up About a minute (healthy)  0.0.0.0:8086->8086/tcp
@@ -40,7 +40,7 @@ cd D:\repos_feast\anolis
 
 Expected output includes:
 
-```
+```sh
 [Runtime] Telemetry sink started
 [InfluxSink] Started, writing to http://localhost:8086/anolis
 ```
@@ -49,7 +49,7 @@ Expected output includes:
 
 ### Check InfluxDB is receiving data
 
-Open http://localhost:8086 in browser:
+Open <http://localhost:8086> in browser:
 
 1. Login: `admin` / `anolis123`
 2. Go to **Data Explorer** (left sidebar)
@@ -59,7 +59,7 @@ Open http://localhost:8086 in browser:
 
 ### Check Grafana dashboards
 
-Open http://localhost:3000 in browser:
+Open <http://localhost:3000> in browser:
 
 1. Login: `admin` / `anolis123`
 2. Go to **Dashboards** → **Browse**
@@ -116,8 +116,8 @@ docker compose -f docker-compose.observability.yml restart grafana
 
 ## Credentials Reference
 
-| Service        | URL                   | User  | Password  |
-| -------------- | --------------------- | ----- | --------- |
-| InfluxDB       | http://localhost:8086 | admin | anolis123 |
-| Grafana        | http://localhost:3000 | admin | anolis123 |
-| InfluxDB Token | N/A                   | N/A   | dev-token |
+| Service        | URL                     | User  | Password  |
+| -------------- | ----------------------- | ----- | --------- |
+| InfluxDB       | <http://localhost:8086> | admin | anolis123 |
+| Grafana        | <http://localhost:3000> | admin | anolis123 |
+| InfluxDB Token | N/A                     | N/A   | dev-token |

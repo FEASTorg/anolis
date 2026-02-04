@@ -15,7 +15,9 @@ cd /path/to/anolis/build/core/Release
 
 ### 2. Open the UI
 
-**Option A: Direct file open** (may have CORS issues with some browsers)
+#### Option A: Direct file open
+
+_May have CORS issues with some browsers._
 
 ```bash
 # macOS
@@ -28,7 +30,9 @@ xdg-open tools/operator-ui/index.html
 start tools/operator-ui/index.html
 ```
 
-**Option B: Simple HTTP server** (recommended, avoids CORS)
+#### Option B: Simple HTTP server
+
+_This is the recommended method to avoid CORS issues._
 
 ```bash
 # Python 3
@@ -37,7 +41,7 @@ python -m http.server 3000 -d tools/operator-ui
 # Then open http://localhost:3000
 ```
 
-**Option C: VS Code Live Server**
+#### Option C: VS Code Live Server
 
 1. Install the "Live Server" extension
 2. Right-click `index.html` → "Open with Live Server"
@@ -95,7 +99,7 @@ The UI is a **mirror** of the HTTP API, not a new abstraction. It must not intro
 
 ## Files
 
-```
+```sh
 tools/operator-ui/
 ├── index.html   # Single-page UI structure
 ├── app.js       # Vanilla JS application logic

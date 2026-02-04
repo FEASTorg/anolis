@@ -42,19 +42,19 @@ Anolis supports four runtime modes:
 
 Valid transitions:
 
-```
-                 ┌──────────┐
-          ┌──────┤  MANUAL  ├──────┐
-          │      └────┬─────┘      │
-          │           │            │
-          ▼           ▼            ▼
-      ┌──────┐    ┌──────┐    ┌──────┐
-      │ IDLE │    │ AUTO │    │FAULT │
-      └──────┘    └──────┘    └───┬──┘
-          │           │            │
-          │           │            │
-          └───────────┴────────────┘
-              (All → FAULT allowed)
+```text
+           ┌──────────┐
+    ┌──────┤  MANUAL  ├──────┐
+    │      └────┬─────┘      │
+    │           │            │
+    ▼           ▼            ▼
+┌──────┐    ┌──────┐     ┌──────┐
+│ IDLE │    │ AUTO │     │FAULT │
+└──────┘    └──────┘     └───┬──┘
+    │           │            │
+    │           │            │
+    └───────────┴────────────┘
+        (All → FAULT allowed)
 ```
 
 **Invalid transitions:**
@@ -212,7 +212,7 @@ Mode transitions emit telemetry events for observability.
 
 **InfluxDB Line Protocol:**
 
-```
+```sh
 mode_change previous_mode="MANUAL",new_mode="AUTO" 1706918400000
 ```
 
@@ -331,7 +331,7 @@ automation:
 
 The BT tick loop only runs when mode == AUTO:
 
-```
+```cpp
 while (running) {
   if (mode != AUTO) {
     sleep(tick_period);

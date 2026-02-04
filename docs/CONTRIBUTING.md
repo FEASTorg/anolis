@@ -33,7 +33,7 @@ python scripts/test_all.py \
 
 **Symptoms**:
 
-```
+```text
 error C2039: 'GetTickCount': is not a member of 'google::protobuf::util::TimeUtil'
 error C2589: '(': illegal token on right side of '::'
 ```
@@ -67,7 +67,7 @@ auto ts = (google::protobuf::util::TimeUtil::GetCurrentTime)();
 
 **Symptoms**:
 
-```
+```text
 error: invalid use of incomplete type 'struct SignalSpec'
 ```
 

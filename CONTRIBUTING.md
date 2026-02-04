@@ -119,7 +119,7 @@ Any bug fixed after Phase 5 must include a test that would have caught it.
 
 ## Project Structure
 
-```
+```sh
 anolis/
 ├── core/               # Runtime kernel
 │   ├── control/        # Call router
