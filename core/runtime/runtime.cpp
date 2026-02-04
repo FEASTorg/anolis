@@ -116,10 +116,30 @@ bool Runtime::initialize(std::string& error) {
         std::cerr << "[Runtime] Telemetry disabled in config\n";
     }
     
+    // Create ModeManager (Phase 7B)
+    mode_manager_ = std::make_unique<automation::ModeManager>(automation::RuntimeMode::MANUAL);
+    
+    // Register mode change callback to emit telemetry events
+    mode_manager_->on_mode_change([this](automation::RuntimeMode prev, automation::RuntimeMode next) {
+        if (event_emitter_) {
+            events::ModeChangeEvent event;
+            event.event_id = event_emitter_->next_event_id();
+            event.previous_mode = automation::mode_to_string(prev);
+            event.new_mode = automation::mode_to_string(next);
+            event.timestamp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now().time_since_epoch()
+            ).count();
+            
+            event_emitter_->emit(event);
+            std::cout << "[Runtime] Mode change event emitted: " 
+                      << event.previous_mode << " -> " << event.new_mode << "\\n";
+        }
+    });
+    
     // Create and initialize BTRuntime if enabled (Phase 7)
     if (config_.automation.enabled) {
         std::cerr << "[Runtime] Creating BT runtime\n";
-        bt_runtime_ = std::make_unique<automation::BTRuntime>(*state_cache_, *call_router_, providers_);
+        bt_runtime_ = std::make_unique<automation::BTRuntime>(*state_cache_, *call_router_, providers_, *mode_manager_);
         
         if (!bt_runtime_->load_tree(config_.automation.behavior_tree)) {
             error = "Failed to load behavior tree: " + config_.automation.behavior_tree;

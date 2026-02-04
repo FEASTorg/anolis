@@ -177,11 +177,23 @@ struct DeviceAvailabilityEvent {
 };
 
 /**
+ * @brief Mode change event (Phase 7B)
+ * 
+ * Emitted when runtime mode transitions (MANUAL/AUTO/IDLE/FAULT).
+ */
+struct ModeChangeEvent {
+    uint64_t event_id;
+    std::string previous_mode;
+    std::string new_mode;
+    int64_t timestamp_ms;
+};
+
+/**
  * @brief Union of all event types
  * 
  * Subscribers receive Event variants and can dispatch on type.
  */
-using Event = std::variant<StateUpdateEvent, QualityChangeEvent, DeviceAvailabilityEvent>;
+using Event = std::variant<StateUpdateEvent, QualityChangeEvent, DeviceAvailabilityEvent, ModeChangeEvent>;
 
 /**
  * @brief Get event ID from any event type

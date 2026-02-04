@@ -24,6 +24,8 @@ namespace provider { class ProviderHandle; }
 
 namespace automation {
 
+class ModeManager;
+
 /**
  * BT Runtime - Phase 7A Foundation
  * 
@@ -62,10 +64,12 @@ public:
      * @param state_cache Reference to state cache (for reading device state)
      * @param call_router Reference to call router (for device calls)
      * @param providers Provider map (for CallRouter::execute_call)
+     * @param mode_manager Mode state machine (for AUTO/MANUAL gating)
      */
     BTRuntime(state::StateCache& state_cache, 
              control::CallRouter& call_router,
-             std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>>& providers);
+             std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>>& providers,
+             ModeManager& mode_manager);
     
     ~BTRuntime();
 
@@ -128,6 +132,7 @@ private:
     state::StateCache& state_cache_;
     control::CallRouter& call_router_;
     std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>>& providers_;
+    ModeManager& mode_manager_;
 
     // BT state
     std::unique_ptr<BT::BehaviorTreeFactory> factory_;

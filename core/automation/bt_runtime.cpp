@@ -1,5 +1,6 @@
 #include "automation/bt_runtime.hpp"
 #include "automation/bt_nodes.hpp"
+#include "automation/mode_manager.hpp"
 #include "state/state_cache.hpp"
 #include "control/call_router.hpp"
 
@@ -16,10 +17,12 @@ namespace automation {
 
 BTRuntime::BTRuntime(state::StateCache& state_cache, 
                      control::CallRouter& call_router,
-                     std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>>& providers)
+                     std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>>& providers,
+                     ModeManager& mode_manager)
     : state_cache_(state_cache)
     , call_router_(call_router)
     , providers_(providers)
+    , mode_manager_(mode_manager)
     , factory_(std::make_unique<BT::BehaviorTreeFactory>())
 {
     std::cout << "[BTRuntime] Initialized" << std::endl;
@@ -125,6 +128,14 @@ void BTRuntime::tick_loop() {
               << tick_period.count() << "ms)" << std::endl;
 
     while (running_) {
+        // Check if we're in AUTO mode (Phase 7B.3)
+        if (mode_manager_.current_mode() != RuntimeMode::AUTO) {
+            // Not in AUTO mode, skip tick
+            std::this_thread::sleep_until(next_tick);
+            next_tick += tick_period;
+            continue;
+        }
+        
         // Populate blackboard with fresh StateCache snapshot
         populate_blackboard();
 
