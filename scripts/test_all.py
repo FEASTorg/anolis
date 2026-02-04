@@ -341,6 +341,7 @@ def main() -> int:
     test_suites = [
         ("test_core.py", []),
         ("test_http.py", [f"--port={args.port}"]),
+        ("test_automation.py", [f"--port={args.port + 1}"]),
     ]
 
     results: List[TestSuiteResult] = []

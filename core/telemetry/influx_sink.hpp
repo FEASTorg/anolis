@@ -156,6 +156,30 @@ inline std::string format_line_protocol(const events::StateUpdateEvent& event) {
 }
 
 /**
+ * @brief Format ModeChangeEvent as InfluxDB line protocol
+ * 
+ * Measurement: mode_change
+ * Tags: none (system-wide event)
+ * Fields: previous_mode, new_mode
+ * Timestamp: epoch milliseconds
+ */
+inline std::string format_mode_change_line_protocol(const events::ModeChangeEvent& event) {
+    std::ostringstream line;
+    
+    // Measurement (no tags for system-wide events)
+    line << "mode_change";
+    
+    // Field set
+    line << " previous_mode=\"" << escape_field_string(event.previous_mode) << "\""
+         << ",new_mode=\"" << escape_field_string(event.new_mode) << "\"";
+    
+    // Timestamp (epoch milliseconds)
+    line << " " << event.timestamp_ms;
+    
+    return line.str();
+}
+
+/**
  * @brief InfluxDB telemetry sink
  * 
  * Subscribes to EventEmitter and asynchronously writes events to InfluxDB.
@@ -301,13 +325,17 @@ private:
             auto event_opt = subscription_->pop(100);  // 100ms timeout
             
             if (event_opt) {
-                // Only process StateUpdateEvents for telemetry
-                // (QualityChangeEvents are redundant since StateUpdateEvent has quality)
+                // Process both StateUpdateEvents and ModeChangeEvents
                 if (std::holds_alternative<events::StateUpdateEvent>(*event_opt)) {
                     const auto& update = std::get<events::StateUpdateEvent>(*event_opt);
                     
                     std::lock_guard<std::mutex> lock(batch_mutex_);
                     batch_.push_back(format_line_protocol(update));
+                } else if (std::holds_alternative<events::ModeChangeEvent>(*event_opt)) {
+                    const auto& mode_change = std::get<events::ModeChangeEvent>(*event_opt);
+                    
+                    std::lock_guard<std::mutex> lock(batch_mutex_);
+                    batch_.push_back(format_mode_change_line_protocol(mode_change));
                 }
             }
             

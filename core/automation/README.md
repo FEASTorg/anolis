@@ -81,7 +81,19 @@ FAULT mode is *policy*, not a certified safety mechanism.
   - 7A.6: Demo BT XML ✅
   - 7A.7: Documentation ✅
 
+- **Phase 7B**: Runtime Modes & Gating ✅ COMPLETE
+  - 7B.1: Mode state machine ✅
+  - 7B.2: Manual/auto contention policy ✅
+  - 7B.3: BT lifecycle gating ✅
+  - 7B.4: HTTP API for mode control ✅
+  - 7B.5: Mode change events ✅
+  - 7B.6: Integration testing ✅
+  - 7B.7: Documentation ✅
+
+- **Phase 7C**: Parameters & Configuration ⏳ PLANNED
+
 Demo behavior tree available at: `behaviors/demo.xml`
+Comprehensive documentation: `docs/automation.md`
 
 Enable automation in `anolis-runtime.yaml`:
 ```yaml
@@ -89,15 +101,11 @@ automation:
   enabled: true
   behavior_tree: ./behaviors/demo.xml
   tick_rate_hz: 10
+  manual_gating_policy: BLOCK  # or OVERRIDE
 ```
-  - 7A.6: Demo BT (TODO)
-  - 7A.7: Testing & CI (TODO)
-
-- **Phase 7B**: Runtime Modes & Gating (PLANNED)
-- **Phase 7C**: Parameters & Configuration (PLANNED)
 
 ## References
 
 - [BehaviorTree.CPP Documentation](https://www.behaviortree.dev/)
 - [Phase 7 Plan](../../working/phase_7_plan.md)
-- [Master Plan](../../working/anolis_master_plan_remaining.md)
+- [Master Plan](../../working/anolis_master_plan_02_validation.md)

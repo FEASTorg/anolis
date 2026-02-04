@@ -2,7 +2,7 @@
 # Phase 4: HTTP Gateway + Basic provider config
 
 runtime:
-  mode: MANUAL  # Always MANUAL in v0
+  mode: MANUAL # Always MANUAL in v0
 
 http:
   enabled: true
@@ -16,16 +16,23 @@ providers:
     timeout_ms: 5000
 
 polling:
-  interval_ms: 500  # Default polling interval (min 100ms)
+  interval_ms: 500 # Default polling interval (min 100ms)
 
 telemetry:
-  enabled: false
+  enabled: true
+  influx_url: http://localhost:8086
+  influx_org: anolis
+  influx_bucket: anolis
+  influx_token: dev-token
+  batch_size: 100
+  flush_interval_ms: 1000
+  queue_size: 10000
 
 automation:
-  enabled: true  # Set to true to enable behavior tree automation
+  enabled: true # Set to true to enable behavior tree automation
   behavior_tree: ./behaviors/demo.xml
-  tick_rate_hz: 10  # 1-1000 Hz
-  manual_gating_policy: BLOCK  # BLOCK or OVERRIDE
+  tick_rate_hz: 10 # 1-1000 Hz
+  manual_gating_policy: BLOCK # BLOCK or OVERRIDE
 
 logging:
-  level: info  # debug, info, warn, error
+  level: info # debug, info, warn, error

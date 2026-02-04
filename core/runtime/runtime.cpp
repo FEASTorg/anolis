@@ -67,11 +67,9 @@ bool Runtime::initialize(std::string& error) {
     // Create call router
     call_router_ = std::make_unique<control::CallRouter>(*registry_, *state_cache_);
     
-    // Create ModeManager (Phase 7B)
-    mode_manager_ = std::make_unique<automation::ModeManager>(automation::RuntimeMode::MANUAL);
-    
-    // Wire mode manager to call router for manual/auto gating (Phase 7B.2)
+    // Create ModeManager and wire to CallRouter if automation enabled (Phase 7B)
     if (config_.automation.enabled) {
+        mode_manager_ = std::make_unique<automation::ModeManager>(automation::RuntimeMode::MANUAL);
         call_router_->set_mode_manager(mode_manager_.get(), config_.automation.manual_gating_policy);
     }
     
@@ -125,22 +123,24 @@ bool Runtime::initialize(std::string& error) {
         std::cerr << "[Runtime] Telemetry disabled in config\n";
     }
     
-    // Register mode change callback to emit telemetry events
-    mode_manager_->on_mode_change([this](automation::RuntimeMode prev, automation::RuntimeMode next) {
-        if (event_emitter_) {
-            events::ModeChangeEvent event;
-            event.event_id = event_emitter_->next_event_id();
-            event.previous_mode = automation::mode_to_string(prev);
-            event.new_mode = automation::mode_to_string(next);
-            event.timestamp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::system_clock::now().time_since_epoch()
-            ).count();
-            
-            event_emitter_->emit(event);
-            std::cout << "[Runtime] Mode change event emitted: " 
-                      << event.previous_mode << " -> " << event.new_mode << "\\n";
-        }
-    });
+    // Register mode change callback to emit telemetry events (only if automation enabled)
+    if (mode_manager_) {
+        mode_manager_->on_mode_change([this](automation::RuntimeMode prev, automation::RuntimeMode next) {
+            if (event_emitter_) {
+                events::ModeChangeEvent event;
+                event.event_id = event_emitter_->next_event_id();
+                event.previous_mode = automation::mode_to_string(prev);
+                event.new_mode = automation::mode_to_string(next);
+                event.timestamp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::system_clock::now().time_since_epoch()
+                ).count();
+                
+                event_emitter_->emit(event);
+                std::cout << "[Runtime] Mode change event emitted: " 
+                          << event.previous_mode << " -> " << event.new_mode << "\\n";
+            }
+        });
+    }
     
     // Create and initialize BTRuntime if enabled (Phase 7)
     if (config_.automation.enabled) {
