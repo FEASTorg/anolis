@@ -71,6 +71,24 @@ target_link_libraries(anolis_telemetry PUBLIC
     httplib::httplib
 )
 
+# Automation library (Phase 7 - Behavior Trees)
+find_package(behaviortree_cpp CONFIG REQUIRED)
+
+add_library(anolis_automation STATIC
+    automation/bt_runtime.cpp
+)
+
+target_include_directories(anolis_automation PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+target_link_libraries(anolis_automation PUBLIC
+    anolis_state
+    anolis_control
+    BT::behaviortree_cpp
+)
+
 # State cache library
 add_library(anolis_state STATIC
     state/state_cache.cpp
@@ -154,6 +172,7 @@ target_link_libraries(anolis_runtime PUBLIC
     anolis_control
     anolis_http
     anolis_telemetry
+    anolis_automation
     yaml-cpp::yaml-cpp
     protobuf::libprotobuf
 )

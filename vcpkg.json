@@ -5,6 +5,7 @@
     "protobuf",
     "yaml-cpp",
     "cpp-httplib",
-    "nlohmann-json"
+    "nlohmann-json",
+    "behaviortree-cpp"
   ]
 }
