@@ -88,7 +88,14 @@ class AutomationTester:
                 "behavior_tree": "./behaviors/demo.xml",
                 "tick_rate_hz": 10,
                 "manual_gating_policy": manual_gating_policy,
+                "parameters": [
+                    {"name": "temp_setpoint", "type": "double", "default": 25.0, "min": 10.0, "max": 50.0},
+                    {"name": "motor_duty_cycle", "type": "int64", "default": 50, "min": 0, "max": 100},
+                    {"name": "control_enabled", "type": "bool", "default": True},
+                    {"name": "operating_mode", "type": "string", "default": "normal", "allowed_values": ["normal", "test", "emergency"]}
+                ]
             },
+
             "logging": {"level": "info"},
         }
 
@@ -319,6 +326,70 @@ class AutomationTester:
         log_fail(f"Expected INVALID_ARGUMENT error, got: {result}")
         return False
 
+    def test_get_parameters(self) -> bool:
+        """Test GET /v0/parameters returns declared parameters"""
+        log_test("GET /v0/parameters")
+
+        try:
+            resp = requests.get(f"{self.base_url}/v0/parameters", timeout=2)
+            if resp.status_code != 200:
+                log_fail(f"Expected 200 OK, got {resp.status_code}")
+                return False
+            body = resp.json()
+            if "parameters" not in body:
+                log_fail("Response missing 'parameters' field")
+                return False
+            # Basic sanity: check temp_setpoint exists
+            names = [p.get("name") for p in body.get("parameters", [])]
+            if "temp_setpoint" not in names:
+                log_fail("Expected 'temp_setpoint' in parameters")
+                return False
+            log_pass("Parameters listed")
+            return True
+        except requests.RequestException as e:
+            log_fail(f"Request exception: {e}")
+            return False
+
+    def test_update_parameter_valid(self) -> bool:
+        """Test POST /v0/parameters valid update"""
+        log_test("POST /v0/parameters (valid)")
+
+        try:
+            resp = requests.post(f"{self.base_url}/v0/parameters", json={"name": "temp_setpoint", "value": 30.0}, timeout=2)
+            if resp.status_code != 200:
+                log_fail(f"Expected 200 OK, got {resp.status_code} - {resp.text}")
+                return False
+            body = resp.json()
+            val = body.get("parameter", {}).get("value")
+            if val != 30.0:
+                log_fail(f"Expected updated value 30.0, got {val}")
+                return False
+            log_pass("Parameter updated successfully")
+            return True
+        except requests.RequestException as e:
+            log_fail(f"Request exception: {e}")
+            return False
+
+    def test_update_parameter_out_of_range(self) -> bool:
+        """Test POST /v0/parameters rejects out-of-range value"""
+        log_test("POST /v0/parameters (out-of-range)")
+
+        try:
+            resp = requests.post(f"{self.base_url}/v0/parameters", json={"name": "temp_setpoint", "value": 100.0}, timeout=2)
+            # Expect 400 with INVALID_ARGUMENT
+            if resp.status_code == 200:
+                log_fail("Expected rejection but got 200 OK")
+                return False
+            body = resp.json()
+            if "status" in body and body["status"].get("code") == "INVALID_ARGUMENT":
+                log_pass("Out-of-range correctly rejected")
+                return True
+            log_fail(f"Expected INVALID_ARGUMENT, got: {body}")
+            return False
+        except requests.RequestException as e:
+            log_fail(f"Request exception: {e}")
+            return False
+
     def test_automation_disabled_returns_unavailable(self) -> bool:
         """Test that mode endpoints return UNAVAILABLE when automation disabled"""
         log_test("Mode API when automation disabled")
@@ -361,6 +432,11 @@ class AutomationTester:
             self.test_invalid_transition_fault_to_auto,
             self.test_recovery_path_fault_to_manual_to_auto,
             self.test_invalid_mode_string,
+            # Parameter tests (Phase 7C)
+            self.test_get_parameters,
+            self.test_update_parameter_valid,
+            self.test_update_parameter_out_of_range,
+            # Automation disabled test
             self.test_automation_disabled_returns_unavailable,
         ]
 

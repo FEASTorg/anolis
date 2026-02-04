@@ -214,6 +214,73 @@ from(bucket: "anolis")
 
 ---
 
+## Parameters (Phase 7C)
+
+Anolis supports **runtime parameters** that can be declared in YAML and updated at runtime via HTTP. Parameters are read-only from Behavior Trees (exposed via the blackboard) and can be validated with min/max ranges or enum allowed values.
+
+### YAML Declaration
+
+Example:
+
+```yaml
+automation:
+  parameters:
+    - name: temp_setpoint
+      type: double
+      default: 25.0
+      min: 10.0
+      max: 50.0
+
+    - name: control_enabled
+      type: bool
+      default: true
+
+    - name: operating_mode
+      type: string
+      default: "normal"
+      allowed_values: ["normal", "test", "emergency"]
+```
+
+Notes:
+- Supported types: `double`, `int64`, `bool`, `string`.
+- `min`/`max` apply to numeric types only.
+- `allowed_values` applies to string enums.
+- **Persistence** (writing changes back to YAML) is *opt-in* and disabled by default; see configuration caveats near the end of this document.
+
+### HTTP API for Parameters
+
+GET /v0/parameters
+- Returns the list of declared parameters with current values and constraints.
+
+POST /v0/parameters
+- Update a parameter at runtime.
+- Body: `{"name": "temp_setpoint", "value": 30.0}`
+- Server validates type and constraints and replies with 200 OK on success or 400/INVALID_ARGUMENT on validation failure.
+
+Example (update):
+
+```http
+POST /v0/parameters HTTP/1.1
+Content-Type: application/json
+
+{"name": "temp_setpoint", "value": 30.0}
+```
+
+Example (response):
+
+```json
+{
+  "status": {"code": "OK", "message": "ok"},
+  "parameter": {"name": "temp_setpoint", "value": 30.0}
+}
+```
+
+### BT Access
+
+Behavior Trees can access parameters via the `GetParameter` node (available in the default node registry). The `GetParameter` node reads a parameter by name from the blackboard and returns SUCCESS with the value available on an output port.
+
+---
+
 ## Configuration
 
 ### Enabling Automation
