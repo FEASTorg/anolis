@@ -14,12 +14,12 @@ The automation layer adds configurable machine behavior on top of Anolis's stabl
 
 The automation layer is a **consumer of kernel services**, NOT a replacement for core IO:
 
-| Constraint | Implementation |
-|-----------|---------------|
-| **BT nodes read via StateCache** | No direct provider access; kernel remains single source of truth |
-| **BT nodes act via CallRouter** | All device calls go through validated control path |
-| **No new provider protocol features** | Automation uses existing ADPP v0 capabilities |
-| **No device-specific logic in BT engine** | BT runtime is capability-agnostic |
+| Constraint                                | Implementation                                                   |
+| ----------------------------------------- | ---------------------------------------------------------------- |
+| **BT nodes read via StateCache**          | No direct provider access; kernel remains single source of truth |
+| **BT nodes act via CallRouter**           | All device calls go through validated control path               |
+| **No new provider protocol features**     | Automation uses existing ADPP v0 capabilities                    |
+| **No device-specific logic in BT engine** | BT runtime is capability-agnostic                                |
 
 The BT engine sits **above** the kernel, not beneath it.
 
@@ -31,12 +31,12 @@ The BT engine sits **above** the kernel, not beneath it.
 
 Anolis supports four runtime modes:
 
-| Mode | Description | BT State | Manual Calls |
-|------|-------------|----------|--------------|
-| **MANUAL** | Normal operator control | Stopped | Allowed |
-| **AUTO** | Automated control active | Running | Gated by policy |
-| **IDLE** | Standby mode | Stopped | Allowed |
-| **FAULT** | Error recovery state | Stopped | Allowed |
+| Mode       | Description              | BT State | Manual Calls    |
+| ---------- | ------------------------ | -------- | --------------- |
+| **MANUAL** | Normal operator control  | Stopped  | Allowed         |
+| **AUTO**   | Automated control active | Running  | Gated by policy |
+| **IDLE**   | Standby mode             | Stopped  | Allowed         |
+| **FAULT**  | Error recovery state     | Stopped  | Allowed         |
 
 ### Mode Transitions
 
@@ -58,6 +58,7 @@ Valid transitions:
 ```
 
 **Invalid transitions:**
+
 - `FAULT → AUTO` — Must recover through MANUAL first
 - `FAULT → IDLE` — Must recover through MANUAL first
 
@@ -85,6 +86,7 @@ automation:
 ```
 
 **Behavior:**
+
 - POST /v0/call returns `FAILED_PRECONDITION` error
 - Logged as warning: "Manual call blocked in AUTO mode"
 - BT continues running uninterrupted
@@ -101,6 +103,7 @@ automation:
 ```
 
 **Behavior:**
+
 - POST /v0/call succeeds normally
 - Logged as info: "Manual call overriding AUTO mode"
 - BT continues running (may conflict with manual action)
@@ -116,19 +119,22 @@ automation:
 Get current automation mode.
 
 **Request:**
+
 ```http
 GET /v0/mode HTTP/1.1
 ```
 
 **Response (automation enabled):**
+
 ```json
 {
-  "status": {"code": "OK", "message": "ok"},
+  "status": { "code": "OK", "message": "ok" },
   "mode": "MANUAL"
 }
 ```
 
 **Response (automation disabled):**
+
 ```json
 {
   "status": {
@@ -143,6 +149,7 @@ GET /v0/mode HTTP/1.1
 Set automation mode.
 
 **Request:**
+
 ```http
 POST /v0/mode HTTP/1.1
 Content-Type: application/json
@@ -153,14 +160,16 @@ Content-Type: application/json
 ```
 
 **Response (success):**
+
 ```json
 {
-  "status": {"code": "OK", "message": "ok"},
+  "status": { "code": "OK", "message": "ok" },
   "mode": "AUTO"
 }
 ```
 
 **Response (invalid transition):**
+
 ```http
 HTTP/1.1 412 Precondition Failed
 Content-Type: application/json
@@ -174,6 +183,7 @@ Content-Type: application/json
 ```
 
 **Response (invalid mode string):**
+
 ```http
 HTTP/1.1 400 Bad Request
 Content-Type: application/json
@@ -195,16 +205,19 @@ Mode transitions emit telemetry events for observability.
 **Event Type:** `mode_change`
 
 **Fields:**
+
 - `previous_mode` (string): Mode before transition
 - `new_mode` (string): Mode after transition
 - `timestamp_ms` (int64): Unix timestamp in milliseconds
 
 **InfluxDB Line Protocol:**
+
 ```
 mode_change previous_mode="MANUAL",new_mode="AUTO" 1706918400000
 ```
 
 **Grafana Query (Flux):**
+
 ```flux
 from(bucket: "anolis")
   |> range(start: -1h)
@@ -242,17 +255,20 @@ automation:
 ```
 
 Notes:
+
 - Supported types: `double`, `int64`, `bool`, `string`.
 - `min`/`max` apply to numeric types only.
 - `allowed_values` applies to string enums.
-- **Persistence** (writing changes back to YAML) is *opt-in* and disabled by default; see configuration caveats near the end of this document.
+- **Persistence** (writing changes back to YAML) is **not implemented yet**; the intent is to keep it opt-in behind a future `automation.persist_parameters` flag.
 
 ### HTTP API for Parameters
 
 GET /v0/parameters
+
 - Returns the list of declared parameters with current values and constraints.
 
 POST /v0/parameters
+
 - Update a parameter at runtime.
 - Body: `{"name": "temp_setpoint", "value": 30.0}`
 - Server validates type and constraints and replies with 200 OK on success or 400/INVALID_ARGUMENT on validation failure.
@@ -270,8 +286,8 @@ Example (response):
 
 ```json
 {
-  "status": {"code": "OK", "message": "ok"},
-  "parameter": {"name": "temp_setpoint", "value": 30.0}
+  "status": { "code": "OK", "message": "ok" },
+  "parameter": { "name": "temp_setpoint", "value": 30.0 }
 }
 ```
 
@@ -295,18 +311,19 @@ Example:
 automation:
   enabled: true
   behavior_tree: ./behaviors/demo.xml
-  tick_rate_hz: 10  # 1-1000 Hz
-  manual_gating_policy: BLOCK  # BLOCK or OVERRIDE
+  tick_rate_hz: 10 # 1-1000 Hz
+  manual_gating_policy: BLOCK # BLOCK or OVERRIDE
 ```
 
 ### Configuration Fields
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `enabled` | bool | false | Enable/disable automation layer |
-| `behavior_tree` | string | required | Path to BT XML file |
-| `tick_rate_hz` | int | 10 | BT execution rate (1-1000) |
-| `manual_gating_policy` | string | BLOCK | Manual call policy (BLOCK or OVERRIDE) |
+| Field                  | Type   | Default  | Description                            |
+| ---------------------- | ------ | -------- | -------------------------------------- |
+| `enabled`              | bool   | false    | Enable/disable automation layer        |
+| `behavior_tree`        | string | required | Path to BT XML file                    |
+| `tick_rate_hz`         | int    | 10       | BT execution rate (1-1000)             |
+| `manual_gating_policy` | string | BLOCK    | Manual call policy (BLOCK or OVERRIDE) |
+| `parameters`           | list   | []       | Parameter definitions (Phase 7C)       |
 
 ---
 
@@ -320,18 +337,23 @@ while (running) {
     sleep(tick_period);
     continue;  // Skip tick
   }
-  
+
   tree.tick();
   sleep(tick_period);
 }
 ```
 
 **Behavior:**
+
 - MANUAL/IDLE/FAULT → BT paused cleanly (no state corruption)
-- AUTO → BT resumes from current state (no reset)
+- AUTO → BT ticks normally
 - Transitioning to AUTO restarts BT from root node
 
 ---
+
+## Dependency Notes
+
+BehaviorTree.CPP is pulled via vcpkg (`behaviortree-cpp`). If vcpkg lags, fallback is to vendor a known-good release from GitHub and link it in `core/CMakeLists.txt` (keep the same include paths to avoid code changes).
 
 ## Usage Examples
 
@@ -388,6 +410,13 @@ curl -X POST http://localhost:8080/v0/mode \
 
 ---
 
+## Operator UI Integration (Planned)
+
+The Operator UI does not yet expose mode or parameter controls. When UI work begins, use these endpoints:
+
+- `GET /v0/mode` and `POST /v0/mode` for mode control
+- `GET /v0/parameters` and `POST /v0/parameters` for runtime parameter tuning
+
 ## Testing
 
 Automated tests for Phase 7 automation:
@@ -401,6 +430,7 @@ python scripts/test_automation.py --port 18080
 ```
 
 **Test coverage:**
+
 - Mode transitions (valid and invalid)
 - Manual/auto contention policy
 - BT execution gating
@@ -415,11 +445,12 @@ python scripts/test_automation.py --port 18080
 
 External safety systems (e.g., E-stops, interlocks) are **still required** for real hardware.
 
-- FAULT mode is *policy*, not a certified safety mechanism
+- FAULT mode is _policy_, not a certified safety mechanism
 - Mode transitions are not safety-rated
 - Manual override capability must not replace proper safety interlocks
 
 For production deployment:
+
 1. Integrate with certified safety PLCs
 2. Implement hardware E-stops independent of Anolis
 3. Add watchdog timers for automation health
@@ -438,7 +469,13 @@ For production deployment:
   - Mode change events
   - Automated tests
   - Documentation
-- **Phase 7C**: Parameters & Configuration ⏳ PLANNED
+- **Phase 7C**: Parameters & Configuration ✅ COMPLETE
+
+**Integration items still pending:**
+
+- Verify mode/parameter events in telemetry storage
+- Add Grafana annotations for mode transitions
+- Document/demo a full end-to-end scenario
 
 ---
 

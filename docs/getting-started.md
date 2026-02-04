@@ -93,8 +93,48 @@ python -m http.server 3000 -d tools/operator-ui
 
 - Single provider only
 - No authentication
-- No behavior trees
-- No streaming (polling only)
+- Operator UI is minimal (developer-focused)
+- Automation is policy-only (not safety-rated)
+
+## Automation Quickstart
+
+Enable automation and parameters in your runtime config:
+
+```yaml
+automation:
+  enabled: true
+  behavior_tree: ./behaviors/demo.xml
+  tick_rate_hz: 10
+  manual_gating_policy: BLOCK
+  parameters:
+    - name: temp_setpoint
+      type: double
+      default: 25.0
+      min: 10.0
+      max: 50.0
+```
+
+Update a parameter at runtime:
+
+```bash
+curl -s -X POST http://127.0.0.1:8080/v0/parameters \
+  -H "Content-Type: application/json" \
+  -d '{"name": "temp_setpoint", "value": 30.0}' | jq
+```
+
+Switch to AUTO mode to run the BT:
+
+```bash
+curl -s -X POST http://127.0.0.1:8080/v0/mode \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "AUTO"}' | jq
+```
+
+The demo behavior tree reads `temp_setpoint` via:
+
+```xml
+<GetParameter param="temp_setpoint" value="{target_temp}"/>
+```
 
 ## Next Steps
 

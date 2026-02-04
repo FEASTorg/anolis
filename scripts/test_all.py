@@ -65,6 +65,26 @@ def find_runtime_path() -> Optional[Path]:
     return None
 
 
+def find_bt_nodes_sanity_path() -> Optional[Path]:
+    """Find the bt_nodes_sanity executable if it exists."""
+    repo_root = get_repo_root()
+
+    candidates = [
+        repo_root / "build" / "core" / "Release" / "bt_nodes_sanity.exe",
+        repo_root / "build" / "core" / "Release" / "bt_nodes_sanity",
+        repo_root / "build" / "core" / "Debug" / "bt_nodes_sanity.exe",
+        repo_root / "build" / "core" / "Debug" / "bt_nodes_sanity",
+        repo_root / "build" / "core" / "bt_nodes_sanity.exe",
+        repo_root / "build" / "core" / "bt_nodes_sanity",
+    ]
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+
+    return None
+
+
 def find_provider_path() -> Optional[Path]:
     """Find the provider-sim executable."""
     repo_root = get_repo_root()
@@ -344,6 +364,8 @@ def main() -> int:
         ("test_automation.py", [f"--port={args.port + 1}"]),
     ]
 
+    bt_nodes_sanity = find_bt_nodes_sanity_path()
+
     results: List[TestSuiteResult] = []
 
     # Initial cleanup
@@ -368,6 +390,35 @@ def main() -> int:
         print(f"{status} {script_name} ({result.duration:.1f}s)")
         if not result.passed:
             print(f"  Error: {result.message}")
+
+        # Initial cleanup
+        cleanup_between_tests()
+
+    # Run BT node sanity test if available
+    if bt_nodes_sanity:
+        print("Running: bt_nodes_sanity")
+        print("-" * 40)
+        start = time.time()
+        try:
+            proc = subprocess.run(
+                [str(bt_nodes_sanity)],
+                timeout=args.timeout,
+                capture_output=not args.verbose,
+                text=True,
+            )
+            duration = time.time() - start
+            passed = proc.returncode == 0
+            message = "" if passed else (proc.stderr.strip() or proc.stdout.strip())
+            results.append(TestSuiteResult("bt_nodes_sanity", passed, duration, message))
+            status = "[PASS]" if passed else "[FAIL]"
+            print(f"{status} bt_nodes_sanity ({duration:.1f}s)")
+            if not passed:
+                print(f"  Error: {message}")
+        except Exception as e:
+            duration = time.time() - start
+            results.append(TestSuiteResult("bt_nodes_sanity", False, duration, str(e)))
+            print(f"[FAIL] bt_nodes_sanity ({duration:.1f}s)")
+            print(f"  Error: {e}")
         print()
 
         # Cleanup between tests

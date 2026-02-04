@@ -124,7 +124,7 @@ private:
  * Reads a parameter value from ParameterManager via blackboard.
  * 
  * XML Port Configuration:
- * - name (input): Parameter name
+ * - param (input): Parameter name
  * - value (output): Parameter value (double/int64/bool/string)
  * 
  * Returns:
@@ -132,7 +132,7 @@ private:
  * - FAILURE: Parameter not found or ParameterManager unavailable
  * 
  * Example XML:
- * <GetParameter name="temp_setpoint" value="{target_temp}"/>
+ * <GetParameter param="temp_setpoint" value="{target_temp}"/>
  * <CallDevice device_handle="sim/tempctl0" function_name="set_target_temp"
  *             arg_target="{target_temp}"/>
  */

@@ -44,15 +44,15 @@ def log_test(name: str):
 
 
 def log_pass(message: str):
-    print(f"  {Colors.GREEN}✓{Colors.END} {message}")
+    print(f"  {Colors.GREEN}[OK]{Colors.END} {message}")
 
 
 def log_fail(message: str):
-    print(f"  {Colors.RED}✗{Colors.END} {message}")
+    print(f"  {Colors.RED}[FAIL]{Colors.END} {message}")
 
 
 def log_info(message: str):
-    print(f"  {Colors.YELLOW}ℹ{Colors.END} {message}")
+    print(f"  {Colors.YELLOW}[INFO]{Colors.END} {message}")
 
 
 class AutomationTester:
@@ -190,8 +190,8 @@ class AutomationTester:
         return True
 
     def test_mode_transition_manual_to_auto(self) -> bool:
-        """Test valid transition: MANUAL → AUTO"""
-        log_test("Mode transition: MANUAL → AUTO")
+        """Test valid transition: MANUAL -> AUTO"""
+        log_test("Mode transition: MANUAL -> AUTO")
 
         result = self.set_mode("AUTO")
         if not result:
@@ -206,8 +206,8 @@ class AutomationTester:
         return True
 
     def test_mode_transition_auto_to_manual(self) -> bool:
-        """Test valid transition: AUTO → MANUAL"""
-        log_test("Mode transition: AUTO → MANUAL")
+        """Test valid transition: AUTO -> MANUAL"""
+        log_test("Mode transition: AUTO -> MANUAL")
 
         # First go to AUTO
         self.set_mode("AUTO")
@@ -227,8 +227,8 @@ class AutomationTester:
         return True
 
     def test_mode_transition_manual_to_idle(self) -> bool:
-        """Test valid transition: MANUAL → IDLE"""
-        log_test("Mode transition: MANUAL → IDLE")
+        """Test valid transition: MANUAL -> IDLE"""
+        log_test("Mode transition: MANUAL -> IDLE")
 
         # Ensure we're in MANUAL
         self.set_mode("MANUAL")
@@ -247,8 +247,8 @@ class AutomationTester:
         return True
 
     def test_mode_transition_to_fault(self) -> bool:
-        """Test valid transition: Any → FAULT"""
-        log_test("Mode transition: MANUAL → FAULT")
+        """Test valid transition: Any -> FAULT"""
+        log_test("Mode transition: MANUAL -> FAULT")
 
         # Ensure we're in MANUAL
         self.set_mode("MANUAL")
@@ -267,8 +267,8 @@ class AutomationTester:
         return True
 
     def test_invalid_transition_fault_to_auto(self) -> bool:
-        """Test invalid transition: FAULT → AUTO (should be rejected)"""
-        log_test("Invalid transition: FAULT → AUTO")
+        """Test invalid transition: FAULT -> AUTO (should be rejected)"""
+        log_test("Invalid transition: FAULT -> AUTO")
 
         # Go to FAULT first
         self.set_mode("FAULT")
@@ -288,8 +288,8 @@ class AutomationTester:
         return False
 
     def test_recovery_path_fault_to_manual_to_auto(self) -> bool:
-        """Test recovery path: FAULT → MANUAL → AUTO"""
-        log_test("Recovery path: FAULT → MANUAL → AUTO")
+        """Test recovery path: FAULT -> MANUAL -> AUTO"""
+        log_test("Recovery path: FAULT -> MANUAL -> AUTO")
 
         # Go to FAULT
         self.set_mode("FAULT")
@@ -308,7 +308,7 @@ class AutomationTester:
             log_fail("Failed to transition to AUTO")
             return False
 
-        log_pass("Successfully recovered: FAULT → MANUAL → AUTO")
+        log_pass("Successfully recovered: FAULT -> MANUAL -> AUTO")
         return True
 
     def test_invalid_mode_string(self) -> bool:

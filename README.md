@@ -196,8 +196,50 @@ curl -s http://127.0.0.1:8080/v0/runtime/status | jq
 | `/v0/state/{provider}/{device}`                | GET    | Get single device state   |
 | `/v0/call`                                     | POST   | Execute device function   |
 | `/v0/runtime/status`                           | GET    | Get runtime status        |
+| `/v0/mode`                                     | GET    | Get automation mode       |
+| `/v0/mode`                                     | POST   | Set automation mode       |
+| `/v0/parameters`                               | GET    | List runtime parameters   |
+| `/v0/parameters`                               | POST   | Update runtime parameter  |
 
 See [docs/http-api.md](docs/http-api.md) for full API reference.
+
+---
+
+## Automation Quickstart
+
+Enable automation and parameters in your runtime config:
+
+```yaml
+automation:
+  enabled: true
+  behavior_tree: ./behaviors/demo.xml
+  tick_rate_hz: 10
+  manual_gating_policy: BLOCK
+  parameters:
+    - name: temp_setpoint
+      type: double
+      default: 25.0
+      min: 10.0
+      max: 50.0
+```
+
+Update a parameter and enter AUTO mode:
+
+```bash
+curl -s -X POST http://127.0.0.1:8080/v0/parameters \
+  -H "Content-Type: application/json" \
+  -d '{"name": "temp_setpoint", "value": 30.0}' | jq
+
+curl -s -X POST http://127.0.0.1:8080/v0/mode \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "AUTO"}' | jq
+```
+
+The demo behavior tree uses:
+
+```xml
+<GetParameter param="temp_setpoint" value="{target_temp}"/>
+```
 
 ---
 

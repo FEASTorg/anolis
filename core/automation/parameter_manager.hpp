@@ -106,7 +106,7 @@ using ParameterChangeCallback = std::function<void(
  * 
  * Usage from BT:
  * 1. ParameterManager populates blackboard before tick
- * 2. GetParameterNode reads from blackboard by name
+ * 2. GetParameterNode reads from blackboard using input port `param`
  * 3. Parameter values used in CallDevice arguments or condition checks
  * 
  * Example:

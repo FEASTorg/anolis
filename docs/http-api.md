@@ -90,6 +90,75 @@ Get runtime status, mode, and provider health.
 
 ---
 
+### GET /v0/mode
+
+Get current automation mode and manual gating policy.
+
+**Response:**
+
+```json
+{
+  "status": { "code": "OK", "message": "ok" },
+  "mode": "MANUAL",
+  "policy": "BLOCK"
+}
+```
+
+---
+
+### POST /v0/mode
+
+Set automation mode.
+
+**Request:**
+
+```json
+{ "mode": "AUTO" }
+```
+
+**Response:**
+
+```json
+{ "status": { "code": "OK", "message": "ok" }, "mode": "AUTO" }
+```
+
+---
+
+### GET /v0/parameters
+
+List all runtime parameters with current values and constraints.
+
+**Response:**
+
+```json
+{
+  "status": { "code": "OK", "message": "ok" },
+  "parameters": [
+    { "name": "temp_setpoint", "type": "double", "value": 25.0, "min": 10.0, "max": 50.0 }
+  ]
+}
+```
+
+---
+
+### POST /v0/parameters
+
+Update a runtime parameter (validated against constraints).
+
+**Request:**
+
+```json
+{ "name": "temp_setpoint", "value": 30.0 }
+```
+
+**Response:**
+
+```json
+{ "status": { "code": "OK", "message": "ok" }, "parameter": { "name": "temp_setpoint", "value": 30.0 } }
+```
+
+---
+
 ### GET /v0/devices
 
 List all discovered devices.
