@@ -1,4 +1,5 @@
 #include "automation/bt_runtime.hpp"
+#include "automation/bt_nodes.hpp"
 #include "state/state_cache.hpp"
 #include "control/call_router.hpp"
 
@@ -20,10 +21,12 @@ BTRuntime::BTRuntime(state::StateCache& state_cache, control::CallRouter& call_r
 {
     std::cout << "[BTRuntime] Initialized" << std::endl;
     
-    // Phase 7A.3: Register custom nodes here
-    // factory_->registerNodeType<ReadSignalNode>("ReadSignal");
-    // factory_->registerNodeType<CallDeviceNode>("CallDevice");
-    // factory_->registerNodeType<CheckQualityNode>("CheckQuality");
+    // Phase 7A.3: Register custom nodes
+    factory_->registerNodeType<ReadSignalNode>("ReadSignal");
+    factory_->registerNodeType<CallDeviceNode>("CallDevice");
+    factory_->registerNodeType<CheckQualityNode>("CheckQuality");
+    
+    std::cout << "[BTRuntime] Registered custom node types" << std::endl;
 }
 
 BTRuntime::~BTRuntime() {

@@ -76,6 +76,7 @@ find_package(behaviortree_cpp CONFIG REQUIRED)
 
 add_library(anolis_automation STATIC
     automation/bt_runtime.cpp
+    automation/bt_nodes.cpp
 )
 
 target_include_directories(anolis_automation PUBLIC
