@@ -14,9 +14,12 @@
 namespace anolis {
 namespace automation {
 
-BTRuntime::BTRuntime(state::StateCache& state_cache, control::CallRouter& call_router)
+BTRuntime::BTRuntime(state::StateCache& state_cache, 
+                     control::CallRouter& call_router,
+                     std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>>& providers)
     : state_cache_(state_cache)
     , call_router_(call_router)
+    , providers_(providers)
     , factory_(std::make_unique<BT::BehaviorTreeFactory>())
 {
     std::cout << "[BTRuntime] Initialized" << std::endl;
@@ -178,6 +181,10 @@ void BTRuntime::populate_blackboard() {
     // Store StateCache reference for ReadSignalNode (Phase 7A.3)
     // BT nodes will cast this back to StateCache* when needed
     blackboard->set("state_cache", static_cast<void*>(&state_cache_));
+    
+    // Store providers map reference for CallDeviceNode (Phase 7A.5 fix)
+    // CallRouter::execute_call() requires providers map
+    blackboard->set("providers", static_cast<void*>(&providers_));
     
     // Phase 7C: Add parameters to blackboard
     // blackboard->set("parameters", static_cast<void*>(&parameter_manager_));

@@ -2,12 +2,15 @@
 
 #include <behaviortree_cpp/action_node.h>
 #include <string>
+#include <memory>
+#include <unordered_map>
 
 namespace anolis {
 
 // Forward declarations
 namespace state { class StateCache; }
 namespace control { class CallRouter; }
+namespace provider { class ProviderHandle; }
 
 namespace automation {
 
@@ -74,6 +77,7 @@ public:
     
 private:
     control::CallRouter* get_call_router();
+    std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>>* get_providers();
 };
 
 /**

@@ -119,7 +119,7 @@ bool Runtime::initialize(std::string& error) {
     // Create and initialize BTRuntime if enabled (Phase 7)
     if (config_.automation.enabled) {
         std::cerr << "[Runtime] Creating BT runtime\n";
-        bt_runtime_ = std::make_unique<automation::BTRuntime>(*state_cache_, *call_router_);
+        bt_runtime_ = std::make_unique<automation::BTRuntime>(*state_cache_, *call_router_, providers_);
         
         if (!bt_runtime_->load_tree(config_.automation.behavior_tree)) {
             error = "Failed to load behavior tree: " + config_.automation.behavior_tree;

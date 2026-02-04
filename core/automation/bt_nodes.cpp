@@ -200,34 +200,29 @@ BT::NodeStatus CallDeviceNode::tick() {
         request.args["mode"] = val;
     }
     
-    // Note: We don't have access to providers map here!
-    // This is a problem - CallRouter::execute_call requires providers reference.
-    // 
-    // Solution: We'll need to store providers reference in blackboard too,
-    // or refactor CallRouter to not require it as a parameter.
-    //
-    // For Phase 7A.3, we'll document this limitation and address in 7A.5
-    // when integrating with Runtime (which has providers map).
-    
-    std::cerr << "[CallDeviceNode] WARNING: Providers map not accessible from BT node" << std::endl;
-    std::cerr << "[CallDeviceNode] Call validation only (no execution)" << std::endl;
-    
-    // Validate call only
-    std::string error_msg;
-    bool valid = call_router->validate_call(request, error_msg);
-    
-    if (!valid) {
-        std::cerr << "[CallDeviceNode] ERROR: Call validation failed: " << error_msg << std::endl;
+    // Get providers map from blackboard (Phase 7A.5 fix)
+    auto providers = get_providers();
+    if (!providers) {
+        std::cerr << "[CallDeviceNode] ERROR: Providers map not available in blackboard" << std::endl;
         setOutput("success", false);
-        setOutput("error", error_msg);
+        setOutput("error", "Providers not available");
         return BT::NodeStatus::FAILURE;
     }
     
-    setOutput("success", true);
-    setOutput("error", "");
+    // Execute call via CallRouter
+    auto result = call_router->execute_call(request, *providers);
     
-    std::cout << "[CallDeviceNode] Call validated (execution deferred to Phase 7A.5): " 
-              << device_handle.value() << "/" << function_name.value() << std::endl;
+    setOutput("success", result.success);
+    setOutput("error", result.error_message);
+    
+    if (result.success) {
+        std::cout << "[CallDeviceNode] Call succeeded: " 
+                  << device_handle.value() << "/" << function_name.value() << std::endl;
+        return BT::NodeStatus::SUCCESS;
+    } else {
+        std::cerr << "[CallDeviceNode] Call failed: " << result.error_message << std::endl;
+        return BT::NodeStatus::FAILURE;
+    }
     
     return BT::NodeStatus::SUCCESS;
 }
@@ -240,6 +235,16 @@ control::CallRouter* CallDeviceNode::get_call_router() {
     if (!ptr) return nullptr;
     
     return static_cast<control::CallRouter*>(ptr);
+}
+
+std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>>* CallDeviceNode::get_providers() {
+    auto blackboard = config().blackboard;
+    if (!blackboard) return nullptr;
+    
+    auto ptr = blackboard->get<void*>("providers");
+    if (!ptr) return nullptr;
+    
+    return static_cast<std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>>*>(ptr);
 }
 
 //-----------------------------------------------------------------------------

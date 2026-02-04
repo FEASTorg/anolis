@@ -4,6 +4,7 @@
 #include <string>
 #include <atomic>
 #include <thread>
+#include <unordered_map>
 
 // BehaviorTree.CPP includes
 #include <behaviortree_cpp/basic_types.h>
@@ -19,6 +20,7 @@ namespace anolis {
 // Forward declarations
 namespace state { class StateCache; }
 namespace control { class CallRouter; }
+namespace provider { class ProviderHandle; }
 
 namespace automation {
 
@@ -59,8 +61,11 @@ public:
      * 
      * @param state_cache Reference to state cache (for reading device state)
      * @param call_router Reference to call router (for device calls)
+     * @param providers Provider map (for CallRouter::execute_call)
      */
-    BTRuntime(state::StateCache& state_cache, control::CallRouter& call_router);
+    BTRuntime(state::StateCache& state_cache, 
+             control::CallRouter& call_router,
+             std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>>& providers);
     
     ~BTRuntime();
 
@@ -122,6 +127,7 @@ private:
     // Kernel service references (non-owning)
     state::StateCache& state_cache_;
     control::CallRouter& call_router_;
+    std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>>& providers_;
 
     // BT state
     std::unique_ptr<BT::BehaviorTreeFactory> factory_;

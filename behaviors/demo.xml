@@ -17,7 +17,7 @@
         <Sequence>
             <!-- Check if temperature signal is available and OK quality -->
             <CheckQuality 
-                device_handle="sim/tempctl0" 
+                device_handle="sim0/tempctl0" 
                 signal_id="temperature" 
                 expected_quality="OK"
                 name="VerifyTempSensorQuality"/>
@@ -25,7 +25,7 @@
             <!-- Ramp to 20°C -->
             <Sequence>
                 <CallDevice 
-                    device_handle="sim/tempctl0" 
+                    device_handle="sim0/tempctl0" 
                     function_name="set_target_temp"
                     arg_target="20.0"
                     success="{call_success}"
@@ -33,7 +33,7 @@
                     name="SetTargetTemp20C"/>
                 
                 <ReadSignal 
-                    device_handle="sim/tempctl0" 
+                    device_handle="sim0/tempctl0" 
                     signal_id="temperature"
                     value="{current_temp}"
                     quality="{temp_quality}"
@@ -43,7 +43,7 @@
             <!-- Ramp to 25°C -->
             <Sequence>
                 <CallDevice 
-                    device_handle="sim/tempctl0" 
+                    device_handle="sim0/tempctl0" 
                     function_name="set_target_temp"
                     arg_target="25.0"
                     success="{call_success}"
@@ -51,7 +51,7 @@
                     name="SetTargetTemp25C"/>
                 
                 <ReadSignal 
-                    device_handle="sim/tempctl0" 
+                    device_handle="sim0/tempctl0" 
                     signal_id="temperature"
                     value="{current_temp}"
                     quality="{temp_quality}"
@@ -61,7 +61,7 @@
             <!-- Ramp to 30°C -->
             <Sequence>
                 <CallDevice 
-                    device_handle="sim/tempctl0" 
+                    device_handle="sim0/tempctl0" 
                     function_name="set_target_temp"
                     arg_target="30.0"
                     success="{call_success}"
@@ -69,7 +69,7 @@
                     name="SetTargetTemp30C"/>
                 
                 <ReadSignal 
-                    device_handle="sim/tempctl0" 
+                    device_handle="sim0/tempctl0" 
                     signal_id="temperature"
                     value="{current_temp}"
                     quality="{temp_quality}"
