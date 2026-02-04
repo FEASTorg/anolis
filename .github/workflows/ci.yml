@@ -52,6 +52,13 @@ jobs:
           path: anolis-provider-sim
           submodules: recursive
 
+      - name: Override anolis submodule with current commit
+        run: |
+          cd anolis-provider-sim/external/anolis
+          git fetch origin ${{ github.sha }}
+          git checkout ${{ github.sha }}
+          cd ../../..
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -168,6 +175,12 @@ jobs:
           repository: FEASTorg/anolis-provider-sim
           path: anolis-provider-sim
           submodules: recursive
+
+      - name: Override anolis submodule with current commit
+        run: |
+          cd anolis-provider-sim/external/anolis
+          git fetch origin ${{ github.sha }}
+          git checkout ${{ github.sha }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
