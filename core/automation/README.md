@@ -72,12 +72,24 @@ FAULT mode is *policy*, not a certified safety mechanism.
 
 ## Phase Status
 
-- **Phase 7A**: BT Engine Foundation (IN PROGRESS)
+- **Phase 7A**: BT Engine Foundation ✅ COMPLETE
   - 7A.1: Library integration ✅
   - 7A.2: Blackboard design ✅
-  - 7A.3: Custom node API (NEXT)
-  - 7A.4: BT Runtime lifecycle (TODO)
-  - 7A.5: Integration with Runtime (TODO)
+  - 7A.3: Custom node API ✅
+  - 7A.4: BT Runtime lifecycle ✅
+  - 7A.5: Integration with Runtime ✅
+  - 7A.6: Demo BT XML ✅
+  - 7A.7: Documentation ✅
+
+Demo behavior tree available at: `behaviors/demo.xml`
+
+Enable automation in `anolis-runtime.yaml`:
+```yaml
+automation:
+  enabled: true
+  behavior_tree: ./behaviors/demo.xml
+  tick_rate_hz: 10
+```
   - 7A.6: Demo BT (TODO)
   - 7A.7: Testing & CI (TODO)
 
