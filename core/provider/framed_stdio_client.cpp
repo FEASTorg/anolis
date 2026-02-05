@@ -4,9 +4,12 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <chrono>
+#include <thread>
 #else
 #include <unistd.h>
 #include <errno.h>
+#include <poll.h>
 #endif
 
 namespace anolis
@@ -128,6 +131,71 @@ namespace anolis
             }
 
             return true;
+        }
+
+        bool FramedStdioClient::wait_for_data(int timeout_ms)
+        {
+            error_.clear();
+#ifdef _WIN32
+            auto start = std::chrono::steady_clock::now();
+            while (true)
+            {
+                DWORD bytes_available = 0;
+                if (!PeekNamedPipe(stdout_read_, NULL, 0, NULL, &bytes_available, NULL))
+                {
+                    error_ = "PeekNamedPipe failed: " + std::to_string(GetLastError());
+                    return false;
+                }
+
+                if (bytes_available > 0)
+                {
+                    return true;
+                }
+
+                if (timeout_ms <= 0)
+                {
+                    return false;
+                }
+
+                auto elapsed = std::chrono::steady_clock::now() - start;
+                if (std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() >= timeout_ms)
+                {
+                    return false;
+                }
+
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            }
+#else
+            if (stdout_read_ < 0)
+            {
+                error_ = "Invalid stdout pipe";
+                return false;
+            }
+
+            struct pollfd pfd;
+            pfd.fd = stdout_read_;
+            pfd.events = POLLIN;
+            int result = poll(&pfd, 1, timeout_ms);
+            if (result < 0)
+            {
+                error_ = "poll failed: " + std::string(strerror(errno));
+                return false;
+            }
+            if (result == 0)
+            {
+                return false;
+            }
+
+            if (pfd.revents & POLLIN)
+            {
+                return true;
+            }
+            if (pfd.revents & (POLLERR | POLLHUP | POLLNVAL))
+            {
+                error_ = "poll error on stdout pipe";
+            }
+            return false;
+#endif
         }
 
         bool FramedStdioClient::read_exact(uint8_t *buf, size_t n)

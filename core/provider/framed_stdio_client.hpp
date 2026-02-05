@@ -42,6 +42,10 @@ namespace anolis
             // Returns true on success, false on EOF or error (sets error_)
             bool read_frame(std::vector<uint8_t> &out);
 
+            // Wait for data to be available on stdout (non-blocking with timeout)
+            // Returns true if data is available, false on timeout or error (sets error_ on error)
+            bool wait_for_data(int timeout_ms);
+
             // Close stdin (signals EOF to provider)
             void close_stdin();
 
