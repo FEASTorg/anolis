@@ -92,11 +92,11 @@ namespace anolis
             return true;
         }
 
-        bool FramedStdioClient::read_frame(std::vector<uint8_t> &out)
+        bool FramedStdioClient::read_frame(std::vector<uint8_t> &out, int timeout_ms)
         {
             // Read uint32_le length prefix
             uint8_t len_buf[4];
-            if (!read_exact(len_buf, 4))
+            if (!read_exact(len_buf, 4, timeout_ms))
             {
                 if (error_.empty())
                 {
@@ -120,7 +120,7 @@ namespace anolis
             out.resize(len);
             if (len > 0)
             {
-                if (!read_exact(out.data(), len))
+                if (!read_exact(out.data(), len, timeout_ms))
                 {
                     if (error_.empty())
                     {
@@ -198,13 +198,46 @@ namespace anolis
 #endif
         }
 
-        bool FramedStdioClient::read_exact(uint8_t *buf, size_t n)
+        bool FramedStdioClient::read_exact(uint8_t *buf, size_t n, int timeout_ms)
         {
             size_t total = 0;
+            auto start_time = std::chrono::steady_clock::now();
+
             while (total < n)
             {
+                // If a timeout is specified, wait for data availability
+                if (timeout_ms >= 0)
+                {
+                    auto elapsed = std::chrono::steady_clock::now() - start_time;
+                    auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
+                    
+                    if (elapsed_ms >= timeout_ms)
+                    {
+                        if (error_.empty()) error_ = "Timeout reading frame";
+                        return false;
+                    }
+
+                    int remaining_ms = static_cast<int>(timeout_ms - elapsed_ms);
+                    if (!wait_for_data(remaining_ms))
+                    {
+                         // wait_for_data sets error_ on failure, or just returns false on timeout
+                         // If it returned false but error_ is empty, it's a timeout.
+                         if (error_.empty()) error_ = "Timeout waiting for data chunk";
+                         return false;
+                    }
+                }
+
 #ifdef _WIN32
-                DWORD read;
+                DWORD read = 0;
+                // Only read what is available to avoid blocking, or if we trust wait_for_data, 
+                // we can just call ReadFile. Since wait_for_data ensures > 0 bytes, 
+                // ReadFile should not block indefinitely if we ask for (n-total). 
+                // However, on pipes, ReadFile might block if we ask for MORE than available?
+                // MSDN says: "If the pipe is a byte-mode pipe... ReadFile returns when one of the following occurs: a write operation completes on the write end of the pipe, the number of bytes requested is read, or the timeout interval elapses."
+                // Since this is a value-oriented pipe (simulated), let's be safe.
+                // Actually, for anonymous pipes (used here), ReadFile returns as soon as SOME data is available. 
+                // It does NOT wait for the full buffer unless we use named pipes in message mode (we aren't).
+                
                 if (!ReadFile(stdout_read_, buf + total, static_cast<DWORD>(n - total), &read, NULL))
                 {
                     error_ = "Read failed: " + std::to_string(GetLastError());

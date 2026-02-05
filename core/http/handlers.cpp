@@ -324,9 +324,19 @@ namespace anolis
                              result.error_message.find("parameter") != std::string::npos ||
                              result.error_message.find("validation") != std::string::npos ||
                              result.error_message.find("missing") != std::string::npos ||
-                             result.error_message.find("invalid") != std::string::npos)
+                             result.error_message.find("invalid") != std::string::npos ||
+                             result.error_message.find("mismatch") != std::string::npos ||
+                             result.error_message.find("must be") != std::string::npos ||
+                             result.error_message.find("out of range") != std::string::npos)
                     {
                         status = StatusCode::INVALID_ARGUMENT;
+                    }
+                    else if (result.error_message.find("precondition") != std::string::npos ||
+                             result.error_message.find("allowed") != std::string::npos ||
+                             result.error_message.find("blocked") != std::string::npos ||
+                             result.error_message.find("wrong state") != std::string::npos)
+                    {
+                        status = StatusCode::FAILED_PRECONDITION;
                     }
                     else if (result.error_message.find("timeout") != std::string::npos ||
                              result.error_message.find("deadline") != std::string::npos)
@@ -345,6 +355,7 @@ namespace anolis
                 }
 
                 nlohmann::json response = {
+                    {"status", make_status(StatusCode::OK)},
                     {"provider_id", provider_id},
                     {"device_id", device_id},
                     {"function_id", function_id},

@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <chrono>
+#include <mutex>
 
 namespace anolis
 {
@@ -55,6 +56,7 @@ namespace anolis
             ProviderProcess process_;
             std::string error_;
             uint32_t next_request_id_;
+            std::mutex mutex_;
 
             // Timeout for all operations (5 seconds)
             static constexpr int kTimeoutMs = 5000;

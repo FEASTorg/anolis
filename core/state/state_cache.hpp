@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <chrono>
 #include <memory>
+#include <mutex>
 #include "protocol.pb.h"
 #include "registry/device_registry.hpp"
 #include "provider/provider_handle.hpp"
@@ -94,6 +95,8 @@ namespace anolis
 
             // Event emitter for change notifications (Phase 6)
             std::shared_ptr<events::EventEmitter> event_emitter_;
+            
+            mutable std::mutex mutex_;
 
             // Cached state (indexed by device_handle)
             std::unordered_map<std::string, DeviceState> device_states_;

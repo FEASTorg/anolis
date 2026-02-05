@@ -50,7 +50,7 @@ class ProviderRestartRecovery(ScenarioBase):
                     "sim0",
                     "sim_control",
                     "inject_device_unavailable",
-                    {"device_id": device_id, "duration_ms": 3000}
+                    {"device_id": device_id, "duration_ms": 5000}
                 )
                 self.assert_equal(
                     result["status"],
@@ -59,16 +59,19 @@ class ProviderRestartRecovery(ScenarioBase):
                 )
             
             # Step 4: Verify devices become unavailable
-            self.sleep(0.2)
+            # Wait enough time for polling cycle (default 500ms) to detect failure
+            self.sleep(1.5)
             
             unavailable_count = 0
             for device_id in expected_devices:
                 try:
                     state = self.get_state("sim0", device_id)
                     signals = state.get("signals", [])
+                    print(f"[DEBUG] Device {device_id} has {len(signals)} signals")
                     if len(signals) == 0:
                         unavailable_count += 1
-                except Exception:
+                except Exception as e:
+                    print(f"[DEBUG] Device {device_id} poll exception: {e}")
                     # Expected - device unavailable
                     unavailable_count += 1
             

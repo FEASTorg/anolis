@@ -80,7 +80,11 @@ namespace anolis
                     state.device_handle = device->get_handle();
                     state.provider_available = true;
                     state.last_poll_time = std::chrono::system_clock::now();
-                    device_states_[state.device_handle] = state;
+                    
+                    {
+                        std::lock_guard<std::mutex> lock(mutex_);
+                        device_states_[state.device_handle] = state;
+                    }
 
                     std::cerr << "[StateCache] Will poll " << state.device_handle
                               << " (" << config.signal_ids.size() << " signals)\n";
@@ -94,7 +98,7 @@ namespace anolis
         void StateCache::start_polling(std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>> &providers)
         {
             polling_active_ = true;
-            std::cerr << "[StateCache] Polling started (interval=" << poll_interval_.count() << "ms)\n";
+            std::cerr << "[StateCache] Polling started (this=" << this << ", interval=" << poll_interval_.count() << "ms)\n";
 
             // v0: Simple blocking loop in main thread
             // Phase 3B will move this to separate thread
@@ -102,6 +106,7 @@ namespace anolis
             {
                 auto poll_start = std::chrono::steady_clock::now();
 
+                // std::cerr << "[StateCache] Polling cycle...\n"; // Too verbose
                 poll_once(providers);
 
                 // Sleep until next poll interval
@@ -147,10 +152,13 @@ namespace anolis
 
                     // Mark device state as unavailable
                     std::string handle = config.provider_id + "/" + config.device_id;
-                    auto state_it = device_states_.find(handle);
-                    if (state_it != device_states_.end())
                     {
-                        state_it->second.provider_available = false;
+                       std::lock_guard<std::mutex> lock(mutex_);
+                       auto state_it = device_states_.find(handle);
+                       if (state_it != device_states_.end())
+                       {
+                           state_it->second.provider_available = false;
+                       }
                     }
                     continue;
                 }
@@ -188,17 +196,54 @@ namespace anolis
                                      const std::vector<std::string> &signal_ids,
                                      provider::ProviderHandle &provider)
         {
+            std::string device_handle = provider_id + "/" + device_id;
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                auto it = device_states_.find(device_handle);
+                if (it != device_states_.end()) {
+                    std::cerr << "[StateCache] Poll start for " << device_handle << ", current signals=" << it->second.signals.size() 
+                              << " (addr=" << &it->second << ")\n";
+                }
+            }
+
             // Call ReadSignals
             anolis::deviceprovider::v0::ReadSignalsResponse response;
             if (!provider.read_signals(device_id, signal_ids, response))
             {
                 std::cerr << "[StateCache] ReadSignals failed for " << device_id
                           << ": " << provider.last_error() << "\n";
+                
+                // Mark device as unavailable and clear signals
+                {
+                   std::lock_guard<std::mutex> lock(mutex_);
+                   // Debug dump keys
+                   /*
+                   std::cerr << "[StateCache] Map keys:\n";
+                   for(auto& kv : device_states_) {
+                       std::cerr << "  '" << kv.first << "' len=" << kv.first.length() << "\n";
+                   }
+                   */
+
+                   auto it = device_states_.find(device_handle);
+                   if (it != device_states_.end())
+                   {
+                      std::cerr << "[StateCache] Clearing signals for '" << device_handle << "' (len=" << device_handle.length() << ")"
+                                << " (this=" << this << ", prev size: " << it->second.signals.size() << ", addr=" << &it->second << ")\n";
+                      it->second.provider_available = false;
+                      it->second.signals.clear();
+                      std::cerr << "[StateCache] Cleared signals for '" << device_handle << "'"
+                                << " (this=" << this << ", new size: " << it->second.signals.size() << ")\n";
+                   }
+                   else
+                   {
+                      std::cerr << "[StateCache] CRITICAL FAILED TO FIND: " << device_handle << "\n";
+                   }
+                }
+
                 return false;
             }
 
             // Update cache (with change detection and event emission)
-            std::string device_handle = provider_id + "/" + device_id;
             update_device_state(device_handle, provider_id, device_id, response);
 
             return true;
@@ -209,12 +254,15 @@ namespace anolis
                                              const std::string &device_id,
                                              const anolis::deviceprovider::v0::ReadSignalsResponse &response)
         {
+            std::lock_guard<std::mutex> lock(mutex_);
             auto it = device_states_.find(device_handle);
             if (it == device_states_.end())
             {
                 std::cerr << "[StateCache] WARNING: Device state not found: " << device_handle << "\n";
                 return;
             }
+
+            std::cerr << "[StateCache] Updating state for " << device_handle << " (values=" << response.values_size() << ")\n";
 
             auto &state = it->second;
             state.last_poll_time = std::chrono::system_clock::now();
@@ -380,12 +428,16 @@ namespace anolis
 
         std::shared_ptr<DeviceState> StateCache::get_device_state(const std::string &device_handle) const
         {
+            std::lock_guard<std::mutex> lock(mutex_);
             auto it = device_states_.find(device_handle);
             if (it == device_states_.end())
             {
+                std::cerr << "[StateCache] get_device_state: " << device_handle << " not found (this=" << this << ")\n";
                 return nullptr;
             }
 
+            std::cerr << "[StateCache] get_device_state: '" << device_handle << "' (len=" << device_handle.length() << ") found (this=" << this 
+                      << ", signals=" << it->second.signals.size() << ", addr=" << &it->second << ")\n";
             // Return copy as shared_ptr for thread safety
             return std::make_shared<DeviceState>(it->second);
         }
@@ -393,6 +445,7 @@ namespace anolis
         std::shared_ptr<CachedSignalValue> StateCache::get_signal_value(const std::string &device_handle,
                                                                         const std::string &signal_id) const
         {
+            std::lock_guard<std::mutex> lock(mutex_);
             auto it = device_states_.find(device_handle);
             if (it == device_states_.end())
             {
@@ -411,6 +464,7 @@ namespace anolis
 
         size_t StateCache::device_count() const
         {
+            std::lock_guard<std::mutex> lock(mutex_);
             return device_states_.size();
         }
 

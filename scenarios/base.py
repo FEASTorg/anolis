@@ -213,7 +213,7 @@ class ScenarioBase:
             "function_id": function_id,
             "args": typed_args
         }
-        resp = requests.post(url, json=payload, timeout=10)
+        resp = requests.post(url, json=payload, timeout=20)
         
         # Only raise for server errors (5xx), allow client errors (4xx) to be handled by caller checking "status"
         if resp.status_code >= 500:
@@ -224,6 +224,9 @@ class ScenarioBase:
         except ValueError:
             # If not JSON (e.g. 404 text), then raise
             resp.raise_for_status()
+            
+        if "status" not in result:
+            print(f"DEBUG: Response missing 'status': {result}")
         
         # Normalize status format: {"status": {"code": "OK"}} -> {"status": "OK"}
         if isinstance(result.get("status"), dict):

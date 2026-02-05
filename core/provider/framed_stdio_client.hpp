@@ -40,7 +40,7 @@ namespace anolis
 
             // Read a length-prefixed frame from provider's stdout
             // Returns true on success, false on EOF or error (sets error_)
-            bool read_frame(std::vector<uint8_t> &out);
+            bool read_frame(std::vector<uint8_t> &out, int timeout_ms = -1);
 
             // Wait for data to be available on stdout (non-blocking with timeout)
             // Returns true if data is available, false on timeout or error (sets error_ on error)
@@ -58,7 +58,7 @@ namespace anolis
             std::string error_;
 
             // Low-level read exactly n bytes
-            bool read_exact(uint8_t *buf, size_t n);
+            bool read_exact(uint8_t *buf, size_t n, int timeout_ms = -1);
         };
 
     } // namespace provider

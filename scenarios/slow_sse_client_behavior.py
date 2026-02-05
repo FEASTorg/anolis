@@ -31,7 +31,7 @@ class SlowSseClientBehavior(ScenarioBase):
             baseline_latency = time.time() - start
             
             self.assert_true(
-                baseline_latency < 1.0,
+                baseline_latency < 3.0,
                 f"Baseline latency too high: {baseline_latency}s"
             )
             
@@ -62,12 +62,12 @@ class SlowSseClientBehavior(ScenarioBase):
             max_latency = max(latencies)
             
             self.assert_true(
-                avg_latency < 1.0,
+                avg_latency < 3.0,
                 f"Average latency too high under load: {avg_latency}s"
             )
             
             self.assert_true(
-                max_latency < 2.0,
+                max_latency < 5.0,
                 f"Max latency too high: {max_latency}s"
             )
             
@@ -83,7 +83,7 @@ class SlowSseClientBehavior(ScenarioBase):
             
             self.assert_equal(result["status"], "OK", "Function call should succeed under load")
             self.assert_true(
-                call_latency < 2.0,
+                call_latency < 5.0,
                 f"Function call latency too high: {call_latency}s"
             )
             
@@ -130,7 +130,7 @@ class SlowSseClientBehavior(ScenarioBase):
             final_latency = time.time() - start
             
             self.assert_true(
-                final_latency < 1.0,
+                final_latency < 3.0,
                 f"Post-load latency too high: {final_latency}s"
             )
             

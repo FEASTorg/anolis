@@ -35,6 +35,8 @@ import subprocess
 import sys
 import tempfile
 import time
+import threading
+from queue import Queue
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
@@ -53,6 +55,25 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from scenarios.base import ScenarioBase, ScenarioResult
 
+class StreamReader:
+    """Reads stream in a background thread to prevent blocking."""
+    def __init__(self, stream, name: str):
+        self.stream = stream
+        self.name = name
+        self.output = []
+        self.thread = threading.Thread(target=self._read_loop, daemon=True)
+        self.thread.start()
+        
+    def _read_loop(self):
+        try:
+            for line in iter(self.stream.readline, ''):
+                if not line: break
+                self.output.append(line)
+        except Exception:
+            pass
+            
+    def get_output(self) -> str:
+        return "".join(self.output)
 
 @dataclass
 class RuntimeProcess:
@@ -61,6 +82,8 @@ class RuntimeProcess:
     provider_proc: subprocess.Popen
     base_url: str
     config_file: str
+    stdout_reader: Optional[StreamReader] = None
+    stderr_reader: Optional[StreamReader] = None
     
 
 class ScenarioRunner:
@@ -73,7 +96,7 @@ class ScenarioRunner:
         self.verbose = verbose
         self.base_url = f"http://localhost:{port}"
         
-    def start_runtime(self) -> RuntimeProcess:
+    def start_runtime(self, policy="BLOCK") -> RuntimeProcess:
         """
         Start anolis runtime and provider-sim.
         
@@ -111,7 +134,7 @@ class ScenarioRunner:
                 "enabled": True,
                 "behavior_tree": str(bt_path),
                 "tick_rate_hz": 10,
-                "manual_gating_policy": "BLOCK"
+                "manual_gating_policy": policy
             }
         }
         
@@ -144,11 +167,21 @@ class ScenarioRunner:
                 [self.runtime_path, "--config", config_path],
                 stdout=subprocess.PIPE if not self.verbose else None,
                 stderr=subprocess.PIPE if not self.verbose else None,
-                text=True
+                text=True,
+                bufsize=1 # Line buffered
             )
         except Exception as e:
             os.unlink(config_path)
             raise RuntimeError(f"Failed to start runtime: {e}")
+            
+        stdout_reader = None
+        stderr_reader = None
+        
+        if not self.verbose:
+            if runtime_proc.stdout:
+                stdout_reader = StreamReader(runtime_proc.stdout, "stdout")
+            if runtime_proc.stderr:
+                stderr_reader = StreamReader(runtime_proc.stderr, "stderr")
         
         print(f"[DEBUG] Runtime process started, PID: {runtime_proc.pid}")
             
@@ -156,15 +189,12 @@ class ScenarioRunner:
         ready, wait_message = self._wait_for_runtime(timeout=10.0)
         if not ready:
             # Capture stderr/stdout for diagnostics
-            stdout_out = ""
-            stderr_out = ""
-            if runtime_proc.stdout:
-                stdout_out = runtime_proc.stdout.read()
-            if runtime_proc.stderr:
-                stderr_out = runtime_proc.stderr.read()
-            
             runtime_proc.kill()
             runtime_proc.wait()
+            
+            stdout_out = stdout_reader.get_output() if stdout_reader else ""
+            stderr_out = stderr_reader.get_output() if stderr_reader else ""
+            
             os.unlink(config_path)
             
             print(f"[DEBUG] Runtime failed to become ready: {wait_message}")
@@ -182,7 +212,9 @@ class ScenarioRunner:
             runtime_proc=runtime_proc,
             provider_proc=None,  # Managed by runtime
             base_url=self.base_url,
-            config_file=config_path
+            config_file=config_path,
+            stdout_reader=stdout_reader,
+            stderr_reader=stderr_reader
         )
         
     def stop_runtime(self, runtime: RuntimeProcess):
@@ -344,15 +376,28 @@ class ScenarioRunner:
             print("No scenarios found")
             return []
             
-        # Start runtime
-        print(f"Starting runtime and provider...")
-        runtime = self.start_runtime()
-        
         results = []
         
-        try:
-            # Run each scenario
-            for scenario_class in scenario_classes:
+        # Run each scenario
+        for scenario_class in scenario_classes:
+            # Determine configuration based on scenario
+            policy = "BLOCK"
+            if scenario_class.__name__ == "OverridePolicy":
+                policy = "OVERRIDE"
+
+            # Start runtime for this scenario
+            if self.verbose:
+                print(f"[RUNNER] Starting runtime for {scenario_class.__name__} (policy={policy})...")
+            
+            try:
+                runtime = self.start_runtime(policy=policy)
+            except Exception as e:
+                print(f"  ✗ FAIL {scenario_class.__name__} (startup failed)")
+                print(f"      {str(e)}")
+                results.append(ScenarioResult(scenario_class.__name__, False, 0.0, "Runtime startup failed", str(e)))
+                continue
+
+            try:
                 result = self.run_scenario(scenario_class, runtime)
                 results.append(result)
                 
@@ -363,10 +408,9 @@ class ScenarioRunner:
                     print(f"      {result.message}")
                     if result.details and self.verbose:
                         print(f"      Details: {result.details}")
-                        
-        finally:
-            # Stop runtime
-            self.stop_runtime(runtime)
+            finally:
+                # Stop runtime
+                self.stop_runtime(runtime)
             
         return results
         

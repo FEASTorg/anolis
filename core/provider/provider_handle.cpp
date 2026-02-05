@@ -176,6 +176,8 @@ namespace anolis
         bool ProviderHandle::send_request(const anolis::deviceprovider::v0::Request &request,
                                           anolis::deviceprovider::v0::Response &response)
         {
+            std::lock_guard<std::mutex> lock(mutex_);
+
             // Check provider is running
             if (!process_.is_running())
             {
@@ -222,14 +224,32 @@ namespace anolis
             auto start = std::chrono::steady_clock::now();
 
             // Simple polling loop with timeout
-            // v0 implementation - can be improved with select/epoll later
             while (true)
             {
-                std::vector<uint8_t> frame_data;
-
-                if (process_.client().wait_for_data(50))
+                // Check overall timeout
+                auto elapsed = std::chrono::steady_clock::now() - start;
+                auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
+                if (elapsed_ms >= timeout_ms)
                 {
-                    if (process_.client().read_frame(frame_data))
+                    error_ = "Timeout waiting for response (5s)";
+                    std::cerr << "[" << process_.provider_id() << "] " << error_ << "\n";
+                    return false;
+                }
+
+                int remaining = static_cast<int>(timeout_ms - elapsed_ms);
+                // Poll in small chunks to check process status
+                int poll_wait = (remaining > 50) ? 50 : remaining;
+
+                if (process_.client().wait_for_data(poll_wait))
+                {
+                    // Data available, read full frame with TOTAL remaining time
+                    elapsed = std::chrono::steady_clock::now() - start; // Update elapsed
+                    elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
+                    int read_timeout = static_cast<int>(timeout_ms - elapsed_ms);
+                    if (read_timeout < 0) read_timeout = 0;
+
+                    std::vector<uint8_t> frame_data;
+                    if (process_.client().read_frame(frame_data, read_timeout))
                     {
                         // Parse response
                         if (!response.ParseFromArray(frame_data.data(), static_cast<int>(frame_data.size())))
@@ -243,8 +263,12 @@ namespace anolis
                     if (!process_.client().last_error().empty())
                     {
                         error_ = "Failed to read response: " + process_.client().last_error();
-                        return false;
+                    } 
+                    else
+                    {
+                         error_ = "Timed out reading response payload";
                     }
+                    return false;
                 }
                 else if (!process_.client().last_error().empty())
                 {
@@ -258,18 +282,6 @@ namespace anolis
                     error_ = "Provider process died while waiting for response";
                     return false;
                 }
-
-                // Check timeout
-                auto elapsed = std::chrono::steady_clock::now() - start;
-                if (std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() >= timeout_ms)
-                {
-                    error_ = "Timeout waiting for response (5s)";
-                    std::cerr << "[" << process_.provider_id() << "] " << error_ << "\n";
-                    return false;
-                }
-
-                // Short sleep to avoid busy-wait
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
         }
 
