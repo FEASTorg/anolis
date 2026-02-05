@@ -322,7 +322,9 @@ namespace anolis
                     }
                     else if (result.error_message.find("argument") != std::string::npos ||
                              result.error_message.find("parameter") != std::string::npos ||
-                             result.error_message.find("validation") != std::string::npos)
+                             result.error_message.find("validation") != std::string::npos ||
+                             result.error_message.find("missing") != std::string::npos ||
+                             result.error_message.find("invalid") != std::string::npos)
                     {
                         status = StatusCode::INVALID_ARGUMENT;
                     }
