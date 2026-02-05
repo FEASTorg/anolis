@@ -227,16 +227,29 @@ namespace anolis
             {
                 std::vector<uint8_t> frame_data;
 
-                // Try to read (non-blocking check would be better, but keep it simple for v0)
-                if (process_.client().read_frame(frame_data))
+                if (process_.client().wait_for_data(50))
                 {
-                    // Parse response
-                    if (!response.ParseFromArray(frame_data.data(), static_cast<int>(frame_data.size())))
+                    if (process_.client().read_frame(frame_data))
                     {
-                        error_ = "Failed to parse response protobuf";
+                        // Parse response
+                        if (!response.ParseFromArray(frame_data.data(), static_cast<int>(frame_data.size())))
+                        {
+                            error_ = "Failed to parse response protobuf";
+                            return false;
+                        }
+                        return true;
+                    }
+
+                    if (!process_.client().last_error().empty())
+                    {
+                        error_ = "Failed to read response: " + process_.client().last_error();
                         return false;
                     }
-                    return true;
+                }
+                else if (!process_.client().last_error().empty())
+                {
+                    error_ = "Failed waiting for response: " + process_.client().last_error();
+                    return false;
                 }
 
                 // Check if process died
