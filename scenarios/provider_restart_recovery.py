@@ -16,7 +16,7 @@ This scenario uses fault injection to simulate provider unavailability and recov
 """
 
 from .base import ScenarioBase, ScenarioResult, create_result
-
+import time
 
 class ProviderRestartRecovery(ScenarioBase):
     """Runtime recovers gracefully when provider restarts."""
@@ -96,18 +96,25 @@ class ProviderRestartRecovery(ScenarioBase):
             self.assert_equal(result["status"], "OK", "Failed to clear faults")
             
             # Step 7: Verify devices become accessible again
-            self.sleep(0.3)
-            
+            # Use retry loop to handle varying platform performance (e.g. Linux CI)
             recovered_devices = 0
-            for device_id in expected_devices:
-                try:
-                    state = self.get_state("sim0", device_id)
-                    signals = state.get("signals", [])
-                    if len(signals) > 0:
-                        recovered_devices += 1
-                except Exception as e:
-                    # Device still unavailable
-                    pass
+            start_wait = time.time()
+            # Wait up to 5 seconds for recovery
+            while time.time() - start_wait < 5.0:
+                recovered_devices = 0
+                for device_id in expected_devices:
+                    try:
+                        state = self.get_state("sim0", device_id)
+                        signals = state.get("signals", [])
+                        if len(signals) > 0:
+                            recovered_devices += 1
+                    except Exception:
+                        pass
+                
+                if recovered_devices == len(expected_devices):
+                    break
+                    
+                self.sleep(0.5)
             
             self.assert_equal(
                 recovered_devices,
