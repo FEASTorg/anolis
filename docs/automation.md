@@ -482,6 +482,5 @@ For production deployment:
 ## References
 
 - [BehaviorTree.CPP Documentation](https://www.behaviortree.dev/)
-- [Phase 7 Plan](../working/phase_7_plan.md)
 - [HTTP API Documentation](./http-api.md)
 - [Architecture Overview](./architecture.md)

@@ -269,6 +269,39 @@ Higher-level orchestration and UI layers build on top of this foundation.
 
 ---
 
+## Dependency Stack
+
+### Core Runtime (C++)
+
+- **protobuf** — ADPP protocol serialization
+- **cpp-httplib** — HTTP server for REST API
+- **nlohmann-json** — JSON parsing and generation
+- **yaml-cpp** — Configuration file parsing
+- **behaviortree-cpp** (v4.6.2) — Behavior tree engine for automation
+
+### Provider Implementation
+
+- **protobuf** — ADPP protocol (same as runtime)
+
+### Testing & Automation (Python)
+
+- **requests** — HTTP API testing
+- **pyyaml** — Config generation for tests
+
+### Observability Stack (Optional)
+
+- **InfluxDB** (v2.x) — Time-series telemetry storage
+- **Grafana** (v9.x+) — Visualization dashboards
+- **Docker** + **Docker Compose** — Container orchestration
+
+### Build & Development
+
+- **CMake** (≥3.20) — Build system
+- **vcpkg** — C++ package management
+- **C++17** compiler — MSVC 2022, GCC 11+, or Clang 14+
+
+---
+
 ## Name
 
 _Anolis_ is named after [anoles](https://en.wikipedia.org/wiki/Dactyloidae) — adaptable lizards known for thriving across diverse environments.

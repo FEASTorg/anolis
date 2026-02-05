@@ -116,5 +116,3 @@ automation:
 ## References
 
 - [BehaviorTree.CPP Documentation](https://www.behaviortree.dev/)
-- [Phase 7 Plan](../../working/phase_7_plan.md)
-- [Master Plan](../../working/anolis_master_plan_02_validation.md)
