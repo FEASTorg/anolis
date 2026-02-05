@@ -249,7 +249,8 @@ namespace anolis
                     elapsed = std::chrono::steady_clock::now() - start; // Update elapsed
                     elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
                     int read_timeout = static_cast<int>(timeout_ms - elapsed_ms);
-                    if (read_timeout < 0) read_timeout = 0;
+                    if (read_timeout < 0)
+                        read_timeout = 0;
 
                     std::vector<uint8_t> frame_data;
                     if (process_.client().read_frame(frame_data, read_timeout))
@@ -266,10 +267,10 @@ namespace anolis
                     if (!process_.client().last_error().empty())
                     {
                         error_ = "Failed to read response: " + process_.client().last_error();
-                    } 
+                    }
                     else
                     {
-                         error_ = "Timed out reading response payload";
+                        error_ = "Timed out reading response payload";
                     }
                     return false;
                 }

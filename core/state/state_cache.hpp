@@ -95,7 +95,7 @@ namespace anolis
 
             // Event emitter for change notifications (Phase 6)
             std::shared_ptr<events::EventEmitter> event_emitter_;
-            
+
             mutable std::mutex mutex_;
 
             // Cached state (indexed by device_handle)

@@ -315,7 +315,7 @@ namespace anolis
                 {
                     // Map ADPP status code to internal StatusCode
                     StatusCode status = StatusCode::INTERNAL;
-                    
+
                     switch (result.status_code)
                     {
                     case anolis::deviceprovider::v0::Status_Code_CODE_INVALID_ARGUMENT:

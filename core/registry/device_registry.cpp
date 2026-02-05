@@ -51,12 +51,12 @@ namespace anolis
 
                 // Store device
                 std::string handle = reg_device.get_handle();
-                
+
                 // Log BEFORE the move
                 std::cerr << "[Registry] Registered: " << handle
                           << " (" << reg_device.capabilities.signals_by_id.size() << " signals, "
                           << reg_device.capabilities.functions_by_id.size() << " functions)\n";
-                
+
                 handle_to_index_[handle] = devices_.size();
                 devices_.push_back(std::move(reg_device));
             }
