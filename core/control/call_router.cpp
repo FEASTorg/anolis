@@ -16,7 +16,6 @@ namespace anolis
         {
             mode_manager_ = mode_manager;
             manual_gating_policy_ = gating_policy;
-            std::cout << "[CallRouter] Mode manager configured with " << gating_policy << " policy\n";
         }
 
         CallResult CallRouter::execute_call(const CallRequest &request,
@@ -31,24 +30,26 @@ namespace anolis
                 if (manual_gating_policy_ == "BLOCK")
                 {
                     result.error_message = "Manual call blocked in AUTO mode (policy: BLOCK)";
+                    result.status_code = anolis::deviceprovider::v0::Status_Code_CODE_FAILED_PRECONDITION;
                     std::cerr << "[CallRouter] WARNING: " << result.error_message << "\n";
                     return result;
                 }
                 else if (manual_gating_policy_ == "OVERRIDE")
                 {
-                    std::cout << "[CallRouter] INFO: Manual call in AUTO mode (policy: OVERRIDE) - allowing\n";
                     // Allow call to proceed
                 }
             }
-
-            std::cerr << "[CallRouter] Executing call: " << request.device_handle
-                      << "." << request.function_name << "\n";
 
             // Validate call
             std::string validation_error;
             if (!validate_call(request, validation_error))
             {
                 result.error_message = validation_error;
+                if (validation_error.find("not found") != std::string::npos)
+                    result.status_code = anolis::deviceprovider::v0::Status_Code_CODE_NOT_FOUND;
+                else
+                    result.status_code = anolis::deviceprovider::v0::Status_Code_CODE_INVALID_ARGUMENT;
+
                 std::cerr << "[CallRouter] Validation failed: " << validation_error << "\n";
                 return result;
             }
@@ -57,6 +58,7 @@ namespace anolis
             std::string provider_id, device_id;
             if (!parse_device_handle(request.device_handle, provider_id, device_id, result.error_message))
             {
+                result.status_code = anolis::deviceprovider::v0::Status_Code_CODE_INVALID_ARGUMENT;
                 return result;
             }
 
@@ -65,6 +67,7 @@ namespace anolis
             if (provider_it == providers.end())
             {
                 result.error_message = "Provider not found: " + provider_id;
+                result.status_code = anolis::deviceprovider::v0::Status_Code_CODE_NOT_FOUND;
                 std::cerr << "[CallRouter] ERROR: " << result.error_message << "\n";
                 return result;
             }
@@ -73,6 +76,7 @@ namespace anolis
             if (!provider->is_available())
             {
                 result.error_message = "Provider not available: " + provider_id;
+                result.status_code = anolis::deviceprovider::v0::Status_Code_CODE_UNAVAILABLE;
                 std::cerr << "[CallRouter] ERROR: " << result.error_message << "\n";
                 return result;
             }
@@ -82,6 +86,7 @@ namespace anolis
             if (!device)
             {
                 result.error_message = "Device not found in registry";
+                result.status_code = anolis::deviceprovider::v0::Status_Code_CODE_NOT_FOUND;
                 return result;
             }
 
@@ -90,6 +95,7 @@ namespace anolis
             if (func_it == device->capabilities.functions_by_id.end())
             {
                 result.error_message = "Function not found: " + request.function_name;
+                result.status_code = anolis::deviceprovider::v0::Status_Code_CODE_NOT_FOUND;
                 return result;
             }
             func_spec = &func_it->second;
@@ -103,7 +109,8 @@ namespace anolis
                                 request.args, call_response))
             {
                 result.error_message = "Provider call failed: " + provider->last_error();
-                std::cerr << "[CallRouter] Call failed: " << result.error_message << "\n";
+                result.status_code = provider->last_status_code();
+                std::cerr << "[CallRouter] Call failed: " << result.error_message << " (Code: " << result.status_code << ")\n";
                 return result;
             }
 
@@ -113,10 +120,7 @@ namespace anolis
                 result.results[key] = value;
             }
 
-            std::cerr << "[CallRouter] Call succeeded\n";
-
             // Post-call state update: immediate poll of affected device
-            std::cerr << "[CallRouter] Triggering post-call state update\n";
             state_cache_.poll_device_now(request.device_handle, providers);
 
             result.success = true;

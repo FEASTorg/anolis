@@ -49,12 +49,16 @@ namespace anolis
             // Get last error message
             const std::string &last_error() const { return error_; }
 
+            // Get last status code
+            anolis::deviceprovider::v0::Status_Code last_status_code() const { return last_status_code_; }
+
             // Get provider ID
             const std::string &provider_id() const { return process_.provider_id(); }
 
         private:
             ProviderProcess process_;
             std::string error_;
+            anolis::deviceprovider::v0::Status_Code last_status_code_ = anolis::deviceprovider::v0::Status_Code_CODE_OK;
             uint32_t next_request_id_;
             std::mutex mutex_;
 

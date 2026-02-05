@@ -208,8 +208,11 @@ namespace anolis
                 return false;
             }
 
+            // Capture status code
+            last_status_code_ = response.status().code();
+
             // Check status code
-            if (response.status().code() != anolis::deviceprovider::v0::Status_Code_CODE_OK)
+            if (last_status_code_ != anolis::deviceprovider::v0::Status_Code_CODE_OK)
             {
                 error_ = "Provider returned error: " + response.status().message();
                 return false;

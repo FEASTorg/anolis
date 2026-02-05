@@ -39,19 +39,10 @@ namespace anolis
         void StateCache::set_event_emitter(std::shared_ptr<events::EventEmitter> emitter)
         {
             event_emitter_ = emitter;
-            if (emitter)
-            {
-                std::cerr << "[StateCache] Event emitter attached\n";
-            }
-            else
-            {
-                std::cerr << "[StateCache] Event emitter detached\n";
-            }
         }
 
         bool StateCache::initialize()
         {
-            std::cerr << "[StateCache] Initializing state cache\n";
 
             // Build polling configuration from registry
             auto all_devices = registry_.get_all_devices();
@@ -85,28 +76,21 @@ namespace anolis
                         std::lock_guard<std::mutex> lock(mutex_);
                         device_states_[state.device_handle] = state;
                     }
-
-                    std::cerr << "[StateCache] Will poll " << state.device_handle
-                              << " (" << config.signal_ids.size() << " signals)\n";
                 }
             }
-
-            std::cerr << "[StateCache] Initialized " << poll_configs_.size() << " poll configs\n";
             return true;
         }
 
         void StateCache::start_polling(std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>> &providers)
         {
             polling_active_ = true;
-            std::cerr << "[StateCache] Polling started (this=" << this << ", interval=" << poll_interval_.count() << "ms)\n";
-
+            
             // v0: Simple blocking loop in main thread
             // Phase 3B will move this to separate thread
             while (polling_active_)
             {
                 auto poll_start = std::chrono::steady_clock::now();
 
-                // std::cerr << "[StateCache] Polling cycle...\n"; // Too verbose
                 poll_once(providers);
 
                 // Sleep until next poll interval
@@ -124,8 +108,6 @@ namespace anolis
                               << "ms)\n";
                 }
             }
-
-            std::cerr << "[StateCache] Polling stopped\n";
         }
 
         void StateCache::stop_polling()
@@ -171,8 +153,6 @@ namespace anolis
         void StateCache::poll_device_now(const std::string &device_handle,
                                          std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>> &providers)
         {
-            std::cerr << "[StateCache] Immediate poll requested for " << device_handle << "\n";
-
             // Find poll config for this device
             for (const auto &config : poll_configs_)
             {
@@ -197,15 +177,7 @@ namespace anolis
                                      provider::ProviderHandle &provider)
         {
             std::string device_handle = provider_id + "/" + device_id;
-            {
-                std::lock_guard<std::mutex> lock(mutex_);
-                auto it = device_states_.find(device_handle);
-                if (it != device_states_.end()) {
-                    std::cerr << "[StateCache] Poll start for " << device_handle << ", current signals=" << it->second.signals.size() 
-                              << " (addr=" << &it->second << ")\n";
-                }
-            }
-
+            
             // Call ReadSignals
             anolis::deviceprovider::v0::ReadSignalsResponse response;
             if (!provider.read_signals(device_id, signal_ids, response))
@@ -216,27 +188,11 @@ namespace anolis
                 // Mark device as unavailable and clear signals
                 {
                    std::lock_guard<std::mutex> lock(mutex_);
-                   // Debug dump keys
-                   /*
-                   std::cerr << "[StateCache] Map keys:\n";
-                   for(auto& kv : device_states_) {
-                       std::cerr << "  '" << kv.first << "' len=" << kv.first.length() << "\n";
-                   }
-                   */
-
                    auto it = device_states_.find(device_handle);
                    if (it != device_states_.end())
                    {
-                      std::cerr << "[StateCache] Clearing signals for '" << device_handle << "' (len=" << device_handle.length() << ")"
-                                << " (this=" << this << ", prev size: " << it->second.signals.size() << ", addr=" << &it->second << ")\n";
                       it->second.provider_available = false;
                       it->second.signals.clear();
-                      std::cerr << "[StateCache] Cleared signals for '" << device_handle << "'"
-                                << " (this=" << this << ", new size: " << it->second.signals.size() << ")\n";
-                   }
-                   else
-                   {
-                      std::cerr << "[StateCache] CRITICAL FAILED TO FIND: " << device_handle << "\n";
                    }
                 }
 
@@ -262,8 +218,6 @@ namespace anolis
                 return;
             }
 
-            std::cerr << "[StateCache] Updating state for " << device_handle << " (values=" << response.values_size() << ")\n";
-
             auto &state = it->second;
             state.last_poll_time = std::chrono::system_clock::now();
             state.provider_available = true;
@@ -288,7 +242,6 @@ namespace anolis
                 cached.value = new_value;
                 cached.quality = new_quality;
 
-                // Convert protobuf timestamp to system_clock
                 if (signal_value.has_timestamp())
                 {
                     auto proto_ts = signal_value.timestamp();

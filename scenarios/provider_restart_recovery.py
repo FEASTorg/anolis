@@ -50,7 +50,7 @@ class ProviderRestartRecovery(ScenarioBase):
                     "sim0",
                     "sim_control",
                     "inject_device_unavailable",
-                    {"device_id": device_id, "duration_ms": 5000}
+                    {"device_id": device_id, "duration_ms": 20000}
                 )
                 self.assert_equal(
                     result["status"],
@@ -67,7 +67,7 @@ class ProviderRestartRecovery(ScenarioBase):
                 try:
                     state = self.get_state("sim0", device_id)
                     signals = state.get("signals", [])
-                    print(f"[DEBUG] Device {device_id} has {len(signals)} signals")
+                    # print(f"[DEBUG] Device {device_id} has {len(signals)} signals")
                     if len(signals) == 0:
                         unavailable_count += 1
                 except Exception as e:

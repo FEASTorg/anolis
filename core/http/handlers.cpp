@@ -313,42 +313,34 @@ namespace anolis
 
                 if (!result.success)
                 {
-                    // Determine error type
+                    // Map ADPP status code to internal StatusCode
                     StatusCode status = StatusCode::INTERNAL;
-                    if (result.error_message.find("not found") != std::string::npos ||
-                        result.error_message.find("does not exist") != std::string::npos)
+                    
+                    switch (result.status_code)
                     {
-                        status = StatusCode::NOT_FOUND;
-                    }
-                    else if (result.error_message.find("argument") != std::string::npos ||
-                             result.error_message.find("parameter") != std::string::npos ||
-                             result.error_message.find("validation") != std::string::npos ||
-                             result.error_message.find("missing") != std::string::npos ||
-                             result.error_message.find("invalid") != std::string::npos ||
-                             result.error_message.find("mismatch") != std::string::npos ||
-                             result.error_message.find("must be") != std::string::npos ||
-                             result.error_message.find("out of range") != std::string::npos)
-                    {
+                    case anolis::deviceprovider::v0::Status_Code_CODE_INVALID_ARGUMENT:
+                    case anolis::deviceprovider::v0::Status_Code_CODE_OUT_OF_RANGE:
                         status = StatusCode::INVALID_ARGUMENT;
-                    }
-                    else if (result.error_message.find("precondition") != std::string::npos ||
-                             result.error_message.find("allowed") != std::string::npos ||
-                             result.error_message.find("blocked") != std::string::npos ||
-                             result.error_message.find("wrong state") != std::string::npos)
-                    {
+                        break;
+                    case anolis::deviceprovider::v0::Status_Code_CODE_NOT_FOUND:
+                        status = StatusCode::NOT_FOUND;
+                        break;
+                    case anolis::deviceprovider::v0::Status_Code_CODE_FAILED_PRECONDITION:
                         status = StatusCode::FAILED_PRECONDITION;
-                    }
-                    else if (result.error_message.find("timeout") != std::string::npos ||
-                             result.error_message.find("deadline") != std::string::npos)
-                    {
-                        status = StatusCode::DEADLINE_EXCEEDED;
-                    }
-                    else if (result.error_message.find("unavailable") != std::string::npos)
-                    {
+                        break;
+                    case anolis::deviceprovider::v0::Status_Code_CODE_UNAVAILABLE:
+                    case anolis::deviceprovider::v0::Status_Code_CODE_RESOURCE_EXHAUSTED:
                         status = StatusCode::UNAVAILABLE;
+                        break;
+                    case anolis::deviceprovider::v0::Status_Code_CODE_DEADLINE_EXCEEDED:
+                        status = StatusCode::DEADLINE_EXCEEDED;
+                        break;
+                    default:
+                        status = StatusCode::INTERNAL;
+                        break;
                     }
 
-                    std::cerr << "[HTTP] Call failed: " << result.error_message << " (found 'invalid'=" << (result.error_message.find("invalid") != std::string::npos) << "), returning " << static_cast<int>(status) << "\n"
+                    std::cerr << "[HTTP] Call failed: " << result.error_message << " (Code: " << result.status_code << "), returning " << static_cast<int>(status) << "\n"
                               << std::flush;
                     send_json(res, status, make_error_response(status, result.error_message));
                     return;
@@ -474,8 +466,6 @@ namespace anolis
             }
 
             sse_client_count_++;
-            std::cerr << "[SSE] Client connected: " << client_name
-                      << " (total: " << sse_client_count_.load() << ")\n";
 
             // Set SSE headers
             res.set_header("Content-Type", "text/event-stream");
@@ -494,7 +484,6 @@ namespace anolis
                     // Check if server is still running
                     if (!running_.load())
                     {
-                        std::cerr << "[SSE] Server stopping, closing " << client_name << "\n";
                         return false; // Stop streaming
                     }
 
@@ -533,8 +522,6 @@ namespace anolis
                 {
                     // Cleanup callback when stream ends
                     sse_client_count_--;
-                    std::cerr << "[SSE] Client disconnected: " << client_name
-                              << " (remaining: " << sse_client_count_.load() << ")\n";
                 });
         }
 

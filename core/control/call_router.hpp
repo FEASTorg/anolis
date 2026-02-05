@@ -36,6 +36,7 @@ namespace anolis
             bool success;
             std::string error_message;
             std::map<std::string, anolis::deviceprovider::v0::Value> results;
+            anolis::deviceprovider::v0::Status_Code status_code = anolis::deviceprovider::v0::Status_Code_CODE_OK;
         };
 
         // CallRouter - Unified control path with validation and state management
