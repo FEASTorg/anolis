@@ -26,6 +26,9 @@ cd anolis
 ./scripts/test.sh       # Linux/macOS
 .\scripts\test.ps1      # Windows
 
+# Run validation scenarios
+python scripts/run_scenarios.py
+
 # Start the runtime
 ./scripts/run.sh        # Linux/macOS
 .\scripts\run.ps1       # Windows
@@ -138,6 +141,7 @@ The demo behavior tree reads `temp_setpoint` via:
 
 ## Next Steps
 
+- **Validation scenarios**: See [../scenarios/README.md](../scenarios/README.md) for comprehensive system validation
 - **For users**: See [http-api.md](http-api.md) for API usage
 - **For developers**: See [providers.md](providers.md) to create a provider
 - **For contributors**: Check `working/anolis_master_plan.md` for roadmap

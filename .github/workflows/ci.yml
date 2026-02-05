@@ -149,6 +149,15 @@ jobs:
           ccache -s
           exit $TEST_EXIT
 
+      - name: Run validation scenarios
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/lib
+        run: |
+          echo "=== Running validation scenario suite ==="
+          python3 scripts/run_scenarios.py \
+            --runtime=build/core/anolis-runtime \
+            --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim
+
       - name: Upload Test Logs
         if: failure()
         uses: actions/upload-artifact@v4
@@ -215,6 +224,13 @@ jobs:
       - name: Run tests
         run: |
           python scripts/test_all.py --timeout=120 "--provider=$env:GITHUB_WORKSPACE/anolis-provider-sim/build/Release/anolis-provider-sim.exe"
+
+      - name: Run validation scenarios
+        run: |
+          Write-Host "=== Running validation scenario suite ==="
+          python scripts/run_scenarios.py `
+            "--runtime=build/core/Release/anolis-runtime.exe" `
+            "--provider=$env:GITHUB_WORKSPACE/anolis-provider-sim/build/Release/anolis-provider-sim.exe"
 
       - name: Upload Test Logs
         if: failure()

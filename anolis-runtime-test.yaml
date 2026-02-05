@@ -1,0 +1,24 @@
+# Test configuration for Phase 8 validation (no automation)
+
+providers:
+  - id: sim0
+    type: stdio
+    command: D:/repos_feast/anolis-provider-sim/build/Release/anolis-provider-sim.exe
+    args: []
+
+http:
+  enabled: true
+  host: 127.0.0.1
+  port: 8080
+
+control:
+  default_mode: MANUAL
+
+polling:
+  interval_ms: 500
+
+telemetry:
+  enabled: false
+
+automation:
+  enabled: false
