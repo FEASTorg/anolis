@@ -338,14 +338,13 @@ namespace anolis
                         status = StatusCode::UNAVAILABLE;
                     }
 
-                    std::cerr << "[HTTP] Call failed: " << result.error_message << ", returning " << static_cast<int>(status) << "\n"
+                    std::cerr << "[HTTP] Call failed: " << result.error_message << " (found 'invalid'=" << (result.error_message.find("invalid") != std::string::npos) << "), returning " << static_cast<int>(status) << "\n"
                               << std::flush;
                     send_json(res, status, make_error_response(status, result.error_message));
                     return;
                 }
 
                 nlohmann::json response = {
-                    {"status", make_status(StatusCode::OK)},
                     {"provider_id", provider_id},
                     {"device_id", device_id},
                     {"function_id", function_id},
