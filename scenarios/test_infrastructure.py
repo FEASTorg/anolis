@@ -32,7 +32,7 @@ class TestInfrastructure(ScenarioBase):
             
             # Test 4: Can we call clear_faults?
             result = self.call_function("sim0", "sim_control", 5, {})
-            self.assert_equal(result.get("status", {}).get("code"), "OK", "clear_faults call failed")
+            self.assert_equal(result.get("status"), "OK", "clear_faults call failed")
             
             return create_result(self, True, "Infrastructure validation passed")
             

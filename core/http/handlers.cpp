@@ -387,9 +387,16 @@ namespace anolis
                 total_device_count += devices.size();
             }
 
+            // Get current mode from mode manager
+            std::string current_mode = "MANUAL";
+            if (mode_manager_)
+            {
+                current_mode = automation::mode_to_string(mode_manager_->current_mode());
+            }
+
             nlohmann::json response = {
                 {"status", make_status(StatusCode::OK)},
-                {"mode", "MANUAL"}, // Always MANUAL in v0
+                {"mode", current_mode},
                 {"uptime_seconds", uptime},
                 {"polling_interval_ms", 500}, // TODO: Get from config
                 {"providers", providers_json},
