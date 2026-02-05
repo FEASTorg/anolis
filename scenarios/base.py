@@ -90,20 +90,63 @@ class ScenarioBase:
         return data.get("devices", [])
         
     def get_capabilities(self, provider: str, device: str) -> Dict[str, Any]:
-        """Get device capabilities."""
+        """Get device capabilities (signals and functions)."""
         import requests
         url = f"{self.base_url}/v0/devices/{provider}/{device}/capabilities"
         resp = requests.get(url, timeout=5)
         resp.raise_for_status()
-        return resp.json()
+        data = resp.json()
+        # Return the inner capabilities object for convenience
+        # API returns: {"status": ..., "capabilities": {"signals": [], "functions": []}, ...}
+        return data.get("capabilities", data)
         
     def get_state(self, provider: str, device: str) -> Dict[str, Any]:
-        """Get device state (all signals)."""
+        """
+        Get device state (all signals).
+        
+        Returns normalized state with:
+        - 'signals' list (API returns 'values')
+        - Each signal has 'value' as the actual Python value (API returns typed dict)
+        """
         import requests
         url = f"{self.base_url}/v0/state/{provider}/{device}"
         resp = requests.get(url, timeout=5)
         resp.raise_for_status()
-        return resp.json()
+        data = resp.json()
+        
+        # Normalize: API returns 'values', scenarios expect 'signals'
+        # Also extract actual value from typed format
+        signals = []
+        for v in data.get("values", []):
+            sig = {
+                "signal_id": v.get("signal_id"),
+                "quality": v.get("quality"),
+                "age_ms": v.get("age_ms"),
+                "timestamp_epoch_ms": v.get("timestamp_epoch_ms"),
+            }
+            # Extract actual value from typed format
+            val_obj = v.get("value", {})
+            val_type = val_obj.get("type", "")
+            if val_type == "double":
+                sig["value"] = val_obj.get("double")
+            elif val_type == "int64":
+                sig["value"] = val_obj.get("int64")
+            elif val_type == "uint64":
+                sig["value"] = val_obj.get("uint64")
+            elif val_type == "bool":
+                sig["value"] = val_obj.get("bool")
+            elif val_type == "string":
+                sig["value"] = val_obj.get("string")
+            else:
+                sig["value"] = val_obj  # fallback
+            signals.append(sig)
+        
+        return {
+            "provider_id": data.get("provider_id"),
+            "device_id": data.get("device_id"),
+            "quality": data.get("quality"),
+            "signals": signals
+        }
         
     def get_all_state(self) -> Dict[str, Any]:
         """Get state of all devices."""
@@ -113,20 +156,72 @@ class ScenarioBase:
         resp.raise_for_status()
         return resp.json()
         
-    def call_function(self, provider: str, device: str, function: str, 
+    def call_function(self, provider: str, device: str, function: Any, 
                      args: Dict[str, Any]) -> Dict[str, Any]:
-        """Call a device function."""
+        """
+        Call a device function.
+        
+        Args:
+            provider: Provider ID (e.g., "sim0")
+            device: Device ID (e.g., "tempctl0")
+            function: Either function_id (int) or function name (str)
+            args: Function arguments. Values can be:
+                  - Simple Python values (will be auto-typed)
+                  - Already typed dicts {"type": "...", "...": value}
+        
+        Returns:
+            Response JSON dict
+        """
         import requests
+        
+        # Handle function_id vs function name
+        if isinstance(function, str):
+            # Look up function_id from capabilities
+            caps = self.get_capabilities(provider, device)
+            functions_list = caps.get("functions", [])
+            function_id = None
+            for f in functions_list:
+                if f.get("name") == function:
+                    function_id = f.get("function_id")
+                    break
+            if function_id is None:
+                raise ValueError(f"Function '{function}' not found in {provider}/{device}. Available: {[f.get('name') for f in functions_list]}")
+        else:
+            function_id = int(function)
+        
+        # Convert args to typed format if needed
+        typed_args = {}
+        for key, val in args.items():
+            if isinstance(val, dict) and "type" in val:
+                # Already typed
+                typed_args[key] = val
+            elif isinstance(val, bool):
+                typed_args[key] = {"type": "bool", "bool": val}
+            elif isinstance(val, int):
+                typed_args[key] = {"type": "int64", "int64": val}
+            elif isinstance(val, float):
+                typed_args[key] = {"type": "double", "double": val}
+            elif isinstance(val, str):
+                typed_args[key] = {"type": "string", "string": val}
+            else:
+                raise ValueError(f"Unsupported arg type for '{key}': {type(val)}")
+        
         url = f"{self.base_url}/v0/call"
         payload = {
-            "provider": provider,
-            "device": device,
-            "function": function,
-            "args": args
+            "provider_id": provider,
+            "device_id": device,
+            "function_id": function_id,
+            "args": typed_args
         }
         resp = requests.post(url, json=payload, timeout=10)
         resp.raise_for_status()
-        return resp.json()
+        result = resp.json()
+        
+        # Normalize status format: {"status": {"code": "OK"}} -> {"status": "OK"}
+        if isinstance(result.get("status"), dict):
+            result["status"] = result["status"].get("code", result["status"])
+        
+        return result
         
     def get_runtime_status(self) -> Dict[str, Any]:
         """Get runtime status."""
@@ -139,7 +234,7 @@ class ScenarioBase:
     def set_mode(self, mode: str):
         """Set runtime control mode (MANUAL or AUTO)."""
         import requests
-        url = f"{self.base_url}/v0/runtime/mode"
+        url = f"{self.base_url}/v0/mode"
         payload = {"mode": mode}
         resp = requests.post(url, json=payload, timeout=5)
         resp.raise_for_status()

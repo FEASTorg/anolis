@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<root BTCPP_format="4">
+    <!-- Minimal test BT that does nothing (for scenario testing) -->
+    <BehaviorTree ID="TestNoop">
+        <AlwaysSuccess />
+    </BehaviorTree>
+</root>

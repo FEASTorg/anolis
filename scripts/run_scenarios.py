@@ -39,6 +39,12 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 
+# Fix Windows encoding issues with Unicode characters
+if sys.platform == 'win32':
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 # Add scenarios to path for scenario imports
 SCRIPT_DIR = Path(__file__).parent.resolve()
 PROJECT_ROOT = SCRIPT_DIR.parent
@@ -77,6 +83,12 @@ class ScenarioRunner:
         Raises:
             RuntimeError if startup fails
         """
+        # Find the test_noop.xml behavior tree file
+        # Need absolute path since temp config file is in a different directory
+        bt_path = PROJECT_ROOT / "behaviors" / "test_noop.xml"
+        if not bt_path.exists():
+            raise RuntimeError(f"Test behavior tree not found: {bt_path}")
+        
         # Create temporary config file
         config = {
             "http": {
@@ -94,6 +106,12 @@ class ScenarioRunner:
             ],
             "control": {
                 "default_mode": "MANUAL"
+            },
+            "automation": {
+                "enabled": True,
+                "behavior_tree": str(bt_path),
+                "tick_rate_hz": 10,
+                "manual_gating_policy": "BLOCK"
             }
         }
         
@@ -113,6 +131,12 @@ class ScenarioRunner:
             print(f"[RUNNER] Starting runtime with config: {config_path}")
             print(f"[RUNNER] Runtime: {self.runtime_path}")
             print(f"[RUNNER] Provider: {self.provider_path}")
+        
+        # Always print basic diagnostic info for CI debugging
+        print(f"[DEBUG] Runtime executable: {self.runtime_path}")
+        print(f"[DEBUG] Runtime exists: {os.path.exists(self.runtime_path)}")
+        print(f"[DEBUG] Provider executable: {self.provider_path}")
+        print(f"[DEBUG] Provider exists: {os.path.exists(self.provider_path)}")
             
         # Start runtime
         try:
@@ -125,16 +149,33 @@ class ScenarioRunner:
         except Exception as e:
             os.unlink(config_path)
             raise RuntimeError(f"Failed to start runtime: {e}")
+        
+        print(f"[DEBUG] Runtime process started, PID: {runtime_proc.pid}")
             
         # Wait for runtime to be ready
-        if not self._wait_for_runtime(timeout=10.0):
+        ready, wait_message = self._wait_for_runtime(timeout=10.0)
+        if not ready:
+            # Capture stderr/stdout for diagnostics
+            stdout_out = ""
+            stderr_out = ""
+            if runtime_proc.stdout:
+                stdout_out = runtime_proc.stdout.read()
+            if runtime_proc.stderr:
+                stderr_out = runtime_proc.stderr.read()
+            
             runtime_proc.kill()
             runtime_proc.wait()
             os.unlink(config_path)
-            raise RuntimeError("Runtime failed to become ready")
             
-        if self.verbose:
-            print(f"[RUNNER] Runtime ready at {self.base_url}")
+            print(f"[DEBUG] Runtime failed to become ready: {wait_message}")
+            if stdout_out:
+                print(f"[DEBUG] Runtime stdout:\n{stdout_out}")
+            if stderr_out:
+                print(f"[DEBUG] Runtime stderr:\n{stderr_out}")
+            
+            raise RuntimeError(f"Runtime failed to become ready: {wait_message}")
+        
+        print(f"[DEBUG] Runtime ready at {self.base_url}")
             
         # Note: provider is started by runtime, not directly by us
         return RuntimeProcess(
@@ -164,20 +205,34 @@ class ScenarioRunner:
         except Exception:
             pass
             
-    def _wait_for_runtime(self, timeout: float = 10.0) -> bool:
-        """Wait for runtime to respond to health checks."""
+    def _wait_for_runtime(self, timeout: float = 10.0) -> tuple:
+        """
+        Wait for runtime to respond to health checks.
+        
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
         import requests
         
+        last_error = None
+        attempts = 0
         start = time.time()
         while time.time() - start < timeout:
+            attempts += 1
             try:
                 resp = requests.get(f"{self.base_url}/v0/runtime/status", timeout=1)
                 if resp.status_code == 200:
-                    return True
-            except Exception:
-                pass
+                    return True, f"Ready after {attempts} attempts"
+                else:
+                    last_error = f"HTTP {resp.status_code}: {resp.text[:200]}"
+            except requests.exceptions.ConnectionError as e:
+                last_error = f"Connection refused (attempt {attempts})"
+            except requests.exceptions.Timeout:
+                last_error = f"Request timeout (attempt {attempts})"
+            except Exception as e:
+                last_error = f"{type(e).__name__}: {e}"
             time.sleep(0.2)
-        return False
+        return False, f"Timeout after {timeout}s, {attempts} attempts. Last error: {last_error}"
         
     def discover_scenarios(self) -> List[type]:
         """

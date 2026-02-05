@@ -73,7 +73,9 @@ class HappyPathEndToEnd(ScenarioBase):
                 {"relay_index": 1, "state": new_relay_state}
             )
             self.assert_in("status", result, "Function call result missing 'status'")
-            self.assert_equal(result["status"], "OK", f"Function call failed: {result.get('message', '')}")
+            status = result["status"]
+            status_code = status.get("code") if isinstance(status, dict) else status
+            self.assert_equal(status_code, "OK", f"Function call failed: {result.get('status', {}).get('message', '')}")
             
             # Step 6: Verify State Change
             self.sleep(0.2)  # Allow state to propagate

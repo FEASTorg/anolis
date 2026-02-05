@@ -28,7 +28,7 @@ class TestInfrastructure(ScenarioBase):
             
             # Test 3: Can we get device state?
             state = self.get_state("sim0", "tempctl0")
-            self.assert_in("values", state, "Device state missing 'values' field")
+            self.assert_in("signals", state, "Device state missing 'signals' field")
             
             # Test 4: Can we call clear_faults?
             result = self.call_function("sim0", "sim_control", 5, {})
