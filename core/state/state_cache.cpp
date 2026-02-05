@@ -84,6 +84,7 @@ namespace anolis
         void StateCache::start_polling(std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>> &providers)
         {
             polling_active_ = true;
+            std::cerr << "[StateCache] Polling started" << std::endl;
 
             // v0: Simple blocking loop in main thread
             // Phase 3B will move this to separate thread
