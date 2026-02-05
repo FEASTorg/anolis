@@ -130,13 +130,19 @@ Key: BTs never bypass CallRouter or StateCache.
 - **Protocol**: ADPP (protobuf over framed stdio)
 - **Platform**: Windows, Linux
 
-## Concurrency Model (v0)
+## Concurrency Model (v0 & v1)
 
-**Single-threaded sequential** - No async, no thread pools
+**v0 (Current): Single-threaded sequential**
 
-- Polling: Sequential per-device
-- Calls: Per-provider mutex (one at a time per provider)
-- Future: May add thread pool for polling, async call execution
+- Polling: Sequential blocking loop (blocks runtime).
+- Calls: Per-provider mutex.
+- **Architectural Debt**: Behavior Tree never runs.
+
+**v1 (Phase 10 goal): Dedicated Polling Thread**
+
+- Polling: Background thread (StateCache internal).
+- Runtime: Main loop handles BT ticks and HTTP.
+- Synchronization: `std::mutex` guards shared state in StateCache.
 
 ## Configuration (Phase 3B - planned)
 
