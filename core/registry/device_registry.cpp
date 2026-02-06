@@ -1,4 +1,5 @@
 #include "device_registry.hpp"
+#include "logging/logger.hpp"
 #include <iostream>
 
 namespace anolis
@@ -9,30 +10,30 @@ namespace anolis
         bool DeviceRegistry::discover_provider(const std::string &provider_id,
                                                anolis::provider::IProviderHandle &provider)
         {
-            std::cerr << "[Registry] Discovering provider: " << provider_id << "\n";
+            LOG_INFO("[Registry] Discovering provider: " << provider_id);
 
             // Step 1: ListDevices
             std::vector<anolis::deviceprovider::v0::Device> device_list;
             if (!provider.list_devices(device_list))
             {
                 error_ = "ListDevices failed: " + provider.last_error();
-                std::cerr << "[Registry] ERROR: " << error_ << "\n";
+                LOG_ERROR("[Registry] " << error_);
                 return false;
             }
 
-            std::cerr << "[Registry] Found " << device_list.size() << " devices\n";
+            LOG_INFO("[Registry] Found " << device_list.size() << " devices");
 
             // Step 2: DescribeDevice for each
             for (const auto &device_brief : device_list)
             {
                 const std::string &device_id = device_brief.device_id();
-                std::cerr << "[Registry] Describing device: " << device_id << "\n";
+                LOG_INFO("[Registry] Describing device: " << device_id);
 
                 anolis::deviceprovider::v0::DescribeDeviceResponse describe_response;
                 if (!provider.describe_device(device_id, describe_response))
                 {
                     error_ = "DescribeDevice(" + device_id + ") failed: " + provider.last_error();
-                    std::cerr << "[Registry] ERROR: " << error_ << "\n";
+                    LOG_ERROR("[Registry] " << error_);
                     return false;
                 }
 
@@ -45,7 +46,7 @@ namespace anolis
                                         describe_response.capabilities(),
                                         reg_device.capabilities))
                 {
-                    std::cerr << "[Registry] ERROR: " << error_ << "\n";
+                    LOG_ERROR("[Registry] " << error_);
                     return false;
                 }
 
@@ -53,9 +54,9 @@ namespace anolis
                 std::string handle = reg_device.get_handle();
 
                 // Log BEFORE the move
-                std::cerr << "[Registry] Registered: " << handle
-                          << " (" << reg_device.capabilities.signals_by_id.size() << " signals, "
-                          << reg_device.capabilities.functions_by_id.size() << " functions)\n";
+                LOG_INFO("[Registry] Registered: " << handle
+                         << " (" << reg_device.capabilities.signals_by_id.size() << " signals, "
+                         << reg_device.capabilities.functions_by_id.size() << " functions)");
 
                 handle_to_index_[handle] = devices_.size();
                 devices_.push_back(std::move(reg_device));

@@ -1,4 +1,5 @@
 #include "config.hpp"
+#include "../logging/logger.hpp"
 #include <yaml-cpp/yaml.h>
 #include <fstream>
 #include <iostream>
@@ -300,31 +301,39 @@ namespace anolis
                     }
                 }
 
-                std::cerr << "[Config] Loaded " << config.providers.size() << " provider(s)\n";
-                std::cerr << "[Config] Runtime mode: " << config.runtime.mode << "\n";
-                std::cerr << "[Config] HTTP: " << (config.http.enabled ? "enabled" : "disabled");
+                LOG_INFO("[Config] Loaded " << config.providers.size() << " provider(s)");
+                LOG_INFO("[Config] Runtime mode: " << config.runtime.mode);
+                
+                std::stringstream http_msg;
+                http_msg << "[Config] HTTP: " << (config.http.enabled ? "enabled" : "disabled");
                 if (config.http.enabled)
                 {
-                    std::cerr << " (" << config.http.bind << ":" << config.http.port << ")";
+                    http_msg << " (" << config.http.bind << ":" << config.http.port << ")";
                 }
-                std::cerr << "\n";
-                std::cerr << "[Config] Polling interval: " << config.polling.interval_ms << "ms\n";
-                std::cerr << "[Config] Telemetry: " << (config.telemetry.enabled ? "enabled" : "disabled");
+                LOG_INFO(http_msg.str());
+                
+                LOG_INFO("[Config] Polling interval: " << config.polling.interval_ms << "ms");
+                
+                std::stringstream telemetry_msg;
+                telemetry_msg << "[Config] Telemetry: " << (config.telemetry.enabled ? "enabled" : "disabled");
                 if (config.telemetry.enabled)
                 {
-                    std::cerr << " (" << config.telemetry.influx_url << "/"
+                    telemetry_msg << " (" << config.telemetry.influx_url << "/"
                               << config.telemetry.influx_bucket << ")";
                 }
-                std::cerr << "\n";
-                std::cerr << "[Config] Log level: " << config.logging.level << "\n";
-                std::cerr << "[Config] Automation: " << (config.automation.enabled ? "enabled" : "disabled");
+                LOG_INFO(telemetry_msg.str());
+                
+                LOG_INFO("[Config] Log level: " << config.logging.level);
+                
+                std::stringstream automation_msg;
+                automation_msg << "[Config] Automation: " << (config.automation.enabled ? "enabled" : "disabled");
                 if (config.automation.enabled)
                 {
-                    std::cerr << " (BT: " << config.automation.behavior_tree
+                    automation_msg << " (BT: " << config.automation.behavior_tree
                               << ", tick rate: " << config.automation.tick_rate_hz << " Hz, "
                               << config.automation.parameters.size() << " parameters)";
                 }
-                std::cerr << "\n";
+                LOG_INFO(automation_msg.str());
 
                 return true;
             }

@@ -15,6 +15,14 @@ protobuf_generate(
     PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+# Logging library
+add_library(anolis_logging STATIC
+    logging/logger.cpp
+)
+target_include_directories(anolis_logging PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 # Provider host library
 add_library(anolis_provider STATIC
     provider/framed_stdio_client.cpp
@@ -29,6 +37,7 @@ target_include_directories(anolis_provider PUBLIC
 
 target_link_libraries(anolis_provider PUBLIC
     anolis_proto
+    anolis_logging
     protobuf::libprotobuf
 )
 
@@ -45,6 +54,7 @@ target_include_directories(anolis_registry PUBLIC
 target_link_libraries(anolis_registry PUBLIC
     anolis_proto
     anolis_provider
+    anolis_logging
     protobuf::libprotobuf
 )
 

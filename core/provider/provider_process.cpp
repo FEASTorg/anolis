@@ -1,4 +1,5 @@
 #include "provider_process.hpp"
+#include "logging/logger.hpp"
 #include <iostream>
 #include <filesystem>
 #include <chrono>
@@ -38,13 +39,13 @@ namespace anolis
 
         bool ProviderProcess::spawn()
         {
-            std::cerr << "[" << provider_id_ << "] Spawning: " << executable_path_ << "\n";
+            LOG_INFO("[" << provider_id_ << "] Spawning: " << executable_path_);
 
             // Check executable exists
             if (!std::filesystem::exists(executable_path_))
             {
                 error_ = "Executable not found: " + executable_path_;
-                std::cerr << "[" << provider_id_ << "] ERROR: " << error_ << "\n";
+                LOG_ERROR("[" << provider_id_ << "] " << error_);
                 return false;
             }
 
@@ -147,8 +148,7 @@ namespace anolis
             // Give to client
             client_.set_handles(stdin_write_parent, stdout_read_parent);
 
-            std::cerr << "[" << provider_id_ << "] Process spawned successfully (PID="
-                      << pi.dwProcessId << ")\n";
+            LOG_INFO("[" << provider_id_ << "] Process spawned successfully (PID=" << pi.dwProcessId << ")");
             return true;
         }
 #else
@@ -213,6 +213,7 @@ namespace anolis
 
                 // If we get here, exec failed
                 std::cerr << "exec failed for " << abs_path << ": " << errno << "\n";
+                LOG_ERROR("exec failed for " << abs_path << ": " << errno);
                 _exit(1);
             }
 
@@ -225,8 +226,7 @@ namespace anolis
 
             client_.set_handles(stdin_write_fd_, stdout_read_fd_);
 
-            std::cerr << "[" << provider_id_ << "] Process spawned successfully (PID=" << pid_ << ")\n";
-            return true;
+            LOG_INFO("[" << provider_id_ << "] Process spawned successfully (PID=" << pid_ << ")")
         }
 #endif
 
@@ -254,6 +254,7 @@ namespace anolis
                 return;
 
             std::cerr << "[" << provider_id_ << "] Initiating shutdown\n";
+LOG_INFO("[" << provider_id_ << "] Initiating shutdown");
 
             // 1. Send EOF
             client_.close_stdin();
@@ -263,12 +264,12 @@ namespace anolis
 
             if (exited)
             {
-                std::cerr << "[" << provider_id_ << "] Clean shutdown\n";
+                LOG_INFO("[" << provider_id_ << "] Clean shutdown");
             }
             else
             {
                 // 3. Forced kill
-                std::cerr << "[" << provider_id_ << "] Timeout - forcing termination\n";
+                LOG_WARN("[" << provider_id_ << "] Timeout - forcing termination");
                 force_terminate();
                 wait_for_exit(500);
             }

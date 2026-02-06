@@ -4,6 +4,7 @@
  */
 
 #include "influx_sink.hpp"
+#include "logging/logger.hpp"
 
 // Include cpp-httplib (header-only, no SSL for local InfluxDB)
 #include <httplib.h>
@@ -106,8 +107,7 @@ namespace anolis
                     // Log periodically (every 1000 writes)
                     if (total_written_.load() % 1000 == 0)
                     {
-                        std::cerr << "[InfluxSink] Written " << total_written_.load()
-                                  << " events to InfluxDB\n";
+                        LOG_INFO("[InfluxSink] Written " << total_written_.load() << " events to InfluxDB");
                     }
                 }
                 else
@@ -124,8 +124,7 @@ namespace anolis
 
                     if (elapsed >= 10)
                     { // Log at most every 10 seconds
-                        std::cerr << "[InfluxSink] HTTP error " << result->status
-                                  << ": " << result->body << "\n";
+                        LOG_WARN("[InfluxSink] HTTP error " << result->status << ": " << result->body);
                         last_error_log_ = now;
                     }
                 }
@@ -145,9 +144,7 @@ namespace anolis
                 if (elapsed >= 10)
                 {
                     auto err = result.error();
-                    std::cerr << "[InfluxSink] Connection error: "
-                              << httplib::to_string(err) << "\n";
-                    last_error_log_ = now;
+                    LOG_ERROR("[InfluxSink] Connection error: " << httplib::to_string(err));
                 }
             }
         }

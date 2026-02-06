@@ -1,6 +1,6 @@
 #include "state_cache.hpp"
 #include "events/event_emitter.hpp"
-#include <iostream>
+#include "logging/logger.hpp"
 #include <thread>
 #include <cstring>
 
@@ -93,12 +93,12 @@ namespace anolis
         {
             if (polling_active_)
             {
-                std::cerr << "[StateCache] Polling already active\n";
+                LOG_WARN("[StateCache] Polling already active");
                 return;
             }
 
             polling_active_ = true;
-            std::cerr << "[StateCache] Polling thread starting\n";
+            LOG_INFO("[StateCache] Polling thread starting");
 
             polling_thread_ = std::thread([this, &providers]()
                                           {
@@ -118,12 +118,12 @@ namespace anolis
                     }
                     else
                     {
-                        std::cerr << "[StateCache] WARNING: Poll took longer than interval ("
-                                  << std::chrono::duration_cast<std::chrono::milliseconds>(poll_duration).count()
-                                  << "ms)\n";
+                        LOG_WARN("[StateCache] Poll took longer than interval ("
+                                 << std::chrono::duration_cast<std::chrono::milliseconds>(poll_duration).count()
+                                 << "ms)");
                     }
                 }
-                std::cerr << "[StateCache] Polling thread exited\n"; });
+                LOG_INFO("[StateCache] Polling thread exited"); });
         }
 
         void StateCache::stop_polling()
@@ -143,14 +143,14 @@ namespace anolis
                 auto it = providers.find(config.provider_id);
                 if (it == providers.end())
                 {
-                    std::cerr << "[StateCache] WARNING: Provider " << config.provider_id << " not found\n";
+                    LOG_WARN("[StateCache] Provider " << config.provider_id << " not found");
                     continue;
                 }
 
                 auto &provider = it->second;
                 if (!provider->is_available())
                 {
-                    std::cerr << "[StateCache] WARNING: Provider " << config.provider_id << " not available\n";
+                    LOG_WARN("[StateCache] Provider " << config.provider_id << " not available");
 
                     // Mark device state as unavailable
                     std::string handle = config.provider_id + "/" + config.device_id;
@@ -188,7 +188,7 @@ namespace anolis
                 }
             }
 
-            std::cerr << "[StateCache] WARNING: No poll config found for " << device_handle << "\n";
+            LOG_WARN("[StateCache] No poll config found for " << device_handle);
         }
 
         bool StateCache::poll_device(const std::string &provider_id,
@@ -202,8 +202,7 @@ namespace anolis
             anolis::deviceprovider::v0::ReadSignalsResponse response;
             if (!provider.read_signals(device_id, signal_ids, response))
             {
-                std::cerr << "[StateCache] ReadSignals failed for " << device_id
-                          << ": " << provider.last_error() << "\n";
+                LOG_ERROR("[StateCache] ReadSignals failed for " << device_id << ": " << provider.last_error());
 
                 // Mark device as unavailable and clear signals
                 {
@@ -234,7 +233,7 @@ namespace anolis
             auto it = device_states_.find(device_handle);
             if (it == device_states_.end())
             {
-                std::cerr << "[StateCache] WARNING: Device state not found: " << device_handle << "\n";
+                LOG_WARN("[StateCache] Device state not found: " << device_handle);
                 return;
             }
 
@@ -405,12 +404,11 @@ namespace anolis
             auto it = device_states_.find(device_handle);
             if (it == device_states_.end())
             {
-                std::cerr << "[StateCache] get_device_state: " << device_handle << " not found (this=" << this << ")\n";
+                LOG_DEBUG("[StateCache] get_device_state: " << device_handle << " not found");
                 return nullptr;
             }
 
-            std::cerr << "[StateCache] get_device_state: '" << device_handle << "' (len=" << device_handle.length() << ") found (this=" << this
-                      << ", signals=" << it->second.signals.size() << ", addr=" << &it->second << ")\n";
+            LOG_DEBUG("[StateCache] get_device_state: " << device_handle << " found (signals=" << it->second.signals.size() << ")");
             // Return copy as shared_ptr for thread safety
             return std::make_shared<DeviceState>(it->second);
         }

@@ -1,7 +1,7 @@
 #include "server.hpp"
 #include "errors.hpp"
 #include "events/event_emitter.hpp"
-#include <iostream>
+#include "logging/logger.hpp"
 
 namespace anolis
 {
@@ -33,7 +33,7 @@ namespace anolis
                 return false;
             }
 
-            std::cerr << "[HTTP] Starting server on " << config_.bind << ":" << config_.port << "\n";
+            LOG_INFO("[HTTP] Starting server on " << config_.bind << ":" << config_.port);
 
             // Create server
             server_ = std::make_unique<httplib::Server>();
@@ -92,10 +92,10 @@ namespace anolis
             std::rethrow_exception(ep);
         } catch (const std::exception& e) {
             msg = e.what();
-            std::cerr << "[HTTP] Exception: " << e.what() << "\n" << std::flush;
+            LOG_ERROR("[HTTP] Exception: " << e.what());
         } catch (...) {
             msg = "Unknown exception";
-            std::cerr << "[HTTP] Unknown exception\n" << std::flush;
+            LOG_ERROR("[HTTP] Unknown exception");
         }
         
         nlohmann::json response = make_error_response(StatusCode::INTERNAL, msg);
@@ -114,12 +114,11 @@ namespace anolis
             running_.store(true);
             server_thread_ = std::make_unique<std::thread>([this]()
                                                            {
-        std::cerr << "[HTTP] Server thread started\n" << std::flush;
+        LOG_INFO("[HTTP] Server thread started");
         server_->listen_after_bind();
-        std::cerr << "[HTTP] Server thread exiting\n"; });
+        LOG_INFO("[HTTP] Server thread exiting"); });
 
-            std::cerr << "[HTTP] Server listening on " << config_.bind << ":" << config_.port << "\n"
-                      << std::flush;
+            LOG_INFO("[HTTP] Server listening on " << config_.bind << ":" << config_.port);
             return true;
         }
 
@@ -130,7 +129,7 @@ namespace anolis
                 return;
             }
 
-            std::cerr << "[HTTP] Stopping server\n";
+            LOG_INFO("[HTTP] Stopping server");
             running_.store(false);
 
             if (server_)
@@ -145,7 +144,7 @@ namespace anolis
 
             server_thread_.reset();
             server_.reset();
-            std::cerr << "[HTTP] Server stopped\n";
+            LOG_INFO("[HTTP] Server stopped");
         }
 
         void HttpServer::setup_routes()
@@ -212,18 +211,18 @@ namespace anolis
             server_->Get("/v0/events", [this](const httplib::Request &req, httplib::Response &res)
                          { handle_get_events(req, res); });
 
-            std::cerr << "[HTTP] Routes configured:\n";
-            std::cerr << "[HTTP]   GET  /v0/devices\n";
-            std::cerr << "[HTTP]   GET  /v0/devices/{provider_id}/{device_id}/capabilities\n";
-            std::cerr << "[HTTP]   GET  /v0/state\n";
-            std::cerr << "[HTTP]   GET  /v0/state/{provider_id}/{device_id}\n";
-            std::cerr << "[HTTP]   POST /v0/call\n";
-            std::cerr << "[HTTP]   GET  /v0/runtime/status\n";
-            std::cerr << "[HTTP]   GET  /v0/mode\n";
-            std::cerr << "[HTTP]   POST /v0/mode\n";
-            std::cerr << "[HTTP]   GET  /v0/parameters\n";
-            std::cerr << "[HTTP]   POST /v0/parameters\n";
-            std::cerr << "[HTTP]   GET  /v0/events (SSE)\n";
+            LOG_INFO("[HTTP] Routes configured:");
+            LOG_INFO("[HTTP]   GET  /v0/devices");
+            LOG_INFO("[HTTP]   GET  /v0/devices/{provider_id}/{device_id}/capabilities");
+            LOG_INFO("[HTTP]   GET  /v0/state");
+            LOG_INFO("[HTTP]   GET  /v0/state/{provider_id}/{device_id}");
+            LOG_INFO("[HTTP]   POST /v0/call");
+            LOG_INFO("[HTTP]   GET  /v0/runtime/status");
+            LOG_INFO("[HTTP]   GET  /v0/mode");
+            LOG_INFO("[HTTP]   POST /v0/mode");
+            LOG_INFO("[HTTP]   GET  /v0/parameters");
+            LOG_INFO("[HTTP]   POST /v0/parameters");
+            LOG_INFO("[HTTP]   GET  /v0/events (SSE)");
         }
 
     } // namespace http

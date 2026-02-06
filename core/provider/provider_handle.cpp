@@ -1,4 +1,5 @@
 #include "provider_handle.hpp"
+#include "logging/logger.hpp"
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -14,7 +15,7 @@ namespace anolis
 
         bool ProviderHandle::start()
         {
-            std::cerr << "[" << process_.provider_id() << "] Starting provider\n";
+            LOG_INFO("[" << process_.provider_id() << "] Starting provider");
 
             // Spawn process
             if (!process_.spawn())
@@ -27,13 +28,12 @@ namespace anolis
             anolis::deviceprovider::v0::HelloResponse hello_response;
             if (!hello(hello_response))
             {
-                std::cerr << "[" << process_.provider_id() << "] Hello handshake failed: "
-                          << error_ << "\n";
+                LOG_ERROR("[" << process_.provider_id() << "] Hello handshake failed: " << error_);
                 return false;
             }
 
-            std::cerr << "[" << process_.provider_id() << "] Hello succeeded: "
-                      << hello_response.provider_name() << " v" << hello_response.provider_version() << "\n";
+            LOG_INFO("[" << process_.provider_id() << "] Hello succeeded: "
+                     << hello_response.provider_name() << " v" << hello_response.provider_version());
             return true;
         }
 
@@ -235,7 +235,7 @@ namespace anolis
                 if (elapsed_ms >= timeout_ms)
                 {
                     error_ = "Timeout waiting for response (" + std::to_string(timeout_ms) + "ms)";
-                    std::cerr << "[" << process_.provider_id() << "] " << error_ << "\n";
+                    LOG_ERROR("[" << process_.provider_id() << "] " << error_);
                     return false;
                 }
 

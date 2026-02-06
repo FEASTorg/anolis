@@ -1,6 +1,6 @@
 #include "runtime.hpp"
 #include "provider/provider_handle.hpp" // Required for instantiation
-#include <iostream>
+#include "logging/logger.hpp"
 #include <thread>
 #include <chrono>
 
@@ -19,7 +19,7 @@ namespace anolis
 
         bool Runtime::initialize(std::string &error)
         {
-            std::cerr << "[Runtime] Initializing Anolis Core\n";
+            LOG_INFO("[Runtime] Initializing Anolis Core");
 
             // Create registry
             registry_ = std::make_unique<registry::DeviceRegistry>();
@@ -27,8 +27,8 @@ namespace anolis
             // Start all providers and discover
             for (const auto &provider_config : config_.providers)
             {
-                std::cerr << "[Runtime] Starting provider: " << provider_config.id << "\n";
-                std::cerr << "[Runtime]   Command: " << provider_config.command << "\n";
+                LOG_INFO("[Runtime] Starting provider: " << provider_config.id);
+                LOG_DEBUG("[Runtime]   Command: " << provider_config.command);
 
                 auto provider = std::make_shared<provider::ProviderHandle>(
                     provider_config.id,
@@ -42,7 +42,7 @@ namespace anolis
                     return false;
                 }
 
-                std::cerr << "[Runtime] Provider " << provider_config.id << " started\n";
+                LOG_INFO("[Runtime] Provider " << provider_config.id << " started");
 
                 // Discover devices
                 if (!registry_->discover_provider(provider_config.id, *provider))
@@ -54,12 +54,12 @@ namespace anolis
                 providers_[provider_config.id] = provider;
             }
 
-            std::cerr << "[Runtime] All providers started\n";
+            LOG_INFO("[Runtime] All providers started");
 
             // Create event emitter
             // Default: 100 events per subscriber queue, max 32 SSE clients
             event_emitter_ = std::make_shared<events::EventEmitter>(100, 32);
-            std::cerr << "[Runtime] Event emitter created (max " << event_emitter_->max_subscribers() << " subscribers)\n";
+            LOG_INFO("[Runtime] Event emitter created (max " << event_emitter_->max_subscribers() << " subscribers)");
 
             // Create state cache
             state_cache_ = std::make_unique<state::StateCache>(*registry_, config_.polling.interval_ms);
@@ -87,7 +87,7 @@ namespace anolis
             // Create and initialize ParameterManager BEFORE HTTP server
             if (config_.automation.enabled)
             {
-                std::cerr << "[Runtime] Creating parameter manager\n";
+                LOG_INFO("[Runtime] Creating parameter manager");
                 parameter_manager_ = std::make_unique<automation::ParameterManager>();
 
                 // Load parameters from config
@@ -112,7 +112,7 @@ namespace anolis
                     }
                     else
                     {
-                        std::cerr << "[Runtime] WARNING: Invalid parameter type: " << param_config.type << "\n";
+                        LOG_WARN("[Runtime] Invalid parameter type: " << param_config.type);
                         continue;
                     }
 
@@ -141,18 +141,17 @@ namespace anolis
 
                     if (!parameter_manager_->define(param_config.name, type, value, min, max, allowed))
                     {
-                        std::cerr << "[Runtime] WARNING: Failed to define parameter: " << param_config.name << "\n";
+                        LOG_WARN("[Runtime] Failed to define parameter: " << param_config.name);
                     }
                 }
 
-                std::cerr << "[Runtime] Parameter manager initialized with "
-                          << parameter_manager_->parameter_count() << " parameters\n";
+                LOG_INFO("[Runtime] Parameter manager initialized with " << parameter_manager_->parameter_count() << " parameters");
             }
 
             // Create and start HTTP server if enabled
             if (config_.http.enabled)
             {
-                std::cerr << "[Runtime] Creating HTTP server\n";
+                LOG_INFO("[Runtime] Creating HTTP server");
                 http_server_ = std::make_unique<http::HttpServer>(
                     config_.http,
                     *registry_,
@@ -170,18 +169,17 @@ namespace anolis
                     error = "HTTP server failed to start: " + http_error;
                     return false;
                 }
-                std::cerr << "[Runtime] HTTP server started on " << config_.http.bind
-                          << ":" << config_.http.port << "\n";
+                LOG_INFO("[Runtime] HTTP server started on " << config_.http.bind << ":" << config_.http.port);
             }
             else
             {
-                std::cerr << "[Runtime] HTTP server disabled in config\n";
+                LOG_INFO("[Runtime] HTTP server disabled in config");
             }
 
             // Start telemetry sink if enabled
             if (config_.telemetry.enabled)
             {
-                std::cerr << "[Runtime] Creating telemetry sink\n";
+                LOG_INFO("[Runtime] Creating telemetry sink");
 
                 telemetry::InfluxConfig influx_config;
                 influx_config.enabled = true;
@@ -197,17 +195,17 @@ namespace anolis
 
                 if (!telemetry_sink_->start(event_emitter_))
                 {
-                    std::cerr << "[Runtime] WARNING: Telemetry sink failed to start\n";
+                    LOG_WARN("[Runtime] Telemetry sink failed to start");
                     // Don't fail runtime initialization - telemetry is optional
                 }
                 else
                 {
-                    std::cerr << "[Runtime] Telemetry sink started\n";
+                    LOG_INFO("[Runtime] Telemetry sink started");
                 }
             }
             else
             {
-                std::cerr << "[Runtime] Telemetry disabled in config\n";
+                LOG_INFO("[Runtime] Telemetry disabled in config");
             }
 
             // Register mode change callback to emit telemetry events (only if automation enabled)
@@ -225,8 +223,7 @@ namespace anolis
                 ).count();
                 
                 event_emitter_->emit(event);
-                std::cout << "[Runtime] Mode change event emitted: " 
-                          << event.previous_mode << " -> " << event.new_mode << "\\n";
+                LOG_INFO("[Runtime] Mode change event emitted: " << event.previous_mode << " -> " << event.new_mode);
             } });
             }
 
@@ -263,15 +260,14 @@ namespace anolis
                 ).count();
                 
                 event_emitter_->emit(event);
-                std::cerr << "[Runtime] Parameter '" << name << "' changed: " 
-                          << event.old_value_str << " -> " << event.new_value_str << "\n";
+                LOG_INFO("[Runtime] Parameter '" << name << "' changed: " << event.old_value_str << " -> " << event.new_value_str);
             } });
             }
 
             // Create and initialize BTRuntime if enabled
             if (config_.automation.enabled)
             {
-                std::cerr << "[Runtime] Creating BT runtime\n";
+                LOG_INFO("[Runtime] Creating BT runtime");
                 bt_runtime_ = std::make_unique<automation::BTRuntime>(
                     *state_cache_,
                     *call_router_,
@@ -286,44 +282,41 @@ namespace anolis
                     return false;
                 }
 
-                std::cerr << "[Runtime] Behavior tree loaded: " << config_.automation.behavior_tree << "\n";
+                LOG_INFO("[Runtime] Behavior tree loaded: " << config_.automation.behavior_tree);
             }
             else
             {
-                std::cerr << "[Runtime] Automation disabled in config\n";
+                LOG_INFO("[Runtime] Automation disabled in config");
             }
 
-            std::cerr << "[Runtime] Initialization complete\n";
+            LOG_INFO("[Runtime] Initialization complete");
             return true;
         }
 
         void Runtime::run()
         {
-            std::cerr << "[Runtime] Starting main loop\n";
+            LOG_INFO("[Runtime] Starting main loop");
             running_ = true;
 
             // Start state cache polling
             state_cache_->start_polling(providers_);
 
-            std::cerr << "[Runtime] State cache polling active\n"
-                      << std::flush;
+            LOG_INFO("[Runtime] State cache polling active");
 
             // Start BT tick loop if automation enabled
             if (bt_runtime_)
             {
                 if (!bt_runtime_->start(config_.automation.tick_rate_hz))
                 {
-                    std::cerr << "[Runtime] WARNING: BT runtime failed to start\n";
+                    LOG_WARN("[Runtime] BT runtime failed to start");
                 }
                 else
                 {
-                    std::cerr << "[Runtime] BT runtime started (tick rate: "
-                              << config_.automation.tick_rate_hz << " Hz)\n";
+                    LOG_INFO("[Runtime] BT runtime started (tick rate: " << config_.automation.tick_rate_hz << " Hz)");
                 }
             }
 
-            std::cerr << "[Runtime] Press Ctrl+C to exit\n\n"
-                      << std::flush;
+            LOG_INFO("[Runtime] Press Ctrl+C to exit");
 
             // Main loop (v0: just keep polling alive)
             // Future: HTTP server, BT engine, etc. will run here
@@ -336,12 +329,12 @@ namespace anolis
                 {
                     if (!provider->is_available())
                     {
-                        std::cerr << "[Runtime] WARNING: Provider " << id << " unavailable\n";
+                        LOG_WARN("[Runtime] Provider " << id << " unavailable");
                     }
                 }
             }
 
-            std::cerr << "[Runtime] Shutting down\n";
+            LOG_INFO("[Runtime] Shutting down");
             state_cache_->stop_polling();
         }
 
@@ -350,21 +343,21 @@ namespace anolis
             // Stop BT runtime first
             if (bt_runtime_)
             {
-                std::cerr << "[Runtime] Stopping BT runtime\n";
+                LOG_INFO("[Runtime] Stopping BT runtime");
                 bt_runtime_->stop();
             }
 
             // Stop HTTP server
             if (http_server_)
             {
-                std::cerr << "[Runtime] Stopping HTTP server\n";
+                LOG_INFO("[Runtime] Stopping HTTP server");
                 http_server_->stop();
             }
 
             // Stop telemetry sink
             if (telemetry_sink_)
             {
-                std::cerr << "[Runtime] Stopping telemetry sink\n";
+                LOG_INFO("[Runtime] Stopping telemetry sink");
                 telemetry_sink_->stop();
             }
 
@@ -375,7 +368,7 @@ namespace anolis
 
             for (auto &[id, provider] : providers_)
             {
-                std::cerr << "[Runtime] Stopping provider: " << id << "\n";
+                LOG_INFO("[Runtime] Stopping provider: " << id);
                 // ProviderHandle/ProviderProcess destructor handles cleanup
             }
 

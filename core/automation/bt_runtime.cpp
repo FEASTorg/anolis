@@ -4,6 +4,7 @@
 #include "automation/parameter_manager.hpp"
 #include "state/state_cache.hpp"
 #include "control/call_router.hpp"
+#include "logging/logger.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -25,7 +26,7 @@ namespace anolis
                              ParameterManager *parameter_manager)
             : state_cache_(state_cache), call_router_(call_router), providers_(providers), mode_manager_(mode_manager), parameter_manager_(parameter_manager), factory_(std::make_unique<BT::BehaviorTreeFactory>())
         {
-            std::cout << "[BTRuntime] Initialized" << std::endl;
+            LOG_INFO("[BTRuntime] Initialized");
 
             // Register custom nodes
             factory_->registerNodeType<ReadSignalNode>("ReadSignal");
@@ -33,7 +34,7 @@ namespace anolis
             factory_->registerNodeType<CheckQualityNode>("CheckQuality");
             factory_->registerNodeType<GetParameterNode>("GetParameter");
 
-            std::cout << "[BTRuntime] Registered custom node types" << std::endl;
+            LOG_INFO("[BTRuntime] Registered custom node types");
         }
 
         BTRuntime::~BTRuntime()
@@ -47,7 +48,7 @@ namespace anolis
             std::ifstream file(path);
             if (!file.good())
             {
-                std::cerr << "[BTRuntime] ERROR: Cannot open BT file: " << path << std::endl;
+                LOG_ERROR("[BTRuntime] Cannot open BT file: " << path);
                 return false;
             }
 
@@ -62,12 +63,12 @@ namespace anolis
                 tree_ = std::make_unique<BT::Tree>(factory_->createTreeFromFile(path));
                 tree_loaded_ = true;
 
-                std::cout << "[BTRuntime] BT loaded successfully: " << path << std::endl;
+                LOG_INFO("[BTRuntime] BT loaded successfully: " << path);
                 return true;
             }
             catch (const std::exception &e)
             {
-                std::cerr << "[BTRuntime] ERROR loading BT: " << e.what() << std::endl;
+                LOG_ERROR("[BTRuntime] Error loading BT: " << e.what());
                 tree_loaded_ = false;
                 return false;
             }
@@ -77,20 +78,19 @@ namespace anolis
         {
             if (running_)
             {
-                std::cerr << "[BTRuntime] ERROR: Already running" << std::endl;
+                LOG_ERROR("[BTRuntime] Already running");
                 return false;
             }
 
             if (!tree_loaded_)
             {
-                std::cerr << "[BTRuntime] ERROR: No BT loaded, call load_tree() first" << std::endl;
+                LOG_ERROR("[BTRuntime] No BT loaded, call load_tree() first");
                 return false;
             }
 
             if (tick_rate_hz <= 0 || tick_rate_hz > 1000)
             {
-                std::cerr << "[BTRuntime] ERROR: Invalid tick rate: " << tick_rate_hz
-                          << " (must be 1-1000 Hz)" << std::endl;
+                LOG_ERROR("[BTRuntime] Invalid tick rate: " << tick_rate_hz << " (must be 1-1000 Hz)");
                 return false;
             }
 
@@ -99,7 +99,7 @@ namespace anolis
 
             tick_thread_ = std::make_unique<std::thread>(&BTRuntime::tick_loop, this);
 
-            std::cout << "[BTRuntime] Started tick loop at " << tick_rate_hz << " Hz" << std::endl;
+            LOG_INFO("[BTRuntime] Started tick loop at " << tick_rate_hz << " Hz");
             return true;
         }
 
@@ -110,7 +110,7 @@ namespace anolis
                 return;
             }
 
-            std::cout << "[BTRuntime] Stopping tick loop..." << std::endl;
+            LOG_INFO("[BTRuntime] Stopping tick loop...");
             running_ = false;
 
             if (tick_thread_ && tick_thread_->joinable())
@@ -119,7 +119,7 @@ namespace anolis
             }
             tick_thread_.reset();
 
-            std::cout << "[BTRuntime] Tick loop stopped" << std::endl;
+            LOG_INFO("[BTRuntime] Tick loop stopped");
         }
 
         bool BTRuntime::is_running() const
@@ -132,6 +132,7 @@ namespace anolis
             if (!tree_)
             {
                 std::cerr << "[BTRuntime] ERROR: Cannot tick, no tree loaded" << std::endl;
+                LOG_ERROR("[BTRuntime] Cannot tick, no tree loaded");
                 return BT::NodeStatus::FAILURE;
             }
 
@@ -145,8 +146,7 @@ namespace anolis
             const auto tick_period = milliseconds(1000 / tick_rate_hz_);
             auto next_tick = steady_clock::now() + tick_period;
 
-            std::cout << "[BTRuntime] Tick loop started (period: "
-                      << tick_period.count() << "ms)" << std::endl;
+            LOG_INFO("[BTRuntime] Tick loop started (period: " << tick_period.count() << "ms)");
 
             while (running_)
             {
@@ -170,34 +170,26 @@ namespace anolis
                     // Log terminal states (optional, can be verbose)
                     if (status == BT::NodeStatus::SUCCESS)
                     {
-                        std::cout << "[BTRuntime] BT completed successfully" << std::endl;
+                        LOG_INFO("[BTRuntime] BT completed successfully");
                     }
                     else if (status == BT::NodeStatus::FAILURE)
                     {
-                        std::cout << "[BTRuntime] BT failed" << std::endl;
+                        LOG_WARN("[BTRuntime] BT failed");
                     }
                     // RUNNING status is normal, don't log
                 }
                 catch (const std::exception &e)
                 {
-                    std::cerr << "[BTRuntime] ERROR during tick: " << e.what() << std::endl;
+                    LOG_ERROR("[BTRuntime] Error during tick: " << e.what());
                 }
-
-                // Check mode before next tick, CURRENTLY DISABLED
-                // TODO: Clean or fix this logic as required
-                // if (mode_manager_->current_mode() != RuntimeMode::AUTO) {
-                //     std::cout << "[BTRuntime] Not in AUTO mode, pausing tick" << std::endl;
-                //     break;
-                // }
 
                 // Sleep until next tick
                 std::this_thread::sleep_until(next_tick);
                 next_tick += tick_period;
             }
 
-            std::cout << "[BTRuntime] Tick loop exiting" << std::endl;
+            LOG_INFO("[BTRuntime] Tick loop exiting");
         }
-
         void BTRuntime::populate_blackboard()
         {
             if (!tree_)

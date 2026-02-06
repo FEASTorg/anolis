@@ -1,4 +1,5 @@
 #include "automation/mode_manager.hpp"
+#include "logging/logger.hpp"
 #include <iostream>
 
 namespace anolis
@@ -34,15 +35,14 @@ namespace anolis
             if (str == "FAULT")
                 return RuntimeMode::FAULT;
 
-            std::cerr << "[ModeManager] WARNING: Unknown mode string '" << str
-                      << "', defaulting to MANUAL\n";
+            LOG_WARN("[ModeManager] Unknown mode string '" << str << "', defaulting to MANUAL");
             return RuntimeMode::MANUAL;
         }
 
         ModeManager::ModeManager(RuntimeMode initial_mode)
             : current_mode_(initial_mode)
         {
-            std::cout << "[ModeManager] Initialized in " << mode_to_string(initial_mode) << " mode\n";
+            LOG_INFO("[ModeManager] Initialized in " << mode_to_string(initial_mode) << " mode");
         }
 
         RuntimeMode ModeManager::current_mode() const
@@ -70,15 +70,15 @@ namespace anolis
                 {
                     error = std::string("Invalid mode transition: ") +
                             mode_to_string(current_mode_) + " -> " + mode_to_string(new_mode);
-                    std::cerr << "[ModeManager] " << error << "\n";
+                    LOG_ERROR("[ModeManager] " << error);
                     return false;
                 }
 
                 previous_mode = current_mode_;
                 current_mode_ = new_mode;
 
-                std::cout << "[ModeManager] Mode changed: " << mode_to_string(previous_mode)
-                          << " -> " << mode_to_string(new_mode) << "\n";
+                LOG_INFO("[ModeManager] Mode changed: " << mode_to_string(previous_mode)
+                         << " -> " << mode_to_string(new_mode));
 
                 // Copy callbacks while holding lock
                 callbacks_copy = callbacks_;
@@ -93,7 +93,7 @@ namespace anolis
                 }
                 catch (const std::exception &e)
                 {
-                    std::cerr << "[ModeManager] ERROR in mode change callback: " << e.what() << "\n";
+                    LOG_ERROR("[ModeManager] Error in mode change callback: " << e.what());
                 }
             }
 

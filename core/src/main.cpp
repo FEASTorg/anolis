@@ -6,13 +6,10 @@
 #include <filesystem>
 #include "runtime/runtime.hpp"
 #include "runtime/config.hpp"
+#include "logging/logger.hpp"
 
 int main(int argc, char **argv)
 {
-    std::cerr << "===========================================\n";
-    std::cerr << "  Anolis Core Runtime v0 \n";
-    std::cerr << "===========================================\n\n";
-
     // Parse CLI arguments
     std::string config_path = "anolis-runtime.yaml"; // Default
 
@@ -47,12 +44,14 @@ int main(int argc, char **argv)
     // Check if config exists
     if (!std::filesystem::exists(config_path))
     {
+        // Using cerr here as logger might not be initialized/configured
         std::cerr << "ERROR: Config file not found: " << config_path << "\n";
         std::cerr << "\nCreate a config file or specify path with --config=PATH\n";
         return 1;
     }
 
-    std::cerr << "[Main] Loading config: " << config_path << "\n\n";
+    LOG_INFO("Anolis Core Runtime v0 starting...");
+    LOG_INFO("Loading config: " + config_path);
 
     // Load configuration
     anolis::runtime::RuntimeConfig config;
@@ -60,33 +59,30 @@ int main(int argc, char **argv)
 
     if (!anolis::runtime::load_config(config_path, config, error))
     {
-        std::cerr << "ERROR: Failed to load config: " << error << "\n";
+        LOG_ERROR("Failed to load config: " + error);
         return 1;
     }
 
-    std::cerr << "\n";
+    // Initialize logger level
+    anolis::logging::Logger::set_level(anolis::logging::string_to_level(config.logging.level));
 
     // Create and initialize runtime
     anolis::runtime::Runtime runtime(config);
 
     if (!runtime.initialize(error))
     {
-        std::cerr << "ERROR: Runtime initialization failed: " << error << "\n";
+        LOG_ERROR("Runtime initialization failed: " + error);
         return 1;
     }
 
-    std::cerr << "\n";
-    std::cerr << "===========================================\n";
-    std::cerr << "  Runtime Ready\n";
-    std::cerr << "===========================================\n";
-    std::cerr << "  Providers: " << config.providers.size() << "\n";
-    std::cerr << "  Devices: " << runtime.get_registry().device_count() << "\n";
-    std::cerr << "  Polling: " << config.polling.interval_ms << "ms\n";
-    std::cerr << "===========================================\n\n";
+    LOG_INFO("Runtime Ready");
+    LOG_INFO("  Providers: " << config.providers.size());
+    LOG_INFO("  Devices: " << runtime.get_registry().device_count());
+    LOG_INFO("  Polling: " << config.polling.interval_ms << "ms");
 
     // Run main loop (blocking)
     runtime.run();
 
-    std::cerr << "\n[Main] Shutdown complete\n";
+    LOG_INFO("Shutdown complete");
     return 0;
 }

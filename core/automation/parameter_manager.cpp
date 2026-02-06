@@ -1,4 +1,5 @@
 #include "parameter_manager.hpp"
+#include "logging/logger.hpp"
 #include <iostream>
 #include <algorithm>
 
@@ -83,7 +84,7 @@ namespace anolis
 
             if (parameters_.find(name) != parameters_.end())
             {
-                std::cerr << "[ParameterManager] WARNING: Parameter '" << name << "' already defined, ignoring redefinition\n";
+                LOG_WARN("[ParameterManager] Parameter '" << name << "' already defined, ignoring redefinition");
                 return false;
             }
 
@@ -92,7 +93,7 @@ namespace anolis
             std::string error;
             if (!def.validate(default_value, error))
             {
-                std::cerr << "[ParameterManager] ERROR: Parameter '" << name << "' default value invalid: " << error << "\n";
+                LOG_ERROR("[ParameterManager] Parameter '" << name << "' default value invalid: " << error);
                 return false;
             }
 
@@ -143,7 +144,7 @@ namespace anolis
                 it->second.value = value;
                 callbacks_copy = callbacks_;
 
-                std::cerr << "[ParameterManager] Parameter '" << name << "' updated\n";
+                LOG_INFO("[ParameterManager] Parameter '" << name << "' updated");
             } // Release lock before callbacks
 
             // Notify callbacks without holding lock

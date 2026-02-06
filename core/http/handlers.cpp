@@ -13,6 +13,7 @@
 #include "events/event_emitter.hpp"
 #include "automation/mode_manager.hpp"
 #include "automation/parameter_manager.hpp"
+#include "logging/logger.hpp"
 #include <chrono>
 
 namespace anolis
@@ -340,8 +341,8 @@ namespace anolis
                         break;
                     }
 
-                    std::cerr << "[HTTP] Call failed: " << result.error_message << " (Code: " << result.status_code << "), returning " << static_cast<int>(status) << "\n"
-                              << std::flush;
+                    LOG_ERROR("[HTTP] Call failed: " << result.error_message << " (Code: " << result.status_code << "), returning " << static_cast<int>(status));
+                    // std::flush is implied by logging
                     send_json(res, status, make_error_response(status, result.error_message));
                     return;
                 }
@@ -357,8 +358,7 @@ namespace anolis
             }
             catch (const std::exception &e)
             {
-                std::cerr << "[HTTP] Exception in handle_post_call: " << e.what() << "\n"
-                          << std::flush;
+                LOG_ERROR("[HTTP] Exception in handle_post_call: " << e.what());
                 send_json(res, StatusCode::INTERNAL,
                           make_error_response(StatusCode::INTERNAL, std::string("Exception: ") + e.what()));
             }
@@ -427,7 +427,7 @@ namespace anolis
             int current_clients = sse_client_count_.load();
             if (current_clients >= MAX_SSE_CLIENTS)
             {
-                std::cerr << "[SSE] Client rejected: max clients (" << MAX_SSE_CLIENTS << ") reached\n";
+                LOG_WARN("[SSE] Client rejected: max clients (" << MAX_SSE_CLIENTS << ") reached");
                 nlohmann::json error_response = make_error_response(
                     StatusCode::UNAVAILABLE, "Too many SSE clients");
                 res.status = 503; // Service Unavailable
@@ -457,7 +457,7 @@ namespace anolis
 
             if (!subscription)
             {
-                std::cerr << "[SSE] Failed to create subscription\n";
+                LOG_ERROR("[SSE] Failed to create subscription");
                 nlohmann::json error_response = make_error_response(
                     StatusCode::UNAVAILABLE, "Failed to subscribe to events");
                 res.status = 503;
@@ -496,8 +496,8 @@ namespace anolis
                         std::string sse_data = format_sse_event(*event_opt);
                         if (!sink.write(sse_data.c_str(), sse_data.size()))
                         {
-                            std::cerr << "[SSE] Write failed for " << client_name << "\n";
-                            return false;
+                            LOG_WARN("[SSE] Write failed for " << client_name);
+                            return false; // Stop streaming on write error
                         }
                         *keepalive_counter = 0; // Reset on successful event
                     }
@@ -509,8 +509,8 @@ namespace anolis
                             std::string keepalive = ": keepalive\n\n";
                             if (!sink.write(keepalive.c_str(), keepalive.size()))
                             {
-                                std::cerr << "[SSE] Keep-alive failed for " << client_name << "\n";
-                                return false;
+                                LOG_WARN("[SSE] Keep-alive failed for " << client_name);
+                                return false; // Stop streaming on write error
                             }
                             *keepalive_counter = 0;
                         }

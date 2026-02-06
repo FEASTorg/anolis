@@ -2,6 +2,7 @@
 #include "automation/parameter_manager.hpp"
 #include "state/state_cache.hpp"
 #include "control/call_router.hpp"
+#include "logging/logger.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -117,7 +118,7 @@ namespace anolis
             auto state_cache = get_state_cache();
             if (!state_cache)
             {
-                std::cerr << "[ReadSignalNode] ERROR: StateCache not available in blackboard" << std::endl;
+                LOG_ERROR("[ReadSignalNode] StateCache not available in blackboard");
                 return BT::NodeStatus::FAILURE;
             }
 
@@ -127,7 +128,7 @@ namespace anolis
 
             if (!device_handle || !signal_id)
             {
-                std::cerr << "[ReadSignalNode] ERROR: Missing required input ports" << std::endl;
+                LOG_ERROR("[ReadSignalNode] Missing required input ports");
                 return BT::NodeStatus::FAILURE;
             }
 
@@ -136,8 +137,7 @@ namespace anolis
 
             if (!signal_value)
             {
-                std::cerr << "[ReadSignalNode] ERROR: Signal not found: "
-                          << device_handle.value() << "/" << signal_id.value() << std::endl;
+                LOG_ERROR("[ReadSignalNode] Signal not found: " << device_handle.value() << "/" << signal_id.value());
                 return BT::NodeStatus::FAILURE;
             }
 
@@ -188,7 +188,7 @@ namespace anolis
             auto call_router = get_call_router();
             if (!call_router)
             {
-                std::cerr << "[CallDeviceNode] ERROR: CallRouter not available in blackboard" << std::endl;
+                LOG_ERROR("[CallDeviceNode] CallRouter not available in blackboard");
                 setOutput("success", false);
                 setOutput("error", "CallRouter not available");
                 return BT::NodeStatus::FAILURE;
@@ -200,7 +200,7 @@ namespace anolis
 
             if (!device_handle || !function_name)
             {
-                std::cerr << "[CallDeviceNode] ERROR: Missing required input ports" << std::endl;
+                LOG_ERROR("[CallDeviceNode] Missing required input ports");
                 setOutput("success", false);
                 setOutput("error", "Missing device_handle or function_name");
                 return BT::NodeStatus::FAILURE;
@@ -235,7 +235,7 @@ namespace anolis
             auto providers = get_providers();
             if (!providers)
             {
-                std::cerr << "[CallDeviceNode] ERROR: Providers map not available in blackboard" << std::endl;
+                LOG_ERROR("[CallDeviceNode] Providers map not available in blackboard");
                 setOutput("success", false);
                 setOutput("error", "Providers not available");
                 return BT::NodeStatus::FAILURE;
@@ -249,13 +249,13 @@ namespace anolis
 
             if (result.success)
             {
-                std::cout << "[CallDeviceNode] Call succeeded: "
-                          << device_handle.value() << "/" << function_name.value() << std::endl;
+                LOG_INFO("[CallDeviceNode] Call succeeded: "
+                         << device_handle.value() << "/" << function_name.value());
                 return BT::NodeStatus::SUCCESS;
             }
             else
             {
-                std::cerr << "[CallDeviceNode] Call failed: " << result.error_message << std::endl;
+                LOG_ERROR("[CallDeviceNode] Call failed: " << result.error_message);
                 return BT::NodeStatus::FAILURE;
             }
 
@@ -310,7 +310,7 @@ namespace anolis
             auto state_cache = get_state_cache();
             if (!state_cache)
             {
-                std::cerr << "[CheckQualityNode] ERROR: StateCache not available in blackboard" << std::endl;
+                LOG_ERROR("[CheckQualityNode] StateCache not available in blackboard");
                 return BT::NodeStatus::FAILURE;
             }
 
@@ -321,7 +321,7 @@ namespace anolis
 
             if (!device_handle || !signal_id)
             {
-                std::cerr << "[CheckQualityNode] ERROR: Missing required input ports" << std::endl;
+                LOG_ERROR("[CheckQualityNode] Missing required input ports");
                 return BT::NodeStatus::FAILURE;
             }
 
@@ -330,8 +330,7 @@ namespace anolis
 
             if (!signal_value)
             {
-                std::cerr << "[CheckQualityNode] Signal not found: "
-                          << device_handle.value() << "/" << signal_id.value() << std::endl;
+                LOG_ERROR("[CheckQualityNode] Signal not found: " << device_handle.value() << "/" << signal_id.value());
                 return BT::NodeStatus::FAILURE;
             }
 
@@ -344,9 +343,9 @@ namespace anolis
             }
             else
             {
-                std::cout << "[CheckQualityNode] Quality mismatch: expected "
-                          << expected_quality_str << ", got "
-                          << quality_to_string(signal_value->quality) << std::endl;
+                LOG_INFO("[CheckQualityNode] Quality mismatch: expected "
+                         << expected_quality_str << ", got "
+                         << quality_to_string(signal_value->quality));
                 return BT::NodeStatus::FAILURE;
             }
         }
@@ -385,7 +384,7 @@ namespace anolis
             auto parameter_manager = get_parameter_manager();
             if (!parameter_manager)
             {
-                std::cerr << "[GetParameterNode] ERROR: ParameterManager not available in blackboard" << std::endl;
+                LOG_ERROR("[GetParameterNode] ParameterManager not available in blackboard");
                 return BT::NodeStatus::FAILURE;
             }
 
@@ -393,7 +392,7 @@ namespace anolis
             auto param_name = getInput<std::string>("param");
             if (!param_name)
             {
-                std::cerr << "[GetParameterNode] ERROR: Missing 'param' input port" << std::endl;
+                LOG_ERROR("[GetParameterNode] Missing 'param' input port");
                 return BT::NodeStatus::FAILURE;
             }
 
@@ -401,7 +400,7 @@ namespace anolis
             auto value_opt = parameter_manager->get(param_name.value());
             if (!value_opt.has_value())
             {
-                std::cerr << "[GetParameterNode] ERROR: Parameter not found: " << param_name.value() << std::endl;
+                LOG_ERROR("[GetParameterNode] Parameter not found: " << param_name.value());
                 return BT::NodeStatus::FAILURE;
             }
 
@@ -426,15 +425,13 @@ namespace anolis
             else if (std::holds_alternative<std::string>(param_value))
             {
                 // Cannot convert string to double, return failure
-                std::cerr << "[GetParameterNode] ERROR: Parameter '" << param_name.value()
-                          << "' is a string, cannot convert to double" << std::endl;
+                LOG_ERROR("[GetParameterNode] Parameter '" << param_name.value() << "' is a string, cannot convert to double");
                 return BT::NodeStatus::FAILURE;
             }
 
             setOutput("value", output_value);
 
-            std::cout << "[GetParameterNode] Read parameter '" << param_name.value()
-                      << "' = " << output_value << std::endl;
+            LOG_INFO("[GetParameterNode] Read parameter '" << param_name.value() << "' = " << output_value);
 
             return BT::NodeStatus::SUCCESS;
         }

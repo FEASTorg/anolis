@@ -20,6 +20,7 @@
 
 #include "../events/event_emitter.hpp"
 #include "../events/event_types.hpp"
+#include "../logging/logger.hpp"
 #include <string>
 #include <vector>
 #include <thread>
@@ -257,19 +258,19 @@ namespace anolis
             {
                 if (running_.load())
                 {
-                    std::cerr << "[InfluxSink] Already running\n";
+                    LOG_WARN("[InfluxSink] Already running");
                     return false;
                 }
 
                 if (!config_.enabled)
                 {
-                    std::cerr << "[InfluxSink] Telemetry disabled in config\n";
+                    LOG_INFO("[InfluxSink] Telemetry disabled in config");
                     return false;
                 }
 
                 if (config_.token.empty())
                 {
-                    std::cerr << "[InfluxSink] No API token configured\n";
+                    LOG_ERROR("[InfluxSink] No API token configured");
                     return false;
                 }
 
@@ -283,15 +284,14 @@ namespace anolis
 
                 if (!subscription_)
                 {
-                    std::cerr << "[InfluxSink] Failed to subscribe to events\n";
+                    LOG_ERROR("[InfluxSink] Failed to subscribe to events");
                     return false;
                 }
 
                 running_.store(true);
                 flush_thread_ = std::thread(&InfluxSink::flush_loop, this);
 
-                std::cerr << "[InfluxSink] Started, writing to " << config_.url
-                          << "/" << config_.bucket << "\n";
+                LOG_INFO("[InfluxSink] Started, writing to " << config_.url << "/" << config_.bucket);
                 return true;
             }
 
@@ -321,8 +321,7 @@ namespace anolis
                 subscription_.reset();
                 emitter_.reset();
 
-                std::cerr << "[InfluxSink] Stopped. Written: " << total_written_
-                          << ", Failed: " << total_failed_ << "\n";
+                LOG_INFO("[InfluxSink] Stopped. Written: " << total_written_ << ", Failed: " << total_failed_);
             }
 
             /**

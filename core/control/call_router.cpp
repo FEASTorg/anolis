@@ -1,6 +1,6 @@
 #include "call_router.hpp"
 #include "automation/mode_manager.hpp"
-#include <iostream>
+#include "logging/logger.hpp"
 #include <sstream>
 
 namespace anolis
@@ -31,7 +31,7 @@ namespace anolis
                 {
                     result.error_message = "Manual call blocked in AUTO mode (policy: BLOCK)";
                     result.status_code = anolis::deviceprovider::v0::Status_Code_CODE_FAILED_PRECONDITION;
-                    std::cerr << "[CallRouter] WARNING: " << result.error_message << "\n";
+                    LOG_WARN("[CallRouter] " << result.error_message);
                     return result;
                 }
                 else if (manual_gating_policy_ == "OVERRIDE")
@@ -50,7 +50,7 @@ namespace anolis
                 else
                     result.status_code = anolis::deviceprovider::v0::Status_Code_CODE_INVALID_ARGUMENT;
 
-                std::cerr << "[CallRouter] Validation failed: " << validation_error << "\n";
+                LOG_WARN("[CallRouter] Validation failed: " << validation_error);
                 return result;
             }
 
@@ -68,7 +68,7 @@ namespace anolis
             {
                 result.error_message = "Provider not found: " + provider_id;
                 result.status_code = anolis::deviceprovider::v0::Status_Code_CODE_NOT_FOUND;
-                std::cerr << "[CallRouter] ERROR: " << result.error_message << "\n";
+                LOG_ERROR("[CallRouter] " << result.error_message);
                 return result;
             }
 
@@ -77,7 +77,7 @@ namespace anolis
             {
                 result.error_message = "Provider not available: " + provider_id;
                 result.status_code = anolis::deviceprovider::v0::Status_Code_CODE_UNAVAILABLE;
-                std::cerr << "[CallRouter] ERROR: " << result.error_message << "\n";
+                LOG_ERROR("[CallRouter] " << result.error_message);
                 return result;
             }
 
@@ -110,7 +110,7 @@ namespace anolis
             {
                 result.error_message = "Provider call failed: " + provider->last_error();
                 result.status_code = provider->last_status_code();
-                std::cerr << "[CallRouter] Call failed: " << result.error_message << " (Code: " << result.status_code << ")\n";
+                LOG_ERROR("[CallRouter] Call failed: " << result.error_message << " (Code: " << result.status_code << ")");
                 return result;
             }
 
