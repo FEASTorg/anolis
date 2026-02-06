@@ -271,18 +271,19 @@ logging:
             return False
         self.record("Polling active", True)
 
-        # Let it run for a few poll cycles
+        # Let it run for a few poll cycles while ensuring the process stays alive
         print("\n6. Stability Check (5 seconds)")
-        time.sleep(5)
+        deadline = time.time() + 5
+        while time.time() < deadline:
+            if self.process.poll() is not None:
+                self.record(
+                    "Process alive",
+                    False,
+                    f"Process exited with code {self.process.returncode}",
+                )
+                return False
+            time.sleep(0.1)
 
-        # Check process is still running
-        if self.process.poll() is not None:
-            self.record(
-                "Process alive",
-                False,
-                f"Process exited with code {self.process.returncode}",
-            )
-            return False
         self.record("Process alive", True)
 
         # Check for no warnings/errors

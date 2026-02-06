@@ -198,15 +198,23 @@ def test_fault_injection_device_unavailable():
     }
     resp = requests.post(f"{BASE_URL}/v0/call", json=call_body)
 
-    # Wait and check (state cache may still return cached data)
-    time.sleep(0.5)
-    resp = requests.get(f"{BASE_URL}/v0/state/sim0/motorctl0")
-    # Device will return cached state but provider logs should show errors
+    # Wait for state to reflect unavailability (may return empty values)
+    def device_unavailable():
+        resp = requests.get(f"{BASE_URL}/v0/state/sim0/motorctl0")
+        values = resp.json().get("values", [])
+        return len(values) < baseline_values
+
+    wait_for_condition(device_unavailable, timeout=2.0, description="device unavailable state")
 
     print("  [PASS] inject_device_unavailable called (check runtime logs for errors)")
 
-    # Clear faults
-    time.sleep(2)
+    # Clear faults after device becomes available again
+    def device_restored():
+        resp = requests.get(f"{BASE_URL}/v0/state/sim0/motorctl0")
+        values = resp.json().get("values", [])
+        return len(values) >= baseline_values
+
+    wait_for_condition(device_restored, timeout=3.0, description="device restoration")
     test_fault_injection_clear()
 
     return True

@@ -33,6 +33,17 @@ from pathlib import Path
 from queue import Empty, Queue
 from typing import Any, Dict, List, Optional
 
+
+def wait_for_condition(condition_func, timeout=5.0, interval=0.1, description="condition"):
+    """Poll a condition function until it returns True or timeout expires."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if condition_func():
+            return True
+        time.sleep(interval)
+    print(f"Warning: Timed out waiting for {description}")
+    return False
+
 # Try to import requests, provide helpful error if missing
 try:
     import requests
@@ -390,16 +401,12 @@ logging:
 
     def wait_for_http_ready(self, timeout: float = 15.0) -> bool:
         """Poll /v0/runtime/status until server is ready."""
-        deadline = time.time() + timeout
-        while time.time() < deadline:
-            try:
-                resp = requests.get(f"{self.base_url}/v0/runtime/status", timeout=2)
-                if resp.status_code == 200:
-                    return True
-            except:
-                pass
-            time.sleep(0.5)
-        return False
+        return wait_for_condition(
+            lambda: requests.get(f"{self.base_url}/v0/runtime/status", timeout=2).status_code == 200,
+            timeout=timeout,
+            interval=0.2,
+            description="HTTP ready",
+        )
 
     def run_tests(self) -> bool:
         """Run all HTTP integration tests."""
@@ -524,8 +531,17 @@ logging:
         # ========================================
         print("\n5. GET /v0/state")
 
-        # Wait for at least one poll cycle
-        time.sleep(0.5)
+        # Wait for at least one poll cycle by checking for non-empty state values
+        def state_has_values():
+            result = self.http_get("/v0/state")
+            if result["status_code"] != 200:
+                return False
+            devices = result["body"].get("devices", [])
+            return any(dev.get("values") for dev in devices)
+
+        if not wait_for_condition(state_has_values, timeout=3.0, description="state values"):
+            self.record("State endpoint", False, "State values never became available")
+            return False
 
         result = self.http_get("/v0/state")
         if result["status_code"] != 200:
@@ -630,20 +646,19 @@ logging:
         self.record("Call status OK", True)
 
         # Verify state changed (wait for poll cycle + post-call poll)
-        motor1_duty = None
-        for attempt in range(5):
-            time.sleep(0.3)
+        motor1_duty = {"value": None}
+
+        def duty_updated():
             result = self.http_get("/v0/state/sim0/motorctl0")
             body = result["body"]
             for val in body.get("values", []):
                 if val.get("signal_id") == "motor1_duty":
-                    motor1_duty = val.get("value", {}).get("double")
+                    motor1_duty["value"] = val.get("value", {}).get("double")
                     break
-            if motor1_duty is not None and abs(motor1_duty - 0.5) < 0.01:
-                break
+            return motor1_duty["value"] is not None and abs(motor1_duty["value"] - 0.5) < 0.01
 
-        if motor1_duty is None or abs(motor1_duty - 0.5) > 0.01:
-            self.record("Duty changed", False, f"Expected 0.5, got {motor1_duty}")
+        if not wait_for_condition(duty_updated, timeout=3.0, interval=0.1, description="motor duty update"):
+            self.record("Duty changed", False, f"Expected 0.5, got {motor1_duty['value']}")
             return False
         self.record("Motor duty changed to 0.5", True)
 

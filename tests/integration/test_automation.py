@@ -30,6 +30,17 @@ import requests
 import yaml
 
 
+def wait_for_condition(condition_func, timeout: float = 5.0, interval: float = 0.1, description: str = "condition"):
+    """Poll a condition until it returns True or timeout expires."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if condition_func():
+            return True
+        time.sleep(interval)
+    log_info(f"Timed out waiting for {description}")
+    return False
+
+
 class Colors:
     GREEN = "\033[92m"
     RED = "\033[91m"
@@ -223,7 +234,7 @@ class AutomationTester:
 
         # First go to AUTO
         self.set_mode("AUTO")
-        time.sleep(0.5)
+        wait_for_condition(lambda: (self.get_mode() or {}).get("mode") == "AUTO", description="mode AUTO")
 
         # Then back to MANUAL
         result = self.set_mode("MANUAL")
@@ -244,7 +255,7 @@ class AutomationTester:
 
         # Ensure we're in MANUAL
         self.set_mode("MANUAL")
-        time.sleep(0.5)
+        wait_for_condition(lambda: (self.get_mode() or {}).get("mode") == "MANUAL", description="mode MANUAL")
 
         result = self.set_mode("IDLE")
         if not result:
@@ -264,7 +275,7 @@ class AutomationTester:
 
         # Ensure we're in MANUAL
         self.set_mode("MANUAL")
-        time.sleep(0.5)
+        wait_for_condition(lambda: (self.get_mode() or {}).get("mode") == "MANUAL", description="mode MANUAL")
 
         result = self.set_mode("FAULT")
         if not result:
@@ -284,7 +295,7 @@ class AutomationTester:
 
         # Go to FAULT first
         self.set_mode("FAULT")
-        time.sleep(0.5)
+        wait_for_condition(lambda: (self.get_mode() or {}).get("mode") == "FAULT", description="mode FAULT")
 
         result = self.set_mode("AUTO")
         if not result:
@@ -305,7 +316,7 @@ class AutomationTester:
 
         # Go to FAULT
         self.set_mode("FAULT")
-        time.sleep(0.5)
+        wait_for_condition(lambda: (self.get_mode() or {}).get("mode") == "FAULT", description="mode FAULT")
 
         # Recover through MANUAL
         result1 = self.set_mode("MANUAL")
@@ -417,7 +428,7 @@ class AutomationTester:
 
         # Stop current runtime
         self.stop_runtime()
-        time.sleep(2)  # Give more time for cleanup
+        wait_for_condition(lambda: self.runtime_process is None, timeout=2.0, description="runtime stop")
 
         # Create config with automation disabled
         if self.config_file and os.path.exists(self.config_file):
