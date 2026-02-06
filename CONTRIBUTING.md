@@ -131,7 +131,8 @@ Any bug fixed must include a test that would have caught it.
 
 #### Static Analysis (clang-tidy)
 
-**Primary Check**: We rely on **CI (GitHub Actions)** to enforce static analysis. Run your code through a Pull Request to see detailed reports.
+**Primary Check**: We rely on **CI (GitHub Actions)** to enforce static analysis.
+Run your code through a Pull Request to see detailed reports.
 
 **Optional Local Check**:
 If you want to run it locally on Windows:

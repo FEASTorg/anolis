@@ -4,7 +4,8 @@ Comprehensive test scenarios validating anolis runtime behavior against the prov
 
 ## Overview
 
-This suite provides **deterministic, repeatable tests** covering core workflows, edge cases, fault handling, and concurrency. All scenarios run against a live anolis runtime connected to provider-sim.
+This suite provides **deterministic, repeatable tests** covering core workflows, edge cases, fault handling, and concurrency.
+All scenarios run against a live anolis runtime connected to provider-sim.
 
 ## Running Scenarios
 

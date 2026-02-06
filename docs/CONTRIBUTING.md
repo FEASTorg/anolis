@@ -96,7 +96,8 @@ struct DeviceCapabilitySet {
 
 ```bash
 # Build anolis first (creates vcpkg_installed/)
-cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
+cmake -B build -S . \
+  -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
 
 # Build provider-sim, reusing packages
 cd ../anolis-provider-sim
@@ -108,7 +109,8 @@ cmake -B build -S . \
 
 ### 4. Linux Process Cleanup (pkill)
 
-**Problem**: `pkill -f name` matches the full command line, including paths like `/home/user/anolis/...`, accidentally killing unrelated processes.
+**Problem**: `pkill -f name` matches the full command line, including paths like `/home/user/anolis/...`.
+This can accidentally kill unrelated processes.
 
 **Symptoms**:
 

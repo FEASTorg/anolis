@@ -24,7 +24,8 @@ Building automation requires talking to all of them. This is tedious and fragile
 
 ## The Solution
 
-**Providers**: Small processes that speak to one type of hardware and expose it via a standard protocol (ADPP - Anolis Device Provider Protocol).
+**Providers**: Small processes that speak to one type of hardware and expose it via a standard protocol.
+(ADPP - Anolis Device Provider Protocol).
 
 **Runtime**: Core system that discovers devices, polls state, routes control commands, and exposes unified APIs.
 

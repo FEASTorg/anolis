@@ -229,7 +229,8 @@ from(bucket: "anolis")
 
 ## Parameters
 
-Anolis supports **runtime parameters** that can be declared in YAML and updated at runtime via HTTP. Parameters are read-only from Behavior Trees (exposed via the blackboard) and can be validated with min/max ranges or enum allowed values.
+Anolis supports **runtime parameters** that can be declared in YAML and updated at runtime via HTTP.
+Parameters are read-only from Behavior Trees (exposed via the blackboard) and can be validated with min/max ranges or enum allowed values.
 
 ### YAML Declaration
 
@@ -259,7 +260,8 @@ Notes:
 - Supported types: `double`, `int64`, `bool`, `string`.
 - `min`/`max` apply to numeric types only.
 - `allowed_values` applies to string enums.
-- **Persistence** (writing changes back to YAML) is **not implemented yet**; the intent is to keep it opt-in behind a future `automation.persist_parameters` flag.
+- **Persistence** (writing changes back to YAML) is **not implemented yet**.
+- The intent is to keep this opt-in behind a future `automation.persist_parameters` flag.
 
 ### HTTP API for Parameters
 
@@ -293,7 +295,9 @@ Example (response):
 
 ### BT Access
 
-Behavior Trees can access parameters via the `GetParameter` node (available in the default node registry). The `GetParameter` node reads a parameter by name from the blackboard using the `param` input port and returns SUCCESS with the value available on the `value` output port.
+Behavior Trees can access parameters via the `GetParameter` node.
+The node is available in the default node registry and reads a parameter by name from the blackboard using the `param` input port.
+It returns SUCCESS with the value available on the `value` output port.
 
 Example:
 
@@ -353,7 +357,9 @@ while (running) {
 
 ## Dependency Notes
 
-BehaviorTree.CPP is pulled via vcpkg (`behaviortree-cpp`). If vcpkg lags, fallback is to vendor a known-good release from GitHub and link it in `core/CMakeLists.txt` (keep the same include paths to avoid code changes).
+BehaviorTree.CPP is pulled via vcpkg (`behaviortree-cpp`). If vcpkg lags, the fallback is to vendor a known-good release from GitHub.
+Link it in `core/CMakeLists.txt` and keep the same include paths to avoid code changes.
+Keep the same include paths to avoid code changes.
 
 ## Usage Examples
 

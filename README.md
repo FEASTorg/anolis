@@ -4,7 +4,8 @@
 
 **Anolis** is a modular control runtime for building machines from heterogeneous devices.
 
-It provides a **hardware-agnostic core** that discovers devices, understands their capabilities, maintains live state, and coordinates control actions — independent of how the hardware is connected or implemented.
+It provides a **hardware-agnostic core** that discovers devices, understands their capabilities,
+maintains live state, and coordinates control actions — independent of how the hardware is connected or implemented.
 
 Anolis is designed to sit **between low-level device interfaces and high-level behavior**, acting as the system’s operational brain.
 
@@ -304,7 +305,8 @@ Higher-level orchestration and UI layers build on top of this foundation.
 
 ## Name
 
-_Anolis_ is named after [anoles](https://en.wikipedia.org/wiki/Dactyloidae) — adaptable lizards known for thriving across diverse environments.
+_Anolis_ is named after [anoles](https://en.wikipedia.org/wiki/Dactyloidae).
+They are adaptable lizards known for thriving across diverse environments.
 
 The name reflects the system’s goal:  
 **adaptable control over diverse hardware ecosystems.**

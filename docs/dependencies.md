@@ -1,6 +1,7 @@
 # Dependency Management Policy
 
-Anolis uses **vcpkg** (manifest mode) for C++ dependencies and **pip** (requirements.txt) for Python tooling.
+Anolis uses **vcpkg** (manifest mode) for C++ dependencies and **pip** (requirements.txt)
+for Python tooling.
 
 ## Pinning Policy
 
@@ -18,11 +19,15 @@ To ensure reproducible builds across local development and CI:
   2. Update `builtin-baseline` in `vcpkg.json`.
   3. Update `baseline` in `vcpkg-configuration.json`.
   4. Run a full clean build and test cycle.
-  5. If dependencies break (ABI changes, API removal), fix code or peg specific package versions in `vcpkg.json` "overrides".
+  5. If dependencies break (ABI changes, API removal), fix code or peg specific package
+     versions in `vcpkg.json` "overrides".
 
 ## CVE / Security Updates
 
-- **Critical CVE**: If a critical vulnerability is found in a dependency (e.g., `cpp-httplib`), we will deviate from the quarterly cadence and bump the baseline immediately or override that specific package.
+- **Critical CVE**: If a critical vulnerability is found in a dependency (e.g., `cpp-httplib`), we will deviate from the quarterly cadence.
+  We will bump the baseline immediately or override that specific package.
+  We may instead override that specific package.
+  We may instead override that specific package.
 
 ## Current Dependencies
 

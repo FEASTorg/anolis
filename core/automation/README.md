@@ -39,7 +39,8 @@ blackboard->set("call_router", static_cast<void*>(&call_router_));
 blackboard->set("parameters", static_cast<void*>(&parameter_manager_));
 ```
 
-**Important:** We pass **references**, not full snapshots, for efficiency. StateCache's `get_signal_value()` is thread-safe. This design is acceptable because:
+**Important:** We pass **references**, not full snapshots, for efficiency.
+StateCache's `get_signal_value()` is thread-safe. This design is acceptable because:
 
 1. Polling happens every 500ms, ticks every 100ms (10 Hz)
 2. BT execution is fast compared to poll rate
