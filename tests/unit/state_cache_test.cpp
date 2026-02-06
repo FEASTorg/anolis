@@ -97,7 +97,7 @@ TEST_F(StateCacheTest, PollAndRead)
     auto result = state_cache->get_signal_value("sim0/dev1", "temp");
     ASSERT_TRUE(result != nullptr);
     EXPECT_DOUBLE_EQ(result->value.double_value(), 25.5);
-    EXPECT_FALSE(result->is_stale());
+    EXPECT_FALSE(result->is_stale(std::chrono::seconds(2)));
 }
 
 TEST_F(StateCacheTest, Staleness)
@@ -119,7 +119,7 @@ TEST_F(StateCacheTest, Staleness)
     state_cache->poll_once(providers);
     auto result = state_cache->get_signal_value("sim0/dev1", "temp");
     ASSERT_TRUE(result != nullptr);
-    EXPECT_TRUE(result->is_stale());
+    EXPECT_TRUE(result->is_stale(std::chrono::seconds(2)));
 }
 
 TEST_F(StateCacheTest, TimeBasedStaleness)
@@ -157,14 +157,14 @@ TEST_F(StateCacheTest, TimeBasedStaleness)
     auto poll_time = result->timestamp;
 
     // Check at poll time -> Not stale
-    EXPECT_FALSE(result->is_stale(poll_time));
+    EXPECT_FALSE(result->is_stale(std::chrono::seconds(2), poll_time));
     EXPECT_EQ(result->age(poll_time).count(), 0);
 
     // Check 1 second later -> Not stale (limit is 2000ms)
-    EXPECT_FALSE(result->is_stale(poll_time + std::chrono::seconds(1)));
+    EXPECT_FALSE(result->is_stale(std::chrono::seconds(2), poll_time + std::chrono::seconds(1)));
 
     // Check 3 seconds later -> Stale
-    EXPECT_TRUE(result->is_stale(poll_time + std::chrono::seconds(3)));
+    EXPECT_TRUE(result->is_stale(std::chrono::seconds(2), poll_time + std::chrono::seconds(3)));
     EXPECT_GE(result->age(poll_time + std::chrono::seconds(3)).count(), 3000);
 }
 

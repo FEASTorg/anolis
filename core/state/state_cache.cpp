@@ -10,7 +10,7 @@ namespace anolis
     {
 
         // CachedSignalValue methods
-        bool CachedSignalValue::is_stale(std::chrono::system_clock::time_point now) const
+        bool CachedSignalValue::is_stale(std::chrono::milliseconds timeout, std::chrono::system_clock::time_point now) const
         {
             // Check quality-based staleness
             if (quality == anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_STALE ||
@@ -20,9 +20,9 @@ namespace anolis
                 return true;
             }
 
-            // Time-based staleness: stale if older than 2 seconds (2x poll interval)
+            // Time-based staleness
             auto age_ms = age(now);
-            return age_ms.count() > 2000;
+            return age_ms > timeout;
         }
 
         std::chrono::milliseconds CachedSignalValue::age(std::chrono::system_clock::time_point now) const
@@ -38,6 +38,11 @@ namespace anolis
         StateCache::StateCache(const registry::DeviceRegistry &registry, int poll_interval_ms)
             : registry_(registry), polling_active_(false), poll_interval_(poll_interval_ms),
               event_emitter_(nullptr) {}
+
+        StateCache::~StateCache()
+        {
+            stop_polling();
+        }
 
         void StateCache::set_event_emitter(std::shared_ptr<events::EventEmitter> emitter)
         {
@@ -86,37 +91,48 @@ namespace anolis
 
         void StateCache::start_polling(std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers)
         {
-            polling_active_ = true;
-            std::cerr << "[StateCache] Polling started" << std::endl;
-
-            // v0: Simple blocking loop in main thread
-            // TODO: Future will move this to separate thread
-            while (polling_active_)
+            if (polling_active_)
             {
-                auto poll_start = std::chrono::steady_clock::now();
-
-                poll_once(providers);
-
-                // Sleep until next poll interval
-                auto poll_duration = std::chrono::steady_clock::now() - poll_start;
-                auto sleep_time = poll_interval_ - std::chrono::duration_cast<std::chrono::milliseconds>(poll_duration);
-
-                if (sleep_time.count() > 0)
-                {
-                    std::this_thread::sleep_for(sleep_time);
-                }
-                else
-                {
-                    std::cerr << "[StateCache] WARNING: Poll took longer than interval ("
-                              << std::chrono::duration_cast<std::chrono::milliseconds>(poll_duration).count()
-                              << "ms)\n";
-                }
+                std::cerr << "[StateCache] Polling already active\n";
+                return;
             }
+
+            polling_active_ = true;
+            std::cerr << "[StateCache] Polling thread starting\n";
+
+            polling_thread_ = std::thread([this, &providers]() {
+                while (polling_active_)
+                {
+                    auto poll_start = std::chrono::steady_clock::now();
+
+                    poll_once(providers);
+
+                    // Sleep until next poll interval
+                    auto poll_duration = std::chrono::steady_clock::now() - poll_start;
+                    auto sleep_time = poll_interval_ - std::chrono::duration_cast<std::chrono::milliseconds>(poll_duration);
+
+                    if (sleep_time.count() > 0)
+                    {
+                        std::this_thread::sleep_for(sleep_time);
+                    }
+                    else
+                    {
+                        std::cerr << "[StateCache] WARNING: Poll took longer than interval ("
+                                  << std::chrono::duration_cast<std::chrono::milliseconds>(poll_duration).count()
+                                  << "ms)\n";
+                    }
+                }
+                std::cerr << "[StateCache] Polling thread exited\n";
+            });
         }
 
         void StateCache::stop_polling()
         {
             polling_active_ = false;
+            if (polling_thread_.joinable())
+            {
+                polling_thread_.join();
+            }
         }
 
         void StateCache::poll_once(std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers)

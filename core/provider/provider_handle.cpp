@@ -9,8 +9,8 @@ namespace anolis
     {
 
         ProviderHandle::ProviderHandle(const std::string &provider_id, const std::string &executable_path,
-                                       const std::vector<std::string> &args)
-            : process_(provider_id, executable_path, args), next_request_id_(1) {}
+                                       const std::vector<std::string> &args, int timeout_ms)
+            : process_(provider_id, executable_path, args), next_request_id_(1), timeout_ms_(timeout_ms) {}
 
         bool ProviderHandle::start()
         {
@@ -203,7 +203,7 @@ namespace anolis
             }
 
             // Wait for response
-            if (!wait_for_response(response, kTimeoutMs))
+            if (!wait_for_response(response, timeout_ms_))
             {
                 return false;
             }
@@ -234,7 +234,7 @@ namespace anolis
                 auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
                 if (elapsed_ms >= timeout_ms)
                 {
-                    error_ = "Timeout waiting for response (5s)";
+                    error_ = "Timeout waiting for response (" + std::to_string(timeout_ms) + "ms)";
                     std::cerr << "[" << process_.provider_id() << "] " << error_ << "\n";
                     return false;
                 }

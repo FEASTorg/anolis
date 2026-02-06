@@ -19,7 +19,7 @@ namespace anolis
         {
         public:
             ProviderHandle(const std::string &provider_id, const std::string &executable_path,
-                           const std::vector<std::string> &args = {});
+                           const std::vector<std::string> &args = {}, int timeout_ms = 5000);
             ~ProviderHandle() override = default;
 
             // Delete copy/move
@@ -63,8 +63,8 @@ namespace anolis
             uint32_t next_request_id_;
             std::mutex mutex_;
 
-            // Timeout for all operations (5 seconds)
-            static constexpr int kTimeoutMs = 5000;
+            // Timeout for operations
+            int timeout_ms_;
 
             // Send request and wait for response
             bool send_request(const anolis::deviceprovider::v0::Request &request,

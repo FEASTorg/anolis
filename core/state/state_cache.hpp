@@ -7,6 +7,8 @@
 #include <chrono>
 #include <memory>
 #include <mutex>
+#include <thread>
+#include <atomic>
 #include "protocol.pb.h"
 #include "registry/device_registry.hpp"
 #include "provider/i_provider_handle.hpp"
@@ -34,7 +36,7 @@ namespace anolis
 
             // Staleness: true if time-based or quality-based staleness detected
             // Optional 'now' parameter for testing time-based staleness
-            bool is_stale(std::chrono::system_clock::time_point now = std::chrono::system_clock::now()) const;
+            bool is_stale(std::chrono::milliseconds timeout, std::chrono::system_clock::time_point now = std::chrono::system_clock::now()) const;
 
             // Time since last update
             std::chrono::milliseconds age(std::chrono::system_clock::time_point now = std::chrono::system_clock::now()) const;
@@ -55,8 +57,8 @@ namespace anolis
         public:
             StateCache(const registry::DeviceRegistry &registry, int poll_interval_ms = 500);
 
-            // Initialize: Build polling lists from registry
-            bool initialize();
+            // Destructor
+            ~StateCache();
 
             /**
              * @brief Set event emitter for change notifications
@@ -68,7 +70,10 @@ namespace anolis
              */
             void set_event_emitter(std::shared_ptr<events::EventEmitter> emitter);
 
-            // Start polling thread (v0: runs in main thread)
+            // Initialize the cache (build polling configs from registry)
+            bool initialize();
+
+            // Start polling thread
             void start_polling(std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers);
 
             // Stop polling
@@ -112,7 +117,8 @@ namespace anolis
             std::vector<PollConfig> poll_configs_;
 
             // Polling control
-            bool polling_active_;
+            std::atomic<bool> polling_active_;
+            std::thread polling_thread_;
             std::chrono::milliseconds poll_interval_;
 
             // Helper: Poll single device

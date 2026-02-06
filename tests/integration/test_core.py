@@ -270,7 +270,7 @@ logging:
 
         # State cache polling starts after runtime.run() is called
         # Look for StateCache marker which confirms polling thread started
-        if not self.capture.wait_for_marker("Polling started", timeout=15):
+        if not self.capture.wait_for_marker("Polling thread starting", timeout=15):
             self.record("Polling active", False, "State cache polling not started")
             return False
         self.record("Polling active", True)

@@ -33,7 +33,8 @@ namespace anolis
                 auto provider = std::make_shared<provider::ProviderHandle>(
                     provider_config.id,
                     provider_config.command,
-                    provider_config.args);
+                    provider_config.args,
+                    provider_config.timeout_ms);
 
                 if (!provider->start())
                 {
