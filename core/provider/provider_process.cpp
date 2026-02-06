@@ -104,14 +104,15 @@ namespace anolis
 
             // CreateProcess (command line must be mutable)
             std::string cmdline = "\"" + abs_path + "\"";
-            for (const auto& arg : args_) {
+            for (const auto &arg : args_)
+            {
                 cmdline += " \"" + arg + "\"";
             }
             std::vector<char> cmdline_buf(cmdline.begin(), cmdline.end());
             cmdline_buf.push_back('\0');
 
             BOOL success = CreateProcessA(
-                NULL, // lpApplicationName (if NULL, first token of command line is used)
+                NULL,               // lpApplicationName (if NULL, first token of command line is used)
                 cmdline_buf.data(), // lpCommandLine (mutable)
                 NULL,               // lpProcessAttributes
                 NULL,               // lpThreadAttributes
@@ -198,12 +199,13 @@ namespace anolis
 
                 // Execute provider
                 std::string abs_path = std::filesystem::absolute(executable_path_).string();
-                
+
                 // Construct argv
-                std::vector<char*> argv;
-                argv.push_back(const_cast<char*>(abs_path.c_str()));
-                for (const auto& arg : args_) {
-                    argv.push_back(const_cast<char*>(arg.c_str()));
+                std::vector<char *> argv;
+                argv.push_back(const_cast<char *>(abs_path.c_str()));
+                for (const auto &arg : args_)
+                {
+                    argv.push_back(const_cast<char *>(arg.c_str()));
                 }
                 argv.push_back(nullptr);
 

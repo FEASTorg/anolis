@@ -82,7 +82,7 @@ namespace anolis
             bool enabled = false;
             std::string behavior_tree;                  // Path to BT XML file
             int tick_rate_hz = 10;                      // BT tick rate (1-1000 Hz)
-            std::string manual_gating_policy = "BLOCK"; // BLOCK or OVERRIDE 
+            std::string manual_gating_policy = "BLOCK"; // BLOCK or OVERRIDE
             std::vector<ParameterConfig> parameters;    // Runtime parameters
         };
 

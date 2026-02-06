@@ -43,7 +43,7 @@ namespace anolis
     {
         class ModeManager;
         class ParameterManager;
-    } 
+    }
 }
 
 // Typedef for provider map
@@ -136,9 +136,9 @@ namespace anolis
             state::StateCache &state_cache_;
             control::CallRouter &call_router_;
             ProviderMap &providers_;
-            automation::ParameterManager *parameter_manager_;     // optional
+            automation::ParameterManager *parameter_manager_; // optional
             std::shared_ptr<events::EventEmitter> event_emitter_;
-            automation::ModeManager *mode_manager_;          // optional
+            automation::ModeManager *mode_manager_; // optional
 
             // SSE client tracking
             std::atomic<int> sse_client_count_{0};
@@ -162,7 +162,7 @@ namespace anolis
             void handle_get_mode(const httplib::Request &req, httplib::Response &res);
             void handle_post_mode(const httplib::Request &req, httplib::Response &res);
             void handle_get_parameters(const httplib::Request &req, httplib::Response &res);
-            void handle_post_parameters(const httplib::Request &req, httplib::Response &res); 
+            void handle_post_parameters(const httplib::Request &req, httplib::Response &res);
 
             // SSE handler
             void handle_get_events(const httplib::Request &req, httplib::Response &res);

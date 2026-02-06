@@ -55,10 +55,10 @@ namespace anolis
             std::unique_ptr<state::StateCache> state_cache_;
             std::unique_ptr<control::CallRouter> call_router_;
             std::unique_ptr<http::HttpServer> http_server_;
-            std::unique_ptr<telemetry::InfluxSink> telemetry_sink_;      
-            std::unique_ptr<automation::ModeManager> mode_manager_;          
-            std::unique_ptr<automation::ParameterManager> parameter_manager_; 
-            std::unique_ptr<automation::BTRuntime> bt_runtime_;        
+            std::unique_ptr<telemetry::InfluxSink> telemetry_sink_;
+            std::unique_ptr<automation::ModeManager> mode_manager_;
+            std::unique_ptr<automation::ParameterManager> parameter_manager_;
+            std::unique_ptr<automation::BTRuntime> bt_runtime_;
 
             bool running_ = false;
         };

@@ -64,7 +64,7 @@ namespace anolis
             const registry::DeviceRegistry &registry_;
             state::StateCache &state_cache_;
             automation::ModeManager *mode_manager_ = nullptr; // optional
-            std::string manual_gating_policy_ = "BLOCK";     
+            std::string manual_gating_policy_ = "BLOCK";
 
             // Per-provider mutexes for serialized access (v0: prevent concurrent calls to same provider)
             std::map<std::string, std::mutex> provider_locks_;

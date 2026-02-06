@@ -112,7 +112,7 @@ jobs:
             -DVCPKG_MANIFEST_INSTALL=OFF \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           cmake --build build --config Release --parallel
-      
+
       - name: Run unit tests
         run: |
           ctest --test-dir build --output-on-failure -C Release

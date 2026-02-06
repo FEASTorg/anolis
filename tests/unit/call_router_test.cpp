@@ -217,11 +217,11 @@ TEST_F(CallRouterTest, InvalidArgumentPropagation)
     EXPECT_CALL(*mock_provider, call("dev1", _, "reset", _, _))
         .WillOnce(Return(false));
 
-    // Consistently return the error info 
+    // Consistently return the error info
     // (Note: we use WillRepeatedly to be safe if called multiple times or order varies slightly)
     EXPECT_CALL(*mock_provider, last_status_code())
         .WillRepeatedly(Return(anolis::deviceprovider::v0::Status_Code_CODE_INVALID_ARGUMENT));
-    
+
     mock_provider->_err = "Invalid voltage";
     EXPECT_CALL(*mock_provider, last_error())
         .WillRepeatedly(ReturnRef(mock_provider->_err));

@@ -100,7 +100,8 @@ namespace anolis
             polling_active_ = true;
             std::cerr << "[StateCache] Polling thread starting\n";
 
-            polling_thread_ = std::thread([this, &providers]() {
+            polling_thread_ = std::thread([this, &providers]()
+                                          {
                 while (polling_active_)
                 {
                     auto poll_start = std::chrono::steady_clock::now();
@@ -122,8 +123,7 @@ namespace anolis
                                   << "ms)\n";
                     }
                 }
-                std::cerr << "[StateCache] Polling thread exited\n";
-            });
+                std::cerr << "[StateCache] Polling thread exited\n"; });
         }
 
         void StateCache::stop_polling()
