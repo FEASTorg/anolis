@@ -26,17 +26,18 @@ To ensure reproducible builds across local development and CI:
 
 ## Current Dependencies
 
-| Package | Purpose |
-| :--- | :--- |
-| **protobuf** | Serialization format for ADPP protocol. |
-| **yaml-cpp** | Parsing `anolis-runtime.yaml`. |
-| **cpp-httplib** | Embedding the HTTP server. |
-| **nlohmann-json** | JSON utility for API responses. |
-| **behaviortree-cpp**| Automation engine. |
-| **gtest** | Unit testing framework. |
+| Package              | Purpose                                 |
+| :------------------- | :-------------------------------------- |
+| **protobuf**         | Serialization format for ADPP protocol. |
+| **yaml-cpp**         | Parsing `anolis-runtime.yaml`.          |
+| **cpp-httplib**      | Embedding the HTTP server.              |
+| **nlohmann-json**    | JSON utility for API responses.         |
+| **behaviortree-cpp** | Automation engine.                      |
+| **gtest**            | Unit testing framework.                 |
 
 ## Troubleshooting
 
-**"Works locally but fails in CI"**
+**Works locally but fails in CI**:
+
 - Check if your local vcpkg cache is stale. Run `git clean -fdx` and rebuild.
 - Verify `vcpkg-configuration.json` matches `ci.yml` SHA.

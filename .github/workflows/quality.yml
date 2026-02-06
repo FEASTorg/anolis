@@ -22,7 +22,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y clang-tidy-14 ninja-build
-          sudo ln -s /usr/bin/clang-tidy-14 /usr/bin/clang-tidy
+          sudo ln -sf /usr/bin/clang-tidy-14 /usr/bin/clang-tidy
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11

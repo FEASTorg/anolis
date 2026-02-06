@@ -171,7 +171,7 @@ find core \( -name "*.cpp" -o -name "*.hpp" \) -print0 | xargs -0 clang-format -
 
 We use `ruff` for both linting and formatting Python scripts.
 
-#### Setup
+#### Python setup
 
 ```bash
 pip install -r requirements.txt
