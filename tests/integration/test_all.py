@@ -41,7 +41,8 @@ def get_script_dir() -> Path:
 
 def get_repo_root() -> Path:
     """Get the repository root directory."""
-    return get_script_dir().parent
+    # From tests/integration/test_all.py -> tests/integration -> tests -> root
+    return get_script_dir().parent.parent
 
 
 def find_runtime_path() -> Optional[Path]:

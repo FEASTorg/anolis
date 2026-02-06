@@ -4,6 +4,12 @@
 #include "provider/i_provider_handle.hpp"
 #include "registry/device_registry.hpp"
 #include "mocks/mock_provider_handle.hpp"
+#include <thread>
+#include <vector>
+#include <chrono>
+#include <memory>
+#include <unordered_map>
+#include <string>
 
 using namespace anolis;
 using namespace testing;

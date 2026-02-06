@@ -4,6 +4,10 @@
 #include "provider/i_provider_handle.hpp"
 #include "protocol.pb.h"
 
+#include <vector>
+#include <string>
+#include <map>
+
 namespace anolis::tests {
 
 using namespace anolis;

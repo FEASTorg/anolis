@@ -7,6 +7,11 @@
 
 #include "automation/mode_manager.hpp"
 
+#include <vector>
+#include <string>
+#include <memory>
+#include <unordered_map>
+
 using namespace anolis;
 using namespace testing;
 using namespace anolis::tests;

@@ -775,7 +775,7 @@ logging:
 def find_default_paths() -> tuple:
     """Find default runtime and provider paths."""
     script_dir = Path(__file__).parent
-    repo_root = script_dir.parent
+    repo_root = script_dir.parent.parent
 
     # Try common build locations
     runtime_candidates = [

@@ -41,18 +41,15 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 
-# Fix Windows encoding issues with Unicode characters
-if sys.platform == "win32":
-    import io
-
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+# NOTE: On Windows, use PYTHONIOENCODING=utf-8 environment variable if Unicode output issues occur.
+# Monkey-patching sys.stdout/stderr here causes "I/O operation on closed file" errors in some environments.
 
 # Add scenarios to path for scenario imports
+# This allows 'import scenarios.base' to work by treating 'tests' as the package root
 SCRIPT_DIR = Path(__file__).parent.resolve()
-PROJECT_ROOT = SCRIPT_DIR.parent
-SCENARIOS_DIR = PROJECT_ROOT / "scenarios"
-sys.path.insert(0, str(PROJECT_ROOT))
+PROJECT_ROOT = SCRIPT_DIR.parent.parent
+SCENARIOS_DIR = SCRIPT_DIR
+sys.path.insert(0, str(SCRIPT_DIR.parent))
 
 from scenarios.base import ScenarioBase, ScenarioResult
 
@@ -377,11 +374,15 @@ class ScenarioRunner:
         scenario_classes = self.discover_scenarios()
 
         if scenario_filter:
+            # Normalize filter and class names for robust matching
+            # e.g. "happy_path_end_to_end" matches "HappyPathEndToEnd"
+            normalized_filter = scenario_filter.lower().replace("_", "")
+            
             scenario_classes = [
                 sc
                 for sc in scenario_classes
-                if sc.__name__ == scenario_filter
-                or sc.__name__.lower() == scenario_filter.lower()
+                if sc.__name__.lower() == normalized_filter
+                or sc.__name__.lower().replace("_", "") == normalized_filter
             ]
             if not scenario_classes:
                 print(f"ERROR: Scenario '{scenario_filter}' not found")
@@ -488,17 +489,32 @@ def find_executable(name: str, build_dir: str = "build") -> Optional[str]:
     Returns:
         Path to executable or None if not found
     """
-    # Try Release build first, then Debug
-    for config in ["Release", "Debug"]:
-        # Windows
-        path = PROJECT_ROOT / build_dir / config / f"{name}.exe"
-        if path.exists():
-            return str(path)
+    # Search locations (relative to PROJECT_ROOT)
+    # We check both root 'build/' and 'build/core/' (where cmake puts binaries)
+    search_dirs = [
+        Path(build_dir),
+        Path(build_dir) / "core",
+    ]
 
-        # Linux/Mac
-        path = PROJECT_ROOT / build_dir / name
-        if path.exists():
-            return str(path)
+    for d in search_dirs:
+        # Try Release build first, then Debug
+        for config in ["Release", "Debug", "."]:
+            # Windows
+            path = PROJECT_ROOT / d / config / f"{name}.exe"
+            if path.exists():
+                return str(path)
+
+            # Linux/Mac
+            path = PROJECT_ROOT / d / config / name
+            if path.exists():
+                return str(path)
+            
+            # Linux/Mac (no config folder)
+            path = PROJECT_ROOT / d / name
+            if path.exists():
+                return str(path)
+
+    return None
 
     return None
 
@@ -531,7 +547,12 @@ def main():
     # Auto-detect executables if not provided
     runtime_path = args.runtime
     if not runtime_path:
-        runtime_path = find_executable("anolis-runtime", "build")
+        # Check core/ build location
+        runtime_path = find_executable("anolis-runtime", "build/core")
+        if not runtime_path:
+             # Check root build location (fallback)
+            runtime_path = find_executable("anolis-runtime", "build")
+            
         if not runtime_path:
             print("ERROR: Could not find anolis-runtime executable")
             print("Use --runtime to specify path")

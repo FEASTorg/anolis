@@ -61,7 +61,8 @@ class AutomationTester:
         self.provider_path = provider_path
         self.port = port
         self.base_url = f"http://127.0.0.1:{port}"
-        self.repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        # script (integration) -> tests -> root
+        self.repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
         self.runtime_process: Optional[subprocess.Popen] = None
         self.config_file: Optional[str] = None
         self.tests_passed = 0
