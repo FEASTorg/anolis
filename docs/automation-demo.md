@@ -1,6 +1,6 @@
 # Anolis Automation Demo Walkthrough
 
-Complete end-to-end demonstration of Phase 7 automation features.
+Complete end-to-end demonstration of automation features.
 
 ## Prerequisites
 
@@ -34,7 +34,7 @@ Start the Anolis runtime with automation enabled:
 
 **Expected Output:**
 
-```
+```text
 [Runtime] Loading configuration from ./anolis-runtime.yaml
 [Runtime] Starting in MANUAL mode
 [Runtime] HTTP server listening on 127.0.0.1:8080
@@ -162,7 +162,7 @@ curl -X POST http://127.0.0.1:8080/v0/parameters \
 
 **Console Output:**
 
-```
+```text
 [Runtime] Parameter 'temp_setpoint' changed: 25.0 -> 30.0
 ```
 
@@ -195,7 +195,7 @@ curl -X POST http://127.0.0.1:8080/v0/mode \
 
 **Console Output:**
 
-```
+```text
 [Runtime] Mode change event emitted: MANUAL -> AUTO
 [BTRuntime] Mode changed to AUTO, starting tick loop
 [BTRuntime] Tick 1: Running behavior tree
@@ -286,7 +286,7 @@ curl -X POST http://127.0.0.1:8080/v0/call \
 
 **Console Output:**
 
-```
+```text
 [CallRouter] Manual call blocked in AUTO mode: sim0/motorctl0/set_motor_duty
 ```
 
@@ -338,7 +338,7 @@ curl -X POST http://127.0.0.1:8080/v0/call \
 
 **Console Output:**
 
-```
+```text
 [CallRouter] Manual call overriding AUTO mode: sim0/motorctl0/set_motor_duty
 ```
 
@@ -372,7 +372,7 @@ curl -X POST http://127.0.0.1:8080/v0/mode \
 
 **Console Output:**
 
-```
+```text
 [Runtime] Mode change event emitted: AUTO -> FAULT
 [BTRuntime] Mode changed to FAULT, stopping tick loop
 ```
@@ -446,7 +446,7 @@ curl -X POST http://127.0.0.1:8080/v0/mode \
 
 **Console Output:**
 
-```
+```text
 [Runtime] Mode change event emitted: FAULT -> MANUAL
 ```
 
@@ -492,7 +492,7 @@ from(bucket: "anolis")
 
 ## Summary
 
-This demo demonstrated all Phase 7 features:
+This demo demonstrated all automation features:
 
 ✅ **Runtime Modes** — MANUAL/AUTO/FAULT transitions with proper state machine
 ✅ **Behavior Tree Execution** — Automated device orchestration via BT
@@ -504,7 +504,7 @@ This demo demonstrated all Phase 7 features:
 
 - **Customize Behavior Tree:** Edit `behaviors/demo.xml` to implement custom control logic
 - **Add Parameters:** Define new parameters in `anolis-runtime.yaml` for your use case
-- **Integrate Real Hardware:** Replace `anolis-provider-sim` with a real hardware provider (Phase 8)
+- **Integrate Real Hardware:** Replace `anolis-provider-sim` with a real hardware provider
 - **Build Operator UI:** Implement web interface for mode control and parameter tuning
 
 ## Troubleshooting
@@ -535,7 +535,7 @@ This demo demonstrated all Phase 7 features:
 
 ## Architecture Notes
 
-**Phase 7 Automation is Policy, Not Safety:**
+**Automation is Policy, Not Safety:**
 
 - Automation layer orchestrates device calls but doesn't replace safety systems
 - External E-stops, interlocks, and watchdogs are still required for real hardware

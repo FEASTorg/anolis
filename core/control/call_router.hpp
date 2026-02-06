@@ -47,7 +47,7 @@ namespace anolis
                        state::StateCache &state_cache);
 
             /**
-             * Set mode manager for manual/auto gating (Phase 7B.2).
+             * Set mode manager for manual/auto gating
              * Must be called before execute_call if automation is enabled.
              */
             void set_mode_manager(automation::ModeManager *mode_manager, const std::string &gating_policy);
@@ -63,8 +63,8 @@ namespace anolis
         private:
             const registry::DeviceRegistry &registry_;
             state::StateCache &state_cache_;
-            automation::ModeManager *mode_manager_ = nullptr; // Phase 7B.2 (optional)
-            std::string manual_gating_policy_ = "BLOCK";      // Phase 7B.2
+            automation::ModeManager *mode_manager_ = nullptr; // optional
+            std::string manual_gating_policy_ = "BLOCK";     
 
             // Per-provider mutexes for serialized access (v0: prevent concurrent calls to same provider)
             std::map<std::string, std::mutex> provider_locks_;

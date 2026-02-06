@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Anolis Automation Layer Integration Test (Phase 7)
+Anolis Automation Layer Integration Test
 
 This script validates automation functionality:
 - Mode state machine (MANUAL, AUTO, IDLE, FAULT)
@@ -62,7 +62,9 @@ class AutomationTester:
         self.port = port
         self.base_url = f"http://127.0.0.1:{port}"
         # script (integration) -> tests -> root
-        self.repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+        self.repo_root = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "..")
+        )
         self.runtime_process: Optional[subprocess.Popen] = None
         self.config_file: Optional[str] = None
         self.tests_passed = 0
@@ -450,7 +452,7 @@ class AutomationTester:
 
     def run_all_tests(self) -> bool:
         """Run all automation tests"""
-        print(f"\n{Colors.BOLD}=== Anolis Phase 7 Automation Tests ==={Colors.END}\n")
+        print(f"\n{Colors.BOLD}=== Anolis Automation Tests ==={Colors.END}\n")
 
         tests = [
             self.test_get_mode_when_automation_enabled,
@@ -461,7 +463,7 @@ class AutomationTester:
             self.test_invalid_transition_fault_to_auto,
             self.test_recovery_path_fault_to_manual_to_auto,
             self.test_invalid_mode_string,
-            # Parameter tests (Phase 7C)
+            # Parameter tests
             self.test_get_parameters,
             self.test_update_parameter_valid,
             self.test_update_parameter_out_of_range,
@@ -490,7 +492,7 @@ class AutomationTester:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Anolis Phase 7 Automation Tests")
+    parser = argparse.ArgumentParser(description="Anolis Automation Tests")
     parser.add_argument(
         "--runtime",
         default="./build/core/Release/anolis-runtime.exe",
@@ -537,7 +539,7 @@ def main():
 
         if success:
             print(
-                f"\n{Colors.GREEN}[PASS]{Colors.END} All Phase 7 automation tests passed!\n"
+                f"\n{Colors.GREEN}[PASS]{Colors.END} All automation tests passed!\n"
             )
             sys.exit(0)
         else:

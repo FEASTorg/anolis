@@ -55,7 +55,7 @@ namespace anolis
 
             std::cerr << "[Runtime] All providers started\n";
 
-            // Create event emitter (Phase 6)
+            // Create event emitter
             // Default: 100 events per subscriber queue, max 32 SSE clients
             event_emitter_ = std::make_shared<events::EventEmitter>(100, 32);
             std::cerr << "[Runtime] Event emitter created (max " << event_emitter_->max_subscribers() << " subscribers)\n";
@@ -75,14 +75,15 @@ namespace anolis
             // Create call router
             call_router_ = std::make_unique<control::CallRouter>(*registry_, *state_cache_);
 
-            // Create ModeManager and wire to CallRouter if automation enabled (Phase 7B)
+            // Create ModeManager and wire to CallRouter if automation enabled
             if (config_.automation.enabled)
             {
-                mode_manager_ = std::make_unique<automation::ModeManager>(automation::RuntimeMode::MANUAL);
+                auto initial_mode = automation::string_to_mode(config_.runtime.mode);
+                mode_manager_ = std::make_unique<automation::ModeManager>(initial_mode);
                 call_router_->set_mode_manager(mode_manager_.get(), config_.automation.manual_gating_policy);
             }
 
-            // Create and initialize ParameterManager BEFORE HTTP server (Phase 7C)
+            // Create and initialize ParameterManager BEFORE HTTP server
             if (config_.automation.enabled)
             {
                 std::cerr << "[Runtime] Creating parameter manager\n";
@@ -159,7 +160,7 @@ namespace anolis
                     providers_,
                     event_emitter_,          // Pass event emitter for SSE
                     mode_manager_.get(),     // Pass mode manager (nullptr if automation disabled)
-                    parameter_manager_.get() // Phase 7C: Pass parameter manager (nullptr if automation disabled)
+                    parameter_manager_.get() // Pass parameter manager (nullptr if automation disabled)
                 );
 
                 std::string http_error;
@@ -176,7 +177,7 @@ namespace anolis
                 std::cerr << "[Runtime] HTTP server disabled in config\n";
             }
 
-            // Start telemetry sink if enabled (Phase 6B)
+            // Start telemetry sink if enabled
             if (config_.telemetry.enabled)
             {
                 std::cerr << "[Runtime] Creating telemetry sink\n";
@@ -266,7 +267,7 @@ namespace anolis
             } });
             }
 
-            // Create and initialize BTRuntime if enabled (Phase 7)
+            // Create and initialize BTRuntime if enabled
             if (config_.automation.enabled)
             {
                 std::cerr << "[Runtime] Creating BT runtime\n";
@@ -275,7 +276,7 @@ namespace anolis
                     *call_router_,
                     providers_,
                     *mode_manager_,
-                    parameter_manager_.get() // Phase 7C: Pass parameter manager
+                    parameter_manager_.get() // Pass parameter manager
                 );
 
                 if (!bt_runtime_->load_tree(config_.automation.behavior_tree))
@@ -306,7 +307,7 @@ namespace anolis
             std::cerr << "[Runtime] State cache polling active\n"
                       << std::flush;
 
-            // Start BT tick loop if automation enabled (Phase 7)
+            // Start BT tick loop if automation enabled
             if (bt_runtime_)
             {
                 if (!bt_runtime_->start(config_.automation.tick_rate_hz))
@@ -345,7 +346,7 @@ namespace anolis
 
         void Runtime::shutdown()
         {
-            // Stop BT runtime first (Phase 7)
+            // Stop BT runtime first
             if (bt_runtime_)
             {
                 std::cerr << "[Runtime] Stopping BT runtime\n";

@@ -1,4 +1,4 @@
-# Anolis Observability Stack (Phase 6B)
+# Anolis Observability Stack
 #
 # Development-only stack for InfluxDB + Grafana telemetry visualization.
 # NOT for production use - uses insecure default credentials.

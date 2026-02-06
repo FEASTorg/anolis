@@ -123,8 +123,8 @@ class OutputCapture:
             self._thread.join(timeout=2.0)
 
 
-class Phase4HTTPTester:
-    """Test harness for Phase 4 HTTP API integration tests."""
+class HttpGatewayTester:
+    """Test harness for HTTP API integration tests."""
 
     def __init__(
         self,
@@ -153,7 +153,7 @@ class Phase4HTTPTester:
             print(f"ERROR: Provider not found: {self.provider_path}")
             return False
 
-        config_content = f"""# Phase 4 HTTP Test Config
+        config_content = f"""# HTTP Gateway Test Config
 runtime:
   mode: MANUAL
 
@@ -415,9 +415,9 @@ logging:
         return False
 
     def run_tests(self) -> bool:
-        """Run all Phase 4 HTTP integration tests."""
+        """Run all HTTP integration tests."""
         print("\n" + "=" * 60)
-        print("  Phase 4 HTTP Gateway Integration Tests")
+        print("  HTTP Gateway Integration Tests")
         print("=" * 60)
 
         # ========================================
@@ -816,7 +816,7 @@ def find_default_paths() -> tuple:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Phase 4 HTTP Gateway Integration Tests"
+        description="HTTP Gateway Integration Tests"
     )
     parser.add_argument("--runtime", type=str, help="Path to anolis-runtime executable")
     parser.add_argument(
@@ -851,7 +851,7 @@ def main():
     print(f"Port:     {args.port}")
 
     # Run tests
-    tester = Phase4HTTPTester(runtime_path, provider_path, args.port, args.timeout)
+    tester = HttpGatewayTester(runtime_path, provider_path, args.port, args.timeout)
 
     try:
         if not tester.setup():
@@ -863,7 +863,7 @@ def main():
         success = tester.run_tests()
 
         if success:
-            print("\n[PASS] All Phase 4 HTTP tests passed!\n")
+            print("\n[PASS] All HTTP tests passed!\n")
             sys.exit(0)
         else:
             print("\n[FAIL] Some tests failed\n")

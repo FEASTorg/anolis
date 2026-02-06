@@ -90,7 +90,7 @@ namespace anolis
             std::cerr << "[StateCache] Polling started" << std::endl;
 
             // v0: Simple blocking loop in main thread
-            // Phase 3B will move this to separate thread
+            // TODO: Future will move this to separate thread
             while (polling_active_)
             {
                 auto poll_start = std::chrono::steady_clock::now();

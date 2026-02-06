@@ -22,7 +22,9 @@ The server includes CORS headers for browser-based clients:
 
 This allows the Operator UI (`tools/operator-ui/`) to connect from any origin.
 
-> **Note**: Wildcard CORS is for development only. Phase 8 will add configurable origin whitelist.
+> **Note**: Wildcard CORS is for development only.
+>
+> TODO: Future will add configurable origin whitelist.
 
 ## Response Format
 

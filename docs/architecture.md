@@ -64,7 +64,7 @@
 - Forward to provider via ProviderHandle
 - Trigger immediate post-call state poll
 
-### Runtime (core/runtime/) - Future
+### Runtime (core/runtime/)
 
 - Load config (yaml)
 - Launch providers
@@ -102,7 +102,7 @@ External API (HTTP, CLI, Behavior Tree) → Call Router
                                         ← Result
 ```
 
-**Behavior Trees (Future - Above Kernel)**:
+**Behavior Trees (Above Kernel)**:
 
 ```text
 Behavior Tree (reads) → State Cache
@@ -126,27 +126,30 @@ Key: BTs never bypass CallRouter or StateCache.
 
 - **Language**: C++17
 - **Build**: CMake 3.20+
-- **Dependencies**: vcpkg (protobuf 6.33.4, yaml-cpp - future)
+- **Dependencies**: vcpkg (protobuf 6.33.4, yaml-cpp)
 - **Protocol**: ADPP (protobuf over framed stdio)
 - **Platform**: Windows, Linux
 
 ## Concurrency Model (v0 & v1)
 
-**v0 (Current): Single-threaded sequential**
+**v0 (Current): Single-threaded sequential.**
 
 - Polling: Sequential blocking loop (blocks runtime).
 - Calls: Per-provider mutex.
-- **Architectural Debt**: Behavior Tree never runs.
+- Automation: Sequential tick in main loop (cooperative multitasking).
 
-**v1 (Phase 10 goal): Dedicated Polling Thread**
+**v1 (planned goal): Dedicated Polling Thread.**
 
 - Polling: Background thread (StateCache internal).
 - Runtime: Main loop handles BT ticks and HTTP.
 - Synchronization: `std::mutex` guards shared state in StateCache.
 
-## Configuration (Phase 3B - planned)
+## Configuration
 
 ```yaml
+runtime:
+  mode: MANUAL      # MANUAL (default), AUTO, IDLE
+
 providers:
   - id: sim0
     command: path/to/anolis-provider-sim

@@ -109,7 +109,7 @@ python scripts/test_all.py --verbose
 
 ### Regression Rule
 
-Any bug fixed after Phase 5 must include a test that would have caught it.
+Any bug fixed must include a test that would have caught it.
 
 ### Test Structure
 

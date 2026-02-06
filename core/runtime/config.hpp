@@ -35,7 +35,7 @@ namespace anolis
 
         struct RuntimeModeConfig
         {
-            std::string mode = "MANUAL"; // Always MANUAL in v0 (IDLE, AUTO, FAULT in Phase 6)
+            std::string mode = "MANUAL"; // Default mode
         };
 
         struct TelemetryConfig
@@ -56,7 +56,7 @@ namespace anolis
             size_t queue_size = 10000; // Event queue size
         };
 
-        // Phase 7C: Parameter definition
+        // Parameter definition
         struct ParameterConfig
         {
             std::string name;
@@ -76,14 +76,14 @@ namespace anolis
             std::vector<std::string> allowed_values; // For string enums
         };
 
-        // Phase 7: Automation configuration
+        // Automation configuration
         struct AutomationConfig
         {
             bool enabled = false;
             std::string behavior_tree;                  // Path to BT XML file
             int tick_rate_hz = 10;                      // BT tick rate (1-1000 Hz)
-            std::string manual_gating_policy = "BLOCK"; // BLOCK or OVERRIDE (Phase 7B.2)
-            std::vector<ParameterConfig> parameters;    // Phase 7C: Runtime parameters
+            std::string manual_gating_policy = "BLOCK"; // BLOCK or OVERRIDE 
+            std::vector<ParameterConfig> parameters;    // Runtime parameters
         };
 
         struct RuntimeConfig
@@ -94,7 +94,7 @@ namespace anolis
             PollingConfig polling;
             TelemetryConfig telemetry;
             LoggingConfig logging;
-            AutomationConfig automation; // Phase 7
+            AutomationConfig automation;
         };
 
         // Load config from YAML file

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <root BTCPP_format="4">
     <!-- 
-    Phase 7A.6 Demo Behavior Tree (Updated Phase 7C)
+     Demo Behavior Tree
     
     This BT demonstrates basic automation with anolis-provider-sim:
     1. Check tempctl0 temperature quality
@@ -24,7 +24,7 @@
                 expected_quality="OK"
                 name="VerifyTempSensorQuality" />
 
-            <!-- Read temp_setpoint parameter (Phase 7C) -->
+            <!-- Read temp_setpoint parameter -->
             <GetParameter
                 param="temp_setpoint"
                 value="{target_temp}"

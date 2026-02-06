@@ -25,7 +25,7 @@ namespace anolis
     namespace automation
     {
 
-        class ParameterManager; // Phase 7C
+        class ParameterManager;
 
         /**
          * ReadSignalNode - BT action node for reading device signals
@@ -133,7 +133,7 @@ namespace anolis
         };
 
         /**
-         * GetParameterNode - BT action node for reading runtime parameters (Phase 7C)
+         * GetParameterNode - BT action node for reading runtime parameters
          *
          * Reads a parameter value from ParameterManager via blackboard.
          *

@@ -1,4 +1,4 @@
-# Anolis Observability Stack (Phase 6B)
+# Anolis Observability Stack
 
 This directory contains Docker configuration for the Anolis telemetry stack:
 

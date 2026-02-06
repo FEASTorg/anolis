@@ -110,8 +110,8 @@ class OutputCapture:
             self._thread.join(timeout=2.0)
 
 
-class Phase3Tester:
-    """Test harness for Phase 3 integration tests."""
+class CoreFeatureTester:
+    """Test harness for Core Runtime integration tests."""
 
     def __init__(self, runtime_path: Path, provider_path: Path, timeout: float = 30.0):
         self.runtime_path = runtime_path
@@ -135,7 +135,7 @@ class Phase3Tester:
             return False
 
         # Create temporary config
-        config_content = f"""# Phase 3C Test Config
+        config_content = f"""# Core Runtime Test Config
 providers:
   - id: sim0
     command: "{self.provider_path.as_posix()}"
@@ -207,9 +207,9 @@ logging:
             print(f"      {message}")
 
     def run_tests(self) -> bool:
-        """Run all Phase 3 integration tests."""
+        """Run all Core Runtime integration tests."""
         print("\n" + "=" * 60)
-        print("  Phase 3C Integration Tests")
+        print("  Core Runtime Integration Tests")
         print("=" * 60)
 
         # Test 1: Runtime Startup
@@ -225,8 +225,8 @@ logging:
             return False
         self.record("Config loading", True)
 
-        # Test 2: Provider Management (Phase 3.1)
-        print("\n2. Provider Management (Phase 3.1)")
+        # Test 2: Provider Management
+        print("\n2. Provider Management")
 
         if not self.capture.wait_for_marker("Starting provider: sim0", timeout=10):
             self.record("Provider start", False, "Provider start not initiated")
@@ -238,22 +238,22 @@ logging:
             return False
         self.record("Provider started", True)
 
-        # Test 3: Device Discovery (Phase 3.2)
-        print("\n3. Device Discovery (Phase 3.2)")
-
         if not self.capture.wait_for_marker("All providers started", timeout=10):
             self.record("All providers", False, "Not all providers started")
             return False
         self.record("All providers started", True)
 
         # Check for device discovery in "Runtime Ready" block
+        # Test 3: Device Discovery
+        print("\n3. Device Discovery")
+
         if not self.capture.wait_for_marker("Devices:", timeout=10):
             self.record("Device count", False, "Device count not reported")
             return False
         self.record("Device count reported", True)
 
-        # Test 4: State Cache (Phase 3.3)
-        print("\n4. State Cache (Phase 3.3)")
+        # Test 4: State Cache
+        print("\n4. State Cache")
 
         if not self.capture.wait_for_marker("Initialization complete", timeout=10):
             self.record("Initialization", False, "Runtime initialization incomplete")
@@ -330,7 +330,7 @@ logging:
 
         if passed == total:
             print("\n  [PASS] ALL TESTS PASSED")
-            print("  Phase 3 integration verified!")
+            print("  Core Runtime validation verified!")
         else:
             print("\n  [FAIL] SOME TESTS FAILED")
             print("\n  Failed tests:")
@@ -387,7 +387,7 @@ def find_provider() -> Optional[Path]:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Phase 3C Integration Tests")
+    parser = argparse.ArgumentParser(description="Core Runtime Integration Tests")
     parser.add_argument(
         "--runtime", type=Path, help="Path to anolis-runtime executable"
     )
@@ -421,7 +421,7 @@ def main():
     print(f"Provider: {provider_path}")
 
     # Create tester
-    tester = Phase3Tester(runtime_path, provider_path, args.timeout)
+    tester = CoreFeatureTester(runtime_path, provider_path, args.timeout)
 
     try:
         # Setup

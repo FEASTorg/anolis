@@ -1,4 +1,4 @@
-// Anolis Runtime - Phase 3.5
+// Anolis Runtime
 // Config-based runtime with CLI argument parsing
 
 #include <iostream>
@@ -10,7 +10,7 @@
 int main(int argc, char **argv)
 {
     std::cerr << "===========================================\n";
-    std::cerr << "  Anolis Core Runtime v0 (Phase 3.5)\n";
+    std::cerr << "  Anolis Core Runtime v0 \n";
     std::cerr << "===========================================\n\n";
 
     // Parse CLI arguments

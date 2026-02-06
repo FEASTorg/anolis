@@ -8,9 +8,9 @@
 #include "http/server.hpp"
 #include "events/event_emitter.hpp"
 #include "telemetry/influx_sink.hpp"
-#include "automation/bt_runtime.hpp"        // Phase 7
-#include "automation/mode_manager.hpp"      // Phase 7B
-#include "automation/parameter_manager.hpp" // Phase 7C
+#include "automation/bt_runtime.hpp"
+#include "automation/mode_manager.hpp"
+#include "automation/parameter_manager.hpp"
 #include <memory>
 #include <unordered_map>
 
@@ -55,10 +55,10 @@ namespace anolis
             std::unique_ptr<state::StateCache> state_cache_;
             std::unique_ptr<control::CallRouter> call_router_;
             std::unique_ptr<http::HttpServer> http_server_;
-            std::unique_ptr<telemetry::InfluxSink> telemetry_sink_;           // Phase 6B
-            std::unique_ptr<automation::ModeManager> mode_manager_;           // Phase 7B
-            std::unique_ptr<automation::ParameterManager> parameter_manager_; // Phase 7C
-            std::unique_ptr<automation::BTRuntime> bt_runtime_;               // Phase 7
+            std::unique_ptr<telemetry::InfluxSink> telemetry_sink_;      
+            std::unique_ptr<automation::ModeManager> mode_manager_;          
+            std::unique_ptr<automation::ParameterManager> parameter_manager_; 
+            std::unique_ptr<automation::BTRuntime> bt_runtime_;        
 
             bool running_ = false;
         };

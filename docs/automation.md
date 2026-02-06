@@ -1,6 +1,6 @@
 # Anolis Automation Layer
 
-Phase 7 automation system for orchestrating device control using behavior trees.
+Automation system for orchestrating device control using behavior trees.
 
 ## Overview
 
@@ -8,7 +8,7 @@ The automation layer adds configurable machine behavior on top of Anolis's stabl
 
 - **Behavior Trees** — Composable, reactive control logic that orchestrates device calls
 - **Runtime Modes** — State machine governing when automation runs and how manual control interacts
-- **Parameter System** — Config-tunable setpoints and limits (Phase 7C)
+- **Parameter System** — Config-tunable setpoints and limits
 
 ## Architecture Constraints
 
@@ -25,7 +25,7 @@ The BT engine sits **above** the kernel, not beneath it.
 
 ---
 
-## Runtime Modes (Phase 7B)
+## Runtime Modes
 
 ### Mode State Machine
 
@@ -227,7 +227,7 @@ from(bucket: "anolis")
 
 ---
 
-## Parameters (Phase 7C)
+## Parameters
 
 Anolis supports **runtime parameters** that can be declared in YAML and updated at runtime via HTTP. Parameters are read-only from Behavior Trees (exposed via the blackboard) and can be validated with min/max ranges or enum allowed values.
 
@@ -323,7 +323,7 @@ automation:
 | `behavior_tree`        | string | required | Path to BT XML file                    |
 | `tick_rate_hz`         | int    | 10       | BT execution rate (1-1000)             |
 | `manual_gating_policy` | string | BLOCK    | Manual call policy (BLOCK or OVERRIDE) |
-| `parameters`           | list   | []       | Parameter definitions (Phase 7C)       |
+| `parameters`           | list   | []       | Parameter definitions                  |
 
 ---
 
@@ -419,7 +419,7 @@ The Operator UI does not yet expose mode or parameter controls. When UI work beg
 
 ## Testing
 
-Automated tests for Phase 7 automation:
+Automated tests for automation features:
 
 ```bash
 # Run automation tests
@@ -441,7 +441,7 @@ python scripts/test_automation.py --port 18080
 
 ## Safety Disclaimer
 
-⚠️ **Phase 7 automation is a control policy layer, not a safety-rated system.**
+⚠️ **Automation is a control policy layer, not a safety-rated system.**
 
 External safety systems (e.g., E-stops, interlocks) are **still required** for real hardware.
 
@@ -455,27 +455,6 @@ For production deployment:
 2. Implement hardware E-stops independent of Anolis
 3. Add watchdog timers for automation health
 4. Design BTs with safe failure modes
-
----
-
-## Implementation Status
-
-- **Phase 7A**: BT Engine Foundation ✅ COMPLETE
-- **Phase 7B**: Runtime Modes & Gating ✅ COMPLETE
-  - Mode state machine
-  - Manual/auto contention policy
-  - BT lifecycle gating
-  - HTTP API for mode control
-  - Mode change events
-  - Automated tests
-  - Documentation
-- **Phase 7C**: Parameters & Configuration ✅ COMPLETE
-
-**Integration items still pending:**
-
-- Verify mode/parameter events in telemetry storage
-- Add Grafana annotations for mode transitions
-- Document/demo a full end-to-end scenario
 
 ---
 

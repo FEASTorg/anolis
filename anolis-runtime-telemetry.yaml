@@ -1,5 +1,5 @@
 # Anolis Runtime Configuration with Telemetry
-# Phase 6B: InfluxDB Telemetry enabled
+# InfluxDB Telemetry enabled
 #
 # PREREQUISITES:
 #   1. Start InfluxDB + Grafana:

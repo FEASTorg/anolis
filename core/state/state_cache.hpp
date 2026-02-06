@@ -59,7 +59,7 @@ namespace anolis
             bool initialize();
 
             /**
-             * @brief Set event emitter for change notifications (Phase 6)
+             * @brief Set event emitter for change notifications
              *
              * When set, StateCache will emit events on value/quality changes.
              * Must be called before start_polling().
@@ -94,7 +94,7 @@ namespace anolis
             const registry::DeviceRegistry &registry_;
             std::string error_;
 
-            // Event emitter for change notifications (Phase 6)
+            // Event emitter for change notifications
             std::shared_ptr<events::EventEmitter> event_emitter_;
 
             mutable std::mutex mutex_;

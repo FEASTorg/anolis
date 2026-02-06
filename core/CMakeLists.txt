@@ -48,7 +48,7 @@ target_link_libraries(anolis_registry PUBLIC
     protobuf::libprotobuf
 )
 
-# Events library (Phase 6 - header-only for now)
+# Events library (header-only for now)
 add_library(anolis_events INTERFACE)
 
 target_include_directories(anolis_events INTERFACE
@@ -56,7 +56,7 @@ target_include_directories(anolis_events INTERFACE
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-# Telemetry library (Phase 6B - InfluxDB sink)
+# Telemetry library (InfluxDB sink)
 add_library(anolis_telemetry STATIC
     telemetry/influx_sink.cpp
 )
@@ -71,7 +71,7 @@ target_link_libraries(anolis_telemetry PUBLIC
     httplib::httplib
 )
 
-# Automation library (Phase 7 - Behavior Trees)
+# Automation library (Behavior Trees)
 find_package(behaviortree_cpp CONFIG REQUIRED)
 
 add_library(anolis_automation STATIC
@@ -145,7 +145,7 @@ target_link_libraries(anolis_control PUBLIC
     protobuf::libprotobuf
 )
 
-# HTTP server library (Phase 4)
+# HTTP server library
 find_package(httplib CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 

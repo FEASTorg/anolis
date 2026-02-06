@@ -1,4 +1,4 @@
-# Testing Phase 6B Telemetry (WSL2)
+# Testing Telemetry (WSL2)
 
 Quick guide for testing the Anolis telemetry stack on Windows with WSL2.
 

@@ -48,7 +48,7 @@ namespace anolis
             server_->new_task_queue = []
             { return new httplib::ThreadPool(40); };
 
-            // Add CORS headers to all responses (dev-only, Phase 8 will add proper CORS)
+            // Add CORS headers to all responses (dev-only; TODO: add proper CORS)
             server_->set_post_routing_handler([](const httplib::Request &req, httplib::Response &res)
                                               {
         res.set_header("Access-Control-Allow-Origin", "*");
@@ -192,23 +192,23 @@ namespace anolis
             server_->Get("/v0/runtime/status", [this](const httplib::Request &req, httplib::Response &res)
                          { handle_get_runtime_status(req, res); });
 
-            // GET /v0/mode - Get current automation mode (Phase 7B)
+            // GET /v0/mode - Get current automation mode
             server_->Get("/v0/mode", [this](const httplib::Request &req, httplib::Response &res)
                          { handle_get_mode(req, res); });
 
-            // POST /v0/mode - Set automation mode (Phase 7B)
+            // POST /v0/mode - Set automation mode
             server_->Post("/v0/mode", [this](const httplib::Request &req, httplib::Response &res)
                           { handle_post_mode(req, res); });
 
-            // GET /v0/parameters - Get all parameters (Phase 7C)
+            // GET /v0/parameters - Get all parameters
             server_->Get("/v0/parameters", [this](const httplib::Request &req, httplib::Response &res)
                          { handle_get_parameters(req, res); });
 
-            // POST /v0/parameters - Update parameter value (Phase 7C)
+            // POST /v0/parameters - Update parameter value
             server_->Post("/v0/parameters", [this](const httplib::Request &req, httplib::Response &res)
                           { handle_post_parameters(req, res); });
 
-            // GET /v0/events - SSE event stream (Phase 6)
+            // GET /v0/events - SSE event stream
             server_->Get("/v0/events", [this](const httplib::Request &req, httplib::Response &res)
                          { handle_get_events(req, res); });
 

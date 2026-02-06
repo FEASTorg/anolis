@@ -1,7 +1,7 @@
 #include "automation/bt_runtime.hpp"
 #include "automation/bt_nodes.hpp"
 #include "automation/mode_manager.hpp"
-#include "automation/parameter_manager.hpp" // Phase 7C
+#include "automation/parameter_manager.hpp"
 #include "state/state_cache.hpp"
 #include "control/call_router.hpp"
 
@@ -27,11 +27,11 @@ namespace anolis
         {
             std::cout << "[BTRuntime] Initialized" << std::endl;
 
-            // Phase 7A.3: Register custom nodes
+            // Register custom nodes
             factory_->registerNodeType<ReadSignalNode>("ReadSignal");
             factory_->registerNodeType<CallDeviceNode>("CallDevice");
             factory_->registerNodeType<CheckQualityNode>("CheckQuality");
-            factory_->registerNodeType<GetParameterNode>("GetParameter"); // Phase 7C
+            factory_->registerNodeType<GetParameterNode>("GetParameter");
 
             std::cout << "[BTRuntime] Registered custom node types" << std::endl;
         }
@@ -150,7 +150,7 @@ namespace anolis
 
             while (running_)
             {
-                // Check if we're in AUTO mode (Phase 7B.3)
+                // Check if we're in AUTO mode
                 if (mode_manager_.current_mode() != RuntimeMode::AUTO)
                 {
                     // Not in AUTO mode, skip tick
@@ -183,7 +183,8 @@ namespace anolis
                     std::cerr << "[BTRuntime] ERROR during tick: " << e.what() << std::endl;
                 }
 
-                // Phase 7B: Check mode before next tick
+                // Check mode before next tick, CURRENTLY DISABLED
+                // TODO: Clean or fix this logic as required
                 // if (mode_manager_->current_mode() != RuntimeMode::AUTO) {
                 //     std::cout << "[BTRuntime] Not in AUTO mode, pausing tick" << std::endl;
                 //     break;
@@ -207,7 +208,7 @@ namespace anolis
             // Snapshot StateCache before tick
             // This ensures BT sees consistent state, no mid-tick changes visible
             //
-            // Critical design notes (from Phase 7 review):
+            // Critical design notes:
             // - BT sees tick-consistent snapshot, NOT continuous state
             // - BT logic is edge-triggered by events, but state visibility is per-tick
             // - No mid-tick state changes visible to BT nodes
@@ -215,18 +216,18 @@ namespace anolis
 
             auto blackboard = tree_->rootBlackboard();
 
-            // Store CallRouter reference for CallDeviceNode (Phase 7A.3)
+            // Store CallRouter reference for CallDeviceNode
             // BT nodes will cast this back to CallRouter* when needed
             blackboard->set("call_router", static_cast<void *>(&call_router_));
-            // Store StateCache reference for ReadSignalNode (Phase 7A.3)
+            // Store StateCache reference for ReadSignalNode
             // BT nodes will cast this back to StateCache* when needed
             blackboard->set("state_cache", static_cast<void *>(&state_cache_));
 
-            // Store providers map reference for CallDeviceNode (Phase 7A.5 fix)
+            // Store providers map reference for CallDeviceNode (fix)
             // CallRouter::execute_call() requires providers map
             blackboard->set("providers", static_cast<void *>(&providers_));
 
-            // Phase 7C: Add parameter_manager to blackboard
+            // Add parameter_manager to blackboard
             if (parameter_manager_)
             {
                 blackboard->set("parameter_manager", static_cast<void *>(parameter_manager_));

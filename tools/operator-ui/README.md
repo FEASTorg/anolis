@@ -92,8 +92,8 @@ This UI follows strict constraints by design:
 | No npm/node            | Zero dependencies             |
 | Capability-driven only | No device-type assumptions    |
 | No charts/graphs       | Grafana territory             |
-| No auth                | Phase 8                       |
-| No streaming           | Phase 5 (SSE/WebSocket)       |
+| No auth                | Future Work                   |
+| No streaming           | Future Work (SSE/WebSocket)   |
 
 The UI is a **mirror** of the HTTP API, not a new abstraction. It must not introduce new semantics.
 

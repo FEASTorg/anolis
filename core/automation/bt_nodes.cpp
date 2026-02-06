@@ -1,5 +1,5 @@
 #include "automation/bt_nodes.hpp"
-#include "automation/parameter_manager.hpp" // Phase 7C
+#include "automation/parameter_manager.hpp"
 #include "state/state_cache.hpp"
 #include "control/call_router.hpp"
 
@@ -208,7 +208,7 @@ namespace anolis
 
             // Build CallRequest
             // Note: For now, we don't parse arg_* ports dynamically.
-            // This is a limitation - Phase 7A.6 demo will use a simpler approach
+            // This is a limitation - FIXME
             // or we'll add a helper method to extract all "arg_*" ports.
             control::CallRequest request;
             request.device_handle = device_handle.value();
@@ -231,7 +231,7 @@ namespace anolis
                 request.args["mode"] = val;
             }
 
-            // Get providers map from blackboard (Phase 7A.5 fix)
+            // Get providers map from blackboard (fixed)
             auto providers = get_providers();
             if (!providers)
             {
@@ -365,7 +365,7 @@ namespace anolis
         }
 
         //-----------------------------------------------------------------------------
-        // GetParameterNode (Phase 7C)
+        // GetParameterNode
         //-----------------------------------------------------------------------------
 
         GetParameterNode::GetParameterNode(const std::string &name, const BT::NodeConfig &config)

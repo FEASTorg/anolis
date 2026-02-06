@@ -2,7 +2,7 @@
 
 /**
  * @file influx_sink.hpp
- * @brief InfluxDB telemetry sink for Anolis observability layer (Phase 6B)
+ * @brief InfluxDB telemetry sink for Anolis observability layer
  *
  * This sink subscribes to the EventEmitter and writes state changes to
  * InfluxDB using the v2 Line Protocol. Features:
@@ -193,7 +193,7 @@ namespace anolis
         }
 
         /**
-         * @brief Format ParameterChangeEvent as InfluxDB line protocol (Phase 7C)
+         * @brief Format ParameterChangeEvent as InfluxDB line protocol
          *
          * Measurement: parameter_change
          * Tags: parameter_name

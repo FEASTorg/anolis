@@ -12,7 +12,7 @@
 #include "control/call_router.hpp"
 #include "events/event_emitter.hpp"
 #include "automation/mode_manager.hpp"
-#include "automation/parameter_manager.hpp" // Phase 7C
+#include "automation/parameter_manager.hpp"
 #include <chrono>
 
 namespace anolis
@@ -546,7 +546,7 @@ namespace anolis
             data["timestamp_ms"] = e.timestamp_ms;
             data["quality"] = events::quality_to_string(e.quality);
             
-            // Encode value in Phase 4 format
+            // Encode value in established format
             std::visit([&data](auto&& val) {
                 using V = std::decay_t<decltype(val)>;
                 if constexpr (std::is_same_v<V, double>) {
@@ -691,7 +691,7 @@ namespace anolis
         }
 
         //=============================================================================
-        // GET /v0/parameters - Get all parameters (Phase 7C)
+        // GET /v0/parameters - Get all parameters
         //=============================================================================
         void HttpServer::handle_get_parameters(const httplib::Request &req, httplib::Response &res)
         {
@@ -758,7 +758,7 @@ namespace anolis
         }
 
         //=============================================================================
-        // POST /v0/parameters - Update parameter value (Phase 7C)
+        // POST /v0/parameters - Update parameter value
         //=============================================================================
         void HttpServer::handle_post_parameters(const httplib::Request &req, httplib::Response &res)
         {

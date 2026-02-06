@@ -21,13 +21,6 @@ namespace anolis
                     if (yaml["runtime"]["mode"])
                     {
                         config.runtime.mode = yaml["runtime"]["mode"].as<std::string>();
-                        // v0: Only MANUAL is valid
-                        if (config.runtime.mode != "MANUAL")
-                        {
-                            std::cerr << "[Config] WARNING: Only MANUAL mode supported in v0, ignoring: "
-                                      << config.runtime.mode << "\n";
-                            config.runtime.mode = "MANUAL";
-                        }
                     }
                 }
 
@@ -190,7 +183,7 @@ namespace anolis
                     }
                 }
 
-                // Load automation config (Phase 7)
+                // Load automation config
                 if (yaml["automation"])
                 {
                     if (yaml["automation"]["enabled"])
@@ -221,7 +214,7 @@ namespace anolis
                         }
                     }
 
-                    // Phase 7C: Load parameters
+                    // Load parameters
                     if (yaml["automation"]["parameters"])
                     {
                         for (const auto &param_node : yaml["automation"]["parameters"])

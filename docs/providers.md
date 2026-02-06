@@ -121,7 +121,7 @@ Example: CRUMBS provider may buffer staged reads internally, but Anolis core rem
 
 ## Testing Your Provider
 
-Use `anolis-runtime` (after Phase 3B):
+Use `anolis-runtime`:
 
 ```yaml
 # anolis-runtime.yaml

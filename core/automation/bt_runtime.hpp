@@ -37,10 +37,10 @@ namespace anolis
     {
 
         class ModeManager;
-        class ParameterManager; // Phase 7C
+        class ParameterManager;
 
         /**
-         * BT Runtime - Phase 7A Foundation
+         * BT Runtime
          *
          * Manages Behavior Tree lifecycle for the Anolis automation layer.
          *
@@ -65,11 +65,11 @@ namespace anolis
                 std::string behavior_tree_path; // Path to XML behavior tree file
                 int tick_rate_hz = 10;          // BT tick frequency (default 10 Hz)
 
-                // Phase 7B additions (placeholders for now)
+                // (placeholders for now) FIXME
                 // RuntimeMode initial_mode = RuntimeMode::MANUAL;
                 // std::string manual_gating_policy = "BLOCK";
 
-                // Phase 7C additions (placeholders for now)
+                // (placeholders for now) FIXME
                 // bool persist_parameters = false;
             };
 
@@ -80,7 +80,7 @@ namespace anolis
              * @param call_router Reference to call router (for device calls)
              * @param providers Provider map (for CallRouter::execute_call)
              * @param mode_manager Mode state machine (for AUTO/MANUAL gating)
-             * @param parameter_manager Parameter manager (Phase 7C, nullptr if not used)
+             * @param parameter_manager Parameter manager (nullptr if not used)
              */
             BTRuntime(state::StateCache &state_cache,
                       control::CallRouter &call_router,
@@ -150,7 +150,7 @@ namespace anolis
             control::CallRouter &call_router_;
             std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers_;
             ModeManager &mode_manager_;
-            ParameterManager *parameter_manager_; // Phase 7C (nullable)
+            ParameterManager *parameter_manager_; // nullable
 
             // BT state
             std::unique_ptr<BT::BehaviorTreeFactory> factory_;

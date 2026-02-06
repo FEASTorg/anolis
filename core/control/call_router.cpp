@@ -24,7 +24,7 @@ namespace anolis
             CallResult result;
             result.success = false;
 
-            // Phase 7B.2: Check manual/auto contention
+            // Check manual/auto contention
             if (mode_manager_ && mode_manager_->current_mode() == automation::RuntimeMode::AUTO)
             {
                 if (manual_gating_policy_ == "BLOCK")
@@ -197,7 +197,7 @@ namespace anolis
                                             std::string &error) const
         {
             // v0: Basic validation - check that all required params are present
-            // Full type checking would require ArgSpec metadata (deferred to Phase 3B)
+            // TODO: Full type checking would require ArgSpec metadata
 
             // For now, just verify we have the expected number of arguments
             if (args.size() != spec.param_ids.size())

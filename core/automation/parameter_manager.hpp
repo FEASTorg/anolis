@@ -103,7 +103,7 @@ namespace anolis
             const ParameterValue &new_value)>;
 
         /**
-         * @brief ParameterManager - Phase 7C runtime parameter system
+         * @brief ParameterManager
          *
          * Manages runtime-tunable parameters for behavior tree automation.
          *

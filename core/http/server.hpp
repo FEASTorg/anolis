@@ -43,7 +43,7 @@ namespace anolis
     {
         class ModeManager;
         class ParameterManager;
-    } // Phase 7B + 7C
+    } 
 }
 
 // Typedef for provider map
@@ -82,9 +82,9 @@ namespace anolis
              * @param state_cache State cache for reading device state
              * @param call_router Call router for executing device functions
              * @param providers Provider map for call execution
-             * @param event_emitter Event emitter for SSE streaming (Phase 6)
-             * @param mode_manager Mode manager for automation control (Phase 7B, optional)
-             * @param parameter_manager Parameter manager for runtime parameters (Phase 7C, optional)
+             * @param event_emitter Event emitter for SSE streaming
+             * @param mode_manager Mode manager for automation control (optional)
+             * @param parameter_manager Parameter manager for runtime parameters (optional)
              */
             HttpServer(const runtime::HttpConfig &config,
                        registry::DeviceRegistry &registry,
@@ -136,9 +136,9 @@ namespace anolis
             state::StateCache &state_cache_;
             control::CallRouter &call_router_;
             ProviderMap &providers_;
-            automation::ParameterManager *parameter_manager_;     // Phase 7C (optional)
-            std::shared_ptr<events::EventEmitter> event_emitter_; // Phase 6 SSE
-            automation::ModeManager *mode_manager_;               // Phase 7B (optional)
+            automation::ParameterManager *parameter_manager_;     // optional
+            std::shared_ptr<events::EventEmitter> event_emitter_;
+            automation::ModeManager *mode_manager_;          // optional
 
             // SSE client tracking
             std::atomic<int> sse_client_count_{0};
@@ -161,10 +161,10 @@ namespace anolis
             void handle_get_runtime_status(const httplib::Request &req, httplib::Response &res);
             void handle_get_mode(const httplib::Request &req, httplib::Response &res);
             void handle_post_mode(const httplib::Request &req, httplib::Response &res);
-            void handle_get_parameters(const httplib::Request &req, httplib::Response &res);  // Phase 7C
-            void handle_post_parameters(const httplib::Request &req, httplib::Response &res); // Phase 7C
+            void handle_get_parameters(const httplib::Request &req, httplib::Response &res);
+            void handle_post_parameters(const httplib::Request &req, httplib::Response &res); 
 
-            // SSE handler (Phase 6)
+            // SSE handler
             void handle_get_events(const httplib::Request &req, httplib::Response &res);
             std::string format_sse_event(const events::Event &event);
         };

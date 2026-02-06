@@ -1,5 +1,5 @@
 # Anolis Runtime Configuration
-# Phase 4: HTTP Gateway + Basic provider config
+# HTTP Gateway + Basic provider config
 
 runtime:
   mode: MANUAL # Always MANUAL in v0
@@ -34,7 +34,7 @@ automation:
   tick_rate_hz: 10 # 1-1000 Hz
   manual_gating_policy: BLOCK # BLOCK or OVERRIDE
 
-  # Phase 7C: Runtime parameters
+  # Runtime parameters
   parameters:
     - name: temp_setpoint
       type: double

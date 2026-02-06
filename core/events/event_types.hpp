@@ -11,7 +11,7 @@
  *
  * Design principles:
  * - Events are immutable value types (cheap to copy)
- * - All fields use Phase 4 conventions (typed values, quality enums)
+ * - All fields use established conventions (typed values, quality enums)
  * - Timestamps are epoch milliseconds (consistent with HTTP API)
  */
 
@@ -28,7 +28,7 @@ namespace anolis
     {
 
         /**
-         * @brief Quality levels for signal values (Phase 4 convention)
+         * @brief Quality levels for signal values
          *
          * Maps directly to ADPP quality values but uses simple enum
          * for cleaner event handling without protobuf dependency.
@@ -42,7 +42,7 @@ namespace anolis
         };
 
         /**
-         * @brief Convert Quality enum to string (Phase 4 convention)
+         * @brief Convert Quality enum to string
          */
         inline const char *quality_to_string(Quality q)
         {
@@ -62,7 +62,7 @@ namespace anolis
         }
 
         /**
-         * @brief Typed value union (Phase 4 convention)
+         * @brief Typed value union
          *
          * Uses std::variant for type-safe value storage.
          * Matches the JSON format: {"type": "double", "double": 23.5}
@@ -76,7 +76,7 @@ namespace anolis
             >;
 
         /**
-         * @brief Get the type name for a TypedValue (Phase 4 convention)
+         * @brief Get the type name for a TypedValue
          */
         inline const char *value_type_name(const TypedValue &v)
         {
@@ -193,7 +193,7 @@ namespace anolis
         };
 
         /**
-         * @brief Mode change event (Phase 7B)
+         * @brief Mode change event
          *
          * Emitted when runtime mode transitions (MANUAL/AUTO/IDLE/FAULT).
          */
@@ -206,7 +206,7 @@ namespace anolis
         };
 
         /**
-         * @brief Parameter change event (Phase 7C)
+         * @brief Parameter change event
          *
          * Emitted when a runtime parameter value is updated.
          */

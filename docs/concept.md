@@ -47,14 +47,14 @@ Building automation requires talking to all of them. This is tedious and fragile
 
 ## Current Status
 
-**Phase 3A/Early 3B**: Core kernel functional
+**Core kernel functional**:
 
 - Provider host spawns and manages provider processes
 - Device registry stores capabilities
 - State cache polls and tracks signal values
 - Call router validates and executes control commands
 
-**Next**: Complete Phase 3B (config system), then Phase 4+ external layers:
+**Next**: Complete config system, then external layers:
 
 - HTTP gateway (reads StateCache, writes via CallRouter)
 - Behavior Trees (automation sits ABOVE kernel, same API restrictions)

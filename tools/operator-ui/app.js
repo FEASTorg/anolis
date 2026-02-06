@@ -6,7 +6,7 @@
  *
  * Capability-driven only - no device-type assumptions.
  *
- * Phase 6: Uses SSE for real-time updates with polling fallback.
+ * Currently uses SSE for real-time updates with polling fallback.
  */
 
 // Configuration
