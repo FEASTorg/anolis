@@ -10,7 +10,7 @@ This script validates core runtime functionality:
 - Runtime Bootstrap (config, lifecycle)
 
 Usage:
-    python scripts/test_core.py [--runtime PATH] [--provider PATH] [--timeout SECONDS]
+    python tests/integration/test_core.py [--runtime PATH] [--provider PATH] [--timeout SECONDS]
 """
 
 import subprocess

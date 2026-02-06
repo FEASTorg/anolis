@@ -11,7 +11,7 @@ This script validates automation functionality:
 - HTTP API for mode control
 
 Usage:
-    python scripts/test_automation.py [--runtime PATH] [--provider PATH] [--port PORT]
+    python tests/integration/test_automation.py [--runtime PATH] [--provider PATH] [--port PORT]
 
 Prerequisites:
     - Runtime and provider executables must be built

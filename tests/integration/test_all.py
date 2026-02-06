@@ -6,7 +6,7 @@ Runs all integration tests sequentially with proper cleanup between tests.
 This is the main entry point for CI and local test runs.
 
 Usage:
-    python scripts/test_all.py [--verbose] [--timeout SECONDS]
+    python tests/integration/test_all.py [--verbose] [--timeout SECONDS]
 
 Exit Codes:
     0 - All tests passed

@@ -13,7 +13,7 @@ This script validates HTTP API functionality:
 - Provider failure -> UNAVAILABLE transition
 
 Usage:
-    python scripts/test_http.py [--runtime PATH] [--provider PATH] [--port PORT]
+    python tests/integration/test_http.py [--runtime PATH] [--provider PATH] [--port PORT]
 
 Prerequisites:
     - Core tests must pass (test_core.py)

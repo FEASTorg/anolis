@@ -5,7 +5,7 @@ Scenario Runner for Anolis Validation
 Orchestrates runtime startup, scenario execution, and result reporting.
 
 Usage:
-    python scripts/run_scenarios.py [OPTIONS]
+    python tests/scenarios/run_scenarios.py [OPTIONS]
 
 Options:
     --runtime PATH       Path to anolis-runtime executable (default: auto-detect)
@@ -17,13 +17,13 @@ Options:
 
 Examples:
     # Run all scenarios
-    python scripts/run_scenarios.py
+    python tests/scenarios/run_scenarios.py
 
     # Run specific scenario
-    python scripts/run_scenarios.py --scenario happy_path_end_to_end
+    python tests/scenarios/run_scenarios.py --scenario happy_path_end_to_end
 
     # List scenarios
-    python scripts/run_scenarios.py --list
+    python tests/scenarios/run_scenarios.py --list
 """
 
 import argparse

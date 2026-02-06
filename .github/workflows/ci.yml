@@ -134,7 +134,7 @@ jobs:
           free -m
 
           echo "=== Running tests ==="
-          python3 scripts/test_all.py --timeout=120 \
+          python3 tests/integration/test_all.py --timeout=120 \
             --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim
           TEST_EXIT=$?
 
@@ -158,7 +158,7 @@ jobs:
           LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/lib
         run: |
           echo "=== Running validation scenario suite ==="
-          python3 scripts/run_scenarios.py \
+          python3 tests/scenarios/run_scenarios.py \
             --runtime=build/core/anolis-runtime \
             --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim
 
@@ -231,12 +231,12 @@ jobs:
 
       - name: Run integration tests
         run: |
-          python scripts/test_all.py --timeout=120 "--provider=$env:GITHUB_WORKSPACE/anolis-provider-sim/build/Release/anolis-provider-sim.exe"
+          python tests/integration/test_all.py --timeout=120 "--provider=$env:GITHUB_WORKSPACE/anolis-provider-sim/build/Release/anolis-provider-sim.exe"
 
       - name: Run validation scenarios
         run: |
           Write-Host "=== Running validation scenario suite ==="
-          python scripts/run_scenarios.py `
+          python tests/scenarios/run_scenarios.py `
             "--runtime=build/core/Release/anolis-runtime.exe" `
             "--provider=$env:GITHUB_WORKSPACE/anolis-provider-sim/build/Release/anolis-provider-sim.exe"
 
