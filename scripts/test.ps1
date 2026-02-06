@@ -21,7 +21,7 @@ if (-not (Test-Path (Join-Path $BuildDir "CTestTestfile.cmake"))) {
     exit 2
 }
 
-$ctestArgs = @("--output-on-failure", "-C", $Configuration, "-R", "anolis_unit_tests")
+$ctestArgs = @("--output-on-failure", "-C", $Configuration)
 if ($Verbose) {
     $ctestArgs += "-VV"
 }

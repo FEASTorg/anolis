@@ -17,6 +17,26 @@ $ProviderSimDir = Join-Path (Split-Path -Parent $RepoRoot) "anolis-provider-sim"
 
 $BuildType = if ($Debug) { "Debug" } else { "Release" }
 $BuildTests = -not $NoTests
+$BuildTestingValue = if ($BuildTests) { "ON" } else { "OFF" }
+
+# Choose generator (prefer VS 2022 Build Tools if present, fall back to Ninja)
+$CMakeGeneratorArgs = @()
+$vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio/Installer/vswhere.exe"
+$vsInstance = $null
+if (Test-Path $vswhere) {
+    $vsInstance = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationPath
+}
+
+if ($vsInstance) {
+    Write-Host "[INFO] Using Visual Studio 17 2022 at $vsInstance" -ForegroundColor Green
+    $CMakeGeneratorArgs += @("-G", "Visual Studio 17 2022", "-A", "x64", "-DCMAKE_GENERATOR_INSTANCE=$vsInstance")
+} elseif (Get-Command ninja -ErrorAction SilentlyContinue) {
+    Write-Host "[INFO] Using Ninja generator" -ForegroundColor Green
+    $CMakeGeneratorArgs += @("-G", "Ninja")
+} else {
+    Write-Host "[ERROR] No suitable CMake generator found. Install VS 2022 Build Tools or Ninja." -ForegroundColor Red
+    exit 1
+}
 
 Write-Host "[INFO] Build type: $BuildType" -ForegroundColor Green
 Write-Host "[INFO] Build tests: $BuildTests" -ForegroundColor Green
@@ -47,7 +67,7 @@ if ($Clean) {
 if (Test-Path $ProviderSimDir) {
     Write-Host "[INFO] Building anolis-provider-sim..." -ForegroundColor Green
     Push-Location $ProviderSimDir
-    cmake -B build -S . `
+    cmake @CMakeGeneratorArgs -B build -S . `
         -DCMAKE_BUILD_TYPE="$BuildType" `
         -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
     cmake --build build --config $BuildType
@@ -57,9 +77,9 @@ if (Test-Path $ProviderSimDir) {
 # Build anolis
 Write-Host "[INFO] Building anolis..." -ForegroundColor Green
 Push-Location $RepoRoot
-cmake -B build -S . `
+cmake @CMakeGeneratorArgs -B build -S . `
     -DCMAKE_BUILD_TYPE="$BuildType" `
-    -DBUILD_TESTING=$(if ($BuildTests) { "ON" } else { "OFF" }) `
+    -DBUILD_TESTING=$BuildTestingValue `
     -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
 cmake --build build --config $BuildType
 Pop-Location
