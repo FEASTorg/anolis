@@ -23,6 +23,16 @@ import sys
 BASE_URL = "http://localhost:8080"
 
 
+def wait_for_condition(condition_func, timeout=5.0, interval=0.1, description="condition"):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if condition_func():
+            return True
+        time.sleep(interval)
+    print(f"Warning: Timed out waiting for {description}")
+    return False
+
+
 def test_device_discovery():
     """Test that all 5 devices are discovered."""
     print("\n=== TEST: Device Discovery ===")
@@ -77,8 +87,15 @@ def test_relayio0():
         print(f"  [FAIL] Function call failed: {result['status']['message']}")
         return False
 
-    # Verify state changed
-    time.sleep(0.3)
+    # Verify state changed (wait for poll)
+    def check_relay():
+        resp = requests.get(f"{BASE_URL}/v0/state/sim0/relayio0")
+        state = resp.json()
+        val = next((s for s in state["values"] if s["signal_id"] == "relay_ch1_state"), None)
+        return val and val["value"]["bool"]
+
+    wait_for_condition(check_relay, timeout=2.0)
+    
     resp = requests.get(f"{BASE_URL}/v0/state/sim0/relayio0")
     state = resp.json()
     relay1_after = next(
@@ -118,10 +135,17 @@ def test_analogsensor0():
         "function_id": 2,
         "args": {"enabled": {"type": "bool", "bool": True}},
     }
-    resp = requests.post(f"{BASE_URL}/v0/call", json=call_body)
+    requests.post(f"{BASE_URL}/v0/call", json=call_body)
 
     # Wait for quality to degrade
-    time.sleep(2)
+    def check_quality_bad():
+        resp = requests.get(f"{BASE_URL}/v0/state/sim0/analogsensor0")
+        state = resp.json()
+        q = next((s for s in state["values"] if s["signal_id"] == "sensor_quality"), None)
+        return q and q["value"]["string"] != "GOOD"
+
+    wait_for_condition(check_quality_bad, timeout=5.0, description="quality to degrade")
+    
     resp = requests.get(f"{BASE_URL}/v0/state/sim0/analogsensor0")
     state = resp.json()
     quality_after = next(

@@ -2,11 +2,19 @@
 
 #include <string>
 #include <vector>
+#include "../automation/mode_manager.hpp"
 
 namespace anolis
 {
     namespace runtime
     {
+
+        // Configuration enums
+        enum class GatingPolicy
+        {
+            BLOCK,
+            OVERRIDE
+        };
 
         struct ProviderConfig
         {
@@ -37,7 +45,7 @@ namespace anolis
 
         struct RuntimeModeConfig
         {
-            std::string mode = "MANUAL"; // Default mode
+            automation::RuntimeMode mode = automation::RuntimeMode::MANUAL; // Default mode
         };
 
         struct TelemetryConfig
@@ -84,7 +92,7 @@ namespace anolis
             bool enabled = false;
             std::string behavior_tree;                  // Path to BT XML file
             int tick_rate_hz = 10;                      // BT tick rate (1-1000 Hz)
-            std::string manual_gating_policy = "BLOCK"; // BLOCK or OVERRIDE
+            GatingPolicy manual_gating_policy = GatingPolicy::BLOCK; // BLOCK or OVERRIDE
             std::vector<ParameterConfig> parameters;    // Runtime parameters
         };
 
@@ -98,6 +106,13 @@ namespace anolis
             LoggingConfig logging;
             AutomationConfig automation;
         };
+        
+        // Loads configuration from a YAML file
+        bool load_config(const std::string &config_path, RuntimeConfig &config, std::string &error);
+        
+        // Validates the configuration
+        bool validate_config(const RuntimeConfig &config, std::string &error);
+
 
         // Load config from YAML file
         bool load_config(const std::string &config_path, RuntimeConfig &config, std::string &error);

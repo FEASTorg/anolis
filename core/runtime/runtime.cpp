@@ -110,9 +110,11 @@ namespace anolis
             // Create ModeManager and wire to CallRouter if automation enabled
             if (config_.automation.enabled)
             {
-                auto initial_mode = automation::string_to_mode(config_.runtime.mode);
+                auto initial_mode = config_.runtime.mode;
                 mode_manager_ = std::make_unique<automation::ModeManager>(initial_mode);
-                call_router_->set_mode_manager(mode_manager_.get(), config_.automation.manual_gating_policy);
+                
+                std::string policy_str = (config_.automation.manual_gating_policy == GatingPolicy::BLOCK) ? "BLOCK" : "OVERRIDE";
+                call_router_->set_mode_manager(mode_manager_.get(), policy_str);
             }
 
             // Create and initialize ParameterManager BEFORE HTTP server

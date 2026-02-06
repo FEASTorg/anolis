@@ -135,22 +135,20 @@ class AutomationTester:
             cwd=self.repo_root,  # Set working directory so relative paths work
         )
 
-        # Wait for startup
-        time.sleep(3)
-
-        if self.runtime_process.poll() is not None:
-            raise RuntimeError(
-                f"Runtime process terminated with exit code {self.runtime_process.returncode}"
-            )
-
-        # Verify HTTP endpoint is up
-        for _ in range(10):
+        # Wait for HTTP endpoint to be up
+        deadline = time.time() + 10.0
+        while time.time() < deadline:
+            if self.runtime_process.poll() is not None:
+                raise RuntimeError(
+                    f"Runtime process terminated with exit code {self.runtime_process.returncode}"
+                )
+            
             try:
                 requests.get(f"{self.base_url}/v0/devices", timeout=1)
                 log_pass("Runtime started successfully")
                 return
             except requests.RequestException:
-                time.sleep(0.5)
+                time.sleep(0.1)
 
         raise RuntimeError("Runtime HTTP endpoint did not become available")
 
