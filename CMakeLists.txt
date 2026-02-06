@@ -8,9 +8,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Find protobuf via vcpkg
 find_package(Protobuf CONFIG REQUIRED)
 
-# Enable testing
-enable_testing()
-
 # Subdirectories
 add_subdirectory(core)
-add_subdirectory(tests/unit)
+
+# Enable testing
+option(BUILD_TESTING "Build unit tests" ON)
+
+if(BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(tests/unit)
+endif()

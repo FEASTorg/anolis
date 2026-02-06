@@ -204,3 +204,29 @@ TEST_F(CallRouterTest, PolicyOverrideInAuto)
     auto result = router->execute_call(req, providers);
     EXPECT_TRUE(result.success);
 }
+
+TEST_F(CallRouterTest, InvalidArgumentPropagation)
+{
+    RegisterMockDevice();
+
+    control::CallRequest req;
+    req.device_handle = "sim0/dev1";
+    req.function_name = "reset";
+
+    // Setup provider to return INVALID_ARGUMENT
+    auto fail_response = [this](std::string device_id, std::string function, std::string args_blob,
+                                std::map<std::string, ProtoValue> &kw_args,
+                                CallResponse *response) {
+        response->mutable_status()->set_code(anolis::deviceprovider::v0::Status_Code_CODE_INVALID_ARGUMENT);
+        response->mutable_status()->set_message("Invalid voltage");
+        return true; // The RPC itself succeeded (transport-wise), but logical error
+    };
+
+    EXPECT_CALL(*mock_provider, call("dev1", _, "reset", _, _))
+        .WillOnce(Invoke(fail_response));
+
+    auto result = router->execute_call(req, providers);
+    EXPECT_FALSE(result.success);
+    EXPECT_EQ(result.status_code, anolis::deviceprovider::v0::Status_Code_CODE_INVALID_ARGUMENT);
+    EXPECT_THAT(result.error_message, HasSubstr("Invalid voltage"));
+}
