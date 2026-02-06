@@ -112,8 +112,12 @@ jobs:
             -DVCPKG_MANIFEST_INSTALL=OFF \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           cmake --build build --config Release --parallel
+      
+      - name: Run unit tests
+        run: |
+          ctest --test-dir build --output-on-failure -C Release
 
-      - name: Run tests
+      - name: Run integration tests
         env:
           LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/lib
         run: |
@@ -221,7 +225,11 @@ jobs:
             "-DVCPKG_MANIFEST_INSTALL=OFF"
           cmake --build build --config Release --parallel
 
-      - name: Run tests
+      - name: Run unit tests
+        run: |
+          ctest --test-dir build --output-on-failure -C Release
+
+      - name: Run integration tests
         run: |
           python scripts/test_all.py --timeout=120 "--provider=$env:GITHUB_WORKSPACE/anolis-provider-sim/build/Release/anolis-provider-sim.exe"
 
