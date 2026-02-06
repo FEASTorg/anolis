@@ -51,6 +51,13 @@ namespace anolis
             }
 
         private:
+            // Staged initialization helpers
+            bool init_providers(std::string &error);
+            bool init_core_services(std::string &error);
+            bool init_automation(std::string &error);
+            bool init_http(std::string &error);
+            bool init_telemetry(std::string &error);
+
             RuntimeConfig config_;
 
             std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> providers_;

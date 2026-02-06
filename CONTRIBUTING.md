@@ -14,14 +14,24 @@ Thank you for your interest in contributing to Anolis!
 
 ### Setup
 
-1. Clone the repositories:
+1. **Repository Layout**:
+   The build scripts assume `anolis` and `anolis-provider-sim` are sibling directories.
+   **You must clone them into the same parent folder.**
+
+   ```text
+   workspace/
+   ├── anolis/
+   └── anolis-provider-sim/
+   ```
+
+2. Clone the repositories:
 
    ```bash
    git clone https://github.com/FEASTorg/anolis.git
    git clone https://github.com/FEASTorg/anolis-provider-sim.git
    ```
 
-2. Run the setup script:
+3. Run the setup script:
 
    ```bash
    # Linux/macOS

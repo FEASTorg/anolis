@@ -21,9 +21,56 @@ namespace anolis
         {
             LOG_INFO("[Runtime] Initializing Anolis Core");
 
+            if (!init_core_services(error))
+                return false;
+
+            if (!init_providers(error))
+                return false;
+
+            if (!state_cache_->initialize())
+            {
+                error = "State cache initialization failed: " + state_cache_->last_error();
+                return false;
+            }
+
+            if (!init_automation(error))
+                return false;
+
+            if (!init_http(error))
+                return false;
+
+            if (!init_telemetry(error))
+                return false;
+
+            LOG_INFO("[Runtime] Initialization complete");
+            return true;
+        }
+
+        bool Runtime::init_core_services(std::string &error)
+        {
             // Create registry
             registry_ = std::make_unique<registry::DeviceRegistry>();
 
+            // Create event emitter
+            // Default: 100 events per subscriber queue, max 32 SSE clients
+            event_emitter_ = std::make_shared<events::EventEmitter>(100, 32);
+            LOG_INFO("[Runtime] Event emitter created (max " << event_emitter_->max_subscribers() << " subscribers)");
+
+            // Create state cache
+            state_cache_ = std::make_unique<state::StateCache>(*registry_, config_.polling.interval_ms);
+
+            // Wire event emitter to state cache
+            state_cache_->set_event_emitter(event_emitter_);
+
+
+            // Create call router
+            call_router_ = std::make_unique<control::CallRouter>(*registry_, *state_cache_);
+
+            return true;
+        }
+
+        bool Runtime::init_providers(std::string &error)
+        {
             // Start all providers and discover
             for (const auto &provider_config : config_.providers)
             {
@@ -55,27 +102,11 @@ namespace anolis
             }
 
             LOG_INFO("[Runtime] All providers started");
+            return true;
+        }
 
-            // Create event emitter
-            // Default: 100 events per subscriber queue, max 32 SSE clients
-            event_emitter_ = std::make_shared<events::EventEmitter>(100, 32);
-            LOG_INFO("[Runtime] Event emitter created (max " << event_emitter_->max_subscribers() << " subscribers)");
-
-            // Create state cache
-            state_cache_ = std::make_unique<state::StateCache>(*registry_, config_.polling.interval_ms);
-
-            // Wire event emitter to state cache
-            state_cache_->set_event_emitter(event_emitter_);
-
-            if (!state_cache_->initialize())
-            {
-                error = "State cache initialization failed: " + state_cache_->last_error();
-                return false;
-            }
-
-            // Create call router
-            call_router_ = std::make_unique<control::CallRouter>(*registry_, *state_cache_);
-
+        bool Runtime::init_automation(std::string &error)
+        {
             // Create ModeManager and wire to CallRouter if automation enabled
             if (config_.automation.enabled)
             {
@@ -147,67 +178,7 @@ namespace anolis
 
                 LOG_INFO("[Runtime] Parameter manager initialized with " << parameter_manager_->parameter_count() << " parameters");
             }
-
-            // Create and start HTTP server if enabled
-            if (config_.http.enabled)
-            {
-                LOG_INFO("[Runtime] Creating HTTP server");
-                http_server_ = std::make_unique<http::HttpServer>(
-                    config_.http,
-                    *registry_,
-                    *state_cache_,
-                    *call_router_,
-                    providers_,
-                    event_emitter_,          // Pass event emitter for SSE
-                    mode_manager_.get(),     // Pass mode manager (nullptr if automation disabled)
-                    parameter_manager_.get() // Pass parameter manager (nullptr if automation disabled)
-                );
-
-                std::string http_error;
-                if (!http_server_->start(http_error))
-                {
-                    error = "HTTP server failed to start: " + http_error;
-                    return false;
-                }
-                LOG_INFO("[Runtime] HTTP server started on " << config_.http.bind << ":" << config_.http.port);
-            }
-            else
-            {
-                LOG_INFO("[Runtime] HTTP server disabled in config");
-            }
-
-            // Start telemetry sink if enabled
-            if (config_.telemetry.enabled)
-            {
-                LOG_INFO("[Runtime] Creating telemetry sink");
-
-                telemetry::InfluxConfig influx_config;
-                influx_config.enabled = true;
-                influx_config.url = config_.telemetry.influx_url;
-                influx_config.org = config_.telemetry.influx_org;
-                influx_config.bucket = config_.telemetry.influx_bucket;
-                influx_config.token = config_.telemetry.influx_token;
-                influx_config.batch_size = config_.telemetry.batch_size;
-                influx_config.flush_interval_ms = config_.telemetry.flush_interval_ms;
-                influx_config.queue_size = config_.telemetry.queue_size;
-
-                telemetry_sink_ = std::make_unique<telemetry::InfluxSink>(influx_config);
-
-                if (!telemetry_sink_->start(event_emitter_))
-                {
-                    LOG_WARN("[Runtime] Telemetry sink failed to start");
-                    // Don't fail runtime initialization - telemetry is optional
-                }
-                else
-                {
-                    LOG_INFO("[Runtime] Telemetry sink started");
-                }
-            }
-            else
-            {
-                LOG_INFO("[Runtime] Telemetry disabled in config");
-            }
-
+            
             // Register mode change callback to emit telemetry events (only if automation enabled)
             if (mode_manager_)
             {
@@ -288,8 +259,75 @@ namespace anolis
             {
                 LOG_INFO("[Runtime] Automation disabled in config");
             }
+            
+            return true;
+        }
 
-            LOG_INFO("[Runtime] Initialization complete");
+        bool Runtime::init_http(std::string &error)
+        {
+            // Create and start HTTP server if enabled
+            if (config_.http.enabled)
+            {
+                LOG_INFO("[Runtime] Creating HTTP server");
+                http_server_ = std::make_unique<http::HttpServer>(
+                    config_.http,
+                    *registry_,
+                    *state_cache_,
+                    *call_router_,
+                    providers_,
+                    event_emitter_,          // Pass event emitter for SSE
+                    mode_manager_.get(),     // Pass mode manager (nullptr if automation disabled)
+                    parameter_manager_.get() // Pass parameter manager (nullptr if automation disabled)
+                );
+
+                std::string http_error;
+                if (!http_server_->start(http_error))
+                {
+                    error = "HTTP server failed to start: " + http_error;
+                    return false;
+                }
+                LOG_INFO("[Runtime] HTTP server started on " << config_.http.bind << ":" << config_.http.port);
+            }
+            else
+            {
+                LOG_INFO("[Runtime] HTTP server disabled in config");
+            }
+            return true;
+        }
+
+        bool Runtime::init_telemetry(std::string &error)
+        {
+            // Start telemetry sink if enabled
+            if (config_.telemetry.enabled)
+            {
+                LOG_INFO("[Runtime] Creating telemetry sink");
+
+                telemetry::InfluxConfig influx_config;
+                influx_config.enabled = true;
+                influx_config.url = config_.telemetry.influx_url;
+                influx_config.org = config_.telemetry.influx_org;
+                influx_config.bucket = config_.telemetry.influx_bucket;
+                influx_config.token = config_.telemetry.influx_token;
+                influx_config.batch_size = config_.telemetry.batch_size;
+                influx_config.flush_interval_ms = config_.telemetry.flush_interval_ms;
+                influx_config.queue_size = config_.telemetry.queue_size;
+
+                telemetry_sink_ = std::make_unique<telemetry::InfluxSink>(influx_config);
+
+                if (!telemetry_sink_->start(event_emitter_))
+                {
+                    LOG_WARN("[Runtime] Telemetry sink failed to start");
+                    // Don't fail runtime initialization - telemetry is optional
+                }
+                else
+                {
+                    LOG_INFO("[Runtime] Telemetry sink started");
+                }
+            }
+            else
+            {
+                LOG_INFO("[Runtime] Telemetry disabled in config");
+            }
             return true;
         }
 
