@@ -13,7 +13,7 @@ $RepoRoot = Split-Path -Parent $ScriptDir
 Write-Host "[INFO] Running Anolis test suite..." -ForegroundColor Green
 Push-Location $RepoRoot
 
-$args = @("$ScriptDir\test_all.py")
+$args = @("$RepoRoot\tests\integration\test_all.py")
 if ($Verbose) {
     $args += "--verbose"
 }

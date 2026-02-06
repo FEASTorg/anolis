@@ -21,5 +21,5 @@ done
 echo "[INFO] Running Anolis test suite..."
 cd "$REPO_ROOT"
 
-python3 "$SCRIPT_DIR/test_all.py" $VERBOSE
+python3 "tests/integration/test_all.py" $VERBOSE
 exit $?

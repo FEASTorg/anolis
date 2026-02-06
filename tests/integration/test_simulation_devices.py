@@ -34,9 +34,9 @@ def test_device_discovery():
     print(f"  Found {len(found_devices)} devices")
     for device_id in expected_devices:
         if device_id in found_devices:
-            print(f"  ✓ {device_id}")
+            print(f"  [PASS] {device_id}")
         else:
-            print(f"  ✗ MISSING: {device_id}")
+            print(f"  [FAIL] MISSING: {device_id}")
             return False
     
     return True
@@ -69,7 +69,7 @@ def test_relayio0():
     result = resp.json()
     
     if result['status']['code'] != 'OK':
-        print(f"  ✗ Function call failed: {result['status']['message']}")
+        print(f"  [FAIL] Function call failed: {result['status']['message']}")
         return False
     
     # Verify state changed
@@ -79,10 +79,10 @@ def test_relayio0():
     relay1_after = next((s for s in state['values'] if s['signal_id'] == 'relay_ch1_state'), None)
     
     if relay1_after['value']['bool']:
-        print(f"  ✓ Relay toggled successfully")
+        print(f"  [PASS] Relay toggled successfully")
         return True
     else:
-        print(f"  ✗ Relay did not toggle")
+        print(f"  [FAIL] Relay did not toggle")
         return False
 
 def test_analogsensor0():
@@ -122,10 +122,10 @@ def test_analogsensor0():
     print(f"  sensor_quality after noise: {quality_after['value']['string']}")
     
     if quality_after['value']['string'] in ["NOISY", "FAULT"]:
-        print(f"  ✓ Quality degraded as expected")
+        print(f"  [PASS] Quality degraded as expected")
         return True
     else:
-        print(f"  ✗ Quality did not degrade")
+        print(f"  [FAIL] Quality did not degrade")
         return False
 
 def test_fault_injection_clear():
@@ -142,10 +142,10 @@ def test_fault_injection_clear():
     result = resp.json()
     
     if result['status']['code'] == 'OK':
-        print(f"  ✓ clear_faults succeeded")
+        print(f"  [PASS] clear_faults succeeded")
         return True
     else:
-        print(f"  ✗ clear_faults failed: {result['status']['message']}")
+        print(f"  [FAIL] clear_faults failed: {result['status']['message']}")
         return False
 
 def test_fault_injection_device_unavailable():
@@ -183,7 +183,7 @@ def test_fault_injection_device_unavailable():
     resp = requests.get(f"{BASE_URL}/v0/state/sim0/motorctl0")
     # Device will return cached state but provider logs should show errors
     
-    print(f"  ✓ inject_device_unavailable called (check runtime logs for errors)")
+    print(f"  [PASS] inject_device_unavailable called (check runtime logs for errors)")
     
     # Clear faults
     time.sleep(2)
@@ -238,10 +238,10 @@ def test_fault_injection_call_latency():
     test_fault_injection_clear()
     
     if elapsed >= 0.9:
-        print(f"  ✓ Latency injection working")
+        print(f"  [PASS] Latency injection working")
         return True
     else:
-        print(f"  ✗ No latency detected")
+        print(f"  [FAIL] No latency detected")
         return False
 
 def test_fault_injection_call_failure():
@@ -292,10 +292,10 @@ def test_fault_injection_call_failure():
     test_fault_injection_clear()
     
     if result['status']['code'] != 'OK':
-        print(f"  ✓ Call failed as expected: {result['status']['message']}")
+        print(f"  [PASS] Call failed as expected: {result['status']['message']}")
         return True
     else:
-        print(f"  ✗ Call succeeded when it should have failed")
+        print(f"  [FAIL] Call succeeded when it should have failed")
         return False
 
 def main():
@@ -323,7 +323,7 @@ def main():
             else:
                 failed += 1
         except Exception as e:
-            print(f"  ✗ Exception: {e}")
+            print(f"  [FAIL] Exception: {e}")
             failed += 1
     
     print("\n" + "=" * 60)
@@ -339,5 +339,5 @@ if __name__ == "__main__":
         print("\n\nInterrupted by user")
         sys.exit(1)
     except requests.exceptions.ConnectionError:
-        print("\n✗ Could not connect to runtime. Is it running at localhost:8080?")
+        print("\n[FAIL] Could not connect to runtime. Is it running at localhost:8080?")
         sys.exit(1)

@@ -17,7 +17,7 @@ from .base import ScenarioBase, ScenarioResult, create_result
 
 
 class HappyPathEndToEnd(ScenarioBase):
-    """Validate complete device discovery → state → control → telemetry flow."""
+    """Validate complete device discovery -> state -> control -> telemetry flow."""
     
     def run(self) -> ScenarioResult:
         """Execute happy path scenario."""
@@ -99,7 +99,7 @@ class HappyPathEndToEnd(ScenarioBase):
             return create_result(
                 self, 
                 True, 
-                "Happy path validation passed: discovery → capabilities → state → control → verify"
+                "Happy path validation passed: discovery -> capabilities -> state -> control -> verify"
             )
             
         except AssertionError as e:

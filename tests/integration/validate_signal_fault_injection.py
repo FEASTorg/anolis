@@ -101,7 +101,7 @@ def test_signal_fault_injection():
         print(f"FAIL: Signal quality should be FAULT, got: {temp_pv_faulted['quality']}")
         return False
     
-    print("   ✓ Quality correctly set to FAULT")
+    print("   [PASS] Quality correctly set to FAULT")
     
     # Step 4: Verify value is frozen (doesn't change)
     print("\n4. Verifying value is frozen...")
@@ -123,7 +123,7 @@ def test_signal_fault_injection():
     
     # Note: We don't strictly verify value freeze since temp_pv might legitimately not change
     # The key is that quality remains FAULT
-    print("   ✓ Quality remains FAULT (value frozen)")
+    print("   [PASS] Quality remains FAULT (value frozen)")
     
     # Step 5: Clear faults and verify recovery
     print("\n5. Clearing faults...")
@@ -156,7 +156,7 @@ def test_signal_fault_injection():
         print(f"FAIL: Quality should be OK after clearing faults, got: {temp_pv_recovered['quality']}")
         return False
     
-    print("   ✓ Quality recovered to OK")
+    print("   [PASS] Quality recovered to OK")
     
     print("\n=== PASS: Signal fault injection working correctly ===\n")
     return True

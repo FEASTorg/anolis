@@ -111,7 +111,7 @@ class FaultToManualRecovery(ScenarioBase):
             return create_result(
                 self,
                 True,
-                f"Fault recovery validated: fault injected → cleared → manual control restored (mode: {final_mode})"
+                f"Fault recovery validated: fault injected -> cleared -> manual control restored (mode: {final_mode})"
             )
             
         except AssertionError as e:

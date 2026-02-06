@@ -416,7 +416,7 @@ class ScenarioRunner:
             try:
                 runtime = self.start_runtime(policy=policy)
             except Exception as e:
-                print(f"\n  ✗ FAIL {scenario_class.__name__} (startup failed)")
+                print(f"\n  [FAIL] {scenario_class.__name__} (startup failed)")
                 print(f"      {str(e)}")
                 results.append(
                     ScenarioResult(
@@ -439,8 +439,8 @@ class ScenarioRunner:
                 # Since we used end="", we are on the same line.
                 print(f" {status} ({result.duration_seconds:.2f}s)")
 
-                status = "✓ PASS" if result.passed else "✗ FAIL"
-                print(f"  {status} {result.name} ({result.duration_seconds:.2f}s)")
+                status_mark = "[PASS]" if result.passed else "[FAIL]"
+                print(f"  {status_mark} {result.name} ({result.duration_seconds:.2f}s)")
                 if not result.passed:
                     print(f"      {result.message}")
                     if result.details and self.verbose:
@@ -470,7 +470,7 @@ class ScenarioRunner:
             print("\nFailed scenarios:")
             for r in results:
                 if not r.passed:
-                    print(f"  ✗ {r.name}")
+                    print(f"  [FAIL] {r.name}")
                     print(f"      {r.message}")
                     if r.details:
                         print(f"      {r.details}")
