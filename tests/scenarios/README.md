@@ -132,19 +132,19 @@ from .base import ScenarioBase, ScenarioResult
 
 class MyScenario(ScenarioBase):
     """Brief description of what this scenario validates."""
-    
+
     def setup(self) -> None:
         """One-time setup before scenario runs."""
         super().setup()  # Important: clears faults and resets mode
         # Add scenario-specific setup
-    
+
     def run(self) -> ScenarioResult:
         """Execute test steps and return result."""
         try:
             # Step 1: Setup test conditions
             # Step 2: Perform actions
             # Step 3: Verify outcomes
-            
+
             return ScenarioResult(
                 passed=True,
                 message="Scenario passed successfully"
@@ -159,7 +159,7 @@ class MyScenario(ScenarioBase):
                 passed=False,
                 message=f"Unexpected error: {e}"
             )
-    
+
     def cleanup(self) -> None:
         """Cleanup after scenario completes."""
         # Add scenario-specific cleanup

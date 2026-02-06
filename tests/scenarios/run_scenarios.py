@@ -377,7 +377,7 @@ class ScenarioRunner:
             # Normalize filter and class names for robust matching
             # e.g. "happy_path_end_to_end" matches "HappyPathEndToEnd"
             normalized_filter = scenario_filter.lower().replace("_", "")
-            
+
             scenario_classes = [
                 sc
                 for sc in scenario_classes
@@ -508,7 +508,7 @@ def find_executable(name: str, build_dir: str = "build") -> Optional[str]:
             path = PROJECT_ROOT / d / config / name
             if path.exists():
                 return str(path)
-            
+
             # Linux/Mac (no config folder)
             path = PROJECT_ROOT / d / name
             if path.exists():
@@ -550,9 +550,9 @@ def main():
         # Check core/ build location
         runtime_path = find_executable("anolis-runtime", "build/core")
         if not runtime_path:
-             # Check root build location (fallback)
+            # Check root build location (fallback)
             runtime_path = find_executable("anolis-runtime", "build")
-            
+
         if not runtime_path:
             print("ERROR: Could not find anolis-runtime executable")
             print("Use --runtime to specify path")

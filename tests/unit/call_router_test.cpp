@@ -16,14 +16,16 @@ using namespace anolis;
 using namespace testing;
 using namespace anolis::tests;
 
-class CallRouterTest : public Test {
+class CallRouterTest : public Test
+{
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         registry = std::make_unique<registry::DeviceRegistry>();
         state_cache = std::make_unique<state::StateCache>(*registry, 100);
         router = std::make_unique<control::CallRouter>(*registry, *state_cache);
         mode_manager = std::make_unique<automation::ModeManager>();
-        
+
         // Default: Connect router to mode manager with NO blocking
         router->set_mode_manager(mode_manager.get(), "OVERRIDE");
 
@@ -31,24 +33,26 @@ protected:
         mock_provider->_id = "sim0";
         EXPECT_CALL(*mock_provider, provider_id()).WillRepeatedly(ReturnRef(mock_provider->_id));
         EXPECT_CALL(*mock_provider, is_available()).WillRepeatedly(Return(true));
-        
+
         providers["sim0"] = mock_provider;
     }
-    
+
     // ... existing RegisterMockDevice ...
-    void RegisterMockDevice() {
+    void RegisterMockDevice()
+    {
         // Setup mock provider behavior for discovery
         // Note: The registry will call list_devices then describe_device
         EXPECT_CALL(*mock_provider, list_devices(_))
-            .WillOnce(Invoke([](std::vector<Device>& devices) {
+            .WillOnce(Invoke([](std::vector<Device> &devices)
+                             {
                 Device dev;
                 dev.set_device_id("dev1");
                 devices.push_back(dev);
-                return true;
-            }));
+                return true; }));
 
         EXPECT_CALL(*mock_provider, describe_device("dev1", _))
-            .WillOnce(Invoke([](const std::string&, DescribeDeviceResponse& response) {
+            .WillOnce(Invoke([](const std::string &, DescribeDeviceResponse &response)
+                             {
                  auto* device = response.mutable_device();
                  device->set_device_id("dev1");
                  
@@ -56,12 +60,11 @@ protected:
                  auto* fn = caps->add_functions();
                  fn->set_name("reset");
                  fn->set_function_id(1);
-                 return true;
-            }));
+                 return true; }));
 
         registry->discover_provider("sim0", *mock_provider);
     }
-    
+
     std::unique_ptr<registry::DeviceRegistry> registry;
     std::unique_ptr<state::StateCache> state_cache;
     std::unique_ptr<control::CallRouter> router;
@@ -70,7 +73,8 @@ protected:
     std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> providers;
 };
 
-TEST_F(CallRouterTest, ExecuteCallSuccess) {
+TEST_F(CallRouterTest, ExecuteCallSuccess)
+{
     RegisterMockDevice();
 
     control::CallRequest req;
@@ -86,11 +90,12 @@ TEST_F(CallRouterTest, ExecuteCallSuccess) {
     EXPECT_EQ(result.status_code, anolis::deviceprovider::v0::Status_Code_CODE_OK);
 }
 
-TEST_F(CallRouterTest, ProviderUnavailable) {
+TEST_F(CallRouterTest, ProviderUnavailable)
+{
     RegisterMockDevice();
-    
+
     // Override is_available to false for the call check
-    // Note: poll_once or other valid calls usually check this. 
+    // Note: poll_once or other valid calls usually check this.
     // CallRouter checks it explicitly.
     EXPECT_CALL(*mock_provider, is_available()).WillRepeatedly(Return(false));
 
@@ -103,7 +108,8 @@ TEST_F(CallRouterTest, ProviderUnavailable) {
     EXPECT_EQ(result.status_code, anolis::deviceprovider::v0::Status_Code_CODE_UNAVAILABLE);
 }
 
-TEST_F(CallRouterTest, InvalidFunction) {
+TEST_F(CallRouterTest, InvalidFunction)
+{
     RegisterMockDevice(); // Has "reset"
 
     control::CallRequest req;
@@ -112,10 +118,11 @@ TEST_F(CallRouterTest, InvalidFunction) {
 
     auto result = router->execute_call(req, providers);
     EXPECT_FALSE(result.success);
-    EXPECT_EQ(result.status_code, anolis::deviceprovider::v0::Status_Code_CODE_NOT_FOUND); 
+    EXPECT_EQ(result.status_code, anolis::deviceprovider::v0::Status_Code_CODE_NOT_FOUND);
 }
 
-TEST_F(CallRouterTest, PreconditionFailure) {
+TEST_F(CallRouterTest, PreconditionFailure)
+{
     RegisterMockDevice();
 
     control::CallRequest req;
@@ -127,15 +134,16 @@ TEST_F(CallRouterTest, PreconditionFailure) {
     // The CallResponse is the 5th arg.
 
     EXPECT_CALL(*mock_provider, call("dev1", _, "reset", _, _))
-        .WillOnce(Invoke([](const std::string&, uint32_t, const std::string&, const ValueMap&, CallResponse& resp) {
-            // Note: CallResponse doesn't have status code in DPV0 if it fails?
-            // Checking protocol.pb.h above, CallResponse has `results` and `operation_id`.
-            // The STATUS is defined in the top-level Response envelope (spec/device-provider/protocol.proto).
-            // However, the provider interface (IProviderHandle) returns bool. 
-            // If it returns false, the router checks last_status_code() of the provider handle?
-            // Let's check IProviderHandle again.
-            return false; // Provider indicates failure
-        }));
+        .WillOnce(Invoke([](const std::string &, uint32_t, const std::string &, const ValueMap &, CallResponse &resp)
+                         {
+                             // Note: CallResponse doesn't have status code in DPV0 if it fails?
+                             // Checking protocol.pb.h above, CallResponse has `results` and `operation_id`.
+                             // The STATUS is defined in the top-level Response envelope (spec/device-provider/protocol.proto).
+                             // However, the provider interface (IProviderHandle) returns bool.
+                             // If it returns false, the router checks last_status_code() of the provider handle?
+                             // Let's check IProviderHandle again.
+                             return false; // Provider indicates failure
+                         }));
 
     // If call returns false, Router should check provider->last_status_code()
     EXPECT_CALL(*mock_provider, last_status_code())
@@ -151,7 +159,8 @@ TEST_F(CallRouterTest, PreconditionFailure) {
     EXPECT_EQ(result.status_code, anolis::deviceprovider::v0::Status_Code_CODE_FAILED_PRECONDITION);
 }
 
-TEST_F(CallRouterTest, PolicyBlockInAuto) {
+TEST_F(CallRouterTest, PolicyBlockInAuto)
+{
     RegisterMockDevice();
 
     // 1. Set policy to BLOCK
@@ -173,7 +182,8 @@ TEST_F(CallRouterTest, PolicyBlockInAuto) {
     EXPECT_THAT(result.error_message, HasSubstr("blocked in AUTO"));
 }
 
-TEST_F(CallRouterTest, PolicyOverrideInAuto) {
+TEST_F(CallRouterTest, PolicyOverrideInAuto)
+{
     RegisterMockDevice();
 
     // 1. Set policy to OVERRIDE (Explicitly allow)
