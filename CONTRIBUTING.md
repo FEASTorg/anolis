@@ -41,7 +41,7 @@ Thank you for your interest in contributing to Anolis!
    .\scripts\setup.ps1
    ```
 
-3. Run the tests:
+4. Run the tests:
 
    ```bash
    # Linux/macOS
@@ -126,6 +126,86 @@ Any bug fixed must include a test that would have caught it.
 - Tests must be runnable standalone (`python scripts/test_core.py`)
 - Tests must clean up processes after completion
 - Tests must exit with proper exit codes (0 = pass, non-zero = fail)
+
+## Code Quality
+
+### C++ Code Quality
+
+#### Static Analysis (clang-tidy)
+
+We use `clang-tidy` for static analysis. To run it locally:
+
+1. Ensure `clang-tidy` is installed.
+2. Configure CMake with `-DENABLE_CLANG_TIDY=ON`.
+3. Build the project.
+
+```bash
+# Windows (PowerShell) - utilizing the VCPKG_ROOT environment variable
+cmake -B build -DENABLE_CLANG_TIDY=ON -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+cmake --build build
+
+# Linux (Bash)
+cmake -B build -DENABLE_CLANG_TIDY=ON -DCMAKE_TOOLCHAIN_FILE="${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+cmake --build build
+```
+
+**To install clang-tidy**:
+
+- **Windows**: Install "C++ Clang tools for Windows" via the Visual Studio Installer (under "Desktop development with C++"), or download LLVM from [releases.llvm.org](https://releases.llvm.org/).
+- **Linux**: `sudo apt install clang-tidy`
+
+**To apply fixes**:
+
+Some checks support automatic fixing. You can run clang-tidy directly on files:
+
+```bash
+clang-tidy -p build --fix core/runtime/src/main.cpp
+```
+
+#### Formatting (clang-format)
+
+We use `clang-format` to enforce C++ style.
+
+```bash
+# Apply formatting
+clang-format -i core/runtime/src/main.cpp
+
+# Recursively (PowerShell)
+Get-ChildItem -Path core -Recurse -Include *.cpp,*.hpp | ForEach-Object { clang-format -i $_.FullName }
+
+# Recursively (Bash)
+find core \( -name "*.cpp" -o -name "*.hpp" \) -print0 | xargs -0 clang-format -i
+```
+
+### Python Code Quality
+
+We use `ruff` for both linting and formatting Python scripts.
+
+#### Setup
+
+```bash
+pip install -r requirements.txt
+```
+
+#### Linting & Formatting
+
+```bash
+# Fix auto-fixable lint issues
+ruff check --fix .
+
+# Apply formatting
+ruff format .
+```
+
+### Sanitizers (ASAN)
+
+To run with AddressSanitizer (ASAN) on Linux/macOS:
+
+```bash
+cmake -B build_asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-fsanitize=address"
+cmake --build build_asan
+ctest --test-dir build_asan
+```
 
 ## Project Structure
 

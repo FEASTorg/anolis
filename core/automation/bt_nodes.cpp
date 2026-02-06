@@ -116,6 +116,7 @@ namespace anolis
         BT::NodeStatus ReadSignalNode::tick()
         {
             auto state_cache = get_state_cache();
+            int unused; // to trigger clang-tidy warning to test
             if (!state_cache)
             {
                 LOG_ERROR("[ReadSignalNode] StateCache not available in blackboard");

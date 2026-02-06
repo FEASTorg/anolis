@@ -1,0 +1,6 @@
+---
+Checks: "clang-diagnostic-*,clang-analyzer-*,performance-*,readability-*,bugprone-*,-readability-identifier-naming"
+WarningsAsErrors: ""
+HeaderFilterRegex: "core/.*"
+FormatStyle: file
+...
