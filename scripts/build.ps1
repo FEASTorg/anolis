@@ -1,11 +1,12 @@
 # Anolis Build Script (Windows)
 #
 # Usage:
-#   .\scripts\build.ps1 [-Clean] [-Debug]
+#   .\scripts\build.ps1 [-Clean] [-Debug] [-NoTests]
 
 param(
     [switch]$Clean,
-    [switch]$Debug
+    [switch]$Debug,
+    [switch]$NoTests
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,8 +16,10 @@ $RepoRoot = Split-Path -Parent $ScriptDir
 $ProviderSimDir = Join-Path (Split-Path -Parent $RepoRoot) "anolis-provider-sim"
 
 $BuildType = if ($Debug) { "Debug" } else { "Release" }
+$BuildTests = -not $NoTests
 
 Write-Host "[INFO] Build type: $BuildType" -ForegroundColor Green
+Write-Host "[INFO] Build tests: $BuildTests" -ForegroundColor Green
 
 # Check vcpkg
 if (-not $env:VCPKG_ROOT) {
@@ -56,6 +59,7 @@ Write-Host "[INFO] Building anolis..." -ForegroundColor Green
 Push-Location $RepoRoot
 cmake -B build -S . `
     -DCMAKE_BUILD_TYPE="$BuildType" `
+    -DBUILD_TESTING=$(if ($BuildTests) { "ON" } else { "OFF" }) `
     -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
 cmake --build build --config $BuildType
 Pop-Location

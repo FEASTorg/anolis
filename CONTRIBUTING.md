@@ -131,27 +131,16 @@ Any bug fixed must include a test that would have caught it.
 
 #### Static Analysis (clang-tidy)
 
-**Primary Check**: We rely on **CI (GitHub Actions)** to enforce static analysis.
-Run your code through a Pull Request to see detailed reports.
+**Primary Check**: clang-tidy runs in CI on **Linux** builds. MSVC/Visual Studio integration is unreliable (mixed diagnostics, incomplete coverage), so we do **not** enforce clang-tidy on Windows.
 
-**Optional Local Check**:
-If you want to run it locally on Windows:
+**Local runs (recommended: Linux/WSL)**:
 
-1. Configure with `-DENABLE_CLANG_TIDY=ON`.
-2. **Clean Rebuild**: Analysis only runs during compilation.
+- Enable via the build script: `./scripts/build.sh --clang-tidy` (default on Linux; disable with `--no-clang-tidy` if you want a faster build).
+- You need `clang-tidy` installed (`sudo apt install clang-tidy`).
 
-   ```bash
-   cmake -B build -DENABLE_CLANG_TIDY=ON -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
-   cmake --build build --clean-first
-   ```
+**Windows note**: You can install clang-tidy with the "C++ Clang tools" workload or LLVM, but results under MSVC are incomplete; prefer running analysis from Linux/WSL instead.
 
-**To install clang-tidy**:
-
-- **Windows**: Install via Visual Studio Installer ("C++ Clang tools") or LLVM.
-- **Linux**: `sudo apt install clang-tidy`
-
-**To apply fixes**:
-Automatic fixing is best done on Linux or WSL using `compile_commands.json` (not supported by MSVC generator).
+**To apply fixes**: Use Linux/WSL with `compile_commands.json`; MSVC generators do not support apply-fixes reliably.
 
 #### Formatting (clang-format)
 

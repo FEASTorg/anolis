@@ -41,6 +41,10 @@ bool validate_config(const RuntimeConfig &config, std::string &error) {
             error = "HTTP thread_pool_size must be at least 1";
             return false;
         }
+        if (config.http.cors_allowed_origins.empty()) {
+            error = "http.cors_allowed_origins must not be empty";
+            return false;
+        }
     }
 
     // Validate Provider settings
@@ -134,9 +138,27 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
             if (yaml["http"]["port"]) {
                 config.http.port = yaml["http"]["port"].as<int>();
             }
-            if (yaml["http"]["cors_origin"]) {
-                config.http.cors_origin = yaml["http"]["cors_origin"].as<std::string>();
+
+            // CORS allowlist (supports scalar or sequence)
+            if (yaml["http"]["cors_allowed_origins"]) {
+                const auto &origins_node = yaml["http"]["cors_allowed_origins"];
+                config.http.cors_allowed_origins.clear();
+                if (origins_node.IsSequence()) {
+                    for (const auto &origin : origins_node) {
+                        config.http.cors_allowed_origins.push_back(origin.as<std::string>());
+                    }
+                } else if (origins_node.IsScalar()) {
+                    config.http.cors_allowed_origins.push_back(origins_node.as<std::string>());
+                }
+
+                if (config.http.cors_allowed_origins.empty()) {
+                    config.http.cors_allowed_origins.push_back("*");
+                }
             }
+            if (yaml["http"]["cors_allow_credentials"]) {
+                config.http.cors_allow_credentials = yaml["http"]["cors_allow_credentials"].as<bool>();
+            }
+
             if (yaml["http"]["thread_pool_size"]) {
                 config.http.thread_pool_size = yaml["http"]["thread_pool_size"].as<int>();
             }

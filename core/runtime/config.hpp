@@ -30,8 +30,9 @@ struct HttpConfig {
     bool enabled = true;             // HTTP server enabled
     std::string bind = "127.0.0.1";  // Bind address
     int port = 8080;                 // HTTP port
-    std::string cors_origin = "*";   // Allowed CORS Origin
-    int thread_pool_size = 40;       // Worker thread pool size
+    std::vector<std::string> cors_allowed_origins{"*"};  // CORS allowlist ("*" = allow all)
+    bool cors_allow_credentials = false;            // Whether to emit Access-Control-Allow-Credentials
+    int thread_pool_size = 40;                      // Worker thread pool size
 };
 
 struct RuntimeModeConfig {

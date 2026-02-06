@@ -37,7 +37,14 @@ jobs:
             -DENABLE_CLANG_TIDY=ON
 
       - name: Analyze
-        run: cmake --build build --parallel
+        run: |
+          cmake --build build --parallel 2>&1 | tee clang-tidy.log
+
+      - name: Upload clang-tidy log
+        uses: actions/upload-artifact@v4
+        with:
+          name: clang-tidy-log
+          path: clang-tidy.log
 
   sanitizers:
     name: Address Sanitizer

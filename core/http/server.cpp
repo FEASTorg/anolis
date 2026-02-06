@@ -1,5 +1,7 @@
 #include "server.hpp"
 
+#include <algorithm>
+
 #include "errors.hpp"
 #include "events/event_emitter.hpp"
 #include "logging/logger.hpp"
@@ -43,12 +45,51 @@ bool HttpServer::start(std::string &error) {
     int pool_size = config_.thread_pool_size;
     server_->new_task_queue = [pool_size] { return new httplib::ThreadPool(pool_size); };
 
-    // Add CORS headers to all responses
-    std::string cors_origin = config_.cors_origin;
-    server_->set_post_routing_handler([cors_origin](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", cors_origin.c_str());
+    // Add CORS headers to all responses (allowlist with wildcard support)
+    const bool allow_credentials = config_.cors_allow_credentials;
+    server_->set_post_routing_handler([allow_credentials, origins = config_.cors_allowed_origins](
+                                          const httplib::Request &req, httplib::Response &res) {
+        const auto origin_it = req.headers.find("Origin");
+        if (origin_it == req.headers.end()) {
+            return;
+        }
+
+        const std::string origin = origin_it->second;
+        auto origin_matches = [&origin](const std::string &allowed) {
+            if (allowed == "*") {
+                return true;
+            }
+
+            const auto wildcard_pos = allowed.find('*');
+            if (wildcard_pos == std::string::npos) {
+                return allowed == origin;
+            }
+
+            const std::string prefix = allowed.substr(0, wildcard_pos);
+            const std::string suffix = allowed.substr(wildcard_pos + 1);
+            if (origin.size() < prefix.size() + suffix.size()) {
+                return false;
+            }
+
+            const bool prefix_ok = origin.compare(0, prefix.size(), prefix) == 0;
+            const bool suffix_ok = origin.compare(origin.size() - suffix.size(), suffix.size(), suffix) == 0;
+            return prefix_ok && suffix_ok;
+        };
+
+        auto matched = std::find_if(origins.begin(), origins.end(), origin_matches);
+        if (matched == origins.end()) {
+            return;
+        }
+
+        const std::string &allowed = *matched;
+        const std::string response_origin = allowed == "*" ? "*" : origin;
+
+        res.set_header("Access-Control-Allow-Origin", response_origin.c_str());
         res.set_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
         res.set_header("Access-Control-Allow-Headers", "Content-Type");
+        if (allow_credentials) {
+            res.set_header("Access-Control-Allow-Credentials", "true");
+        }
     });
 
     // Set up routes
@@ -163,11 +204,15 @@ void HttpServer::setup_routes() {
     // OPTIONS /v0/call - CORS preflight for POST
     server_->Options("/v0/call", [](const httplib::Request &req, httplib::Response &res) {
         res.status = 204;  // No content
+        res.set_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        res.set_header("Access-Control-Allow-Headers", "Content-Type");
     });
 
     // OPTIONS catch-all for CORS preflight on all routes
     server_->Options(R"(/v0/.*)", [](const httplib::Request &req, httplib::Response &res) {
         res.status = 204;  // No content
+        res.set_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        res.set_header("Access-Control-Allow-Headers", "Content-Type");
     });
 
     // GET /v0/runtime/status - Get runtime status

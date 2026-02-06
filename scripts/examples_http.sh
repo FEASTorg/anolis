@@ -3,6 +3,9 @@
 # Usage: ./examples_http.sh [base_url]
 #
 # Demonstrates all HTTP API endpoints
+# Ensure the Anolis runtime is running via:
+# ./scripts/run.sh
+# before executing this script
 
 BASE_URL="${1:-http://127.0.0.1:8080}"
 

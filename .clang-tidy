@@ -1,6 +1,9 @@
 ---
 Checks: "clang-diagnostic-*,clang-analyzer-*,performance-*,readability-*,bugprone-*,-readability-identifier-naming"
 WarningsAsErrors: ""
-HeaderFilterRegex: "core/.*"
+# Limit diagnostics to project sources (exclude generated build outputs)
+HeaderFilterRegex: "^(core|tests)/.*"
+# Generated protobuf headers/sources live in build/; clang-tidy still sees them when invoked via CMake
+# so we skip them via SKIP_CLANG_TIDY in CMakeLists.txt rather than here.
 FormatStyle: file
 ...

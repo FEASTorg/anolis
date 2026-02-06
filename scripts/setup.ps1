@@ -62,10 +62,12 @@ if (-not $cl) {
     if (Test-Path $vsWhere) {
         $vsPath = & $vsWhere -latest -property installationPath
         Write-Info "  Visual Studio: $vsPath"
-    } else {
+    }
+    else {
         Write-Error-Exit "Visual Studio not found. Install Visual Studio 2022 with C++ desktop development workload."
     }
-} else {
+}
+else {
     Write-Info "  cl.exe: found"
 }
 
@@ -173,7 +175,8 @@ cmake --build build --config Release
 $providerExe = "build\Release\anolis-provider-sim.exe"
 if (Test-Path $providerExe) {
     Write-Info "  anolis-provider-sim built successfully"
-} else {
+}
+else {
     Pop-Location
     Write-Error-Exit "Failed to build anolis-provider-sim"
 }
@@ -199,7 +202,8 @@ cmake --build build --config Release
 $runtimeExe = "build\core\Release\anolis-runtime.exe"
 if (Test-Path $runtimeExe) {
     Write-Info "  anolis-runtime built successfully"
-} else {
+}
+else {
     Pop-Location
     Write-Error-Exit "Failed to build anolis-runtime"
 }

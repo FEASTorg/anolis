@@ -8,7 +8,10 @@ http:
   enabled: true
   bind: 127.0.0.1
   port: 8080
-  # cors_origin: "*"
+  cors_allowed_origins:
+    - http://localhost:3000
+    - http://127.0.0.1:3000
+  cors_allow_credentials: false
   # thread_pool_size: 40
 
 providers:

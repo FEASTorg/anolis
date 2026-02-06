@@ -12,7 +12,11 @@ http:
   enabled: true
   bind: 127.0.0.1
   port: 8080
-  cors_origin: "*"        # Allowed Origin for CORS (default: *)
+  # CORS allowlist ("*" = allow all; recommended to pin your UI origin)
+  cors_allowed_origins:
+    - http://localhost:3000
+    - http://127.0.0.1:3000
+  cors_allow_credentials: false
   thread_pool_size: 40    # Worker threads (default: 40)
 
 polling:
@@ -42,7 +46,8 @@ automation:
 ### HTTP
 
 - **bind/port**: Interface and port to listen on.
-- **cors_origin**: Set to strictly match your UI origin (e.g. `http://localhost:3000`) in trusted environments.
+- **cors_allowed_origins**: List of allowed origins. Use `"*"` only for development; pin exact origins in validation/production.
+- **cors_allow_credentials**: Emit `Access-Control-Allow-Credentials: true` when your UI needs cookies/auth headers.
 - **thread_pool_size**: Adjust based on concurrent SSE clients. Formula: `max_sse_clients + 8`.
 
 ### Logging

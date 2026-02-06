@@ -15,6 +15,11 @@ protobuf_generate(
     PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+# Skip clang-tidy on generated protobuf sources/headers to avoid noisy diagnostics
+set(PROTO_GEN_CC ${CMAKE_CURRENT_BINARY_DIR}/protocol.pb.cc)
+set(PROTO_GEN_H  ${CMAKE_CURRENT_BINARY_DIR}/protocol.pb.h)
+set_source_files_properties(${PROTO_GEN_CC} ${PROTO_GEN_H} PROPERTIES SKIP_CLANG_TIDY ON)
+
 # Logging library
 add_library(anolis_logging STATIC
     logging/logger.cpp

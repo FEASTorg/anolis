@@ -2,6 +2,9 @@
 # Usage: .\examples_http.ps1 [-BaseUrl http://127.0.0.1:8080]
 #
 # Demonstrates all HTTP API endpoints
+# Ensure the Anolis runtime is running via:
+# .\scripts\run.ps1
+# before executing this script
 
 param(
     [string]$BaseUrl = "http://127.0.0.1:8080"
@@ -22,11 +25,13 @@ function Invoke-Api {
     try {
         if ($Method -eq "GET") {
             $response = Invoke-RestMethod -Uri "$BaseUrl$Path" -Method Get
-        } else {
+        }
+        else {
             $response = Invoke-RestMethod -Uri "$BaseUrl$Path" -Method $Method -Body ($Body | ConvertTo-Json -Depth 10) -ContentType "application/json"
         }
         $response | ConvertTo-Json -Depth 10
-    } catch {
+    }
+    catch {
         Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
         if ($_.ErrorDetails.Message) {
             $_.ErrorDetails.Message | ConvertFrom-Json | ConvertTo-Json -Depth 5
@@ -66,31 +71,31 @@ Invoke-Api -Method GET -Path "/v0/state/sim0/motorctl0"
 Write-Host "`n=== 7. Set Motor 1 Duty to 50% ===" -ForegroundColor Green
 Invoke-Api -Method POST -Path "/v0/call" -Body @{
     provider_id = "sim0"
-    device_id = "motorctl0"
+    device_id   = "motorctl0"
     function_id = 10
-    args = @{
+    args        = @{
         motor_index = @{ type = "int64"; int64 = 1 }
-        duty = @{ type = "double"; double = 0.5 }
+        duty        = @{ type = "double"; double = 0.5 }
     }
 }
 
 Write-Host "`n=== 8. Set Motor 2 Duty to 75% ===" -ForegroundColor Green
 Invoke-Api -Method POST -Path "/v0/call" -Body @{
     provider_id = "sim0"
-    device_id = "motorctl0"
+    device_id   = "motorctl0"
     function_id = 10
-    args = @{
+    args        = @{
         motor_index = @{ type = "int64"; int64 = 2 }
-        duty = @{ type = "double"; double = 0.75 }
+        duty        = @{ type = "double"; double = 0.75 }
     }
 }
 
 Write-Host "`n=== 9. Set Temperature Setpoint to 45°C ===" -ForegroundColor Green
 Invoke-Api -Method POST -Path "/v0/call" -Body @{
     provider_id = "sim0"
-    device_id = "tempctl0"
+    device_id   = "tempctl0"
     function_id = 2
-    args = @{
+    args        = @{
         value = @{ type = "double"; double = 45.0 }
     }
 }
