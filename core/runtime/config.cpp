@@ -45,6 +45,19 @@ namespace anolis
                             return false;
                         }
                     }
+                    if (yaml["http"]["cors_origin"])
+                    {
+                        config.http.cors_origin = yaml["http"]["cors_origin"].as<std::string>();
+                    }
+                    if (yaml["http"]["thread_pool_size"])
+                    {
+                        config.http.thread_pool_size = yaml["http"]["thread_pool_size"].as<int>();
+                        if (config.http.thread_pool_size < 1)
+                        {
+                            error = "HTTP thread_pool_size must be at least 1";
+                            return false;
+                        }
+                    }
                 }
 
                 // Load providers

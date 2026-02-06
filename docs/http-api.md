@@ -16,15 +16,13 @@ No authentication in v0. The server binds to localhost only by default.
 
 The server includes CORS headers for browser-based clients:
 
-- `Access-Control-Allow-Origin: *`
-- `Access-Control-Allow-Methods: GET, POST, OPTIONS`
-- `Access-Control-Allow-Headers: Content-Type`
+- `Access-Control-Allow-Origin`: Configurable via `http.cors_origin` (default: `*`)
+- `Access-Control-Allow-Methods`: `GET, POST, OPTIONS`
+- `Access-Control-Allow-Headers`: `Content-Type`
 
-This allows the Operator UI (`tools/operator-ui/`) to connect from any origin.
+This allows the Operator UI (`tools/operator-ui/`) to connect from any origin by default.
 
-> **Note**: Wildcard CORS is for development only.
->
-> TODO: Future will add configurable origin whitelist.
+> **Note**: For production, restrict `http.cors_origin` in `anolis-runtime.yaml`.
 
 ## Response Format
 

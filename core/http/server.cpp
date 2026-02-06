@@ -44,14 +44,16 @@ namespace anolis
 
             // Set thread pool size to handle SSE + REST concurrently
             // Rule: thread_pool_size >= max_sse_clients + headroom for REST
-            // MAX_SSE_CLIENTS = 32, so we use 40 threads (32 + 8 headroom)
-            server_->new_task_queue = []
-            { return new httplib::ThreadPool(40); };
+            // Default is 40 threads (32 SSE clients + 8 headroom)
+            int pool_size = config_.thread_pool_size;
+            server_->new_task_queue = [pool_size]
+            { return new httplib::ThreadPool(pool_size); };
 
-            // Add CORS headers to all responses (dev-only; TODO: add proper CORS)
-            server_->set_post_routing_handler([](const httplib::Request &req, httplib::Response &res)
+            // Add CORS headers to all responses
+            std::string cors_origin = config_.cors_origin;
+            server_->set_post_routing_handler([cors_origin](const httplib::Request &req, httplib::Response &res)
                                               {
-        res.set_header("Access-Control-Allow-Origin", "*");
+        res.set_header("Access-Control-Allow-Origin", cors_origin.c_str());
         res.set_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
         res.set_header("Access-Control-Allow-Headers", "Content-Type"); });
 

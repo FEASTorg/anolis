@@ -322,7 +322,7 @@ namespace anolis
             // Future: HTTP server, BT engine, etc. will run here
             while (running_)
             {
-                std::this_thread::sleep_for(std::chrono::seconds(1));
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
                 // Check provider health
                 for (const auto &[id, provider] : providers_)

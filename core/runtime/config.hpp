@@ -31,6 +31,8 @@ namespace anolis
             bool enabled = true;            // HTTP server enabled
             std::string bind = "127.0.0.1"; // Bind address
             int port = 8080;                // HTTP port
+            std::string cors_origin = "*";  // Allowed CORS Origin
+            int thread_pool_size = 40;      // Worker thread pool size
         };
 
         struct RuntimeModeConfig

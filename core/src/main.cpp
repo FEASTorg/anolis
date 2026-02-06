@@ -6,6 +6,7 @@
 #include <filesystem>
 #include "runtime/runtime.hpp"
 #include "runtime/config.hpp"
+#include "runtime/signal_handler.hpp"
 #include "logging/logger.hpp"
 
 int main(int argc, char **argv)
@@ -74,6 +75,12 @@ int main(int argc, char **argv)
         LOG_ERROR("Runtime initialization failed: " + error);
         return 1;
     }
+
+    // Install signal handler for graceful shutdown
+    anolis::runtime::SignalHandler::install([&runtime]()
+                                            {
+        LOG_INFO("Signal received, stopping runtime...");
+        runtime.stop(); });
 
     LOG_INFO("Runtime Ready");
     LOG_INFO("  Providers: " << config.providers.size());

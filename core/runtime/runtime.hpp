@@ -13,6 +13,7 @@
 #include "automation/parameter_manager.hpp"
 #include <memory>
 #include <unordered_map>
+#include <atomic>
 
 namespace anolis
 {
@@ -30,6 +31,9 @@ namespace anolis
 
             // Main runtime loop (blocking)
             void run();
+
+            // Triggers the main loop to exit
+            void stop() { running_ = false; }
 
             // Shutdown all providers gracefully
             void shutdown();
@@ -60,7 +64,7 @@ namespace anolis
             std::unique_ptr<automation::ParameterManager> parameter_manager_;
             std::unique_ptr<automation::BTRuntime> bt_runtime_;
 
-            bool running_ = false;
+            std::atomic<bool> running_{false};
         };
 
     } // namespace runtime

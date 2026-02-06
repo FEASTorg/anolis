@@ -162,7 +162,10 @@ find_package(nlohmann_json CONFIG REQUIRED)
 add_library(anolis_http STATIC
     http/json.cpp
     http/server.cpp
-    http/handlers.cpp
+    http/handlers/device_handlers.cpp
+    http/handlers/state_handlers.cpp
+    http/handlers/control_handlers.cpp
+    http/handlers/system_handlers.cpp
 )
 
 target_include_directories(anolis_http PUBLIC
@@ -187,6 +190,7 @@ find_package(yaml-cpp CONFIG REQUIRED)
 add_library(anolis_runtime STATIC
     runtime/config.cpp
     runtime/runtime.cpp
+    runtime/signal_handler.cpp
 )
 
 target_include_directories(anolis_runtime PUBLIC
