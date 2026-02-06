@@ -30,7 +30,7 @@ namespace anolis
     }
     namespace provider
     {
-        class ProviderHandle;
+        class IProviderHandle;
     }
 
     namespace automation
@@ -84,7 +84,7 @@ namespace anolis
              */
             BTRuntime(state::StateCache &state_cache,
                       control::CallRouter &call_router,
-                      std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>> &providers,
+                      std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers,
                       ModeManager &mode_manager,
                       ParameterManager *parameter_manager = nullptr);
 
@@ -148,7 +148,7 @@ namespace anolis
             // Kernel service references (non-owning)
             state::StateCache &state_cache_;
             control::CallRouter &call_router_;
-            std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>> &providers_;
+            std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers_;
             ModeManager &mode_manager_;
             ParameterManager *parameter_manager_; // Phase 7C (nullable)
 

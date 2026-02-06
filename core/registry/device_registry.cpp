@@ -7,7 +7,7 @@ namespace anolis
     {
 
         bool DeviceRegistry::discover_provider(const std::string &provider_id,
-                                               anolis::provider::ProviderHandle &provider)
+                                               anolis::provider::IProviderHandle &provider)
         {
             std::cerr << "[Registry] Discovering provider: " << provider_id << "\n";
 

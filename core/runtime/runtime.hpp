@@ -1,7 +1,7 @@
 #pragma once
 
 #include "config.hpp"
-#include "provider/provider_handle.hpp"
+#include "provider/i_provider_handle.hpp" // Changed to interface
 #include "registry/device_registry.hpp"
 #include "state/state_cache.hpp"
 #include "control/call_router.hpp"
@@ -41,7 +41,7 @@ namespace anolis
             events::EventEmitter &get_event_emitter() { return *event_emitter_; }
 
             // Provider map access (for HTTP layer)
-            std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>> &get_providers()
+            std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &get_providers()
             {
                 return providers_;
             }
@@ -49,7 +49,7 @@ namespace anolis
         private:
             RuntimeConfig config_;
 
-            std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>> providers_;
+            std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> providers_;
             std::unique_ptr<registry::DeviceRegistry> registry_;
             std::shared_ptr<events::EventEmitter> event_emitter_; // Shared with StateCache + HTTP
             std::unique_ptr<state::StateCache> state_cache_;

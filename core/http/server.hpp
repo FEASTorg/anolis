@@ -13,7 +13,7 @@
 #include <unordered_map>
 #include <httplib.h>
 #include "runtime/config.hpp"
-#include "provider/provider_handle.hpp"
+#include "provider/i_provider_handle.hpp" // Updated include
 #include "events/event_types.hpp"
 
 // Forward declarations
@@ -47,7 +47,7 @@ namespace anolis
 }
 
 // Typedef for provider map
-using ProviderMap = std::unordered_map<std::string, std::shared_ptr<anolis::provider::ProviderHandle>>;
+using ProviderMap = std::unordered_map<std::string, std::shared_ptr<anolis::provider::IProviderHandle>>;
 
 namespace anolis
 {

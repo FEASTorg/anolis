@@ -19,7 +19,7 @@ namespace anolis
     }
     namespace provider
     {
-        class ProviderHandle;
+        class IProviderHandle;
     }
 
     namespace automation
@@ -92,7 +92,7 @@ namespace anolis
 
         private:
             control::CallRouter *get_call_router();
-            std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>> *get_providers();
+            std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> *get_providers();
         };
 
         /**

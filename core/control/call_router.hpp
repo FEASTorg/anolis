@@ -7,7 +7,7 @@
 #include <mutex>
 #include "protocol.pb.h"
 #include "registry/device_registry.hpp"
-#include "provider/provider_handle.hpp"
+#include "provider/i_provider_handle.hpp"
 #include "state/state_cache.hpp"
 
 namespace anolis
@@ -55,7 +55,7 @@ namespace anolis
             // Execute a function call
             // This is the ONLY way to execute control actions in Anolis
             CallResult execute_call(const CallRequest &request,
-                                    std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>> &providers);
+                                    std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers);
 
             // Validation only (no execution)
             bool validate_call(const CallRequest &request, std::string &error) const;

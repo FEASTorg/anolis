@@ -1,4 +1,5 @@
 #include "runtime.hpp"
+#include "provider/provider_handle.hpp" // Required for instantiation
 #include <iostream>
 #include <thread>
 #include <chrono>

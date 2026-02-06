@@ -9,7 +9,7 @@
 #include <mutex>
 #include "protocol.pb.h"
 #include "registry/device_registry.hpp"
-#include "provider/provider_handle.hpp"
+#include "provider/i_provider_handle.hpp"
 
 // Forward declaration
 namespace anolis
@@ -33,10 +33,11 @@ namespace anolis
             anolis::deviceprovider::v0::SignalValue_Quality quality;
 
             // Staleness: true if time-based or quality-based staleness detected
-            bool is_stale() const;
+            // Optional 'now' parameter for testing time-based staleness
+            bool is_stale(std::chrono::system_clock::time_point now = std::chrono::system_clock::now()) const;
 
             // Time since last update
-            std::chrono::milliseconds age() const;
+            std::chrono::milliseconds age(std::chrono::system_clock::time_point now = std::chrono::system_clock::now()) const;
         };
 
         // Device state snapshot
@@ -68,13 +69,13 @@ namespace anolis
             void set_event_emitter(std::shared_ptr<events::EventEmitter> emitter);
 
             // Start polling thread (v0: runs in main thread)
-            void start_polling(std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>> &providers);
+            void start_polling(std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers);
 
             // Stop polling
             void stop_polling();
 
             // Poll once (for testing or manual control)
-            void poll_once(std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>> &providers);
+            void poll_once(std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers);
 
             // Read API - Thread-safe snapshots
             std::shared_ptr<DeviceState> get_device_state(const std::string &device_handle) const;
@@ -83,7 +84,7 @@ namespace anolis
 
             // Immediate poll of specific device (post-call update)
             void poll_device_now(const std::string &device_handle,
-                                 std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>> &providers);
+                                 std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers);
 
             // Status
             size_t device_count() const;
@@ -118,7 +119,7 @@ namespace anolis
             bool poll_device(const std::string &provider_id,
                              const std::string &device_id,
                              const std::vector<std::string> &signal_ids,
-                             provider::ProviderHandle &provider);
+                             provider::IProviderHandle &provider);
 
             // Helper: Update cached values from ReadSignalsResponse (emits events on change)
             void update_device_state(const std::string &device_handle,

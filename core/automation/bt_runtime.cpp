@@ -20,7 +20,7 @@ namespace anolis
 
         BTRuntime::BTRuntime(state::StateCache &state_cache,
                              control::CallRouter &call_router,
-                             std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>> &providers,
+                             std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers,
                              ModeManager &mode_manager,
                              ParameterManager *parameter_manager)
             : state_cache_(state_cache), call_router_(call_router), providers_(providers), mode_manager_(mode_manager), parameter_manager_(parameter_manager), factory_(std::make_unique<BT::BehaviorTreeFactory>())

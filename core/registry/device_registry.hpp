@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <memory>
 #include "protocol.pb.h"
-#include "provider/provider_handle.hpp"
+#include "provider/i_provider_handle.hpp" // Changed to interface
 
 namespace anolis
 {
@@ -67,7 +67,7 @@ namespace anolis
 
             // Discovery: Perform Hello -> ListDevices -> DescribeDevice for each device
             bool discover_provider(const std::string &provider_id,
-                                   anolis::provider::ProviderHandle &provider);
+                                   anolis::provider::IProviderHandle &provider);
 
             // Lookup
             const RegisteredDevice *get_device(const std::string &provider_id,

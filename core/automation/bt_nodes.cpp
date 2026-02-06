@@ -6,6 +6,8 @@
 #include <iostream>
 #include <sstream>
 
+#include "provider/i_provider_handle.hpp" // Added include
+
 namespace anolis
 {
     namespace automation
@@ -273,7 +275,7 @@ namespace anolis
             return static_cast<control::CallRouter *>(ptr);
         }
 
-        std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>> *CallDeviceNode::get_providers()
+        std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> *CallDeviceNode::get_providers()
         {
             auto blackboard = config().blackboard;
             if (!blackboard)
@@ -283,7 +285,7 @@ namespace anolis
             if (!ptr)
                 return nullptr;
 
-            return static_cast<std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>> *>(ptr);
+            return static_cast<std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> *>(ptr);
         }
 
         //-----------------------------------------------------------------------------

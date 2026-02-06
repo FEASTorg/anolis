@@ -6,7 +6,8 @@
     "yaml-cpp",
     "cpp-httplib",
     "nlohmann-json",
-    "behaviortree-cpp"
+    "behaviortree-cpp",
+    "gtest"
   ],
   "overrides": [
     {

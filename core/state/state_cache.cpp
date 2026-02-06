@@ -10,7 +10,7 @@ namespace anolis
     {
 
         // CachedSignalValue methods
-        bool CachedSignalValue::is_stale() const
+        bool CachedSignalValue::is_stale(std::chrono::system_clock::time_point now) const
         {
             // Check quality-based staleness
             if (quality == anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_STALE ||
@@ -21,13 +21,16 @@ namespace anolis
             }
 
             // Time-based staleness: stale if older than 2 seconds (2x poll interval)
-            auto age_ms = age();
+            auto age_ms = age(now);
             return age_ms.count() > 2000;
         }
 
-        std::chrono::milliseconds CachedSignalValue::age() const
+        std::chrono::milliseconds CachedSignalValue::age(std::chrono::system_clock::time_point now) const
         {
-            auto now = std::chrono::system_clock::now();
+            if (now < timestamp)
+            {
+                return std::chrono::milliseconds(0);
+            }
             return std::chrono::duration_cast<std::chrono::milliseconds>(now - timestamp);
         }
 
@@ -81,7 +84,7 @@ namespace anolis
             return true;
         }
 
-        void StateCache::start_polling(std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>> &providers)
+        void StateCache::start_polling(std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers)
         {
             polling_active_ = true;
             std::cerr << "[StateCache] Polling started" << std::endl;
@@ -116,7 +119,7 @@ namespace anolis
             polling_active_ = false;
         }
 
-        void StateCache::poll_once(std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>> &providers)
+        void StateCache::poll_once(std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers)
         {
             for (const auto &config : poll_configs_)
             {
@@ -152,7 +155,7 @@ namespace anolis
         }
 
         void StateCache::poll_device_now(const std::string &device_handle,
-                                         std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>> &providers)
+                                         std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers)
         {
             // Find poll config for this device
             for (const auto &config : poll_configs_)
@@ -175,7 +178,7 @@ namespace anolis
         bool StateCache::poll_device(const std::string &provider_id,
                                      const std::string &device_id,
                                      const std::vector<std::string> &signal_ids,
-                                     provider::ProviderHandle &provider)
+                                     provider::IProviderHandle &provider)
         {
             std::string device_handle = provider_id + "/" + device_id;
 

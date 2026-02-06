@@ -19,7 +19,7 @@ namespace anolis
         }
 
         CallResult CallRouter::execute_call(const CallRequest &request,
-                                            std::unordered_map<std::string, std::shared_ptr<provider::ProviderHandle>> &providers)
+                                            std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers)
         {
             CallResult result;
             result.success = false;
