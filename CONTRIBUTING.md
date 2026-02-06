@@ -8,8 +8,6 @@ Thank you for your interest in contributing to Anolis!
 
 - **Windows**: Visual Studio 2022 with C++ desktop development workload
 - **Linux**: GCC 11+, CMake 3.20+
-- **vcpkg**: For dependency management
-- **Python 3**: For running tests
 - **Git**: For version control
 
 ### Setup
@@ -133,34 +131,26 @@ Any bug fixed must include a test that would have caught it.
 
 #### Static Analysis (clang-tidy)
 
-We use `clang-tidy` for static analysis. To run it locally:
+**Primary Check**: We rely on **CI (GitHub Actions)** to enforce static analysis. Run your code through a Pull Request to see detailed reports.
 
-1. Ensure `clang-tidy` is installed.
-2. Configure CMake with `-DENABLE_CLANG_TIDY=ON`.
-3. Build the project.
+**Optional Local Check**:
+If you want to run it locally on Windows:
 
-```bash
-# Windows (PowerShell) - utilizing the VCPKG_ROOT environment variable
-cmake -B build -DENABLE_CLANG_TIDY=ON -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
-cmake --build build
+1. Configure with `-DENABLE_CLANG_TIDY=ON`.
+2. **Clean Rebuild**: Analysis only runs during compilation.
 
-# Linux (Bash)
-cmake -B build -DENABLE_CLANG_TIDY=ON -DCMAKE_TOOLCHAIN_FILE="${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
-cmake --build build
-```
+   ```bash
+   cmake -B build -DENABLE_CLANG_TIDY=ON -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+   cmake --build build --clean-first
+   ```
 
 **To install clang-tidy**:
 
-- **Windows**: Install "C++ Clang tools for Windows" via the Visual Studio Installer (under "Desktop development with C++"), or download LLVM from [releases.llvm.org](https://releases.llvm.org/).
+- **Windows**: Install via Visual Studio Installer ("C++ Clang tools") or LLVM.
 - **Linux**: `sudo apt install clang-tidy`
 
 **To apply fixes**:
-
-Some checks support automatic fixing. You can run clang-tidy directly on files:
-
-```bash
-clang-tidy -p build --fix core/runtime/src/main.cpp
-```
+Automatic fixing is best done on Linux or WSL using `compile_commands.json` (not supported by MSVC generator).
 
 #### Formatting (clang-format)
 

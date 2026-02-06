@@ -1,8 +1,8 @@
 #pragma once
 
+#include <atomic>
 #include <memory>
 #include <string>
-#include <atomic>
 #include <thread>
 #include <unordered_map>
 
@@ -10,159 +10,149 @@
 #include <behaviortree_cpp/basic_types.h>
 
 // BehaviorTree.CPP forward declarations
-namespace BT
-{
-    class Tree;
-    class BehaviorTreeFactory;
+namespace BT {
+class Tree;
+class BehaviorTreeFactory;
+}  // namespace BT
+
+namespace anolis {
+
+// Forward declarations
+namespace state {
+class StateCache;
+}
+namespace control {
+class CallRouter;
+}
+namespace provider {
+class IProviderHandle;
 }
 
-namespace anolis
-{
+namespace automation {
 
-    // Forward declarations
-    namespace state
-    {
-        class StateCache;
-    }
-    namespace control
-    {
-        class CallRouter;
-    }
-    namespace provider
-    {
-        class IProviderHandle;
-    }
+class ModeManager;
+class ParameterManager;
 
-    namespace automation
-    {
+/**
+ * BT Runtime
+ *
+ * Manages Behavior Tree lifecycle for the Anolis automation layer.
+ *
+ * Architecture constraints:
+ * - BT nodes read ONLY via StateCache (no direct provider access)
+ * - BT nodes act ONLY via CallRouter (validated control path)
+ * - Single-threaded tick loop in dedicated thread
+ * - Tick rate configurable (default 10 Hz)
+ *
+ * The BT engine is a CONSUMER of kernel services (StateCache, CallRouter),
+ * not a new subsystem layered beneath them.
+ */
+class BTRuntime {
+public:
+    /**
+     * Configuration for BT runtime
+     */
+    struct Config {
+        bool enabled = false;            // Whether automation is enabled
+        std::string behavior_tree_path;  // Path to XML behavior tree file
+        int tick_rate_hz = 10;           // BT tick frequency (default 10 Hz)
 
-        class ModeManager;
-        class ParameterManager;
+        // (placeholders for now) FIXME
+        // RuntimeMode initial_mode = RuntimeMode::MANUAL;
+        // std::string manual_gating_policy = "BLOCK";
 
-        /**
-         * BT Runtime
-         *
-         * Manages Behavior Tree lifecycle for the Anolis automation layer.
-         *
-         * Architecture constraints:
-         * - BT nodes read ONLY via StateCache (no direct provider access)
-         * - BT nodes act ONLY via CallRouter (validated control path)
-         * - Single-threaded tick loop in dedicated thread
-         * - Tick rate configurable (default 10 Hz)
-         *
-         * The BT engine is a CONSUMER of kernel services (StateCache, CallRouter),
-         * not a new subsystem layered beneath them.
-         */
-        class BTRuntime
-        {
-        public:
-            /**
-             * Configuration for BT runtime
-             */
-            struct Config
-            {
-                bool enabled = false;           // Whether automation is enabled
-                std::string behavior_tree_path; // Path to XML behavior tree file
-                int tick_rate_hz = 10;          // BT tick frequency (default 10 Hz)
+        // (placeholders for now) FIXME
+        // bool persist_parameters = false;
+    };
 
-                // (placeholders for now) FIXME
-                // RuntimeMode initial_mode = RuntimeMode::MANUAL;
-                // std::string manual_gating_policy = "BLOCK";
+    /**
+     * Construct BT runtime with kernel service dependencies.
+     *
+     * @param state_cache Reference to state cache (for reading device state)
+     * @param call_router Reference to call router (for device calls)
+     * @param providers Provider map (for CallRouter::execute_call)
+     * @param mode_manager Mode state machine (for AUTO/MANUAL gating)
+     * @param parameter_manager Parameter manager (nullptr if not used)
+     */
+    BTRuntime(state::StateCache& state_cache, control::CallRouter& call_router,
+              std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>>& providers,
+              ModeManager& mode_manager, ParameterManager* parameter_manager = nullptr);
 
-                // (placeholders for now) FIXME
-                // bool persist_parameters = false;
-            };
+    ~BTRuntime();
 
-            /**
-             * Construct BT runtime with kernel service dependencies.
-             *
-             * @param state_cache Reference to state cache (for reading device state)
-             * @param call_router Reference to call router (for device calls)
-             * @param providers Provider map (for CallRouter::execute_call)
-             * @param mode_manager Mode state machine (for AUTO/MANUAL gating)
-             * @param parameter_manager Parameter manager (nullptr if not used)
-             */
-            BTRuntime(state::StateCache &state_cache,
-                      control::CallRouter &call_router,
-                      std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers,
-                      ModeManager &mode_manager,
-                      ParameterManager *parameter_manager = nullptr);
+    // Non-copyable, non-movable (manages thread)
+    BTRuntime(const BTRuntime&) = delete;
+    BTRuntime& operator=(const BTRuntime&) = delete;
+    BTRuntime(BTRuntime&&) = delete;
+    BTRuntime& operator=(BTRuntime&&) = delete;
 
-            ~BTRuntime();
+    /**
+     * Load behavior tree from XML file.
+     *
+     * @param path Path to BehaviorTree.CPP XML file
+     * @return true if loaded successfully, false otherwise
+     */
+    bool load_tree(const std::string& path);
 
-            // Non-copyable, non-movable (manages thread)
-            BTRuntime(const BTRuntime &) = delete;
-            BTRuntime &operator=(const BTRuntime &) = delete;
-            BTRuntime(BTRuntime &&) = delete;
-            BTRuntime &operator=(BTRuntime &&) = delete;
+    /**
+     * Start BT tick loop in dedicated thread.
+     *
+     * @param tick_rate_hz Tick frequency in Hz (e.g., 10 = 100ms period)
+     * @return true if started successfully, false if already running or not loaded
+     */
+    bool start(int tick_rate_hz = 10);
 
-            /**
-             * Load behavior tree from XML file.
-             *
-             * @param path Path to BehaviorTree.CPP XML file
-             * @return true if loaded successfully, false otherwise
-             */
-            bool load_tree(const std::string &path);
+    /**
+     * Stop BT tick loop gracefully.
+     * Waits for current tick to complete, then halts thread.
+     */
+    void stop();
 
-            /**
-             * Start BT tick loop in dedicated thread.
-             *
-             * @param tick_rate_hz Tick frequency in Hz (e.g., 10 = 100ms period)
-             * @return true if started successfully, false if already running or not loaded
-             */
-            bool start(int tick_rate_hz = 10);
+    /**
+     * Check if BT is currently running.
+     */
+    bool is_running() const;
 
-            /**
-             * Stop BT tick loop gracefully.
-             * Waits for current tick to complete, then halts thread.
-             */
-            void stop();
+    /**
+     * Execute a single BT tick (for testing or manual control).
+     *
+     * Note: Normally called by tick loop thread, but exposed for unit testing.
+     *
+     * @return BT::NodeStatus (SUCCESS, FAILURE, RUNNING)
+     */
+    BT::NodeStatus tick();
 
-            /**
-             * Check if BT is currently running.
-             */
-            bool is_running() const;
+private:
+    /**
+     * Tick loop thread function.
+     * Runs continuously at configured rate until stop() is called.
+     */
+    void tick_loop();
 
-            /**
-             * Execute a single BT tick (for testing or manual control).
-             *
-             * Note: Normally called by tick loop thread, but exposed for unit testing.
-             *
-             * @return BT::NodeStatus (SUCCESS, FAILURE, RUNNING)
-             */
-            BT::NodeStatus tick();
+    /**
+     * Populate BT blackboard with StateCache snapshot.
+     * Called before each tick to ensure consistent state view.
+     */
+    void populate_blackboard();
 
-        private:
-            /**
-             * Tick loop thread function.
-             * Runs continuously at configured rate until stop() is called.
-             */
-            void tick_loop();
+    // Kernel service references (non-owning)
+    state::StateCache& state_cache_;
+    control::CallRouter& call_router_;
+    std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>>& providers_;
+    ModeManager& mode_manager_;
+    ParameterManager* parameter_manager_;  // nullable
 
-            /**
-             * Populate BT blackboard with StateCache snapshot.
-             * Called before each tick to ensure consistent state view.
-             */
-            void populate_blackboard();
+    // BT state
+    std::unique_ptr<BT::BehaviorTreeFactory> factory_;
+    std::unique_ptr<BT::Tree> tree_;
+    std::string tree_path_;
+    bool tree_loaded_ = false;
 
-            // Kernel service references (non-owning)
-            state::StateCache &state_cache_;
-            control::CallRouter &call_router_;
-            std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers_;
-            ModeManager &mode_manager_;
-            ParameterManager *parameter_manager_; // nullable
+    // Threading
+    std::atomic<bool> running_{false};
+    std::unique_ptr<std::thread> tick_thread_;
+    int tick_rate_hz_ = 10;
+};
 
-            // BT state
-            std::unique_ptr<BT::BehaviorTreeFactory> factory_;
-            std::unique_ptr<BT::Tree> tree_;
-            std::string tree_path_;
-            bool tree_loaded_ = false;
-
-            // Threading
-            std::atomic<bool> running_{false};
-            std::unique_ptr<std::thread> tick_thread_;
-            int tick_rate_hz_ = 10;
-        };
-
-    } // namespace automation
-} // namespace anolis
+}  // namespace automation
+}  // namespace anolis

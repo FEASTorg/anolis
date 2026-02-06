@@ -1,78 +1,73 @@
 #pragma once
 
-#include "provider_process.hpp"
-#include "i_provider_handle.hpp"
-#include "protocol.pb.h"
-#include <string>
-#include <vector>
 #include <chrono>
 #include <mutex>
+#include <string>
+#include <vector>
 
-namespace anolis
-{
-    namespace provider
-    {
+#include "i_provider_handle.hpp"
+#include "protocol.pb.h"
+#include "provider_process.hpp"
 
-        // ProviderHandle provides high-level ADPP client API
-        // Wraps ProviderProcess and handles protobuf serialization/deserialization
-        class ProviderHandle : public IProviderHandle
-        {
-        public:
-            ProviderHandle(const std::string &provider_id, const std::string &executable_path,
-                           const std::vector<std::string> &args = {}, int timeout_ms = 5000);
-            ~ProviderHandle() override = default;
+namespace anolis {
+namespace provider {
 
-            // Delete copy/move
-            ProviderHandle(const ProviderHandle &) = delete;
-            ProviderHandle &operator=(const ProviderHandle &) = delete;
+// ProviderHandle provides high-level ADPP client API
+// Wraps ProviderProcess and handles protobuf serialization/deserialization
+class ProviderHandle : public IProviderHandle {
+public:
+    ProviderHandle(const std::string &provider_id, const std::string &executable_path,
+                   const std::vector<std::string> &args = {}, int timeout_ms = 5000);
+    ~ProviderHandle() override = default;
 
-            // Start provider process and perform Hello handshake
-            // Returns true on success, false on failure
-            bool start() override;
+    // Delete copy/move
+    ProviderHandle(const ProviderHandle &) = delete;
+    ProviderHandle &operator=(const ProviderHandle &) = delete;
 
-            // Check if provider is available
-            bool is_available() const override { return process_.is_running(); }
+    // Start provider process and perform Hello handshake
+    // Returns true on success, false on failure
+    bool start() override;
 
-            // ADPP Operations (all blocking, synchronous)
-            bool hello(anolis::deviceprovider::v0::HelloResponse &response) override;
-            bool list_devices(std::vector<anolis::deviceprovider::v0::Device> &devices) override;
-            bool describe_device(const std::string &device_id,
-                                 anolis::deviceprovider::v0::DescribeDeviceResponse &response) override;
-            bool read_signals(const std::string &device_id,
-                              const std::vector<std::string> &signal_ids,
-                              anolis::deviceprovider::v0::ReadSignalsResponse &response) override;
-            bool call(const std::string &device_id,
-                      uint32_t function_id,
-                      const std::string &function_name,
-                      const std::map<std::string, anolis::deviceprovider::v0::Value> &args,
-                      anolis::deviceprovider::v0::CallResponse &response) override;
+    // Check if provider is available
+    bool is_available() const override { return process_.is_running(); }
 
-            // Get last error message
-            const std::string &last_error() const override { return error_; }
+    // ADPP Operations (all blocking, synchronous)
+    bool hello(anolis::deviceprovider::v0::HelloResponse &response) override;
+    bool list_devices(std::vector<anolis::deviceprovider::v0::Device> &devices) override;
+    bool describe_device(const std::string &device_id,
+                         anolis::deviceprovider::v0::DescribeDeviceResponse &response) override;
+    bool read_signals(const std::string &device_id, const std::vector<std::string> &signal_ids,
+                      anolis::deviceprovider::v0::ReadSignalsResponse &response) override;
+    bool call(const std::string &device_id, uint32_t function_id, const std::string &function_name,
+              const std::map<std::string, anolis::deviceprovider::v0::Value> &args,
+              anolis::deviceprovider::v0::CallResponse &response) override;
 
-            // Get last status code
-            anolis::deviceprovider::v0::Status_Code last_status_code() const override { return last_status_code_; }
+    // Get last error message
+    const std::string &last_error() const override { return error_; }
 
-            // Get provider ID
-            const std::string &provider_id() const override { return process_.provider_id(); }
+    // Get last status code
+    anolis::deviceprovider::v0::Status_Code last_status_code() const override { return last_status_code_; }
 
-        private:
-            ProviderProcess process_;
-            std::string error_;
-            anolis::deviceprovider::v0::Status_Code last_status_code_ = anolis::deviceprovider::v0::Status_Code_CODE_OK;
-            uint32_t next_request_id_;
-            std::mutex mutex_;
+    // Get provider ID
+    const std::string &provider_id() const override { return process_.provider_id(); }
 
-            // Timeout for operations
-            int timeout_ms_;
+private:
+    ProviderProcess process_;
+    std::string error_;
+    anolis::deviceprovider::v0::Status_Code last_status_code_ = anolis::deviceprovider::v0::Status_Code_CODE_OK;
+    uint32_t next_request_id_;
+    std::mutex mutex_;
 
-            // Send request and wait for response
-            bool send_request(const anolis::deviceprovider::v0::Request &request,
-                              anolis::deviceprovider::v0::Response &response);
+    // Timeout for operations
+    int timeout_ms_;
 
-            // Wait for response with timeout
-            bool wait_for_response(anolis::deviceprovider::v0::Response &response, int timeout_ms);
-        };
+    // Send request and wait for response
+    bool send_request(const anolis::deviceprovider::v0::Request &request,
+                      anolis::deviceprovider::v0::Response &response);
 
-    } // namespace provider
-} // namespace anolis
+    // Wait for response with timeout
+    bool wait_for_response(anolis::deviceprovider::v0::Response &response, int timeout_ms);
+};
+
+}  // namespace provider
+}  // namespace anolis

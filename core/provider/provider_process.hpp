@@ -1,72 +1,70 @@
 #pragma once
 
-#include "framed_stdio_client.hpp"
-#include <string>
 #include <memory>
+#include <string>
 
-namespace anolis
-{
-    namespace provider
-    {
+#include "framed_stdio_client.hpp"
 
-        // ProviderProcess manages the lifecycle of a provider child process
-        // Responsibilities:
-        // - Spawn process with redirected stdin/stdout
-        // - Monitor process health
-        // - Clean/forced shutdown
-        class ProviderProcess
-        {
-        public:
-            ProviderProcess(const std::string &provider_id, const std::string &executable_path,
-                            const std::vector<std::string> &args = {});
-            ~ProviderProcess();
+namespace anolis {
+namespace provider {
 
-            // Delete copy/move
-            ProviderProcess(const ProviderProcess &) = delete;
-            ProviderProcess &operator=(const ProviderProcess &) = delete;
+// ProviderProcess manages the lifecycle of a provider child process
+// Responsibilities:
+// - Spawn process with redirected stdin/stdout
+// - Monitor process health
+// - Clean/forced shutdown
+class ProviderProcess {
+public:
+    ProviderProcess(const std::string &provider_id, const std::string &executable_path,
+                    const std::vector<std::string> &args = {});
+    ~ProviderProcess();
 
-            // Spawn the provider process
-            // Returns true on success, false on failure (sets error_)
-            bool spawn();
+    // Delete copy/move
+    ProviderProcess(const ProviderProcess &) = delete;
+    ProviderProcess &operator=(const ProviderProcess &) = delete;
 
-            // Check if process is still running
-            bool is_running() const;
+    // Spawn the provider process
+    // Returns true on success, false on failure (sets error_)
+    bool spawn();
 
-            // Shutdown sequence: EOF -> wait -> kill
-            void shutdown();
+    // Check if process is still running
+    bool is_running() const;
 
-            // Get framed client for communication
-            FramedStdioClient &client() { return client_; }
+    // Shutdown sequence: EOF -> wait -> kill
+    void shutdown();
 
-            // Get provider ID
-            const std::string &provider_id() const { return provider_id_; }
+    // Get framed client for communication
+    FramedStdioClient &client() { return client_; }
 
-            // Get last error
-            const std::string &last_error() const { return error_; }
+    // Get provider ID
+    const std::string &provider_id() const { return provider_id_; }
 
-        private:
-            std::string provider_id_;
-            std::string executable_path_;
-            std::vector<std::string> args_;
-            std::string error_;
+    // Get last error
+    const std::string &last_error() const { return error_; }
 
-            FramedStdioClient client_;
+private:
+    std::string provider_id_;
+    std::string executable_path_;
+    std::vector<std::string> args_;
+    std::string error_;
+
+    FramedStdioClient client_;
 
 #ifdef _WIN32
-            void *process_handle_; // HANDLE
-            void *stdin_read_;     // HANDLE (child's stdin read)
-            void *stdout_write_;   // HANDLE (child's stdout write)
+    void *process_handle_;  // HANDLE
+    void *stdin_read_;      // HANDLE (child's stdin read)
+    void *stdout_write_;    // HANDLE (child's stdout write)
 #else
-            pid_t pid_;
-            int stdin_write_fd_;
-            int stdout_read_fd_;
+    pid_t pid_;
+    int stdin_write_fd_;
+    int stdout_read_fd_;
 #endif
 
-            bool spawn_windows();
-            bool spawn_linux();
-            bool wait_for_exit(int timeout_ms);
-            void force_terminate();
-        };
+    bool spawn_windows();
+    bool spawn_linux();
+    bool wait_for_exit(int timeout_ms);
+    void force_terminate();
+};
 
-    } // namespace provider
-} // namespace anolis
+}  // namespace provider
+}  // namespace anolis

@@ -1,41 +1,33 @@
 // Anolis Runtime
 // Config-based runtime with CLI argument parsing
 
+#include <filesystem>
 #include <iostream>
 #include <string>
-#include <filesystem>
-#include "runtime/runtime.hpp"
-#include "runtime/config.hpp"
-#include "runtime/signal_handler.hpp"
+
 #include "logging/logger.hpp"
+#include "runtime/config.hpp"
+#include "runtime/runtime.hpp"
+#include "runtime/signal_handler.hpp"
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     // Parse CLI arguments
-    std::string config_path = "anolis-runtime.yaml"; // Default
+    std::string config_path = "anolis-runtime.yaml";  // Default
 
-    for (int i = 1; i < argc; ++i)
-    {
+    for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
 
-        if (arg == "--config" && i + 1 < argc)
-        {
+        if (arg == "--config" && i + 1 < argc) {
             config_path = argv[++i];
-        }
-        else if (arg.substr(0, 9) == "--config=")
-        {
+        } else if (arg.substr(0, 9) == "--config=") {
             config_path = arg.substr(9);
-        }
-        else if (arg == "--help" || arg == "-h")
-        {
+        } else if (arg == "--help" || arg == "-h") {
             std::cerr << "Usage: anolis-runtime [OPTIONS]\n\n";
             std::cerr << "Options:\n";
             std::cerr << "  --config=PATH    Path to config file (default: anolis-runtime.yaml)\n";
             std::cerr << "  --help, -h       Show this help\n";
             return 0;
-        }
-        else
-        {
+        } else {
             std::cerr << "Unknown argument: " << arg << "\n";
             std::cerr << "Use --help for usage information\n";
             return 1;
@@ -43,8 +35,7 @@ int main(int argc, char **argv)
     }
 
     // Check if config exists
-    if (!std::filesystem::exists(config_path))
-    {
+    if (!std::filesystem::exists(config_path)) {
         // Using cerr here as logger might not be initialized/configured
         std::cerr << "ERROR: Config file not found: " << config_path << "\n";
         std::cerr << "\nCreate a config file or specify path with --config=PATH\n";
@@ -58,8 +49,7 @@ int main(int argc, char **argv)
     anolis::runtime::RuntimeConfig config;
     std::string error;
 
-    if (!anolis::runtime::load_config(config_path, config, error))
-    {
+    if (!anolis::runtime::load_config(config_path, config, error)) {
         LOG_ERROR("Failed to load config: " + error);
         return 1;
     }
@@ -70,17 +60,16 @@ int main(int argc, char **argv)
     // Create and initialize runtime
     anolis::runtime::Runtime runtime(config);
 
-    if (!runtime.initialize(error))
-    {
+    if (!runtime.initialize(error)) {
         LOG_ERROR("Runtime initialization failed: " + error);
         return 1;
     }
 
     // Install signal handler for graceful shutdown
-    anolis::runtime::SignalHandler::install([&runtime]()
-                                            {
+    anolis::runtime::SignalHandler::install([&runtime]() {
         LOG_INFO("Signal received, stopping runtime...");
-        runtime.stop(); });
+        runtime.stop();
+    });
 
     LOG_INFO("Runtime Ready");
     LOG_INFO("  Providers: " << config.providers.size());
