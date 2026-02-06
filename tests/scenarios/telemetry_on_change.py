@@ -60,9 +60,7 @@ class TelemetryOnChange(ScenarioBase):
 
             # Step 3: Make an actual change - toggle relay
             new_ch1_state = not initial_ch1
-            result = self.call_function(
-                "sim0", "relayio0", "set_relay_ch1", {"enabled": new_ch1_state}
-            )
+            result = self.call_function("sim0", "relayio0", "set_relay_ch1", {"enabled": new_ch1_state})
             self.assert_equal(result["status"], "OK", "Failed to change relay state")
 
             # Step 4: Verify change is reflected in state

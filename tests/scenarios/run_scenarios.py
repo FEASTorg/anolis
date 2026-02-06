@@ -34,11 +34,11 @@ import os
 import subprocess
 import sys
 import tempfile
-import time
 import threading
+import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
-from dataclasses import dataclass
 
 # NOTE: On Windows, use PYTHONIOENCODING=utf-8 environment variable if Unicode output issues occur.
 # Monkey-patching sys.stdout/stderr here causes "I/O operation on closed file" errors in some environments.
@@ -91,9 +91,7 @@ class RuntimeProcess:
 class ScenarioRunner:
     """Orchestrates runtime startup and scenario execution"""
 
-    def __init__(
-        self, runtime_path: str, provider_path: str, port: int, verbose: bool = False
-    ):
+    def __init__(self, runtime_path: str, provider_path: str, port: int, verbose: bool = False):
         self.runtime_path = runtime_path
         self.provider_path = provider_path
         self.port = port
@@ -291,11 +289,7 @@ class ScenarioRunner:
 
                 # Find ScenarioBase subclasses
                 for name, obj in inspect.getmembers(module, inspect.isclass):
-                    if (
-                        issubclass(obj, ScenarioBase)
-                        and obj is not ScenarioBase
-                        and obj.__module__ == module.__name__
-                    ):
+                    if issubclass(obj, ScenarioBase) and obj is not ScenarioBase and obj.__module__ == module.__name__:
                         scenarios.append(obj)
 
             except Exception as e:
@@ -304,9 +298,7 @@ class ScenarioRunner:
 
         return scenarios
 
-    def run_scenario(
-        self, scenario_class: type, runtime: RuntimeProcess
-    ) -> ScenarioResult:
+    def run_scenario(self, scenario_class: type, runtime: RuntimeProcess) -> ScenarioResult:
         """
         Run a single scenario.
 
@@ -357,9 +349,7 @@ class ScenarioRunner:
                 details=str(e),
             )
 
-    def run_all_scenarios(
-        self, scenario_filter: Optional[str] = None
-    ) -> List[ScenarioResult]:
+    def run_all_scenarios(self, scenario_filter: Optional[str] = None) -> List[ScenarioResult]:
         """
         Run all discovered scenarios (or filtered subset).
 
@@ -380,8 +370,7 @@ class ScenarioRunner:
             scenario_classes = [
                 sc
                 for sc in scenario_classes
-                if sc.__name__.lower() == normalized_filter
-                or sc.__name__.lower().replace("_", "") == normalized_filter
+                if sc.__name__.lower() == normalized_filter or sc.__name__.lower().replace("_", "") == normalized_filter
             ]
             if not scenario_classes:
                 print(f"ERROR: Scenario '{scenario_filter}' not found")
@@ -408,9 +397,7 @@ class ScenarioRunner:
 
             # Start runtime for this scenario
             if self.verbose:
-                print(
-                    f"\n[RUNNER] Starting runtime for {scenario_class.__name__} (policy={policy})..."
-                )
+                print(f"\n[RUNNER] Starting runtime for {scenario_class.__name__} (policy={policy})...")
 
             try:
                 runtime = self.start_runtime(policy=policy)
@@ -460,9 +447,7 @@ class ScenarioRunner:
         total_time = sum(r.duration_seconds for r in results)
 
         print("\n" + "=" * 60)
-        print(
-            f"Scenario Results: {passed} passed, {failed} failed ({total_time:.2f}s total)"
-        )
+        print(f"Scenario Results: {passed} passed, {failed} failed ({total_time:.2f}s total)")
         print("=" * 60)
 
         if failed > 0:
@@ -525,20 +510,14 @@ def main():
         epilog=__doc__,
     )
 
-    parser.add_argument(
-        "--runtime", help="Path to anolis-runtime executable (default: auto-detect)"
-    )
+    parser.add_argument("--runtime", help="Path to anolis-runtime executable (default: auto-detect)")
     parser.add_argument(
         "--provider",
         help="Path to anolis-provider-sim executable (default: auto-detect)",
     )
-    parser.add_argument(
-        "--port", type=int, default=8080, help="HTTP server port (default: 8080)"
-    )
+    parser.add_argument("--port", type=int, default=8080, help="HTTP server port (default: 8080)")
     parser.add_argument("--scenario", help="Run only specific scenario (default: all)")
-    parser.add_argument(
-        "--list", action="store_true", help="List available scenarios and exit"
-    )
+    parser.add_argument("--list", action="store_true", help="List available scenarios and exit")
     parser.add_argument("--verbose", action="store_true", help="Show detailed output")
 
     args = parser.parse_args()
@@ -559,9 +538,7 @@ def main():
 
     provider_path = args.provider
     if not provider_path:
-        provider_path = find_executable(
-            "anolis-provider-sim", "../anolis-provider-sim/build"
-        )
+        provider_path = find_executable("anolis-provider-sim", "../anolis-provider-sim/build")
         if not provider_path:
             print("ERROR: Could not find anolis-provider-sim executable")
             print("Use --provider to specify path")

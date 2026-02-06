@@ -14,9 +14,10 @@ Note: Full SSE client testing requires async streaming. This scenario validates
 that the runtime remains responsive even under load/slow conditions.
 """
 
-from .base import ScenarioBase, ScenarioResult, create_result
 import threading
 import time
+
+from .base import ScenarioBase, ScenarioResult, create_result
 
 
 class SlowSseClientBehavior(ScenarioBase):
@@ -70,17 +71,11 @@ class SlowSseClientBehavior(ScenarioBase):
 
             # Step 4: Verify function calls still work with good responsiveness
             start = time.time()
-            result = self.call_function(
-                "sim0", "relayio0", "set_relay_ch1", {"enabled": True}
-            )
+            result = self.call_function("sim0", "relayio0", "set_relay_ch1", {"enabled": True})
             call_latency = time.time() - start
 
-            self.assert_equal(
-                result["status"], "OK", "Function call should succeed under load"
-            )
-            self.assert_true(
-                call_latency < 5.0, f"Function call latency too high: {call_latency}s"
-            )
+            self.assert_equal(result["status"], "OK", "Function call should succeed under load")
+            self.assert_true(call_latency < 5.0, f"Function call latency too high: {call_latency}s")
 
             # Step 5: Test concurrent access from multiple "clients"
             # Simulate by making parallel requests
@@ -120,9 +115,7 @@ class SlowSseClientBehavior(ScenarioBase):
             final_status = self.get_runtime_status()
             final_latency = time.time() - start
 
-            self.assert_true(
-                final_latency < 3.0, f"Post-load latency too high: {final_latency}s"
-            )
+            self.assert_true(final_latency < 3.0, f"Post-load latency too high: {final_latency}s")
 
             return create_result(
                 self,

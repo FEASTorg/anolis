@@ -48,8 +48,7 @@ class ParameterValidation(ScenarioBase):
 
             # Should fail with invalid argument or out of range error
             self.assert_true(
-                result.get("status")
-                in ["INVALID_ARGUMENT", "BAD_REQUEST", "ERROR", "OUT_OF_RANGE"],
+                result.get("status") in ["INVALID_ARGUMENT", "BAD_REQUEST", "ERROR", "OUT_OF_RANGE"],
                 f"Expected out-of-range error, got {result.get('status')}",
             )
 
@@ -65,8 +64,7 @@ class ParameterValidation(ScenarioBase):
 
             # Should fail
             self.assert_true(
-                result.get("status")
-                in ["INVALID_ARGUMENT", "BAD_REQUEST", "ERROR", "OUT_OF_RANGE"],
+                result.get("status") in ["INVALID_ARGUMENT", "BAD_REQUEST", "ERROR", "OUT_OF_RANGE"],
                 f"Expected out-of-range error for setpoint, got {result.get('status')}",
             )
 
@@ -88,18 +86,12 @@ class ParameterValidation(ScenarioBase):
             # Test 5: Valid parameters - should succeed
 
             # Valid relay call
-            result = self.call_function(
-                "sim0", "tempctl0", "set_relay", {"relay_index": 1, "state": True}
-            )
+            result = self.call_function("sim0", "tempctl0", "set_relay", {"relay_index": 1, "state": True})
             self.assert_equal(result["status"], "OK", "Valid relay call should succeed")
 
             # Valid setpoint within range
-            result = self.call_function(
-                "sim0", "tempctl0", "set_setpoint", {"value": 60.0}
-            )
-            self.assert_equal(
-                result["status"], "OK", "Valid setpoint call should succeed"
-            )
+            result = self.call_function("sim0", "tempctl0", "set_setpoint", {"value": 60.0})
+            self.assert_equal(result["status"], "OK", "Valid setpoint call should succeed")
 
             # Verify setpoint was actually set
             self.sleep(0.1)
@@ -117,19 +109,11 @@ class ParameterValidation(ScenarioBase):
 
             # Test 6: Boolean parameter validation
 
-            result = self.call_function(
-                "sim0", "relayio0", "set_relay_ch1", {"enabled": True}
-            )
-            self.assert_equal(
-                result["status"], "OK", "Valid boolean parameter should succeed"
-            )
+            result = self.call_function("sim0", "relayio0", "set_relay_ch1", {"enabled": True})
+            self.assert_equal(result["status"], "OK", "Valid boolean parameter should succeed")
 
-            result = self.call_function(
-                "sim0", "relayio0", "set_relay_ch1", {"enabled": False}
-            )
-            self.assert_equal(
-                result["status"], "OK", "Valid boolean parameter should succeed"
-            )
+            result = self.call_function("sim0", "relayio0", "set_relay_ch1", {"enabled": False})
+            self.assert_equal(result["status"], "OK", "Valid boolean parameter should succeed")
 
             return create_result(
                 self,

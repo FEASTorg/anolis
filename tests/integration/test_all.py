@@ -14,12 +14,12 @@ Exit Codes:
     2 - Test infrastructure error
 """
 
+import argparse
 import subprocess
 import sys
 import time
-import argparse
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 from typing import List, Optional
 
 
@@ -92,34 +92,14 @@ def find_provider_path() -> Optional[Path]:
     # 2. Inside workspace (CI setup)
     candidates = [
         # Sibling repo (local dev)
-        repo_root.parent
-        / "anolis-provider-sim"
-        / "build"
-        / "Release"
-        / "anolis-provider-sim.exe",
-        repo_root.parent
-        / "anolis-provider-sim"
-        / "build"
-        / "Release"
-        / "anolis-provider-sim",
-        repo_root.parent
-        / "anolis-provider-sim"
-        / "build"
-        / "Debug"
-        / "anolis-provider-sim.exe",
-        repo_root.parent
-        / "anolis-provider-sim"
-        / "build"
-        / "Debug"
-        / "anolis-provider-sim",
+        repo_root.parent / "anolis-provider-sim" / "build" / "Release" / "anolis-provider-sim.exe",
+        repo_root.parent / "anolis-provider-sim" / "build" / "Release" / "anolis-provider-sim",
+        repo_root.parent / "anolis-provider-sim" / "build" / "Debug" / "anolis-provider-sim.exe",
+        repo_root.parent / "anolis-provider-sim" / "build" / "Debug" / "anolis-provider-sim",
         repo_root.parent / "anolis-provider-sim" / "build" / "anolis-provider-sim.exe",
         repo_root.parent / "anolis-provider-sim" / "build" / "anolis-provider-sim",
         # Inside workspace (CI)
-        repo_root
-        / "anolis-provider-sim"
-        / "build"
-        / "Release"
-        / "anolis-provider-sim.exe",
+        repo_root / "anolis-provider-sim" / "build" / "Release" / "anolis-provider-sim.exe",
         repo_root / "anolis-provider-sim" / "build" / "Release" / "anolis-provider-sim",
         repo_root / "anolis-provider-sim" / "build" / "anolis-provider-sim.exe",
         repo_root / "anolis-provider-sim" / "build" / "anolis-provider-sim",
@@ -158,9 +138,7 @@ def kill_processes(names: List[str]) -> None:
         # Then force kill any remaining
         for name in names:
             try:
-                subprocess.run(
-                    ["pkill", "-9", "-x", name], capture_output=True, timeout=5
-                )
+                subprocess.run(["pkill", "-9", "-x", name], capture_output=True, timeout=5)
             except Exception:
                 pass
 
@@ -296,26 +274,20 @@ def run_test_script(
         )
     except Exception as e:
         duration = time.time() - start_time
-        return TestSuiteResult(
-            name=script_name, passed=False, duration=duration, message=f"Exception: {e}"
-        )
+        return TestSuiteResult(name=script_name, passed=False, duration=duration, message=f"Exception: {e}")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run all Anolis integration tests")
     parser.add_argument("--runtime", type=str, help="Path to anolis-runtime executable")
-    parser.add_argument(
-        "--provider", type=str, help="Path to anolis-provider-sim executable"
-    )
+    parser.add_argument("--provider", type=str, help="Path to anolis-provider-sim executable")
     parser.add_argument(
         "--timeout",
         type=int,
         default=60,
         help="Timeout per test suite in seconds (default: 60)",
     )
-    parser.add_argument(
-        "--verbose", action="store_true", help="Show test output in real-time"
-    )
+    parser.add_argument("--verbose", action="store_true", help="Show test output in real-time")
     parser.add_argument(
         "--port",
         type=int,
@@ -405,9 +377,7 @@ def main() -> int:
             duration = time.time() - start
             passed = proc.returncode == 0
             message = "" if passed else (proc.stderr.strip() or proc.stdout.strip())
-            results.append(
-                TestSuiteResult("bt_nodes_sanity", passed, duration, message)
-            )
+            results.append(TestSuiteResult("bt_nodes_sanity", passed, duration, message))
             status = "[PASS]" if passed else "[FAIL]"
             print(f"{status} bt_nodes_sanity ({duration:.1f}s)")
             if not passed:

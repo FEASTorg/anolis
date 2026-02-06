@@ -9,8 +9,8 @@ Provides common infrastructure for validation scenarios:
 """
 
 import time
-from typing import Any, Dict, List
 from dataclasses import dataclass
+from typing import Any, Dict, List
 
 
 @dataclass
@@ -161,9 +161,7 @@ class ScenarioBase:
         resp.raise_for_status()
         return resp.json()
 
-    def call_function(
-        self, provider: str, device: str, function: Any, args: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def call_function(self, provider: str, device: str, function: Any, args: Dict[str, Any]) -> Dict[str, Any]:
         """
         Call a device function.
 
@@ -341,23 +339,18 @@ class ScenarioBase:
                 actual = sig.get("value")
 
                 # Handle float comparison with tolerance
-                if isinstance(expected_value, float) and isinstance(
-                    actual, (int, float)
-                ):
+                if isinstance(expected_value, float) and isinstance(actual, (int, float)):
                     if abs(actual - expected_value) <= tolerance:
                         return
                     raise AssertionError(
-                        f"Signal {signal_id}: expected {expected_value}, "
-                        f"got {actual} (tolerance {tolerance})"
+                        f"Signal {signal_id}: expected {expected_value}, got {actual} (tolerance {tolerance})"
                     )
 
                 # Exact comparison for other types
                 if actual == expected_value:
                     return
 
-                raise AssertionError(
-                    f"Signal {signal_id}: expected {expected_value}, got {actual}"
-                )
+                raise AssertionError(f"Signal {signal_id}: expected {expected_value}, got {actual}")
 
         raise AssertionError(f"Signal {signal_id} not found")
 
@@ -384,9 +377,7 @@ class ScenarioBase:
             raise AssertionError(f"Expected HTTP {status_code} but call succeeded")
         except requests.HTTPError as e:
             if e.response.status_code != status_code:
-                raise AssertionError(
-                    f"Expected HTTP {status_code}, got {e.response.status_code}"
-                )
+                raise AssertionError(f"Expected HTTP {status_code}, got {e.response.status_code}")
             # Expected error occurred
 
     # -----------------------------
@@ -397,9 +388,7 @@ class ScenarioBase:
         """Sleep for specified seconds (for readability in scenarios)."""
         time.sleep(seconds)
 
-    def poll_until(
-        self, condition_func, timeout: float = 5.0, interval: float = 0.1
-    ) -> bool:
+    def poll_until(self, condition_func, timeout: float = 5.0, interval: float = 0.1) -> bool:
         """
         Poll until condition function returns True or timeout.
 
@@ -422,9 +411,7 @@ class ScenarioBase:
         return False
 
 
-def create_result(
-    scenario: ScenarioBase, passed: bool, message: str = "", details: str = ""
-) -> ScenarioResult:
+def create_result(scenario: ScenarioBase, passed: bool, message: str = "", details: str = "") -> ScenarioResult:
     """
     Create a ScenarioResult for a scenario.
 

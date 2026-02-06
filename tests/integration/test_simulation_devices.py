@@ -16,9 +16,10 @@ Usage:
     python scripts/test_simulation_devices.py
 """
 
-import requests
-import time
 import sys
+import time
+
+import requests
 
 BASE_URL = "http://localhost:8080"
 
@@ -68,9 +69,7 @@ def test_relayio0():
     state = resp.json()
     print(f"  Signals: {len(state['values'])}")
 
-    relay1_before = next(
-        (s for s in state["values"] if s["signal_id"] == "relay_ch1_state"), None
-    )
+    relay1_before = next((s for s in state["values"] if s["signal_id"] == "relay_ch1_state"), None)
     print(f"  relay_ch1_state: {relay1_before['value']['bool']}")
 
     # Toggle relay
@@ -95,12 +94,10 @@ def test_relayio0():
         return val and val["value"]["bool"]
 
     wait_for_condition(check_relay, timeout=2.0)
-    
+
     resp = requests.get(f"{BASE_URL}/v0/state/sim0/relayio0")
     state = resp.json()
-    relay1_after = next(
-        (s for s in state["values"] if s["signal_id"] == "relay_ch1_state"), None
-    )
+    relay1_after = next((s for s in state["values"] if s["signal_id"] == "relay_ch1_state"), None)
 
     if relay1_after["value"]["bool"]:
         print("  [PASS] Relay toggled successfully")
@@ -118,12 +115,8 @@ def test_analogsensor0():
     resp = requests.get(f"{BASE_URL}/v0/state/sim0/analogsensor0")
     state = resp.json()
 
-    voltage_ch1 = next(
-        (s for s in state["values"] if s["signal_id"] == "voltage_ch1"), None
-    )
-    quality = next(
-        (s for s in state["values"] if s["signal_id"] == "sensor_quality"), None
-    )
+    voltage_ch1 = next((s for s in state["values"] if s["signal_id"] == "voltage_ch1"), None)
+    quality = next((s for s in state["values"] if s["signal_id"] == "sensor_quality"), None)
 
     print(f"  voltage_ch1: {voltage_ch1['value']['double']:.2f}V")
     print(f"  sensor_quality: {quality['value']['string']}")
@@ -145,12 +138,10 @@ def test_analogsensor0():
         return q and q["value"]["string"] != "GOOD"
 
     wait_for_condition(check_quality_bad, timeout=5.0, description="quality to degrade")
-    
+
     resp = requests.get(f"{BASE_URL}/v0/state/sim0/analogsensor0")
     state = resp.json()
-    quality_after = next(
-        (s for s in state["values"] if s["signal_id"] == "sensor_quality"), None
-    )
+    quality_after = next((s for s in state["values"] if s["signal_id"] == "sensor_quality"), None)
 
     print(f"  sensor_quality after noise: {quality_after['value']['string']}")
 

@@ -18,15 +18,16 @@ Prerequisites:
     - Automation enabled in config
 """
 
+import argparse
+import os
 import subprocess
 import sys
-import os
-import time
-import requests
 import tempfile
+import time
+from typing import Any, Dict, Optional
+
+import requests
 import yaml
-import argparse
-from typing import Optional, Dict, Any
 
 
 class Colors:
@@ -61,17 +62,13 @@ class AutomationTester:
         self.port = port
         self.base_url = f"http://127.0.0.1:{port}"
         # script (integration) -> tests -> root
-        self.repo_root = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "..")
-        )
+        self.repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
         self.runtime_process: Optional[subprocess.Popen] = None
         self.config_file: Optional[str] = None
         self.tests_passed = 0
         self.tests_failed = 0
 
-    def create_config(
-        self, automation_enabled: bool = True, manual_gating_policy: str = "BLOCK"
-    ) -> str:
+    def create_config(self, automation_enabled: bool = True, manual_gating_policy: str = "BLOCK") -> str:
         """Create temporary runtime config with automation enabled"""
         config = {
             "runtime": {"mode": "MANUAL"},
@@ -139,10 +136,8 @@ class AutomationTester:
         deadline = time.time() + 10.0
         while time.time() < deadline:
             if self.runtime_process.poll() is not None:
-                raise RuntimeError(
-                    f"Runtime process terminated with exit code {self.runtime_process.returncode}"
-                )
-            
+                raise RuntimeError(f"Runtime process terminated with exit code {self.runtime_process.returncode}")
+
             try:
                 requests.get(f"{self.base_url}/v0/devices", timeout=1)
                 log_pass("Runtime started successfully")
@@ -180,9 +175,7 @@ class AutomationTester:
     def set_mode(self, mode: str) -> Optional[Dict[str, Any]]:
         """Set mode via HTTP API"""
         try:
-            resp = requests.post(
-                f"{self.base_url}/v0/mode", json={"mode": mode}, timeout=2
-            )
+            resp = requests.post(f"{self.base_url}/v0/mode", json={"mode": mode}, timeout=2)
             return resp.json()
         except requests.RequestException as e:
             log_fail(f"Request failed: {e}")
@@ -500,9 +493,7 @@ def main():
         default="../anolis-provider-sim/build/Release/anolis-provider-sim.exe",
         help="Path to provider executable",
     )
-    parser.add_argument(
-        "--port", type=int, default=18080, help="HTTP port to use (default: 18080)"
-    )
+    parser.add_argument("--port", type=int, default=18080, help="HTTP port to use (default: 18080)")
     parser.add_argument(
         "--timeout",
         type=int,

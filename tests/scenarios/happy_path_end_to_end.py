@@ -29,9 +29,7 @@ class HappyPathEndToEnd(ScenarioBase):
 
             # Step 2: Device Discovery - list all devices
             devices = self.get_devices()
-            self.assert_true(
-                len(devices) >= 4, f"Expected at least 4 devices, found {len(devices)}"
-            )
+            self.assert_true(len(devices) >= 4, f"Expected at least 4 devices, found {len(devices)}")
 
             # Verify expected devices exist
             device_ids = [d.get("device_id") for d in devices]
@@ -43,9 +41,7 @@ class HappyPathEndToEnd(ScenarioBase):
                 "sim_control",
             ]
             for expected_device in expected:
-                self.assert_in(
-                    expected_device, device_ids, f"Device {expected_device} not found"
-                )
+                self.assert_in(expected_device, device_ids, f"Device {expected_device} not found")
 
             # Step 3: Get Capabilities - verify tempctl0 capabilities
             caps = self.get_capabilities("sim0", "tempctl0")
@@ -72,9 +68,7 @@ class HappyPathEndToEnd(ScenarioBase):
                 if sig.get("signal_id") == "relay1_state":
                     initial_relay1 = sig.get("value")
                     break
-            self.assert_true(
-                initial_relay1 is not None, "relay1_state not found in initial state"
-            )
+            self.assert_true(initial_relay1 is not None, "relay1_state not found in initial state")
 
             # Step 5: Call Function - toggle relay1
             new_relay_state = not initial_relay1
@@ -106,9 +100,7 @@ class HappyPathEndToEnd(ScenarioBase):
             # Step 7: Verify All Device State - check we can poll all devices
             all_state = self.get_all_state()
             self.assert_in("devices", all_state, "All-state response missing 'devices'")
-            self.assert_true(
-                len(all_state["devices"]) >= 4, "Not all devices in all-state response"
-            )
+            self.assert_true(len(all_state["devices"]) >= 4, "Not all devices in all-state response")
 
             return create_result(
                 self,

@@ -20,18 +20,18 @@ Prerequisites:
     - Runtime and provider executables must be built
 """
 
-import subprocess
-import sys
-import os
-import time
-import threading
-import tempfile
 import argparse
 import json
-from pathlib import Path
+import os
+import subprocess
+import sys
+import tempfile
+import threading
+import time
 from dataclasses import dataclass
-from typing import Optional, List, Dict, Any
-from queue import Queue, Empty
+from pathlib import Path
+from queue import Empty, Queue
+from typing import Any, Dict, List, Optional
 
 # Try to import requests, provide helpful error if missing
 try:
@@ -211,11 +211,7 @@ logging:
                 stdout=subprocess.PIPE,
                 text=True,
                 bufsize=1,
-                creationflags=(
-                    subprocess.CREATE_NEW_PROCESS_GROUP
-                    if sys.platform == "win32"
-                    else 0
-                ),
+                creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0),
             )
 
             self.capture = OutputCapture(self.process)
@@ -328,9 +324,7 @@ logging:
 
         # Check for required fields
         if "event: state_update" not in first_event:
-            self.record(
-                "SSE event type", False, f"Missing 'event:' field: {first_event}"
-            )
+            self.record("SSE event type", False, f"Missing 'event:' field: {first_event}")
             return False
         self.record("SSE event type present", True)
 
@@ -340,17 +334,13 @@ logging:
         self.record("SSE event id present", True)
 
         if "data: " not in first_event:
-            self.record(
-                "SSE data field", False, f"Missing 'data:' field: {first_event}"
-            )
+            self.record("SSE data field", False, f"Missing 'data:' field: {first_event}")
             return False
         self.record("SSE data field present", True)
 
         # Parse data JSON
         try:
-            data_line = [l for l in first_event.split("\n") if l.startswith("data: ")][
-                0
-            ]
+            data_line = [l for l in first_event.split("\n") if l.startswith("data: ")][0]
             data_json = json.loads(data_line[6:])  # Strip "data: " prefix
 
             # Check required fields in data
@@ -364,9 +354,7 @@ logging:
             ]
             for field in required_fields:
                 if field not in data_json:
-                    self.record(
-                        f"SSE data.{field}", False, f"Missing field in: {data_json}"
-                    )
+                    self.record(f"SSE data.{field}", False, f"Missing field in: {data_json}")
                     return False
             self.record("SSE data fields complete", True)
 
@@ -441,9 +429,7 @@ logging:
 
         result = self.http_get("/v0/runtime/status")
         if result["status_code"] != 200:
-            self.record(
-                "Status endpoint", False, f"Expected 200, got {result['status_code']}"
-            )
+            self.record("Status endpoint", False, f"Expected 200, got {result['status_code']}")
             return False
         self.record("Status returns 200", True)
 
@@ -470,18 +456,14 @@ logging:
 
         result = self.http_get("/v0/devices")
         if result["status_code"] != 200:
-            self.record(
-                "Devices endpoint", False, f"Expected 200, got {result['status_code']}"
-            )
+            self.record("Devices endpoint", False, f"Expected 200, got {result['status_code']}")
             return False
         self.record("Devices returns 200", True)
 
         body = result["body"]
         devices = body.get("devices", [])
         if len(devices) < 2:
-            self.record(
-                "Multiple devices", False, f"Expected 2+ devices, got {len(devices)}"
-            )
+            self.record("Multiple devices", False, f"Expected 2+ devices, got {len(devices)}")
             return False
         self.record("Multiple devices returned", True)
 
@@ -517,9 +499,7 @@ logging:
         functions = caps.get("functions", [])
 
         if len(signals) < 4:
-            self.record(
-                "Signals present", False, f"Expected 4+ signals, got {len(signals)}"
-            )
+            self.record("Signals present", False, f"Expected 4+ signals, got {len(signals)}")
             return False
         self.record("Signals present (4+)", True)
 
@@ -549,18 +529,14 @@ logging:
 
         result = self.http_get("/v0/state")
         if result["status_code"] != 200:
-            self.record(
-                "State endpoint", False, f"Expected 200, got {result['status_code']}"
-            )
+            self.record("State endpoint", False, f"Expected 200, got {result['status_code']}")
             return False
         self.record("State returns 200", True)
 
         body = result["body"]
         state_devices = body.get("devices", [])
         if len(state_devices) < 2:
-            self.record(
-                "State devices", False, f"Expected 2+ devices, got {len(state_devices)}"
-            )
+            self.record("State devices", False, f"Expected 2+ devices, got {len(state_devices)}")
             return False
         self.record("State has all devices", True)
 
@@ -568,9 +544,7 @@ logging:
         for dev in state_devices:
             values = dev.get("values", [])
             if len(values) == 0:
-                self.record(
-                    "State values", False, f"No values for {dev.get('device_id')}"
-                )
+                self.record("State values", False, f"No values for {dev.get('device_id')}")
                 return False
 
             # Check value structure
@@ -688,9 +662,7 @@ logging:
         result = self.http_post("/v0/call", call_data)
         # Should return 400 or 500 with error message
         if result["status_code"] == 200:
-            self.record(
-                "Invalid args rejected", False, "Call succeeded when it should fail"
-            )
+            self.record("Invalid args rejected", False, "Call succeeded when it should fail")
             return False
         self.record("Invalid args rejected (non-200)", True)
 
@@ -743,9 +715,7 @@ logging:
         # tempctl0 should have: double (temps), bool (relays), string (mode)
         for expected_type in ["double", "bool", "string"]:
             if expected_type not in types_found:
-                self.record(
-                    f"Type {expected_type}", False, f"Not found in {types_found}"
-                )
+                self.record(f"Type {expected_type}", False, f"Not found in {types_found}")
             else:
                 self.record(f"Type {expected_type} present", True)
 
@@ -785,16 +755,8 @@ def find_default_paths() -> tuple:
     ]
 
     provider_candidates = [
-        repo_root.parent
-        / "anolis-provider-sim"
-        / "build"
-        / "Release"
-        / "anolis-provider-sim.exe",
-        repo_root.parent
-        / "anolis-provider-sim"
-        / "build"
-        / "Debug"
-        / "anolis-provider-sim.exe",
+        repo_root.parent / "anolis-provider-sim" / "build" / "Release" / "anolis-provider-sim.exe",
+        repo_root.parent / "anolis-provider-sim" / "build" / "Debug" / "anolis-provider-sim.exe",
         repo_root.parent / "anolis-provider-sim" / "build" / "anolis-provider-sim",
     ]
 
@@ -816,15 +778,9 @@ def find_default_paths() -> tuple:
 def main():
     parser = argparse.ArgumentParser(description="HTTP Gateway Integration Tests")
     parser.add_argument("--runtime", type=str, help="Path to anolis-runtime executable")
-    parser.add_argument(
-        "--provider", type=str, help="Path to anolis-provider-sim executable"
-    )
-    parser.add_argument(
-        "--port", type=int, default=8080, help="HTTP port (default: 8080)"
-    )
-    parser.add_argument(
-        "--timeout", type=float, default=30.0, help="Test timeout in seconds"
-    )
+    parser.add_argument("--provider", type=str, help="Path to anolis-provider-sim executable")
+    parser.add_argument("--port", type=int, default=8080, help="HTTP port (default: 8080)")
+    parser.add_argument("--timeout", type=float, default=30.0, help="Test timeout in seconds")
     args = parser.parse_args()
 
     # Find paths
@@ -838,9 +794,7 @@ def main():
         sys.exit(1)
 
     if not provider_path:
-        print(
-            "ERROR: Could not find anolis-provider-sim. Use --provider to specify path."
-        )
+        print("ERROR: Could not find anolis-provider-sim. Use --provider to specify path.")
         sys.exit(1)
 
     print(f"Runtime:  {runtime_path}")

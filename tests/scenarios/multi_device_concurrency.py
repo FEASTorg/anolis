@@ -11,9 +11,10 @@ Tests:
 5. Verify all state changes applied correctly
 """
 
-from .base import ScenarioBase, ScenarioResult, create_result
 import threading
 import time
+
+from .base import ScenarioBase, ScenarioResult, create_result
 
 
 class MultiDeviceConcurrency(ScenarioBase):
@@ -59,9 +60,7 @@ class MultiDeviceConcurrency(ScenarioBase):
                 t.join(timeout=5.0)
 
             # Verify all polls succeeded
-            self.assert_equal(
-                len(poll_errors), 0, f"Concurrent polls failed: {poll_errors}"
-            )
+            self.assert_equal(len(poll_errors), 0, f"Concurrent polls failed: {poll_errors}")
 
             self.assert_equal(
                 len(poll_results),
@@ -104,9 +103,7 @@ class MultiDeviceConcurrency(ScenarioBase):
             # Launch concurrent function calls
             threads = []
             for device_id, function_name, args in concurrent_calls:
-                t = threading.Thread(
-                    target=call_device_function, args=(device_id, function_name, args)
-                )
+                t = threading.Thread(target=call_device_function, args=(device_id, function_name, args))
                 threads.append(t)
                 t.start()
 
@@ -115,9 +112,7 @@ class MultiDeviceConcurrency(ScenarioBase):
                 t.join(timeout=5.0)
 
             # Verify all calls succeeded
-            self.assert_equal(
-                len(call_errors), 0, f"Concurrent function calls failed: {call_errors}"
-            )
+            self.assert_equal(len(call_errors), 0, f"Concurrent function calls failed: {call_errors}")
 
             for device_id, result in call_results.items():
                 self.assert_true(
@@ -173,9 +168,7 @@ class MultiDeviceConcurrency(ScenarioBase):
                     elif i % 4 == 1:
                         self.get_state("sim0", "motorctl0")
                     elif i % 4 == 2:
-                        self.call_function(
-                            "sim0", "relayio0", "set_relay_ch1", {"enabled": i % 2 == 0}
-                        )
+                        self.call_function("sim0", "relayio0", "set_relay_ch1", {"enabled": i % 2 == 0})
                     else:
                         self.get_state("sim0", "analogsensor0")
                 except Exception as e:
@@ -189,12 +182,8 @@ class MultiDeviceConcurrency(ScenarioBase):
             )
 
             # Calculate average latencies
-            avg_poll_latency = sum(r["latency"] for r in poll_results.values()) / len(
-                poll_results
-            )
-            avg_call_latency = sum(r["latency"] for r in call_results.values()) / len(
-                call_results
-            )
+            avg_poll_latency = sum(r["latency"] for r in poll_results.values()) / len(poll_results)
+            avg_call_latency = sum(r["latency"] for r in call_results.values()) / len(call_results)
 
             return create_result(
                 self,

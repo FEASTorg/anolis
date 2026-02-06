@@ -25,9 +25,7 @@ class OverridePolicy(ScenarioBase):
 
             # Step 2: Switch to AUTO mode
             self.set_mode("AUTO")
-            self.assert_true(
-                self.wait_for_mode("AUTO", timeout=2.0), "Failed to switch to AUTO mode"
-            )
+            self.assert_true(self.wait_for_mode("AUTO", timeout=2.0), "Failed to switch to AUTO mode")
 
             # Step 3: Make manual function call in AUTO mode
             # With OVERRIDE policy, this should:

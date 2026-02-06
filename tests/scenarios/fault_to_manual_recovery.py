@@ -35,9 +35,7 @@ class FaultToManualRecovery(ScenarioBase):
                 "inject_device_unavailable",
                 {"device_id": "tempctl0", "duration_ms": 5000},
             )
-            self.assert_equal(
-                result["status"], "OK", "Failed to inject device unavailable fault"
-            )
+            self.assert_equal(result["status"], "OK", "Failed to inject device unavailable fault")
 
             # Step 4: Verify device becomes unavailable
             self.sleep(0.2)
@@ -72,21 +70,13 @@ class FaultToManualRecovery(ScenarioBase):
             self.sleep(0.2)
 
             state = self.get_state("sim0", "tempctl0")
-            self.assert_in(
-                "signals", state, "tempctl0 should be accessible after clearing fault"
-            )
+            self.assert_in("signals", state, "tempctl0 should be accessible after clearing fault")
             signals = state.get("signals", [])
-            self.assert_true(
-                len(signals) > 0, "tempctl0 should return signals after recovery"
-            )
+            self.assert_true(len(signals) > 0, "tempctl0 should return signals after recovery")
 
             # Step 8: Perform manual recovery action - call a function to verify control works
-            result = self.call_function(
-                "sim0", "tempctl0", "set_relay", {"relay_index": 1, "state": True}
-            )
-            self.assert_equal(
-                result["status"], "OK", "Manual control should work after recovery"
-            )
+            result = self.call_function("sim0", "tempctl0", "set_relay", {"relay_index": 1, "state": True})
+            self.assert_equal(result["status"], "OK", "Manual control should work after recovery")
 
             # Step 9: Verify state change took effect
             self.sleep(0.2)
@@ -98,9 +88,7 @@ class FaultToManualRecovery(ScenarioBase):
                     relay_state = sig.get("value")
                     break
 
-            self.assert_equal(
-                relay_state, True, "Relay state should be updated after manual control"
-            )
+            self.assert_equal(relay_state, True, "Relay state should be updated after manual control")
 
             # Step 10: Verify runtime is in operational mode (MANUAL or AUTO acceptable)
             status = self.get_runtime_status()

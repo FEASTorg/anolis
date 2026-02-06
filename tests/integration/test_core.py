@@ -13,18 +13,18 @@ Usage:
     python tests/integration/test_core.py [--runtime PATH] [--provider PATH] [--timeout SECONDS]
 """
 
+import argparse
+import os
+import signal
 import subprocess
 import sys
-import os
-import time
-import threading
 import tempfile
-import signal
-import argparse
-from pathlib import Path
+import threading
+import time
 from dataclasses import dataclass
-from typing import Optional, List
-from queue import Queue, Empty
+from pathlib import Path
+from queue import Empty, Queue
+from typing import List, Optional
 
 
 @dataclass
@@ -183,11 +183,7 @@ logging:
                 stdout=subprocess.PIPE,
                 text=True,
                 bufsize=1,  # Line buffered
-                creationflags=(
-                    subprocess.CREATE_NEW_PROCESS_GROUP
-                    if sys.platform == "win32"
-                    else 0
-                ),
+                creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0),
             )
 
             self.capture = OutputCapture(self.process)
@@ -388,15 +384,9 @@ def find_provider() -> Optional[Path]:
 
 def main():
     parser = argparse.ArgumentParser(description="Core Runtime Integration Tests")
-    parser.add_argument(
-        "--runtime", type=Path, help="Path to anolis-runtime executable"
-    )
-    parser.add_argument(
-        "--provider", type=Path, help="Path to anolis-provider-sim executable"
-    )
-    parser.add_argument(
-        "--timeout", type=float, default=30.0, help="Test timeout in seconds"
-    )
+    parser.add_argument("--runtime", type=Path, help="Path to anolis-runtime executable")
+    parser.add_argument("--provider", type=Path, help="Path to anolis-provider-sim executable")
+    parser.add_argument("--timeout", type=float, default=30.0, help="Test timeout in seconds")
     args = parser.parse_args()
 
     # Find executables
@@ -412,9 +402,7 @@ def main():
     if not provider_path:
         print("ERROR: Could not find anolis-provider-sim executable")
         print("       Use --provider PATH to specify location")
-        print(
-            "       Or build anolis-provider-sim with: cmake --build build --config Release"
-        )
+        print("       Or build anolis-provider-sim with: cmake --build build --config Release")
         sys.exit(1)
 
     print(f"Runtime:  {runtime_path}")

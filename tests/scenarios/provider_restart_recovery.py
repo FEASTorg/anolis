@@ -15,8 +15,9 @@ Note: Full provider restart testing would require process management.
 This scenario uses fault injection to simulate provider unavailability and recovery.
 """
 
-from .base import ScenarioBase, ScenarioResult, create_result
 import time
+
+from .base import ScenarioBase, ScenarioResult, create_result
 
 
 class ProviderRestartRecovery(ScenarioBase):
@@ -27,16 +28,12 @@ class ProviderRestartRecovery(ScenarioBase):
         try:
             # Step 1: Verify all devices operational initially
             devices = self.get_devices()
-            self.assert_true(
-                len(devices) >= 4, f"Expected at least 4 devices, found {len(devices)}"
-            )
+            self.assert_true(len(devices) >= 4, f"Expected at least 4 devices, found {len(devices)}")
 
             device_ids = [d.get("device_id") for d in devices]
             expected_devices = ["tempctl0", "motorctl0", "relayio0", "analogsensor0"]
             for expected in expected_devices:
-                self.assert_in(
-                    expected, device_ids, f"Device {expected} not found initially"
-                )
+                self.assert_in(expected, device_ids, f"Device {expected} not found initially")
 
             # Step 2: Get baseline state from each device
             baseline_states = {}
@@ -134,9 +131,7 @@ class ProviderRestartRecovery(ScenarioBase):
                 )
 
             # Step 9: Verify function calls work after recovery
-            result = self.call_function(
-                "sim0", "tempctl0", "set_relay", {"relay_index": 1, "state": True}
-            )
+            result = self.call_function("sim0", "tempctl0", "set_relay", {"relay_index": 1, "state": True})
             self.assert_equal(
                 result["status"],
                 "OK",
@@ -153,9 +148,7 @@ class ProviderRestartRecovery(ScenarioBase):
                     relay1_state = sig.get("value")
                     break
 
-            self.assert_equal(
-                relay1_state, True, "State changes should work after provider recovery"
-            )
+            self.assert_equal(relay1_state, True, "State changes should work after provider recovery")
 
             # Step 11: Verify all device list is complete
             devices_after = self.get_devices()

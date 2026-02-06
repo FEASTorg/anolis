@@ -20,9 +20,10 @@ Usage:
     python scripts/validate_signal_fault_injection.py
 """
 
-import requests
-import time
 import sys
+import time
+
+import requests
 
 BASE_URL = "http://localhost:8080"
 
@@ -50,9 +51,7 @@ def test_signal_fault_injection():
         print("FAIL: Could not find temp_pv signal")
         return False
 
-    print(
-        f"   Baseline: temp_pv = {temp_pv_baseline['value']}, quality = {temp_pv_baseline['quality']}"
-    )
+    print(f"   Baseline: temp_pv = {temp_pv_baseline['value']}, quality = {temp_pv_baseline['quality']}")
 
     if temp_pv_baseline["quality"] != "OK":
         print(f"WARN: Baseline quality is not OK: {temp_pv_baseline['quality']}")
@@ -97,15 +96,11 @@ def test_signal_fault_injection():
         print("FAIL: Could not find temp_pv signal")
         return False
 
-    print(
-        f"   Faulted: temp_pv = {temp_pv_faulted['value']}, quality = {temp_pv_faulted['quality']}"
-    )
+    print(f"   Faulted: temp_pv = {temp_pv_faulted['value']}, quality = {temp_pv_faulted['quality']}")
 
     # CRITICAL CHECK: Quality should be FAULT
     if temp_pv_faulted["quality"] != "FAULT":
-        print(
-            f"FAIL: Signal quality should be FAULT, got: {temp_pv_faulted['quality']}"
-        )
+        print(f"FAIL: Signal quality should be FAULT, got: {temp_pv_faulted['quality']}")
         return False
 
     print("   [PASS] Quality correctly set to FAULT")
@@ -122,14 +117,10 @@ def test_signal_fault_injection():
             temp_pv_frozen = signal
             break
 
-    print(
-        f"   Frozen: temp_pv = {temp_pv_frozen['value']}, quality = {temp_pv_frozen['quality']}"
-    )
+    print(f"   Frozen: temp_pv = {temp_pv_frozen['value']}, quality = {temp_pv_frozen['quality']}")
 
     if temp_pv_frozen["quality"] != "FAULT":
-        print(
-            f"FAIL: Quality should still be FAULT after 1s, got: {temp_pv_frozen['quality']}"
-        )
+        print(f"FAIL: Quality should still be FAULT after 1s, got: {temp_pv_frozen['quality']}")
         return False
 
     # Note: We don't strictly verify value freeze since temp_pv might legitimately not change
@@ -138,9 +129,7 @@ def test_signal_fault_injection():
 
     # Step 5: Clear faults and verify recovery
     print("\n5. Clearing faults...")
-    response = requests.post(
-        f"{BASE_URL}/v0/call/sim0/sim_control/clear_faults", json={"args": {}}
-    )
+    response = requests.post(f"{BASE_URL}/v0/call/sim0/sim_control/clear_faults", json={"args": {}})
 
     if response.status_code != 200:
         print(f"FAIL: Could not clear faults: {response.status_code}")
@@ -160,14 +149,10 @@ def test_signal_fault_injection():
             temp_pv_recovered = signal
             break
 
-    print(
-        f"   Recovered: temp_pv = {temp_pv_recovered['value']}, quality = {temp_pv_recovered['quality']}"
-    )
+    print(f"   Recovered: temp_pv = {temp_pv_recovered['value']}, quality = {temp_pv_recovered['quality']}")
 
     if temp_pv_recovered["quality"] != "OK":
-        print(
-            f"FAIL: Quality should be OK after clearing faults, got: {temp_pv_recovered['quality']}"
-        )
+        print(f"FAIL: Quality should be OK after clearing faults, got: {temp_pv_recovered['quality']}")
         return False
 
     print("   [PASS] Quality recovered to OK")
