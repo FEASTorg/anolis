@@ -23,10 +23,18 @@ const char *mode_to_string(RuntimeMode mode) {
 }
 
 RuntimeMode string_to_mode(const std::string &str) {
-    if (str == "MANUAL") return RuntimeMode::MANUAL;
-    if (str == "AUTO") return RuntimeMode::AUTO;
-    if (str == "IDLE") return RuntimeMode::IDLE;
-    if (str == "FAULT") return RuntimeMode::FAULT;
+    if (str == "MANUAL") {
+        return RuntimeMode::MANUAL;
+    }
+    if (str == "AUTO") {
+        return RuntimeMode::AUTO;
+    }
+    if (str == "IDLE") {
+        return RuntimeMode::IDLE;
+    }
+    if (str == "FAULT") {
+        return RuntimeMode::FAULT;
+    }
 
     LOG_WARN("[ModeManager] Unknown mode string '" << str << "', defaulting to MANUAL");
     return RuntimeMode::MANUAL;

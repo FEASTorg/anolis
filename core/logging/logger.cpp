@@ -68,10 +68,18 @@ Level string_to_level(const std::string &level_str) {
     std::string s = level_str;
     std::transform(s.begin(), s.end(), s.begin(), ::toupper);
 
-    if (s == "DEBUG") return Level::LVL_DEBUG;
-    if (s == "INFO") return Level::LVL_INFO;
-    if (s == "WARN") return Level::LVL_WARN;
-    if (s == "ERROR") return Level::LVL_ERROR;
+    if (s == "DEBUG") {
+        return Level::LVL_DEBUG;
+    }
+    if (s == "INFO") {
+        return Level::LVL_INFO;
+    }
+    if (s == "WARN") {
+        return Level::LVL_WARN;
+    }
+    if (s == "ERROR") {
+        return Level::LVL_ERROR;
+    }
 
     return Level::LVL_INFO;  // Default
 }

@@ -212,7 +212,9 @@ bool ProviderHandle::wait_for_response(anolis::deviceprovider::v0::Response &res
             elapsed = std::chrono::steady_clock::now() - start;  // Update elapsed
             elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
             int read_timeout = static_cast<int>(timeout_ms - elapsed_ms);
-            if (read_timeout < 0) read_timeout = 0;
+            if (read_timeout < 0) {
+                read_timeout = 0;
+            }
 
             std::vector<uint8_t> frame_data;
             if (process_.client().read_frame(frame_data, read_timeout)) {

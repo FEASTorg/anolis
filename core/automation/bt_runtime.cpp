@@ -190,7 +190,7 @@ void BTRuntime::populate_blackboard() {
     blackboard->set("providers", static_cast<void *>(&providers_));
 
     // Add parameter_manager to blackboard
-    if (parameter_manager_) {
+    if (parameter_manager_ != nullptr) {
         blackboard->set("parameter_manager", static_cast<void *>(parameter_manager_));
     }
 

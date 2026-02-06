@@ -155,10 +155,10 @@ bool FramedStdioClient::wait_for_data(int timeout_ms) {
         return false;
     }
 
-    if (pfd.revents & POLLIN) {
+    if ((pfd.revents & POLLIN) != 0) {
         return true;
     }
-    if (pfd.revents & (POLLERR | POLLHUP | POLLNVAL)) {
+    if ((pfd.revents & (POLLERR | POLLHUP | POLLNVAL)) != 0) {
         error_ = "poll error on stdout pipe";
     }
     return false;
@@ -176,7 +176,9 @@ bool FramedStdioClient::read_exact(uint8_t *buf, size_t n, int timeout_ms) {
             auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
 
             if (elapsed_ms >= timeout_ms) {
-                if (error_.empty()) error_ = "Timeout reading frame";
+                if (error_.empty()) {
+                    error_ = "Timeout reading frame";
+                }
                 return false;
             }
 
@@ -184,7 +186,9 @@ bool FramedStdioClient::read_exact(uint8_t *buf, size_t n, int timeout_ms) {
             if (!wait_for_data(remaining_ms)) {
                 // wait_for_data sets error_ on failure, or just returns false on timeout
                 // If it returned false but error_ is empty, it's a timeout.
-                if (error_.empty()) error_ = "Timeout waiting for data chunk";
+                if (error_.empty()) {
+                    error_ = "Timeout waiting for data chunk";
+                }
                 return false;
             }
         }
@@ -213,7 +217,9 @@ bool FramedStdioClient::read_exact(uint8_t *buf, size_t n, int timeout_ms) {
 #else
         ssize_t r = read(stdout_read_, buf + total, n - total);
         if (r < 0) {
-            if (errno == EINTR) continue;
+            if (errno == EINTR) {
+                continue;
+            }
             error_ = "Read failed: " + std::string(strerror(errno));
             return false;
         }

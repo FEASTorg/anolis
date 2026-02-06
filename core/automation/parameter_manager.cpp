@@ -47,7 +47,9 @@ bool ParameterDef::validate(const ParameterValue &new_value, std::string &error)
             error = "Value '" + str_value + "' not in allowed values: [";
             for (size_t i = 0; i < allowed.size(); ++i) {
                 error += allowed[i];
-                if (i < allowed.size() - 1) error += ", ";
+                if (i < allowed.size() - 1) {
+                    error += ", ";
+                }
             }
             error += "]";
             return false;
@@ -106,7 +108,9 @@ bool ParameterManager::set(const std::string &name, const ParameterValue &value,
                 [&](auto &&old_val) {
                     using T = std::decay_t<decltype(old_val)>;
                     const auto &new_val = std::get<T>(value);
-                    if (old_val == new_val) changed = false;
+                    if (old_val == new_val) {
+                        changed = false;
+                    }
                 },
                 old_value);
 

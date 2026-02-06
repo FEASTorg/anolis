@@ -235,7 +235,9 @@ bool ProviderProcess::is_running() const {
 }
 
 void ProviderProcess::shutdown() {
-    if (!is_running()) return;
+    if (!is_running()) {
+        return;
+    }
 
     std::cerr << "[" << provider_id_ << "] Initiating shutdown\n";
     LOG_INFO("[" << provider_id_ << "] Initiating shutdown");
@@ -269,7 +271,9 @@ bool ProviderProcess::wait_for_exit(int timeout_ms) {
     DWORD result = WaitForSingleObject(process_handle_, timeout_ms);
     return result == WAIT_OBJECT_0;
 #else
-    if (pid_ <= 0) return true;
+    if (pid_ <= 0) {
+        return true;
+    }
 
     auto start = std::chrono::steady_clock::now();
     while (true) {

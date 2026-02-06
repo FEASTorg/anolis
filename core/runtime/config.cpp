@@ -14,8 +14,12 @@ namespace runtime {
 
 // Helper to parse GatingPolicy
 std::optional<GatingPolicy> parse_gating_policy(const std::string &policy_str) {
-    if (policy_str == "BLOCK") return GatingPolicy::BLOCK;
-    if (policy_str == "OVERRIDE") return GatingPolicy::OVERRIDE;
+    if (policy_str == "BLOCK") {
+        return GatingPolicy::BLOCK;
+    }
+    if (policy_str == "OVERRIDE") {
+        return GatingPolicy::OVERRIDE;
+    }
     return std::nullopt;
 }
 
@@ -169,9 +173,13 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
             for (const auto &provider_node : yaml["providers"]) {
                 ProviderConfig provider;
 
-                if (provider_node["id"]) provider.id = provider_node["id"].as<std::string>();
+                if (provider_node["id"]) {
+                    provider.id = provider_node["id"].as<std::string>();
+                }
 
-                if (provider_node["command"]) provider.command = provider_node["command"].as<std::string>();
+                if (provider_node["command"]) {
+                    provider.command = provider_node["command"].as<std::string>();
+                }
 
                 if (provider_node["args"]) {
                     for (const auto &arg : provider_node["args"]) {
@@ -179,7 +187,9 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
                     }
                 }
 
-                if (provider_node["timeout_ms"]) provider.timeout_ms = provider_node["timeout_ms"].as<int>();
+                if (provider_node["timeout_ms"]) {
+                    provider.timeout_ms = provider_node["timeout_ms"].as<int>();
+                }
 
                 config.providers.push_back(provider);
             }
@@ -202,19 +212,30 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
             if (yaml["telemetry"]["influxdb"]) {
                 auto influx = yaml["telemetry"]["influxdb"];
 
-                if (influx["url"]) config.telemetry.influx_url = influx["url"].as<std::string>();
-                if (influx["org"]) config.telemetry.influx_org = influx["org"].as<std::string>();
-                if (influx["bucket"]) config.telemetry.influx_bucket = influx["bucket"].as<std::string>();
-                if (influx["token"]) config.telemetry.influx_token = influx["token"].as<std::string>();
-                if (influx["batch_size"]) config.telemetry.batch_size = influx["batch_size"].as<size_t>();
-                if (influx["flush_interval_ms"])
+                if (influx["url"]) {
+                    config.telemetry.influx_url = influx["url"].as<std::string>();
+                }
+                if (influx["org"]) {
+                    config.telemetry.influx_org = influx["org"].as<std::string>();
+                }
+                if (influx["bucket"]) {
+                    config.telemetry.influx_bucket = influx["bucket"].as<std::string>();
+                }
+                if (influx["token"]) {
+                    config.telemetry.influx_token = influx["token"].as<std::string>();
+                }
+                if (influx["batch_size"]) {
+                    config.telemetry.batch_size = influx["batch_size"].as<size_t>();
+                }
+                if (influx["flush_interval_ms"]) {
                     config.telemetry.flush_interval_ms = influx["flush_interval_ms"].as<int>();
+                }
             }
 
             // Check for token from environment variable if not in config
             if (config.telemetry.enabled && config.telemetry.influx_token.empty()) {
                 const char *token_env = std::getenv("INFLUXDB_TOKEN");
-                if (token_env) {
+                if (token_env != nullptr) {
                     config.telemetry.influx_token = token_env;
                 }
             }
@@ -253,9 +274,13 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
                 for (const auto &param_node : yaml["automation"]["parameters"]) {
                     ParameterConfig param;
 
-                    if (param_node["name"]) param.name = param_node["name"].as<std::string>();
+                    if (param_node["name"]) {
+                        param.name = param_node["name"].as<std::string>();
+                    }
 
-                    if (param_node["type"]) param.type = param_node["type"].as<std::string>();
+                    if (param_node["type"]) {
+                        param.type = param_node["type"].as<std::string>();
+                    }
 
                     // Parse default value based on type
                     if (param_node["default"]) {

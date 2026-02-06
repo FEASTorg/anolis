@@ -52,7 +52,7 @@ void HttpServer::handle_post_call(const httplib::Request &req, httplib::Response
 
         // Look up device to get function name
         const auto *device = registry_.get_device(provider_id, device_id);
-        if (!device) {
+        if (device == nullptr) {
             send_json(res, StatusCode::NOT_FOUND,
                       make_error_response(StatusCode::NOT_FOUND, "Device not found: " + provider_id + "/" + device_id));
             return;

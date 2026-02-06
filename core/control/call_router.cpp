@@ -23,7 +23,7 @@ CallResult CallRouter::execute_call(
     result.success = false;
 
     // Check manual/auto contention
-    if (mode_manager_ && mode_manager_->current_mode() == automation::RuntimeMode::AUTO) {
+    if (mode_manager_ != nullptr && mode_manager_->current_mode() == automation::RuntimeMode::AUTO) {
         if (manual_gating_policy_ == "BLOCK") {
             result.error_message = "Manual call blocked in AUTO mode (policy: BLOCK)";
             result.status_code = anolis::deviceprovider::v0::Status_Code_CODE_FAILED_PRECONDITION;
@@ -38,10 +38,11 @@ CallResult CallRouter::execute_call(
     std::string validation_error;
     if (!validate_call(request, validation_error)) {
         result.error_message = validation_error;
-        if (validation_error.find("not found") != std::string::npos)
+        if (validation_error.find("not found") != std::string::npos) {
             result.status_code = anolis::deviceprovider::v0::Status_Code_CODE_NOT_FOUND;
-        else
+        } else {
             result.status_code = anolis::deviceprovider::v0::Status_Code_CODE_INVALID_ARGUMENT;
+        }
 
         LOG_WARN("[CallRouter] Validation failed: " << validation_error);
         return result;
@@ -73,7 +74,7 @@ CallResult CallRouter::execute_call(
 
     // Get device and function spec for function_id
     const auto *device = registry_.get_device(provider_id, device_id);
-    if (!device) {
+    if (device == nullptr) {
         result.error_message = "Device not found in registry";
         result.status_code = anolis::deviceprovider::v0::Status_Code_CODE_NOT_FOUND;
         return result;
@@ -147,7 +148,7 @@ bool CallRouter::validate_call(const CallRequest &request, std::string &error) c
 
 bool CallRouter::validate_device_exists(const std::string &device_handle, std::string &error) const {
     const auto *device = registry_.get_device_by_handle(device_handle);
-    if (!device) {
+    if (device == nullptr) {
         error = "Device not found: " + device_handle;
         return false;
     }

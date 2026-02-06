@@ -37,7 +37,7 @@ void HttpServer::handle_get_runtime_status(const httplib::Request &req, httplib:
 
     // Get current mode from mode manager
     std::string current_mode = "MANUAL";
-    if (mode_manager_) {
+    if (mode_manager_ != nullptr) {
         current_mode = automation::mode_to_string(mode_manager_->current_mode());
     }
 
@@ -56,7 +56,7 @@ void HttpServer::handle_get_runtime_status(const httplib::Request &req, httplib:
 //=============================================================================
 void HttpServer::handle_get_mode(const httplib::Request &req, httplib::Response &res) {
     // If automation not enabled, return error
-    if (!mode_manager_) {
+    if (mode_manager_ == nullptr) {
         nlohmann::json response = make_error_response(StatusCode::UNAVAILABLE, "Automation layer not enabled");
         send_json(res, StatusCode::UNAVAILABLE, response);
         return;
@@ -75,7 +75,7 @@ void HttpServer::handle_get_mode(const httplib::Request &req, httplib::Response 
 //=============================================================================
 void HttpServer::handle_post_mode(const httplib::Request &req, httplib::Response &res) {
     // If automation not enabled, return error
-    if (!mode_manager_) {
+    if (mode_manager_ == nullptr) {
         nlohmann::json response = make_error_response(StatusCode::UNAVAILABLE, "Automation layer not enabled");
         send_json(res, StatusCode::UNAVAILABLE, response);
         return;
@@ -136,7 +136,7 @@ void HttpServer::handle_post_mode(const httplib::Request &req, httplib::Response
 //=============================================================================
 void HttpServer::handle_get_parameters(const httplib::Request &req, httplib::Response &res) {
     // If parameter manager not available, return error
-    if (!parameter_manager_) {
+    if (parameter_manager_ == nullptr) {
         nlohmann::json response = make_error_response(StatusCode::UNAVAILABLE, "Parameter system not enabled");
         send_json(res, StatusCode::UNAVAILABLE, response);
         return;
@@ -184,7 +184,7 @@ void HttpServer::handle_get_parameters(const httplib::Request &req, httplib::Res
 //=============================================================================
 void HttpServer::handle_post_parameters(const httplib::Request &req, httplib::Response &res) {
     // If parameter manager not available, return error
-    if (!parameter_manager_) {
+    if (parameter_manager_ == nullptr) {
         nlohmann::json response = make_error_response(StatusCode::UNAVAILABLE, "Parameter system not enabled");
         send_json(res, StatusCode::UNAVAILABLE, response);
         return;

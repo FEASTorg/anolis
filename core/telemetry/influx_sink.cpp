@@ -20,7 +20,9 @@ void InfluxSink::flush_batch() {
     std::vector<std::string> lines_to_write;
     {
         std::lock_guard<std::mutex> lock(batch_mutex_);
-        if (batch_.empty()) return;
+        if (batch_.empty()) {
+            return;
+        }
         lines_to_write = std::move(batch_);
         batch_.clear();
     }

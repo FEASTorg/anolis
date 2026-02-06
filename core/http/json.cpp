@@ -28,7 +28,7 @@ static std::string base64_encode(const std::string &bytes) {
     if (bits > -6) {
         encoded.push_back(base64_chars[((val << 8) >> (bits + 8)) & 0x3F]);
     }
-    while (encoded.size() % 4) {
+    while ((encoded.size() % 4) != 0) {
         encoded.push_back('=');
     }
     return encoded;
@@ -44,7 +44,9 @@ static std::string base64_decode(const std::string &encoded) {
     int val = 0;
     int bits = -8;
     for (unsigned char c : encoded) {
-        if (T[c] == -1) break;
+        if (T[c] == -1) {
+            break;
+        }
         val = (val << 6) + T[c];
         bits += 6;
         if (bits >= 0) {

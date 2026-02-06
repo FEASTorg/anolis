@@ -47,7 +47,7 @@ void HttpServer::handle_get_device_state(const httplib::Request &req, httplib::R
     }
 
     const auto *device = registry_.get_device(provider_id, device_id);
-    if (!device) {
+    if (device == nullptr) {
         send_json(res, StatusCode::NOT_FOUND,
                   make_error_response(StatusCode::NOT_FOUND, "Device not found: " + provider_id + "/" + device_id));
         return;

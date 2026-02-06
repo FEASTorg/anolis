@@ -66,10 +66,18 @@ static std::string quality_to_string(anolis::deviceprovider::v0::SignalValue_Qua
 
 // Helper: Convert string to quality enum
 static anolis::deviceprovider::v0::SignalValue_Quality string_to_quality(const std::string &s) {
-    if (s == "OK") return anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_OK;
-    if (s == "STALE") return anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_STALE;
-    if (s == "FAULT") return anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_FAULT;
-    if (s == "UNKNOWN") return anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_UNKNOWN;
+    if (s == "OK") {
+        return anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_OK;
+    }
+    if (s == "STALE") {
+        return anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_STALE;
+    }
+    if (s == "FAULT") {
+        return anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_FAULT;
+    }
+    if (s == "UNKNOWN") {
+        return anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_UNKNOWN;
+    }
     return anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_UNSPECIFIED;
 }
 
@@ -97,8 +105,7 @@ BT::PortsList ReadSignalNode::providedPorts() {
 
 BT::NodeStatus ReadSignalNode::tick() {
     auto state_cache = get_state_cache();
-    int unused;  // to trigger clang-tidy warning to test
-    if (!state_cache) {
+    if (state_cache == nullptr) {
         LOG_ERROR("[ReadSignalNode] StateCache not available in blackboard");
         return BT::NodeStatus::FAILURE;
     }
@@ -132,10 +139,14 @@ BT::NodeStatus ReadSignalNode::tick() {
 
 state::StateCache *ReadSignalNode::get_state_cache() {
     auto blackboard = config().blackboard;
-    if (!blackboard) return nullptr;
+    if (blackboard == nullptr) {
+        return nullptr;
+    }
 
     auto ptr = blackboard->get<void *>("state_cache");
-    if (!ptr) return nullptr;
+    if (ptr == nullptr) {
+        return nullptr;
+    }
 
     return static_cast<state::StateCache *>(ptr);
 }
@@ -157,7 +168,7 @@ BT::PortsList CallDeviceNode::providedPorts() {
 
 BT::NodeStatus CallDeviceNode::tick() {
     auto call_router = get_call_router();
-    if (!call_router) {
+    if (call_router == nullptr) {
         LOG_ERROR("[CallDeviceNode] CallRouter not available in blackboard");
         setOutput("success", false);
         setOutput("error", "CallRouter not available");
@@ -200,7 +211,7 @@ BT::NodeStatus CallDeviceNode::tick() {
 
     // Get providers map from blackboard (fixed)
     auto providers = get_providers();
-    if (!providers) {
+    if (providers == nullptr) {
         LOG_ERROR("[CallDeviceNode] Providers map not available in blackboard");
         setOutput("success", false);
         setOutput("error", "Providers not available");
@@ -216,30 +227,38 @@ BT::NodeStatus CallDeviceNode::tick() {
     if (result.success) {
         LOG_INFO("[CallDeviceNode] Call succeeded: " << device_handle.value() << "/" << function_name.value());
         return BT::NodeStatus::SUCCESS;
-    } else {
-        LOG_ERROR("[CallDeviceNode] Call failed: " << result.error_message);
-        return BT::NodeStatus::FAILURE;
     }
+
+    LOG_ERROR("[CallDeviceNode] Call failed: " << result.error_message);
+    return BT::NodeStatus::FAILURE;
 
     return BT::NodeStatus::SUCCESS;
 }
 
 control::CallRouter *CallDeviceNode::get_call_router() {
     auto blackboard = config().blackboard;
-    if (!blackboard) return nullptr;
+    if (blackboard == nullptr) {
+        return nullptr;
+    }
 
     auto ptr = blackboard->get<void *>("call_router");
-    if (!ptr) return nullptr;
+    if (ptr == nullptr) {
+        return nullptr;
+    }
 
     return static_cast<control::CallRouter *>(ptr);
 }
 
 std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> *CallDeviceNode::get_providers() {
     auto blackboard = config().blackboard;
-    if (!blackboard) return nullptr;
+    if (blackboard == nullptr) {
+        return nullptr;
+    }
 
     auto ptr = blackboard->get<void *>("providers");
-    if (!ptr) return nullptr;
+    if (ptr == nullptr) {
+        return nullptr;
+    }
 
     return static_cast<std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> *>(ptr);
 }
@@ -259,7 +278,7 @@ BT::PortsList CheckQualityNode::providedPorts() {
 
 BT::NodeStatus CheckQualityNode::tick() {
     auto state_cache = get_state_cache();
-    if (!state_cache) {
+    if (state_cache == nullptr) {
         LOG_ERROR("[CheckQualityNode] StateCache not available in blackboard");
         return BT::NodeStatus::FAILURE;
     }
@@ -287,19 +306,23 @@ BT::NodeStatus CheckQualityNode::tick() {
 
     if (signal_value->quality == expected_quality) {
         return BT::NodeStatus::SUCCESS;
-    } else {
-        LOG_INFO("[CheckQualityNode] Quality mismatch: expected " << expected_quality_str << ", got "
-                                                                  << quality_to_string(signal_value->quality));
-        return BT::NodeStatus::FAILURE;
     }
+
+    LOG_INFO("[CheckQualityNode] Quality mismatch: expected " << expected_quality_str << ", got "
+                                                              << quality_to_string(signal_value->quality));
+    return BT::NodeStatus::FAILURE;
 }
 
 state::StateCache *CheckQualityNode::get_state_cache() {
     auto blackboard = config().blackboard;
-    if (!blackboard) return nullptr;
+    if (blackboard == nullptr) {
+        return nullptr;
+    }
 
     auto ptr = blackboard->get<void *>("state_cache");
-    if (!ptr) return nullptr;
+    if (ptr == nullptr) {
+        return nullptr;
+    }
 
     return static_cast<state::StateCache *>(ptr);
 }
