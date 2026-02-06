@@ -226,7 +226,8 @@ namespace anolis
 
             client_.set_handles(stdin_write_fd_, stdout_read_fd_);
 
-            LOG_INFO("[" << provider_id_ << "] Process spawned successfully (PID=" << pid_ << ")")
+            LOG_INFO("[" << provider_id_ << "] Process spawned successfully (PID=" << pid_ << ")");
+            return true;
         }
 #endif
 
