@@ -17,7 +17,6 @@ be emitted when signal values actually change, reducing network traffic.
 """
 
 from .base import ScenarioBase, ScenarioResult, create_result
-import time
 
 
 class TelemetryOnChange(ScenarioBase):
@@ -54,7 +53,7 @@ class TelemetryOnChange(ScenarioBase):
                 self.assert_equal(
                     ch1_value,
                     initial_ch1,
-                    f"Signal value changed unexpectedly on poll {i+1}",
+                    f"Signal value changed unexpectedly on poll {i + 1}",
                 )
 
                 self.sleep(0.1)  # Small delay between polls
@@ -94,7 +93,7 @@ class TelemetryOnChange(ScenarioBase):
                 self.assert_equal(
                     ch1_value,
                     new_ch1_state,
-                    f"Signal value inconsistent on post-change poll {i+1}",
+                    f"Signal value inconsistent on post-change poll {i + 1}",
                 )
 
                 self.sleep(0.1)

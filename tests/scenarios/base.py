@@ -9,7 +9,7 @@ Provides common infrastructure for validation scenarios:
 """
 
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from dataclasses import dataclass
 
 

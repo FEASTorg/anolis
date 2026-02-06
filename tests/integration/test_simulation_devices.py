@@ -86,10 +86,10 @@ def test_relayio0():
     )
 
     if relay1_after["value"]["bool"]:
-        print(f"  [PASS] Relay toggled successfully")
+        print("  [PASS] Relay toggled successfully")
         return True
     else:
-        print(f"  [FAIL] Relay did not toggle")
+        print("  [FAIL] Relay did not toggle")
         return False
 
 
@@ -131,10 +131,10 @@ def test_analogsensor0():
     print(f"  sensor_quality after noise: {quality_after['value']['string']}")
 
     if quality_after["value"]["string"] in ["NOISY", "FAULT"]:
-        print(f"  [PASS] Quality degraded as expected")
+        print("  [PASS] Quality degraded as expected")
         return True
     else:
-        print(f"  [FAIL] Quality did not degrade")
+        print("  [FAIL] Quality did not degrade")
         return False
 
 
@@ -152,7 +152,7 @@ def test_fault_injection_clear():
     result = resp.json()
 
     if result["status"]["code"] == "OK":
-        print(f"  [PASS] clear_faults succeeded")
+        print("  [PASS] clear_faults succeeded")
         return True
     else:
         print(f"  [FAIL] clear_faults failed: {result['status']['message']}")
@@ -188,7 +188,7 @@ def test_fault_injection_device_unavailable():
     resp = requests.get(f"{BASE_URL}/v0/state/sim0/motorctl0")
     # Device will return cached state but provider logs should show errors
 
-    print(f"  [PASS] inject_device_unavailable called (check runtime logs for errors)")
+    print("  [PASS] inject_device_unavailable called (check runtime logs for errors)")
 
     # Clear faults
     time.sleep(2)
@@ -233,10 +233,10 @@ def test_fault_injection_call_latency():
     test_fault_injection_clear()
 
     if elapsed >= 0.9:
-        print(f"  [PASS] Latency injection working")
+        print("  [PASS] Latency injection working")
         return True
     else:
-        print(f"  [FAIL] No latency detected")
+        print("  [FAIL] No latency detected")
         return False
 
 
@@ -277,7 +277,7 @@ def test_fault_injection_call_failure():
         print(f"  [PASS] Call failed as expected: {result['status']['message']}")
         return True
     else:
-        print(f"  [FAIL] Call succeeded when it should have failed")
+        print("  [FAIL] Call succeeded when it should have failed")
         return False
 
 

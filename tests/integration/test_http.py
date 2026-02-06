@@ -26,7 +26,6 @@ import os
 import time
 import threading
 import tempfile
-import signal
 import argparse
 import json
 from pathlib import Path
@@ -815,9 +814,7 @@ def find_default_paths() -> tuple:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="HTTP Gateway Integration Tests"
-    )
+    parser = argparse.ArgumentParser(description="HTTP Gateway Integration Tests")
     parser.add_argument("--runtime", type=str, help="Path to anolis-runtime executable")
     parser.add_argument(
         "--provider", type=str, help="Path to anolis-provider-sim executable"

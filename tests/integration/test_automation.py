@@ -25,7 +25,6 @@ import time
 import requests
 import tempfile
 import yaml
-import signal
 import argparse
 from typing import Optional, Dict, Any
 
@@ -538,9 +537,7 @@ def main():
         success = tester.run_all_tests()
 
         if success:
-            print(
-                f"\n{Colors.GREEN}[PASS]{Colors.END} All automation tests passed!\n"
-            )
+            print(f"\n{Colors.GREEN}[PASS]{Colors.END} All automation tests passed!\n")
             sys.exit(0)
         else:
             print(f"\n{Colors.RED}[FAIL]{Colors.END} Some tests failed\n")

@@ -36,9 +36,8 @@ import sys
 import tempfile
 import time
 import threading
-from queue import Queue
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from dataclasses import dataclass
 
 # NOTE: On Windows, use PYTHONIOENCODING=utf-8 environment variable if Unicode output issues occur.
@@ -258,7 +257,7 @@ class ScenarioRunner:
                     return True, f"Ready after {attempts} attempts"
                 else:
                     last_error = f"HTTP {resp.status_code}: {resp.text[:200]}"
-            except requests.exceptions.ConnectionError as e:
+            except requests.exceptions.ConnectionError:
                 last_error = f"Connection refused (attempt {attempts})"
             except requests.exceptions.Timeout:
                 last_error = f"Request timeout (attempt {attempts})"

@@ -57,7 +57,10 @@ class ParameterValidation(ScenarioBase):
             # tempctl0 setpoint range is -50 to 400 C
 
             result = self.call_function(
-                "sim0", "tempctl0", "set_setpoint", {"value": 999.0}  # Invalid: > 400
+                "sim0",
+                "tempctl0",
+                "set_setpoint",
+                {"value": 999.0},  # Invalid: > 400
             )
 
             # Should fail

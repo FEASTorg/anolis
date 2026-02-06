@@ -16,11 +16,8 @@ Exit Codes:
 
 import subprocess
 import sys
-import os
 import time
-import signal
 import argparse
-import shutil
 from pathlib import Path
 from dataclasses import dataclass
 from typing import List, Optional
