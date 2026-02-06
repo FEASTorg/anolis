@@ -19,6 +19,8 @@ protobuf_generate(
 set(PROTO_GEN_CC ${CMAKE_CURRENT_BINARY_DIR}/protocol.pb.cc)
 set(PROTO_GEN_H  ${CMAKE_CURRENT_BINARY_DIR}/protocol.pb.h)
 set_source_files_properties(${PROTO_GEN_CC} ${PROTO_GEN_H} PROPERTIES SKIP_CLANG_TIDY ON)
+# Also disable clang-tidy on the generated protobuf target itself to prevent reruns via compile_commands
+set_property(TARGET anolis_proto PROPERTY CXX_CLANG_TIDY "")
 
 # Logging library
 add_library(anolis_logging STATIC

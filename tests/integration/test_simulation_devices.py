@@ -79,7 +79,7 @@ def test_relayio0():
         "function_id": 1,
         "args": {"enabled": {"type": "bool", "bool": True}},
     }
-    resp = requests.post(f"{BASE_URL}/v0/call", json=call_body)
+    requests.post(f"{BASE_URL}/v0/call", json=call_body)
     result = resp.json()
 
     if result["status"]["code"] != "OK":
@@ -237,7 +237,7 @@ def test_fault_injection_call_latency():
             "latency_ms": {"type": "int64", "int64": 1000},
         },
     }
-    resp = requests.post(f"{BASE_URL}/v0/call", json=call_body)
+    requests.post(f"{BASE_URL}/v0/call", json=call_body)
 
     # Make a call and measure time
     start = time.time()
@@ -247,7 +247,7 @@ def test_fault_injection_call_latency():
         "function_id": 1,
         "args": {"enabled": {"type": "bool", "bool": False}},
     }
-    resp = requests.post(f"{BASE_URL}/v0/call", json=call_body)
+    requests.post(f"{BASE_URL}/v0/call", json=call_body)
     elapsed = time.time() - start
 
     print(f"  Call took {elapsed:.2f}s (should be ~1s)")
@@ -322,7 +322,7 @@ def main():
     passed = 0
     failed = 0
 
-    for name, test_func in tests:
+    for _name, test_func in tests:
         try:
             if test_func():
                 passed += 1

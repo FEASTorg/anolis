@@ -50,7 +50,7 @@ PROJECT_ROOT = SCRIPT_DIR.parent.parent
 SCENARIOS_DIR = SCRIPT_DIR
 sys.path.insert(0, str(SCRIPT_DIR.parent))
 
-from scenarios.base import ScenarioBase, ScenarioResult
+from scenarios.base import ScenarioBase, ScenarioResult  # noqa: E402
 
 
 class StreamReader:
@@ -169,7 +169,7 @@ class ScenarioRunner:
             )
         except Exception as e:
             os.unlink(config_path)
-            raise RuntimeError(f"Failed to start runtime: {e}")
+            raise RuntimeError(f"Failed to start runtime: {e}") from e
 
         stdout_reader = None
         stderr_reader = None
@@ -288,7 +288,7 @@ class ScenarioRunner:
                 module = importlib.import_module(f"scenarios.{module_name}")
 
                 # Find ScenarioBase subclasses
-                for name, obj in inspect.getmembers(module, inspect.isclass):
+                for _name, obj in inspect.getmembers(module, inspect.isclass):
                     if issubclass(obj, ScenarioBase) and obj is not ScenarioBase and obj.__module__ == module.__name__:
                         scenarios.append(obj)
 

@@ -162,7 +162,7 @@ logging:
             try:
                 self.process.terminate()
                 self.process.wait(timeout=5)
-            except:
+            except Exception:
                 self.process.kill()
 
         if self.capture:
@@ -171,7 +171,7 @@ logging:
         if self.config_path and self.config_path.exists():
             try:
                 self.config_path.unlink()
-            except:
+            except OSError:
                 pass
 
     def start_runtime(self) -> bool:

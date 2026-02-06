@@ -33,6 +33,8 @@ from pathlib import Path
 from queue import Empty, Queue
 from typing import Any, Dict, List, Optional
 
+import requests
+
 
 def wait_for_condition(condition_func, timeout=5.0, interval=0.1, description="condition"):
     """Poll a condition function until it returns True or timeout expires."""
@@ -43,14 +45,6 @@ def wait_for_condition(condition_func, timeout=5.0, interval=0.1, description="c
         time.sleep(interval)
     print(f"Warning: Timed out waiting for {description}")
     return False
-
-# Try to import requests, provide helpful error if missing
-try:
-    import requests
-except ImportError:
-    print("ERROR: 'requests' package not installed.")
-    print("Install with: pip install requests")
-    sys.exit(1)
 
 
 @dataclass
@@ -201,7 +195,7 @@ logging:
             try:
                 self.process.terminate()
                 self.process.wait(timeout=5)
-            except:
+            except Exception:
                 self.process.kill()
 
         if self.capture:
@@ -210,7 +204,7 @@ logging:
         if self.config_path and self.config_path.exists():
             try:
                 self.config_path.unlink()
-            except:
+            except OSError:
                 pass
 
     def start_runtime(self) -> bool:
@@ -316,7 +310,7 @@ logging:
                                     stop_event.set()
                                     break
                 resp.close()
-            except:
+            except Exception:
                 pass
 
         # Collect events for up to 3 seconds
@@ -351,7 +345,7 @@ logging:
 
         # Parse data JSON
         try:
-            data_line = [l for l in first_event.split("\n") if l.startswith("data: ")][0]
+            data_line = [line for line in first_event.split("\n") if line.startswith("data: ")][0]
             data_json = json.loads(data_line[6:])  # Strip "data: " prefix
 
             # Check required fields in data

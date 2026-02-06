@@ -189,9 +189,8 @@ class ScenarioBase:
                     function_id = f.get("function_id")
                     break
             if function_id is None:
-                raise ValueError(
-                    f"Function '{function}' not found in {provider}/{device}. Available: {[f.get('name') for f in functions_list]}"
-                )
+                available = [f.get("name") for f in functions_list]
+                raise ValueError(f"Function '{function}' not found in {provider}/{device}. Available: {available}")
         else:
             function_id = int(function)
 
@@ -377,8 +376,10 @@ class ScenarioBase:
             raise AssertionError(f"Expected HTTP {status_code} but call succeeded")
         except requests.HTTPError as e:
             if e.response.status_code != status_code:
-                raise AssertionError(f"Expected HTTP {status_code}, got {e.response.status_code}")
+                raise AssertionError(f"Expected HTTP {status_code}, got {e.response.status_code}") from e
             # Expected error occurred
+        except Exception as e:
+            raise AssertionError(f"Expected HTTP {status_code} but call raised {type(e).__name__}") from e
 
     # -----------------------------
     # Utility Helpers
@@ -406,6 +407,7 @@ class ScenarioBase:
                 if condition_func():
                     return True
             except Exception:
+                # Swallow transient errors while polling
                 pass
             time.sleep(interval)
         return False

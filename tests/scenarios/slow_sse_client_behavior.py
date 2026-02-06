@@ -28,7 +28,7 @@ class SlowSseClientBehavior(ScenarioBase):
         try:
             # Step 1: Verify baseline responsiveness
             start = time.time()
-            status = self.get_runtime_status()
+            self.get_runtime_status()
             baseline_latency = time.time() - start
 
             self.assert_true(
@@ -112,7 +112,7 @@ class SlowSseClientBehavior(ScenarioBase):
 
             # Step 7: Verify runtime is still responsive after load
             start = time.time()
-            final_status = self.get_runtime_status()
+            self.get_runtime_status()
             final_latency = time.time() - start
 
             self.assert_true(final_latency < 3.0, f"Post-load latency too high: {final_latency}s")
@@ -120,7 +120,10 @@ class SlowSseClientBehavior(ScenarioBase):
             return create_result(
                 self,
                 True,
-                f"Slow client behavior validated: runtime responsive under load (avg: {avg_latency:.3f}s, max: {max_latency:.3f}s)",
+                (
+                    "Slow client behavior validated: runtime responsive under load "
+                    f"(avg: {avg_latency:.3f}s, max: {max_latency:.3f}s)"
+                ),
             )
 
         except AssertionError as e:

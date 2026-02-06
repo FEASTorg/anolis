@@ -56,7 +56,6 @@ class FaultToManualRecovery(ScenarioBase):
             # Step 5: Check if runtime mode changed (may transition to FAULT mode on device errors)
             # Note: This depends on runtime implementation - it may or may not auto-transition
             status = self.get_runtime_status()
-            current_mode = status.get("mode")
 
             # If runtime has fault detection, it might be in FAULT mode now
             # Otherwise it might still be in MANUAL

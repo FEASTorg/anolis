@@ -80,7 +80,7 @@ class TelemetryOnChange(ScenarioBase):
             )
 
             # Step 5: Poll again multiple times - should see consistent changed value
-            for i in range(3):
+            for _i in range(3):
                 state = self.get_state("sim0", "relayio0")
                 ch1_value = None
                 for sig in state["signals"]:
@@ -107,7 +107,7 @@ class TelemetryOnChange(ScenarioBase):
             # Poll temperature multiple times
             # Temperature may drift slightly due to physics simulation, but should be stable
             temps = []
-            for i in range(3):
+            for _i in range(3):
                 state = self.get_state("sim0", "tempctl0")
                 for sig in state["signals"]:
                     if sig.get("signal_id") == "tc1_temp":
