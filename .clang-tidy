@@ -1,9 +1,10 @@
 ---
 Checks: "clang-diagnostic-*,clang-analyzer-*,performance-*,readability-*,bugprone-*,-readability-identifier-naming"
 WarningsAsErrors: ""
-# Limit diagnostics to project sources (exclude generated build outputs)
-HeaderFilterRegex: ".*/(core|tests)/.*"
-# Generated protobuf headers/sources live in build/; clang-tidy can still see them via compile_commands
-# so we disable clang-tidy on the protobuf target in CMake instead of relying on this filter.
+# Limit diagnostics to repository source roots only.
+# This intentionally excludes generated files under build/core (e.g., protocol.pb.cc/.h).
+HeaderFilterRegex: ".*/anolis/(core|tests)/.*"
+# Generated protobuf headers/sources live in build/; clang-tidy can still see them via compile_commands,
+# so we also disable clang-tidy on the protobuf target in CMake.
 FormatStyle: file
 ...
