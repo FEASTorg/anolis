@@ -30,7 +30,7 @@ Level string_to_level(const std::string &level_str);
 #define LOG_INTERNAL(level, msg)                                             \
     do {                                                                     \
         std::stringstream ss;                                                \
-        ss << (msg);                                                         \
+        ss << msg;                                                           \
         anolis::logging::Logger::log((level), __FILE__, __LINE__, ss.str()); \
     } while (0)
 

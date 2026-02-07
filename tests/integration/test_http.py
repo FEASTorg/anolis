@@ -526,15 +526,18 @@ logging:
         print("\n5. GET /v0/state")
 
         # Wait for at least one poll cycle by checking for non-empty state values
-        def state_has_values():
+        def state_has_values_for_all_devices():
             result = self.http_get("/v0/state")
             if result["status_code"] != 200:
                 return False
             devices = result["body"].get("devices", [])
-            return any(dev.get("values") for dev in devices)
+            if not devices:
+                return False
+            # Require every device to have at least one value (prevents race on slower runners)
+            return all(len(dev.get("values", [])) > 0 for dev in devices)
 
-        if not wait_for_condition(state_has_values, timeout=3.0, description="state values"):
-            self.record("State endpoint", False, "State values never became available")
+        if not wait_for_condition(state_has_values_for_all_devices, timeout=5.0, description="state values"):
+            self.record("State endpoint", False, "State values never became available for all devices")
             return False
 
         result = self.http_get("/v0/state")

@@ -29,6 +29,9 @@ bool Runtime::initialize(std::string &error) {
         return false;
     }
 
+    // Prime state cache once so initial HTTP calls observe a full snapshot
+    state_cache_->poll_once(providers_);
+
     if (!init_automation(error)) {
         return false;
     }
