@@ -330,3 +330,194 @@ TEST_F(ConfigTest, FileNotFound) {
     EXPECT_FALSE(load_config("/nonexistent/path/config.yaml", config, error));
     EXPECT_FALSE(error.empty());
 }
+// ===== Restart Policy Tests =====
+
+TEST_F(ConfigTest, RestartPolicyEnabled) {
+    std::string config_content = R"(
+runtime:
+  mode: MANUAL
+
+http:
+  enabled: false
+
+providers:
+  - id: test_provider
+    command: /path/to/provider
+    restart_policy:
+      enabled: true
+      max_attempts: 3
+      backoff_ms: [100, 1000, 5000]
+      timeout_ms: 30000
+
+logging:
+  level: info
+)";
+
+    std::string config_path = create_config_file("restart_policy_enabled.yaml", config_content);
+    RuntimeConfig config;
+    std::string error;
+
+    ASSERT_TRUE(load_config(config_path, config, error)) << "Error: " << error;
+    ASSERT_EQ(config.providers.size(), 1);
+
+    const auto& rp = config.providers[0].restart_policy;
+    EXPECT_TRUE(rp.enabled);
+    EXPECT_EQ(rp.max_attempts, 3);
+    ASSERT_EQ(rp.backoff_ms.size(), 3);
+    EXPECT_EQ(rp.backoff_ms[0], 100);
+    EXPECT_EQ(rp.backoff_ms[1], 1000);
+    EXPECT_EQ(rp.backoff_ms[2], 5000);
+    EXPECT_EQ(rp.timeout_ms, 30000);
+}
+
+TEST_F(ConfigTest, RestartPolicyDefaults) {
+    std::string config_content = R"(
+runtime:
+  mode: MANUAL
+
+http:
+  enabled: false
+
+providers:
+  - id: test_provider
+    command: /path/to/provider
+
+logging:
+  level: info
+)";
+
+    std::string config_path = create_config_file("restart_policy_defaults.yaml", config_content);
+    RuntimeConfig config;
+    std::string error;
+
+    ASSERT_TRUE(load_config(config_path, config, error)) << "Error: " << error;
+    ASSERT_EQ(config.providers.size(), 1);
+
+    const auto& rp = config.providers[0].restart_policy;
+    EXPECT_FALSE(rp.enabled);  // Default disabled
+    EXPECT_EQ(rp.max_attempts, 3);
+    ASSERT_EQ(rp.backoff_ms.size(), 3);
+    EXPECT_EQ(rp.timeout_ms, 30000);
+}
+
+TEST_F(ConfigTest, RestartPolicyBackoffMismatch) {
+    std::string config_content = R"(
+runtime:
+  mode: MANUAL
+
+http:
+  enabled: false
+
+providers:
+  - id: test_provider
+    command: /path/to/provider
+    restart_policy:
+      enabled: true
+      max_attempts: 3
+      backoff_ms: [100, 1000]
+      timeout_ms: 30000
+
+logging:
+  level: info
+)";
+
+    std::string config_path = create_config_file("restart_policy_mismatch.yaml", config_content);
+    RuntimeConfig config;
+    std::string error;
+
+    EXPECT_FALSE(load_config(config_path, config, error));
+    EXPECT_FALSE(error.empty());
+    EXPECT_NE(error.find("backoff_ms array length"), std::string::npos);
+    EXPECT_NE(error.find("must match max_attempts"), std::string::npos);
+}
+
+TEST_F(ConfigTest, RestartPolicyNegativeBackoff) {
+    std::string config_content = R"(
+runtime:
+  mode: MANUAL
+
+http:
+  enabled: false
+
+providers:
+  - id: test_provider
+    command: /path/to/provider
+    restart_policy:
+      enabled: true
+      max_attempts: 2
+      backoff_ms: [100, -500]
+      timeout_ms: 30000
+
+logging:
+  level: info
+)";
+
+    std::string config_path = create_config_file("restart_policy_negative.yaml", config_content);
+    RuntimeConfig config;
+    std::string error;
+
+    EXPECT_FALSE(load_config(config_path, config, error));
+    EXPECT_FALSE(error.empty());
+    EXPECT_NE(error.find("backoff_ms"), std::string::npos);
+    EXPECT_NE(error.find("must be >= 0"), std::string::npos);
+}
+
+TEST_F(ConfigTest, RestartPolicyInvalidMaxAttempts) {
+    std::string config_content = R"(
+runtime:
+  mode: MANUAL
+
+http:
+  enabled: false
+
+providers:
+  - id: test_provider
+    command: /path/to/provider
+    restart_policy:
+      enabled: true
+      max_attempts: 0
+      backoff_ms: []
+      timeout_ms: 30000
+
+logging:
+  level: info
+)";
+
+    std::string config_path = create_config_file("restart_policy_invalid_attempts.yaml", config_content);
+    RuntimeConfig config;
+    std::string error;
+
+    EXPECT_FALSE(load_config(config_path, config, error));
+    EXPECT_FALSE(error.empty());
+    EXPECT_NE(error.find("max_attempts must be >= 1"), std::string::npos);
+}
+
+TEST_F(ConfigTest, RestartPolicyShortTimeout) {
+    std::string config_content = R"(
+runtime:
+  mode: MANUAL
+
+http:
+  enabled: false
+
+providers:
+  - id: test_provider
+    command: /path/to/provider
+    restart_policy:
+      enabled: true
+      max_attempts: 1
+      backoff_ms: [100]
+      timeout_ms: 500
+
+logging:
+  level: info
+)";
+
+    std::string config_path = create_config_file("restart_policy_short_timeout.yaml", config_content);
+    RuntimeConfig config;
+    std::string error;
+
+    EXPECT_FALSE(load_config(config_path, config, error));
+    EXPECT_FALSE(error.empty());
+    EXPECT_NE(error.find("timeout_ms must be >= 1000ms"), std::string::npos);
+}

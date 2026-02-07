@@ -54,23 +54,38 @@ public:
      * @return true if pushed, false if dropped (queue was full, oldest dropped)
      */
     bool push(const Event &event) {
-        std::lock_guard<std::mutex> lock(mutex_);
+        // Capture state for logging outside lock
+        bool should_log = false;
+        std::string log_name;
+        size_t log_dropped = 0;
 
-        // If at capacity, drop oldest
-        if (queue_.size() >= max_size_) {
-            queue_.pop();
-            dropped_count_++;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
 
-            // Log warning periodically (every 100 drops)
-            if (dropped_count_ % 100 == 1) {
-                std::cerr << "[EventEmitter] Queue '" << name_ << "' overflow, dropped " << dropped_count_
-                          << " events total\n";
+            // If at capacity, drop oldest
+            if (queue_.size() >= max_size_) {
+                queue_.pop();
+                dropped_count_++;
+
+                // Check if we should log (periodically, every 100 drops)
+                if (dropped_count_ % 100 == 1) {
+                    should_log = true;
+                    log_name = name_;
+                    log_dropped = dropped_count_;
+                }
             }
+
+            queue_.push(event);
+            cv_.notify_one();
+        }  // Release lock before I/O
+
+        // Log outside critical section to avoid blocking
+        if (should_log) {
+            std::cerr << "[EventEmitter] Queue '" << log_name << "' overflow, dropped " << log_dropped
+                      << " events total\n";
         }
 
-        queue_.push(event);
-        cv_.notify_one();
-        return dropped_count_ == 0 || (queue_.size() < max_size_);
+        return log_dropped == 0 || log_dropped < 100;  // Approximation, safe for caller
     }
 
     /**
@@ -343,23 +358,38 @@ public:
      */
     std::unique_ptr<Subscription> subscribe(const EventFilter &filter = EventFilter::all(), size_t queue_size = 0,
                                             const std::string &name = "") {
-        std::lock_guard<std::mutex> lock(mutex_);
+        // Capture state for logging outside lock
+        SubscriptionId id = 0;
+        size_t subscriber_count = 0;
+        std::shared_ptr<SubscriberQueue> queue;
+        bool rejected = false;
 
-        // Check subscriber limit
-        if (max_subscribers_ > 0 && subscribers_.size() >= max_subscribers_) {
-            std::cerr << "[EventEmitter] Max subscribers (" << max_subscribers_
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+
+            // Check subscriber limit
+            if (max_subscribers_ > 0 && subscribers_.size() >= max_subscribers_) {
+                rejected = true;
+                subscriber_count = max_subscribers_;
+            } else {
+                id = next_subscription_id_++;
+                auto actual_queue_size = queue_size > 0 ? queue_size : default_queue_size_;
+                queue = std::make_shared<SubscriberQueue>(actual_queue_size, name);
+
+                subscribers_[id] = SubscriberInfo{queue, filter, name};
+                subscriber_count = subscribers_.size();
+            }
+        }  // Release lock before I/O
+
+        // Log outside critical section
+        if (rejected) {
+            std::cerr << "[EventEmitter] Max subscribers (" << subscriber_count
                       << ") reached, rejecting subscription\n";
             return nullptr;
         }
 
-        auto id = next_subscription_id_++;
-        auto actual_queue_size = queue_size > 0 ? queue_size : default_queue_size_;
-        auto queue = std::make_shared<SubscriberQueue>(actual_queue_size, name);
-
-        subscribers_[id] = SubscriberInfo{queue, filter, name};
-
         std::cerr << "[EventEmitter] Subscription " << id << " created" << (name.empty() ? "" : " (" + name + ")")
-                  << ", total subscribers: " << subscribers_.size() << "\n";
+                  << ", total subscribers: " << subscriber_count << "\n";
 
         auto unsubscribe_fn = [this](SubscriptionId sub_id) { this->unsubscribe(sub_id); };
 
@@ -417,13 +447,25 @@ public:
 
 private:
     void unsubscribe(SubscriptionId id) {
-        std::lock_guard<std::mutex> lock(mutex_);
+        // Capture state for logging outside lock
+        bool found = false;
+        size_t remaining = 0;
 
-        auto it = subscribers_.find(id);
-        if (it != subscribers_.end()) {
-            it->second.queue->close();
-            subscribers_.erase(it);
-            std::cerr << "[EventEmitter] Subscription " << id << " removed, remaining: " << subscribers_.size() << "\n";
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+
+            auto it = subscribers_.find(id);
+            if (it != subscribers_.end()) {
+                it->second.queue->close();
+                subscribers_.erase(it);
+                found = true;
+                remaining = subscribers_.size();
+            }
+        }  // Release lock before I/O
+
+        // Log outside critical section
+        if (found) {
+            std::cerr << "[EventEmitter] Subscription " << id << " removed, remaining: " << remaining << "\n";
         }
     }
 

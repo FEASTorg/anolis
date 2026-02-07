@@ -11,11 +11,19 @@ namespace runtime {
 // Configuration enums
 enum class GatingPolicy { BLOCK, OVERRIDE };
 
+struct RestartPolicyConfig {
+    bool enabled = false;                          // Enable automatic restart on crash
+    int max_attempts = 3;                          // Max restart attempts before giving up
+    std::vector<int> backoff_ms{100, 1000, 5000};  // Exponential backoff schedule (ms)
+    int timeout_ms = 30000;                        // Timeout for restart attempt (30s default)
+};
+
 struct ProviderConfig {
-    std::string id;                 // e.g., "sim0"
-    std::string command;            // Path to provider executable
-    std::vector<std::string> args;  // Command-line arguments
-    int timeout_ms = 5000;          // ADPP operation timeout (default 5s)
+    std::string id;                      // e.g., "sim0"
+    std::string command;                 // Path to provider executable
+    std::vector<std::string> args;       // Command-line arguments
+    int timeout_ms = 5000;               // ADPP operation timeout (default 5s)
+    RestartPolicyConfig restart_policy;  // Automatic restart configuration
 };
 
 struct PollingConfig {

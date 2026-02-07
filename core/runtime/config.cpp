@@ -70,6 +70,42 @@ bool validate_config(const RuntimeConfig &config, std::string &error) {
             error = "Provider timeout must be >= 100ms";
             return false;
         }
+
+        // Validate restart policy
+        if (provider.restart_policy.enabled) {
+            if (provider.restart_policy.max_attempts < 1) {
+                error = "Provider '" + provider.id + "' restart policy max_attempts must be >= 1";
+                return false;
+            }
+
+            if (provider.restart_policy.backoff_ms.empty()) {
+                error = "Provider '" + provider.id + "' restart policy backoff_ms cannot be empty";
+                return false;
+            }
+
+            // Validate backoff array length matches max_attempts
+            if (provider.restart_policy.backoff_ms.size() !=
+                static_cast<size_t>(provider.restart_policy.max_attempts)) {
+                error = "Provider '" + provider.id + "' restart policy backoff_ms array length (" +
+                        std::to_string(provider.restart_policy.backoff_ms.size()) + ") must match max_attempts (" +
+                        std::to_string(provider.restart_policy.max_attempts) + ")";
+                return false;
+            }
+
+            // Validate backoff values are positive
+            for (size_t i = 0; i < provider.restart_policy.backoff_ms.size(); ++i) {
+                if (provider.restart_policy.backoff_ms[i] < 0) {
+                    error = "Provider '" + provider.id + "' restart policy backoff_ms[" + std::to_string(i) +
+                            "] must be >= 0";
+                    return false;
+                }
+            }
+
+            if (provider.restart_policy.timeout_ms < 1000) {
+                error = "Provider '" + provider.id + "' restart policy timeout_ms must be >= 1000ms";
+                return false;
+            }
+        }
     }
 
     // Validate Polling settings
@@ -206,6 +242,30 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
 
                 if (provider_node["timeout_ms"]) {
                     provider.timeout_ms = provider_node["timeout_ms"].as<int>();
+                }
+
+                // Parse restart policy
+                if (provider_node["restart_policy"]) {
+                    const auto &rp = provider_node["restart_policy"];
+
+                    if (rp["enabled"]) {
+                        provider.restart_policy.enabled = rp["enabled"].as<bool>();
+                    }
+
+                    if (rp["max_attempts"]) {
+                        provider.restart_policy.max_attempts = rp["max_attempts"].as<int>();
+                    }
+
+                    if (rp["backoff_ms"]) {
+                        provider.restart_policy.backoff_ms.clear();
+                        for (const auto &backoff : rp["backoff_ms"]) {
+                            provider.restart_policy.backoff_ms.push_back(backoff.as<int>());
+                        }
+                    }
+
+                    if (rp["timeout_ms"]) {
+                        provider.restart_policy.timeout_ms = rp["timeout_ms"].as<int>();
+                    }
                 }
 
                 config.providers.push_back(provider);
