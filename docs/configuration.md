@@ -57,6 +57,41 @@ automation:
 
 - **level**: Controls verbosity. Use `debug` for troubleshooting provider issues.
 
+### Providers
+
+- **id**: Unique provider identifier
+- **command**: Path to provider executable
+- **args**: Command-line arguments
+- **timeout_ms**: ADPP operation timeout (default: 5000ms)
+- **restart_policy**: Automatic supervision configuration (optional)
+
+#### Restart Policy
+
+Automatic supervision monitors provider health and restarts crashed providers:
+
+```yaml
+providers:
+  - id: hardware
+    command: ./my-provider
+    restart_policy:
+      enabled: true
+      max_attempts: 3
+      backoff_ms: [200, 500, 1000]
+      timeout_ms: 30000
+```
+
+- **enabled**: Enable automatic restart (default: false)
+- **max_attempts**: Restart attempts before circuit breaker opens (default: 3)
+- **backoff_ms**: Delay before each restart attempt in milliseconds. Array length must match max_attempts.
+- **timeout_ms**: Maximum time to wait for restart (default: 30000ms)
+
+**Behavior:**
+
+- Provider crashes → supervisor records crash → waits backoff delay → attempts restart
+- Successful restart → crash counter resets
+- Circuit breaker opens after max_attempts → no further restarts until manual intervention
+- Devices cleared before restart, rediscovered after successful restart
+
 ### Telemetry (InfluxDB)
 
 - **enabled**: Enable/disable telemetry sink

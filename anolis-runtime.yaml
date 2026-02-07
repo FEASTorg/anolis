@@ -19,6 +19,11 @@ providers:
     command: D:/repos_feast/anolis-provider-sim/build/Release/anolis-provider-sim.exe
     args: []
     timeout_ms: 5000
+    # restart_policy:
+    #   enabled: true
+    #   max_attempts: 3
+    #   backoff_ms: [200, 500, 1000]
+    #   timeout_ms: 30000
 
 polling:
   interval_ms: 500 # Default polling interval (min 100ms)

@@ -190,6 +190,41 @@ Array of provider configurations. Each provider is a separate executable that im
 - **Constraints:** Must be at least 100
 - **Description:** Timeout for ADPP operations (in milliseconds).
 
+### `providers[].restart_policy`
+
+**Optional.** Configuration for automatic provider supervision and restart on crash.
+
+#### `providers[].restart_policy.enabled`
+
+- **Type:** `bool`
+- **Required:** No
+- **Default:** `false`
+- **Description:** Enable automatic restart when provider crashes.
+
+#### `providers[].restart_policy.max_attempts`
+
+- **Type:** `int`
+- **Required:** No
+- **Default:** `3`
+- **Constraints:** Must be at least 1
+- **Description:** Maximum restart attempts before opening circuit breaker.
+
+#### `providers[].restart_policy.backoff_ms`
+
+- **Type:** `array of int`
+- **Required:** No
+- **Default:** `[100, 1000, 5000]`
+- **Constraints:** Array length must equal `max_attempts`. All values must be >= 0.
+- **Description:** Exponential backoff delays (in milliseconds) before each restart attempt.
+
+#### `providers[].restart_policy.timeout_ms`
+
+- **Type:** `int`
+- **Required:** No
+- **Default:** `30000`
+- **Constraints:** Must be at least 1000
+- **Description:** Maximum time to wait for provider restart (in milliseconds).
+
 **Example:**
 
 ```yaml
@@ -198,11 +233,21 @@ providers:
     command: ./build/anolis-provider-sim.exe
     args: []
     timeout_ms: 5000
+    restart_policy:
+      enabled: true
+      max_attempts: 3
+      backoff_ms: [200, 500, 1000]
+      timeout_ms: 30000
 
   - id: hardware
     command: /opt/providers/hardware-provider
     args: ["--port", "/dev/ttyUSB0"]
     timeout_ms: 3000
+    restart_policy:
+      enabled: true
+      max_attempts: 5
+      backoff_ms: [100, 500, 1000, 3000, 5000]
+      timeout_ms: 60000
 ```
 
 ---

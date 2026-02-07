@@ -42,7 +42,9 @@
 - Spawn/manage provider processes
 - Frame stdio communication (uint32_le length prefix)
 - Send ADPP requests, receive responses
-- Handle provider crashes
+- Supervise provider health (crash detection, automatic restart)
+- Enforce exponential backoff and circuit breaker policies
+- Coordinate device cleanup and rediscovery on restart
 
 ### Device Registry (core/registry/)
 
@@ -148,7 +150,7 @@ Key: BTs never bypass CallRouter or StateCache.
 
 ```yaml
 runtime:
-  mode: MANUAL      # MANUAL (default), AUTO, IDLE
+  mode: MANUAL # MANUAL (default), AUTO, IDLE
 
 providers:
   - id: sim0

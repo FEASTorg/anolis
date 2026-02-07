@@ -91,9 +91,74 @@ while (true) {
 
 - **Stateless preferred**: Runtime caches state, you just read hardware
 - **Blocking OK**: Runtime handles concurrency
-- **Crash = unavailable**: Runtime marks devices offline
+- **Crash = unavailable**: Runtime marks devices offline (supervision may restart)
 - **No stdin spam**: Only respond to requests
 - **Quality matters**: Report STALE/FAULT when hardware fails
+
+## Provider Supervision
+
+The runtime can automatically monitor and restart crashed providers:
+
+```yaml
+providers:
+  - id: hardware
+    command: ./my-provider
+    restart_policy:
+      enabled: true
+      max_attempts: 3
+      backoff_ms: [200, 500, 1000]
+      timeout_ms: 30000
+```
+
+### Crash Detection
+
+The supervisor detects provider crashes when:
+
+- Process exits unexpectedly
+- ADPP operations timeout repeatedly
+- Provider becomes unresponsive
+
+### Restart Flow
+
+1. **Crash Detected**: Supervisor logs crash with attempt counter
+2. **Backoff Wait**: Delays restart according to `backoff_ms[attempt - 1]`
+3. **Device Cleanup**: Clears all devices from registry before restart
+4. **Process Restart**: Spawns new provider process
+5. **Device Rediscovery**: Runs Hello → ListDevices → DescribeDevice for each device
+6. **Recovery Tracking**: Resets crash counter on successful restart
+
+### Circuit Breaker
+
+After `max_attempts` consecutive crashes, the circuit breaker opens:
+
+- No further automatic restarts
+- Devices remain unavailable
+- Manual intervention required (restart runtime or fix provider)
+
+The circuit breaker resets when the provider successfully recovers.
+
+### Backoff Strategy
+
+The `backoff_ms` array defines delays before each restart attempt:
+
+```yaml
+# Conservative: Long delays for stable hardware
+backoff_ms: [1000, 3000, 5000]
+
+# Aggressive: Quick recovery for transient issues
+backoff_ms: [100, 200, 500]
+
+# Production: Balanced approach
+backoff_ms: [200, 500, 1000]
+```
+
+### Best Practices
+
+- **Enable for production providers**: Hardware can fail, supervision ensures resilience
+- **Disable for development**: Crashes during development should stop execution for debugging
+- **Tune backoff delays**: Match your hardware's restart characteristics
+- **Set reasonable max_attempts**: Avoid infinite restart loops for permanently failed hardware
+- **Monitor circuit breaker**: Alert when circuit opens (indicates persistent provider failure)
 
 ### Provider Internal State (Important)
 
