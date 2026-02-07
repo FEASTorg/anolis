@@ -68,13 +68,20 @@ jobs:
           export PATH="/usr/lib/ccache:$PATH"
           ccache --set-config=max_size=1G
 
+      - name: Compute safe cache key fragment
+        shell: bash
+        run: |
+          SAFE_REF_NAME="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          SAFE_REF_NAME="${SAFE_REF_NAME//\//-}"
+          echo "SAFE_REF_NAME=$SAFE_REF_NAME" >> "$GITHUB_ENV"
+
       - name: Cache ccache
         uses: actions/cache@v4
         with:
           path: ~/.ccache
-          key: ccache-linux-${{ github.ref_name }}-${{ github.sha }}
+          key: ccache-linux-${{ env.SAFE_REF_NAME }}-${{ github.sha }}
           restore-keys: |
-            ccache-linux-${{ github.ref_name }}-
+            ccache-linux-${{ env.SAFE_REF_NAME }}-
             ccache-linux-
 
       - name: Setup Python
@@ -92,7 +99,7 @@ jobs:
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
-          doNotCache: false
+          doNotCache: true
 
       - name: Build anolis
         run: |
@@ -209,7 +216,7 @@ jobs:
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
-          doNotCache: false
+          doNotCache: true
 
       - name: Build anolis
         run: |
