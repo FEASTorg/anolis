@@ -115,27 +115,6 @@ bool ProviderSupervisor::record_crash(const std::string &provider_id) {
     return true;
 }
 
-void ProviderSupervisor::record_success(const std::string &provider_id) {
-    auto state_it = states_.find(provider_id);
-
-    if (state_it == states_.end()) {
-        return;
-    }
-
-    auto &state = state_it->second;
-
-    // If this was a recovery from crash, log it
-    if (state.attempt_count > 0) {
-        LOG_INFO("[Supervisor] Provider '" << provider_id << "' recovered successfully (after " << state.attempt_count
-                                           << " restart attempts)");
-    }
-
-    // Reset state
-    state.attempt_count = 0;
-    state.circuit_open = false;
-    state.next_restart_time = std::chrono::steady_clock::time_point{};
-}
-
 bool ProviderSupervisor::is_circuit_open(const std::string &provider_id) const {
     auto state_it = states_.find(provider_id);
 
@@ -154,6 +133,57 @@ int ProviderSupervisor::get_attempt_count(const std::string &provider_id) const 
     }
 
     return state_it->second.attempt_count;
+}
+
+void ProviderSupervisor::record_success(const std::string &provider_id) {
+    auto state_it = states_.find(provider_id);
+
+    if (state_it == states_.end()) {
+        return;
+    }
+
+    auto &state = state_it->second;
+
+    // If this was a recovery from crash, log it
+    if (state.attempt_count > 0) {
+        LOG_INFO("[Supervisor] Provider '" << provider_id << "' recovered successfully (after " << state.attempt_count
+                                           << " restart attempts)");
+    }
+
+    // Reset state
+    state.attempt_count = 0;
+    state.circuit_open = false;
+    state.crash_detected = false;
+    state.next_restart_time = std::chrono::steady_clock::time_point{};
+}
+
+bool ProviderSupervisor::mark_crash_detected(const std::string &provider_id) {
+    auto state_it = states_.find(provider_id);
+
+    if (state_it == states_.end()) {
+        return false;
+    }
+
+    auto &state = state_it->second;
+
+    // If we've already detected this crash, don't record it again
+    if (state.crash_detected) {
+        return false;
+    }
+
+    // Mark that we've detected a crash
+    state.crash_detected = true;
+    return true;
+}
+
+void ProviderSupervisor::clear_crash_detected(const std::string &provider_id) {
+    auto state_it = states_.find(provider_id);
+
+    if (state_it == states_.end()) {
+        return;
+    }
+
+    state_it->second.crash_detected = false;
 }
 
 }  // namespace provider

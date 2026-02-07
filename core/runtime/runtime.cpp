@@ -337,20 +337,35 @@ void Runtime::run() {
             // Check if provider is available
             if (!provider->is_available()) {
                 // Provider crashed or unavailable
-                if (!supervisor_->is_circuit_open(id)) {
-                    // Record crash and check if restart is allowed
-                    if (supervisor_->record_crash(id)) {
-                        // Wait for backoff period
-                        if (supervisor_->should_restart(id)) {
-                            // Attempt restart
-                            LOG_INFO("[Runtime] Attempting to restart provider: " << id);
-                            if (restart_provider(id, provider_config)) {
-                                LOG_INFO("[Runtime] Provider " << id << " restarted successfully");
-                                supervisor_->record_success(id);
-                            } else {
-                                LOG_ERROR("[Runtime] Failed to restart provider " << id);
-                            }
-                        }
+
+                // Check if circuit breaker is open
+                if (supervisor_->is_circuit_open(id)) {
+                    continue;  // Circuit open, no more attempts
+                }
+
+                // Mark that we've detected this crash (only records once per crash)
+                if (supervisor_->mark_crash_detected(id)) {
+                    // This is a new crash - record it and schedule restart
+                    if (!supervisor_->record_crash(id)) {
+                        // Max attempts exceeded - circuit breaker opened
+                        continue;
+                    }
+                }
+
+                // Check if we should attempt restart (backoff period elapsed)
+                if (supervisor_->should_restart(id)) {
+                    // Clear crash detected flag before restart attempt
+                    // (so next crash will be properly detected)
+                    supervisor_->clear_crash_detected(id);
+
+                    // Attempt restart
+                    LOG_INFO("[Runtime] Attempting to restart provider: " << id);
+                    if (restart_provider(id, provider_config)) {
+                        LOG_INFO("[Runtime] Provider restarted successfully: " << id);
+                        supervisor_->record_success(id);
+                    } else {
+                        LOG_ERROR("[Runtime] Failed to restart provider: " << id);
+                        // Don't mark crash detected - will retry on next iteration
                     }
                 }
             } else {

@@ -39,10 +39,18 @@ public:
     // Get current attempt count for a provider
     int get_attempt_count(const std::string &provider_id) const;
 
+    // Mark that we've detected the current crash (called when provider becomes unavailable)
+    // Returns true if this is a new crash (not already recorded)
+    bool mark_crash_detected(const std::string &provider_id);
+
+    // Clear crash detected flag (called after successful restart attempt begins)
+    void clear_crash_detected(const std::string &provider_id);
+
 private:
     struct RestartState {
         int attempt_count = 0;                                    // Current restart attempt number
         bool circuit_open = false;                                // True when max attempts exceeded
+        bool crash_detected = false;                              // True if we're currently handling a crash
         std::chrono::steady_clock::time_point next_restart_time;  // Earliest time for next restart
     };
 

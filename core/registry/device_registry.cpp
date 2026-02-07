@@ -94,10 +94,9 @@ void DeviceRegistry::clear_provider_devices(const std::string &provider_id) {
     LOG_INFO("[Registry] Clearing devices for provider: " << provider_id);
 
     // Remove all devices matching provider_id
-    auto new_end = std::remove_if(devices_.begin(), devices_.end(),
-                                   [&provider_id](const RegisteredDevice &device) {
-                                       return device.provider_id == provider_id;
-                                   });
+    auto new_end = std::remove_if(devices_.begin(), devices_.end(), [&provider_id](const RegisteredDevice &device) {
+        return device.provider_id == provider_id;
+    });
 
     size_t removed_count = std::distance(new_end, devices_.end());
     devices_.erase(new_end, devices_.end());
