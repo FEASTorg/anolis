@@ -123,8 +123,15 @@ Write-Info "  vcpkg: $env:VCPKG_ROOT"
 # Check pip packages
 Write-Info "Checking Python packages..."
 python -m pip install --quiet --upgrade pip
-python -m pip install --quiet requests
-Write-Info "  requests: installed"
+$lock = Join-Path $RepoRoot "requirements-lock.txt"
+if (Test-Path $lock) {
+    python -m pip install --quiet -r $lock
+    Write-Info "  Python packages: installed from requirements-lock.txt"
+}
+else {
+    python -m pip install --quiet requests
+    Write-Info "  requests: installed (fallback)"
+}
 
 Write-Host ""
 

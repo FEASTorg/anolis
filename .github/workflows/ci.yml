@@ -57,6 +57,9 @@ jobs:
           git checkout ${{ github.sha }}
           cd ../../..
 
+      - name: Validate requirements-lock.txt encoding
+        run: python3 scripts/validate_lockfile.py
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -199,6 +202,9 @@ jobs:
           cd anolis-provider-sim/external/anolis
           git fetch origin ${{ github.sha }}
           git checkout ${{ github.sha }}
+
+      - name: Validate requirements-lock.txt encoding
+        run: python scripts/validate_lockfile.py
 
       - name: Setup Python
         uses: actions/setup-python@v5

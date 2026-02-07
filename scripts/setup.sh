@@ -114,8 +114,13 @@ info "  vcpkg: $VCPKG_ROOT"
 # Check pip packages
 info "Checking Python packages..."
 python3 -m pip install --quiet --upgrade pip
-python3 -m pip install --quiet requests
-info "  requests: installed"
+if [ -f "$REPO_ROOT/requirements-lock.txt" ]; then
+    python3 -m pip install --quiet -r "$REPO_ROOT/requirements-lock.txt"
+    info "  Python packages: installed from requirements-lock.txt"
+else
+    python3 -m pip install --quiet requests
+    info "  requests: installed (fallback)"
+fi
 
 echo ""
 
