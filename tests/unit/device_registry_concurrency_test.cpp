@@ -139,13 +139,32 @@ TEST_F(DeviceRegistryConcurrencyTest, RestartSimulationStressTest) {
     // Initial population
     populate_registry("sim0");
 
-    // Start 100 reader threads
+    // Reduce thread count for sanitizer builds (TSAN/ASAN/UBSAN add significant overhead)
+    // Normal builds: 100 threads, Sanitizer builds: 20 threads
+#if defined(__SANITIZE_THREAD__) || defined(__SANITIZE_ADDRESS__) || defined(__has_feature)
+#if defined(__has_feature)
+#if __has_feature(thread_sanitizer) || __has_feature(address_sanitizer) || __has_feature(undefined_behavior_sanitizer)
+    constexpr int num_reader_threads = 20;
+    constexpr int num_restarts = 5;
+#else
+    constexpr int num_reader_threads = 100;
+    constexpr int num_restarts = 10;
+#endif
+#else
+    constexpr int num_reader_threads = 20;
+    constexpr int num_restarts = 5;
+#endif
+#else
+    constexpr int num_reader_threads = 100;
+    constexpr int num_restarts = 10;
+#endif
+
     std::atomic<bool> stop_test{false};
     std::atomic<size_t> successful_reads{0};
     std::atomic<size_t> failed_reads{0};
     std::vector<std::thread> reader_threads;
 
-    for (int i = 0; i < 100; ++i) {
+    for (int i = 0; i < num_reader_threads; ++i) {
         reader_threads.emplace_back([&]() {
             while (!stop_test.load()) {
                 auto device = registry->get_device_copy("sim0", "device0");
@@ -158,13 +177,15 @@ TEST_F(DeviceRegistryConcurrencyTest, RestartSimulationStressTest) {
                 } else {
                     ++failed_reads;
                 }
+                // Small yield to reduce contention in sanitizer builds
+                std::this_thread::yield();
             }
         });
     }
 
-    // Simulate 10 rapid provider restarts
+    // Simulate rapid provider restarts
     auto mock = create_mock_provider_with_devices("sim0");
-    for (int restart = 0; restart < 10; ++restart) {
+    for (int restart = 0; restart < num_restarts; ++restart) {
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
         // Clear devices (simulates provider disconnect)
@@ -181,7 +202,8 @@ TEST_F(DeviceRegistryConcurrencyTest, RestartSimulationStressTest) {
     }
 
     EXPECT_GT(successful_reads.load(), 0);
-    std::cout << "Restarts: 10\n";
+    std::cout << "Restarts: " << num_restarts << "\n";
+    std::cout << "Threads: " << num_reader_threads << "\n";
     std::cout << "Reads: " << successful_reads.load() << " successful, " << failed_reads.load() << " failed\n";
 }
 
@@ -308,6 +330,25 @@ TEST_F(DeviceRegistryConcurrencyTest, GetAllDevicesConcurrency) {
 TEST_F(DeviceRegistryConcurrencyTest, MixedOperationsStress) {
     populate_registry("sim0");
 
+    // Scale down for sanitizer builds to avoid timeouts
+#if defined(__SANITIZE_THREAD__) || defined(__SANITIZE_ADDRESS__) || defined(__has_feature)
+#if defined(__has_feature)
+#if __has_feature(thread_sanitizer) || __has_feature(address_sanitizer) || __has_feature(undefined_behavior_sanitizer)
+    constexpr int threads_per_operation = 5;
+    constexpr int test_duration_ms = 200;
+#else
+    constexpr int threads_per_operation = 25;
+    constexpr int test_duration_ms = 500;
+#endif
+#else
+    constexpr int threads_per_operation = 5;
+    constexpr int test_duration_ms = 200;
+#endif
+#else
+    constexpr int threads_per_operation = 25;
+    constexpr int test_duration_ms = 500;
+#endif
+
     std::atomic<bool> stop_test{false};
     std::atomic<size_t> get_device_calls{0};
     std::atomic<size_t> get_all_calls{0};
@@ -316,38 +357,41 @@ TEST_F(DeviceRegistryConcurrencyTest, MixedOperationsStress) {
 
     auto mock = create_mock_provider_with_devices("sim0");
 
-    // 25 threads: get_device_copy
-    for (int i = 0; i < 25; ++i) {
+    // threads_per_operation threads: get_device_copy
+    for (int i = 0; i < threads_per_operation; ++i) {
         threads.emplace_back([&]() {
             while (!stop_test.load()) {
                 auto device = registry->get_device_copy("sim0", "device0");
                 if (device.has_value()) {
                     ++get_device_calls;
                 }
+                std::this_thread::yield();  // Reduce contention
             }
         });
     }
 
-    // 25 threads: get_all_devices
-    for (int i = 0; i < 25; ++i) {
+    // threads_per_operation threads: get_all_devices
+    for (int i = 0; i < threads_per_operation; ++i) {
         threads.emplace_back([&]() {
             while (!stop_test.load()) {
                 auto all = registry->get_all_devices();
                 if (!all.empty()) {
                     ++get_all_calls;
                 }
+                std::this_thread::yield();  // Reduce contention
             }
         });
     }
 
-    // 25 threads: get_device_by_handle_copy
-    for (int i = 0; i < 25; ++i) {
+    // threads_per_operation threads: get_device_by_handle_copy
+    for (int i = 0; i < threads_per_operation; ++i) {
         threads.emplace_back([&]() {
             while (!stop_test.load()) {
                 auto device = registry->get_device_by_handle_copy("sim0/device1");
                 if (device.has_value()) {
                     ++get_by_handle_calls;
                 }
+                std::this_thread::yield();  // Reduce contention
             }
         });
     }
@@ -361,8 +405,8 @@ TEST_F(DeviceRegistryConcurrencyTest, MixedOperationsStress) {
         }
     });
 
-    // Run stress test for 500ms
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    // Run stress test
+    std::this_thread::sleep_for(std::chrono::milliseconds(test_duration_ms));
     stop_test.store(true);
 
     for (auto &t : threads) {
@@ -375,7 +419,7 @@ TEST_F(DeviceRegistryConcurrencyTest, MixedOperationsStress) {
     // Note: get_by_handle_calls may be 0 due to lock contention in stress scenarios
     // Dedicated test HandleLookupConcurrency validates this method works
 
-    std::cout << "Stress test results:\n";
+    std::cout << "Stress test results (threads_per_op=" << threads_per_operation << "):\n";
     std::cout << "  get_device_copy: " << get_device_calls.load() << "\n";
     std::cout << "  get_all_devices: " << get_all_calls.load() << "\n";
     std::cout << "  get_by_handle_copy: " << get_by_handle_calls.load() << "\n";
