@@ -1,4 +1,4 @@
-name: Quality Gates
+name: Quality
 
 on:
   push:
@@ -23,7 +23,7 @@ on:
       - "**/*.svg"
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: quality-${{ github.ref }}
   cancel-in-progress: true
 
 env:
