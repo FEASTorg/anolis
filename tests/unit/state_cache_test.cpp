@@ -84,7 +84,9 @@ TEST_F(StateCacheTest, PollAndRead)
             // Verify we are asked for "temp"
             bool asking_temp = false;
             for(const auto& id : ids) if(id == "temp") asking_temp = true;
-            if(!asking_temp) return false;
+            if(!asking_temp) {
+                return false;
+            }
 
             auto* v = response.add_values();
             v->set_signal_id("temp");

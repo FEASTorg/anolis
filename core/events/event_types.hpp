@@ -102,7 +102,9 @@ inline const char *value_type_name(const TypedValue &v) {
  * This prevents spurious change events from floating-point edge cases.
  */
 inline bool values_equal(const TypedValue &a, const TypedValue &b) {
-    if (a.index() != b.index()) return false;
+    if (a.index() != b.index()) {
+        return false;
+    }
 
     return std::visit(
         [&b](auto &&arg_a) -> bool {

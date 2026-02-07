@@ -195,7 +195,9 @@ public:
      * @brief Pop next event (blocks up to timeout_ms)
      */
     std::optional<Event> pop(int timeout_ms = 100) {
-        if (!queue_) return std::nullopt;
+        if (!queue_) {
+            return std::nullopt;
+        }
         return queue_->pop(timeout_ms);
     }
 
@@ -203,7 +205,9 @@ public:
      * @brief Try pop without blocking
      */
     std::optional<Event> try_pop() {
-        if (!queue_) return std::nullopt;
+        if (!queue_) {
+            return std::nullopt;
+        }
         return queue_->try_pop();
     }
 
@@ -269,7 +273,9 @@ struct EventFilter {
                 if (!provider_id.empty()) {
                     if constexpr (std::is_same_v<T, StateUpdateEvent> || std::is_same_v<T, QualityChangeEvent> ||
                                   std::is_same_v<T, DeviceAvailabilityEvent>) {
-                        if (e.provider_id != provider_id) return false;
+                        if (e.provider_id != provider_id) {
+                            return false;
+                        }
                     }
                 }
 
@@ -277,14 +283,18 @@ struct EventFilter {
                 if (!device_id.empty()) {
                     if constexpr (std::is_same_v<T, StateUpdateEvent> || std::is_same_v<T, QualityChangeEvent> ||
                                   std::is_same_v<T, DeviceAvailabilityEvent>) {
-                        if (e.device_id != device_id) return false;
+                        if (e.device_id != device_id) {
+                            return false;
+                        }
                     }
                 }
 
                 // Check signal_id filter (only applies to signal events)
                 if (!signal_id.empty()) {
                     if constexpr (std::is_same_v<T, StateUpdateEvent> || std::is_same_v<T, QualityChangeEvent>) {
-                        if (e.signal_id != signal_id) return false;
+                        if (e.signal_id != signal_id) {
+                            return false;
+                        }
                     }
                 }
 

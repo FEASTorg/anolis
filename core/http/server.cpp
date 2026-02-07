@@ -9,6 +9,15 @@
 namespace anolis {
 namespace http {
 
+namespace {
+constexpr int kDefaultTimeoutSeconds = 5;
+constexpr int kDefaultTimeoutMilliseconds = 0;
+constexpr int kStatusNoContent = 204;
+constexpr int kStatusBadRequest = 400;
+constexpr int kStatusNotFound = 404;
+constexpr int kStatusInternal = 500;
+}  // namespace
+
 HttpServer::HttpServer(const runtime::HttpConfig &config, registry::DeviceRegistry &registry,
                        state::StateCache &state_cache, control::CallRouter &call_router, ProviderMap &providers,
                        std::shared_ptr<events::EventEmitter> event_emitter, automation::ModeManager *mode_manager,
@@ -36,8 +45,8 @@ bool HttpServer::start(std::string &error) {
     server_ = std::make_unique<httplib::Server>();
 
     // Configure server
-    server_->set_read_timeout(5, 0);   // 5 seconds
-    server_->set_write_timeout(5, 0);  // 5 seconds
+    server_->set_read_timeout(kDefaultTimeoutSeconds, kDefaultTimeoutMilliseconds);
+    server_->set_write_timeout(kDefaultTimeoutSeconds, kDefaultTimeoutMilliseconds);
 
     // Set thread pool size to handle SSE + REST concurrently
     // Rule: thread_pool_size >= max_sse_clients + headroom for REST
@@ -106,13 +115,13 @@ bool HttpServer::start(std::string &error) {
         StatusCode code = StatusCode::INTERNAL;
         std::string message = "Internal server error";
 
-        if (res.status == 404) {
+        if (res.status == kStatusNotFound) {
             code = StatusCode::NOT_FOUND;
             message = "Route not found: " + req.method + " " + req.path;
-        } else if (res.status == 400) {
+        } else if (res.status == kStatusBadRequest) {
             code = StatusCode::INVALID_ARGUMENT;
             message = "Bad request";
-        } else if (res.status == 500) {
+        } else if (res.status == kStatusInternal) {
             code = StatusCode::INTERNAL;
             message = "Internal server error";
         }
@@ -135,7 +144,7 @@ bool HttpServer::start(std::string &error) {
         }
 
         nlohmann::json response = make_error_response(StatusCode::INTERNAL, msg);
-        res.status = 500;
+        res.status = kStatusInternal;
         res.set_content(response.dump(), "application/json");
     });
 
@@ -203,14 +212,14 @@ void HttpServer::setup_routes() {
 
     // OPTIONS /v0/call - CORS preflight for POST
     server_->Options("/v0/call", [](const httplib::Request &req, httplib::Response &res) {
-        res.status = 204;  // No content
+        res.status = kStatusNoContent;
         res.set_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
         res.set_header("Access-Control-Allow-Headers", "Content-Type");
     });
 
     // OPTIONS catch-all for CORS preflight on all routes
     server_->Options(R"(/v0/.*)", [](const httplib::Request &req, httplib::Response &res) {
-        res.status = 204;  // No content
+        res.status = kStatusNoContent;
         res.set_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
         res.set_header("Access-Control-Allow-Headers", "Content-Type");
     });

@@ -27,12 +27,12 @@ struct LoggingConfig {
 };
 
 struct HttpConfig {
-    bool enabled = true;             // HTTP server enabled
-    std::string bind = "127.0.0.1";  // Bind address
-    int port = 8080;                 // HTTP port
+    bool enabled = true;                                 // HTTP server enabled
+    std::string bind = "127.0.0.1";                      // Bind address
+    int port = 8080;                                     // HTTP port
     std::vector<std::string> cors_allowed_origins{"*"};  // CORS allowlist ("*" = allow all)
-    bool cors_allow_credentials = false;            // Whether to emit Access-Control-Allow-Credentials
-    int thread_pool_size = 40;                      // Worker thread pool size
+    bool cors_allow_credentials = false;                 // Whether to emit Access-Control-Allow-Credentials
+    int thread_pool_size = 40;                           // Worker thread pool size
 };
 
 struct RuntimeModeConfig {
@@ -99,9 +99,6 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
 
 // Validates the configuration
 bool validate_config(const RuntimeConfig &config, std::string &error);
-
-// Load config from YAML file
-bool load_config(const std::string &config_path, RuntimeConfig &config, std::string &error);
 
 }  // namespace runtime
 }  // namespace anolis

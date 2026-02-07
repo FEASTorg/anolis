@@ -27,11 +27,11 @@ Level string_to_level(const std::string &level_str);
 }  // namespace anolis
 
 // Macro macros to handle string building
-#define LOG_INTERNAL(level, msg)                                           \
-    do {                                                                   \
-        std::stringstream ss;                                              \
-        ss << msg;                                                         \
-        anolis::logging::Logger::log(level, __FILE__, __LINE__, ss.str()); \
+#define LOG_INTERNAL(level, msg)                                             \
+    do {                                                                     \
+        std::stringstream ss;                                                \
+        ss << (msg);                                                         \
+        anolis::logging::Logger::log((level), __FILE__, __LINE__, ss.str()); \
     } while (0)
 
 #define LOG_DEBUG(msg) LOG_INTERNAL(anolis::logging::Level::LVL_DEBUG, msg)

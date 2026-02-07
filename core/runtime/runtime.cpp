@@ -16,20 +16,30 @@ Runtime::~Runtime() { shutdown(); }
 bool Runtime::initialize(std::string &error) {
     LOG_INFO("[Runtime] Initializing Anolis Core");
 
-    if (!init_core_services(error)) return false;
+    if (!init_core_services(error)) {
+        return false;
+    }
 
-    if (!init_providers(error)) return false;
+    if (!init_providers(error)) {
+        return false;
+    }
 
     if (!state_cache_->initialize()) {
         error = "State cache initialization failed: " + state_cache_->last_error();
         return false;
     }
 
-    if (!init_automation(error)) return false;
+    if (!init_automation(error)) {
+        return false;
+    }
 
-    if (!init_http(error)) return false;
+    if (!init_http(error)) {
+        return false;
+    }
 
-    if (!init_telemetry(error)) return false;
+    if (!init_telemetry(error)) {
+        return false;
+    }
 
     LOG_INFO("[Runtime] Initialization complete");
     return true;
