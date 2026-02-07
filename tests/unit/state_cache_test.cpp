@@ -195,6 +195,7 @@ TEST_F(StateCacheTest, ConcurrencyStress) {
 
     // Reader Threads
     std::vector<std::thread> readers;
+    readers.reserve(5);
     for (int i = 0; i < 5; ++i) {
         readers.emplace_back([&]() {
             while (running) {

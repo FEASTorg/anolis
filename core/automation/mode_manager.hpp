@@ -89,7 +89,7 @@ public:
      *
      * @param callback Function to call on mode change
      */
-    void on_mode_change(ModeChangeCallback callback);
+    void on_mode_change(const ModeChangeCallback &callback);
 
 private:
     /**

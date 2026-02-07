@@ -336,6 +336,7 @@ TEST_F(ModeManagerTest, ConcurrentModeQueriesAreSafe) {
     constexpr int kQueriesPerThread = 1000;
 
     std::vector<std::thread> threads;
+    threads.reserve(kNumThreads);
     std::atomic<int> query_count{0};
 
     for (int i = 0; i < kNumThreads; ++i) {
@@ -363,6 +364,7 @@ TEST_F(ModeManagerTest, ConcurrentModeChangesAreSafe) {
     std::atomic<int> failed_transitions{0};
 
     std::vector<std::thread> threads;
+    threads.reserve(kNumThreads);
 
     for (int i = 0; i < kNumThreads; ++i) {
         threads.emplace_back([&, i]() {

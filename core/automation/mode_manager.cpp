@@ -90,7 +90,7 @@ bool ModeManager::set_mode(RuntimeMode new_mode, std::string &error) {
     return true;
 }
 
-void ModeManager::on_mode_change(ModeChangeCallback callback) {
+void ModeManager::on_mode_change(const ModeChangeCallback &callback) {
     std::lock_guard<std::mutex> lock(mutex_);
     callbacks_.push_back(callback);
 }

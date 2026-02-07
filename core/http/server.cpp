@@ -28,7 +28,7 @@ HttpServer::HttpServer(const runtime::HttpConfig &config, int polling_interval_m
       state_cache_(state_cache),
       call_router_(call_router),
       providers_(providers),
-      event_emitter_(event_emitter),
+      event_emitter_(std::move(event_emitter)),
       mode_manager_(mode_manager),
       parameter_manager_(parameter_manager) {}
 
@@ -135,7 +135,7 @@ bool HttpServer::start(std::string &error) {
     server_->set_exception_handler([](const httplib::Request &req, httplib::Response &res, std::exception_ptr ep) {
         std::string msg = "Unknown error";
         try {
-            std::rethrow_exception(ep);
+            std::rethrow_exception(std::move(ep));
         } catch (const std::exception &e) {
             msg = e.what();
             LOG_ERROR("[HTTP] Exception: " << e.what());

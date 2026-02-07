@@ -70,7 +70,7 @@ bool ParameterManager::define(const std::string &name, ParameterType type, const
     }
 
     // Validate default value against constraints
-    ParameterDef def{name, type, default_value, min, max, allowed_values};
+    ParameterDef def{name, type, default_value, min, max, std::move(allowed_values)};
     std::string error;
     if (!def.validate(default_value, error)) {
         LOG_ERROR("[ParameterManager] Parameter '" << name << "' default value invalid: " << error);
@@ -205,7 +205,7 @@ std::unordered_map<std::string, ParameterDef> ParameterManager::get_all_definiti
     return parameters_;
 }
 
-void ParameterManager::on_parameter_change(ParameterChangeCallback callback) {
+void ParameterManager::on_parameter_change(const ParameterChangeCallback &callback) {
     std::lock_guard<std::mutex> lock(mutex_);
     callbacks_.push_back(callback);
 }

@@ -492,6 +492,7 @@ TEST(EventEmitterTest, UnsubscribeDuringEmission) {
     EventEmitter emitter;
 
     std::vector<std::unique_ptr<Subscription>> subs;
+    subs.reserve(5);
     for (int i = 0; i < 5; ++i) {
         subs.push_back(emitter.subscribe());
     }

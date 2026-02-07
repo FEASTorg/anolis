@@ -201,7 +201,7 @@ public:
      *
      * @param callback Function to call when parameters change
      */
-    void on_parameter_change(ParameterChangeCallback callback);
+    void on_parameter_change(const ParameterChangeCallback &callback);
 
     /**
      * @brief Check if parameter exists

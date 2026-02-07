@@ -183,6 +183,24 @@ We use `ruff` for both linting and formatting Python scripts.
 pip install -r requirements.txt
 ```
 
+#### Generating/updating the lock file (UTF-8)
+
+On Windows PowerShell, redirection (`>`) defaults to UTF-16; regenerate the lock file with UTF-8 to avoid CI decode errors.
+
+```powershell
+# PowerShell (PowerShell 7+)
+pip freeze > requirements-lock.txt -Encoding utf8
+
+# PowerShell (works across versions)
+pip freeze | Out-File -Encoding utf8 requirements-lock.txt
+
+# Git Bash / WSL
+pip freeze > requirements-lock.txt
+
+# Quick verify (fails non-zero if not UTF-8)
+python -c "open('requirements-lock.txt','rb').read().decode('utf-8')"
+```
+
 #### Linting & Formatting
 
 ```bash
