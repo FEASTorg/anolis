@@ -1,6 +1,7 @@
 #include "provider_registry.hpp"
 
 #include <algorithm>
+#include <mutex>
 
 namespace anolis {
 namespace provider {
