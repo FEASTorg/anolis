@@ -201,7 +201,6 @@ bool ProviderProcess::spawn_linux() {
         execv(abs_path.c_str(), argv.data());
 
         // If we get here, exec failed
-        std::cerr << "exec failed for " << abs_path << ": " << errno << "\n";
         LOG_ERROR("exec failed for " << abs_path << ": " << errno);
         _exit(1);
     }
@@ -239,7 +238,6 @@ void ProviderProcess::shutdown() {
         return;
     }
 
-    std::cerr << "[" << provider_id_ << "] Initiating shutdown\n";
     LOG_INFO("[" << provider_id_ << "] Initiating shutdown");
 
     // 1. Send EOF

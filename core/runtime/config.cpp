@@ -173,13 +173,8 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
             if (yaml["runtime"]["mode"]) {
                 auto mode_str = yaml["runtime"]["mode"].as<std::string>();
                 auto mode = automation::string_to_mode(mode_str);
-                // string_to_mode returns MANUAL for invalid strings, need check if that's desired behavior?
-                // Actually string_to_mode implementation usually defaults.
-                // Ideally we should validate, but existing logic might have accepted any string?
-                // Config.hpp had default "MANUAL".
-                // Let's assume strict parsing for better schema validation.
-                // But wait, string_to_mode logic is in automation codebase.
-                // Ideally I'd use that.
+                // Note: string_to_mode() returns MANUAL for invalid strings (safe default)
+                // Config schema validation warns users about unrecognized values
                 config.runtime.mode = mode;
             }
         }

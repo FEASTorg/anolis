@@ -112,7 +112,6 @@ bool BTRuntime::is_running() const { return running_; }
 
 BT::NodeStatus BTRuntime::tick() {
     if (!tree_) {
-        std::cerr << "[BTRuntime] ERROR: Cannot tick, no tree loaded" << std::endl;
         LOG_ERROR("[BTRuntime] Cannot tick, no tree loaded");
         return BT::NodeStatus::FAILURE;
     }

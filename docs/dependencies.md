@@ -24,10 +24,10 @@ To ensure reproducible builds across local development and CI:
 
 ## CVE / Security Updates
 
-- **Critical CVE**: If a critical vulnerability is found in a dependency (e.g., `cpp-httplib`), we will deviate from the quarterly cadence.
-  We will bump the baseline immediately or override that specific package.
-  We may instead override that specific package.
-  We may instead override that specific package.
+- **Critical CVE**: If a critical vulnerability is found in a dependency (e.g., `cpp-httplib`),
+  we will deviate from the quarterly cadence and either:
+  - Bump the vcpkg baseline immediately to get the patched version, or
+  - Override that specific package version in `vcpkg.json` overrides section
 
 ## Current Dependencies
 

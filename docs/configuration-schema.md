@@ -68,8 +68,8 @@ automation:
 - **Type:** `string`
 - **Required:** No
 - **Default:** `MANUAL`
-- **Valid Values:** `MANUAL`, `AUTO`
-- **Description:** Initial runtime mode. In v0, only `MANUAL` is fully supported.
+- **Valid Values:** `MANUAL`, `AUTO`, `IDLE`, `FAULT`
+- **Description:** Initial runtime mode. Defaults to MANUAL for safe startup.
 
 **Example:**
 

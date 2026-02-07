@@ -567,10 +567,10 @@ Automated tests for automation features:
 
 ```bash
 # Run automation tests
-python scripts/test_automation.py
+python tests/integration/test_automation.py
 
-# Test specific scenarios
-python scripts/test_automation.py --port 18080
+# Test with custom runtime path and port
+python tests/integration/test_automation.py --runtime path/to/anolis-runtime --port 18080
 ```
 
 **Test coverage:**

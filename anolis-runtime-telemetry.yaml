@@ -20,7 +20,11 @@ http:
 
 providers:
   - id: sim0
-    command: D:/repos_feast/anolis-provider-sim/build/Release/anolis-provider-sim.exe
+    # Portable relative path (adjust based on your build configuration)
+    # Windows Release: ../anolis-provider-sim/build/Release/anolis-provider-sim.exe
+    # Windows Debug:   ../anolis-provider-sim/build/Debug/anolis-provider-sim.exe
+    # Linux/macOS:     ../anolis-provider-sim/build/anolis-provider-sim
+    command: ../anolis-provider-sim/build/Release/anolis-provider-sim
     args: []
     timeout_ms: 5000
 

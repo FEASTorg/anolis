@@ -132,19 +132,35 @@ Key: BTs never bypass CallRouter or StateCache.
 - **Protocol**: ADPP (protobuf over framed stdio)
 - **Platform**: Windows, Linux
 
-## Concurrency Model (v0 & v1)
+## Concurrency Model (Current: v1)
 
-**v0 (Current): Single-threaded sequential.**
+**Current Architecture:** Multi-threaded
 
-- Polling: Sequential blocking loop (blocks runtime).
-- Calls: Per-provider mutex.
-- Automation: Sequential tick in main loop (cooperative multitasking).
+- **State Polling**: Dedicated background thread in StateCache
+  - Runs continuous loop at configured interval (default 500ms)
+  - Thread-safe via mutex-protected state snapshots
+  - Non-blocking to runtime main loop
 
-**v1 (planned goal): Dedicated Polling Thread.**
+- **Behavior Tree Automation**: Dedicated tick thread in BTRuntime
+  - Runs at configured rate (default 10Hz)
+  - Only active in AUTO mode
+  - Accesses state via thread-safe StateCache API
 
-- Polling: Background thread (StateCache internal).
-- Runtime: Main loop handles BT ticks and HTTP.
-- Synchronization: `std::mutex` guards shared state in StateCache.
+- **HTTP Server**: Embedded httplib server with thread pool
+  - Configurable thread pool size (default 40)
+  - Concurrent request handling
+  - Thread-safe access to all runtime components
+
+- **Provider Communication**: Serialized per-provider
+  - Per-provider mutex locks ensure atomic call execution
+  - Prevents concurrent calls to same provider process
+  - Multiple providers can be called in parallel
+
+- **Synchronization**:
+  - StateCache: `std::mutex` guards device state map
+  - CallRouter: Per-provider `std::mutex` for call serialization
+  - EventEmitter: Lock-free queue with atomic operations
+  - ModeManager: `std::mutex` guards mode transitions
 
 ## Configuration
 

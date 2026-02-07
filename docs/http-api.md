@@ -79,14 +79,14 @@ Get runtime status, mode, and provider health.
 
 **Fields:**
 
-| Field                 | Type    | Description                                       |
-| --------------------- | ------- | ------------------------------------------------- |
-| `mode`                | string  | Runtime mode: `MANUAL` (always in v0)             |
-| `uptime_seconds`      | integer | Seconds since runtime started                     |
-| `polling_interval_ms` | integer | State polling interval                            |
-| `device_count`        | integer | Total devices across all providers                |
-| `providers`           | array   | Provider status list                              |
-| `providers[].state`   | string  | `AVAILABLE`, `UNAVAILABLE`, `STARTING`, `CRASHED` |
+| Field                 | Type    | Description                                        |
+| --------------------- | ------- | -------------------------------------------------- |
+| `mode`                | string  | Runtime mode: `MANUAL`, `AUTO`, `IDLE`, or `FAULT` |
+| `uptime_seconds`      | integer | Seconds since runtime started                      |
+| `polling_interval_ms` | integer | State polling interval                             |
+| `device_count`        | integer | Total devices across all providers                 |
+| `providers`           | array   | Provider status list                               |
+| `providers[].state`   | string  | `AVAILABLE`, `UNAVAILABLE`, `STARTING`, `CRASHED`  |
 
 ---
 

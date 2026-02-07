@@ -9,7 +9,7 @@ Anolis Runtime is configured via a YAML file (default: `anolis-runtime.yaml`).
 
 ```yaml
 runtime:
-  mode: MANUAL # MANUAL | AUTOMATED
+  mode: MANUAL # MANUAL | AUTO | IDLE | FAULT
 
 http:
   enabled: true
