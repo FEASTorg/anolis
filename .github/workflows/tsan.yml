@@ -100,11 +100,23 @@ jobs:
 
       - name: Run unit tests with TSAN
         env:
-          TSAN_OPTIONS: "halt_on_error=1 second_deadlock_stack=1"
+          TSAN_OPTIONS: "halt_on_error=1 second_deadlock_stack=1 detect_deadlocks=1"
         run: |
           echo "=== Running unit tests with ThreadSanitizer ==="
-          ctest --test-dir build --output-on-failure -C RelWithDebInfo
-          echo "✅ Unit tests passed without data races"
+
+          # Ensure deterministic execution under TSAN
+          export CTEST_PARALLEL_LEVEL=1
+          export CTEST_OUTPUT_ON_FAILURE=1
+
+          # Run tests with visibility and timeouts
+          timeout 20m ctest --test-dir build \
+                            --output-on-failure \
+                            --progress \
+                            --verbose \
+                            --timeout 300 \
+                            -C RelWithDebInfo
+
+          echo "[OK] Unit tests passed without data races"
 
       - name: Run integration tests with TSAN
         env:
