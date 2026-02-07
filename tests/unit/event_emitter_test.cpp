@@ -1,9 +1,6 @@
 /**
  * event_emitter_test.cpp - EventEmitter and SubscriberQueue unit tests
  *
- * Phase 3.2.5: Event Emitter Tests
- * Target: 75%+ coverage of event distribution and queue management
- *
  * Tests:
  * 1. Basic subscription lifecycle (subscribe, emit, pop, unsubscribe)
  * 2. Queue overflow handling (drops oldest, tracks count)

@@ -1,8 +1,6 @@
 /**
  * influx_sink_test.cpp - InfluxDB Telemetry Sink unit tests
  *
- * Phase 3.2.6: Telemetry Sink Tests
- * Target: 65%+ coverage of line protocol formatting and escaping
  *
  * Tests:
  * 1. Tag escaping (comma, equals, space)

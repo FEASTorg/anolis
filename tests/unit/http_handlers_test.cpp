@@ -9,8 +9,6 @@
  * - Provider availability checks
  * - CORS header inclusion
  *
- * Phase 3.2.2: HTTP Handler Tests
- * Target: 70%+ coverage of handler code
  */
 
 #include <gmock/gmock.h>

@@ -12,6 +12,6 @@ Minimal living documentation for Anolis Core.
 - [providers.md](providers.md) - Provider protocol and development
 - [http-api.md](http-api.md) - HTTP REST API reference
 - [automation.md](automation.md) - Behavior trees and automation system
-- [CONTRIBUTING.md](CONTRIBUTING.md) - Development guide and common pitfalls
+- [../CONTRIBUTING.md](../CONTRIBUTING.md) - Development guide and common pitfalls
 
 Keep docs short and to-the-point. Update as system evolves.

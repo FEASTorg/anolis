@@ -1,9 +1,6 @@
 /**
  * provider_process_test.cpp - ProviderProcess unit tests
  *
- * Phase 3.2.4: Provider Lifecycle Tests
- * Target: 60%+ coverage (some paths hard to unit test without real processes)
- *
  * Tests:
  * - Constructor initialization
  * - Spawn with missing executable (error path)

@@ -1,9 +1,6 @@
 /**
  * mode_manager_test.cpp - ModeManager unit tests
  *
- * Phase 3.2.3: Mode Manager Tests
- * Target: 90%+ coverage (safety-critical component)
- *
  * Tests:
  * - Valid state transitions (MANUAL↔AUTO, MANUAL↔IDLE, Any→FAULT, FAULT→MANUAL)
  * - Invalid transitions (FAULT→AUTO, FAULT→IDLE blocked)

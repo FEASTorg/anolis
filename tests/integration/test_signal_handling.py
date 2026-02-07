@@ -252,6 +252,7 @@ def main():
     parser = argparse.ArgumentParser(description="Test runtime signal handling")
     parser.add_argument("--runtime", help="Path to anolis-runtime executable")
     parser.add_argument("--provider", help="Path to provider executable")
+    parser.add_argument("--timeout", type=float, default=60.0, help="Test timeout in seconds")
     args = parser.parse_args()
 
     # Find executables

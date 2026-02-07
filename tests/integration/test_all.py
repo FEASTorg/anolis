@@ -330,6 +330,8 @@ def main() -> int:
         ("test_core.py", []),
         ("test_http.py", [f"--port={args.port}"]),
         ("test_automation.py", [f"--port={args.port + 1}"]),
+        ("test_signal_handling.py", []),
+        ("test_provider_supervision.py", []),
     ]
 
     bt_nodes_sanity = find_bt_nodes_sanity_path()
