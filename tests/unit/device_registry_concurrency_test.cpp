@@ -1,5 +1,3 @@
-#include "registry/device_registry.hpp"
-
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -10,6 +8,7 @@
 #include <vector>
 
 #include "mocks/mock_provider_handle.hpp"
+#include "registry/device_registry.hpp"
 
 using namespace anolis;
 using namespace testing;
@@ -131,8 +130,7 @@ TEST_F(DeviceRegistryConcurrencyTest, ClearWhileConcurrentReads) {
     // - Found device before clear
     // - Did not find device after clear
     EXPECT_GT(successful_reads.load() + device_not_found.load(), 0);
-    std::cout << "Reads: " << successful_reads.load() << " successful, " << device_not_found.load()
-              << " not found\n";
+    std::cout << "Reads: " << successful_reads.load() << " successful, " << device_not_found.load() << " not found\n";
 }
 
 // Test: Restart simulation - repeatedly clear and re-discover while readers active

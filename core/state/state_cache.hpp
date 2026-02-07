@@ -69,6 +69,9 @@ public:
     // Initialize the cache (build polling configs from registry)
     bool initialize();
 
+    // Rebuild polling configs for a provider (called after restart/rediscovery)
+    void rebuild_poll_configs(const std::string &provider_id);
+
     // Start polling thread
     void start_polling(provider::ProviderRegistry &provider_registry);
 

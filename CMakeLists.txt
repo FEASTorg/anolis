@@ -37,6 +37,23 @@ if(ENABLE_COVERAGE)
     endif()
 endif()
 
+# ThreadSanitizer (TSAN) - Data Race Detection
+option(ENABLE_TSAN "Enable ThreadSanitizer for data race detection" OFF)
+
+if(ENABLE_TSAN)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        if(NOT WIN32)
+            add_compile_options(-fsanitize=thread -g -fno-omit-frame-pointer)
+            add_link_options(-fsanitize=thread)
+            message(STATUS "ThreadSanitizer (TSAN) enabled for data race detection")
+        else()
+            message(WARNING "ThreadSanitizer not supported on Windows (Linux/macOS only)")
+        endif()
+    else()
+        message(WARNING "ThreadSanitizer requires GCC or Clang, current compiler: ${CMAKE_CXX_COMPILER_ID}")
+    endif()
+endif()
+
 # Subdirectories
 add_subdirectory(core)
 

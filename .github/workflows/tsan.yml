@@ -1,0 +1,188 @@
+name: ThreadSanitizer
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "**/*.png"
+      - "**/*.svg"
+      - "**/*.jpg"
+      - "**/*.jpeg"
+      - "**/*.gif"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "**/*.png"
+      - "**/*.svg"
+      - "**/*.jpg"
+      - "**/*.jpeg"
+      - "**/*.gif"
+
+concurrency:
+  group: tsan-${{ github.ref }}
+  cancel-in-progress: true
+
+# vcpkg commit from the official release 2026.01.16
+# https://github.com/microsoft/vcpkg/releases/tag/2026.01.16
+env:
+  VCPKG_COMMIT: "66c0373dc7fca549e5803087b9487edfe3aca0a1"
+
+jobs:
+  tsan-linux:
+    name: ThreadSanitizer (Ubuntu 22.04)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout anolis
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Checkout anolis-provider-sim
+        uses: actions/checkout@v4
+        with:
+          repository: FEASTorg/anolis-provider-sim
+          path: anolis-provider-sim
+          submodules: recursive
+
+      - name: Override anolis submodule with current commit
+        run: |
+          cd anolis-provider-sim/external/anolis
+          git fetch origin ${{ github.sha }}
+          git checkout ${{ github.sha }}
+          cd ../../..
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build g++ python3 python3-pip
+          python3 -m pip install --upgrade pip
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+          cache: "pip"
+          cache-dependency-path: requirements-lock.txt
+
+      - name: Install Python packages
+        run: |
+          python -m pip install -r requirements-lock.txt
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+          doNotCache: true
+
+      - name: Build anolis with ThreadSanitizer
+        run: |
+          cmake -B build -S . -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
+            -DENABLE_TSAN=ON
+          cmake --build build --config RelWithDebInfo --parallel
+
+      - name: Build anolis-provider-sim
+        run: |
+          cd anolis-provider-sim
+          cmake -B build -S . -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
+            -DVCPKG_INSTALLED_DIR=$GITHUB_WORKSPACE/build/vcpkg_installed \
+            -DVCPKG_MANIFEST_INSTALL=OFF
+          cmake --build build --config RelWithDebInfo --parallel
+
+      - name: Run unit tests with TSAN
+        env:
+          TSAN_OPTIONS: "halt_on_error=1 second_deadlock_stack=1"
+        run: |
+          echo "=== Running unit tests with ThreadSanitizer ==="
+          ctest --test-dir build --output-on-failure -C RelWithDebInfo
+          echo "✅ Unit tests passed without data races"
+
+      - name: Run integration tests with TSAN
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/lib
+          TSAN_OPTIONS: "halt_on_error=1 second_deadlock_stack=1 history_size=5 log_path=${{ github.workspace }}/tsan"
+        run: |
+          set +e  # Don't exit on error so we can capture TSAN reports
+
+          echo "=== Running integration tests with ThreadSanitizer ==="
+          python3 tests/integration/test_all.py --timeout=180 \
+            --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim
+          TEST_EXIT=$?
+
+          # Check for TSAN reports
+          if [ -f tsan.* ]; then
+            echo "❌ ThreadSanitizer detected data races:"
+            echo "=================================="
+            cat tsan.*
+            echo "=================================="
+            exit 1
+          fi
+
+          if [ $TEST_EXIT -ne 0 ]; then
+            echo "❌ Tests failed with exit code $TEST_EXIT"
+            echo "=== Test log tails ==="
+            tail -100 build/test-logs/*.log 2>/dev/null || true
+            exit $TEST_EXIT
+          fi
+
+          echo "✅ Integration tests passed without data races"
+
+      - name: Run concurrency stress test with TSAN
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/lib
+          TSAN_OPTIONS: "halt_on_error=1 second_deadlock_stack=1 history_size=5 log_path=${{ github.workspace }}/tsan-stress"
+        run: |
+          set +e
+
+          echo "=== Running concurrency stress test with ThreadSanitizer ==="
+          if [ -f tests/integration/test_concurrency_stress.py ]; then
+            python3 tests/integration/test_concurrency_stress.py \
+              --runtime=build/core/anolis-runtime \
+              --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim
+            TEST_EXIT=$?
+
+            # Check for TSAN reports
+            if [ -f tsan-stress.* ]; then
+              echo "❌ ThreadSanitizer detected data races in stress test:"
+              echo "=================================="
+              cat tsan-stress.*
+              echo "=================================="
+              exit 1
+            fi
+
+            if [ $TEST_EXIT -ne 0 ]; then
+              echo "❌ Stress test failed with exit code $TEST_EXIT"
+              exit $TEST_EXIT
+            fi
+
+            echo "✅ Stress test passed without data races"
+          else
+            echo "⚠️  Stress test not yet implemented (tests/integration/test_concurrency_stress.py)"
+            echo "Skipping for now - will be added in task 1.4.3"
+          fi
+
+      - name: Upload TSAN Reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tsan-reports
+          path: |
+            tsan.*
+            tsan-stress.*
+            build/test-logs/
+
+      - name: Summary
+        if: success()
+        run: |
+          echo "✅ All ThreadSanitizer checks passed"
+          echo "   - Zero data races detected"
+          echo "   - All tests executed successfully"

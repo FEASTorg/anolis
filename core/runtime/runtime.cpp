@@ -434,6 +434,9 @@ bool Runtime::restart_provider(const std::string &provider_id, const ProviderCon
         return false;
     }
 
+    // Rebuild poll configs for this provider (Sprint 1.3: reconcile changed capabilities)
+    state_cache_->rebuild_poll_configs(provider_id);
+
     // Re-add to provider registry
     provider_registry_.add_provider(provider_id, provider);
 

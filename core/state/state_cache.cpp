@@ -72,6 +72,69 @@ bool StateCache::initialize() {
     return true;
 }
 
+void StateCache::rebuild_poll_configs(const std::string &provider_id) {
+    LOG_INFO("[StateCache] Rebuilding poll configs for provider: " << provider_id);
+
+    // Remove old poll configs for this provider
+    poll_configs_.erase(
+        std::remove_if(poll_configs_.begin(), poll_configs_.end(),
+                       [&provider_id](const PollConfig &config) { return config.provider_id == provider_id; }),
+        poll_configs_.end());
+
+    // Remove old device states for this provider
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        for (auto it = device_states_.begin(); it != device_states_.end();) {
+            // Check if device_handle starts with "provider_id/"
+            if (it->first.find(provider_id + "/") == 0) {
+                it = device_states_.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
+    // Rebuild poll configs from registry for this provider
+    auto all_devices = registry_.get_all_devices();
+    size_t new_device_count = 0;
+
+    for (const auto &device : all_devices) {
+        // Only process devices from the specified provider
+        if (device.provider_id != provider_id) {
+            continue;
+        }
+
+        PollConfig config;
+        config.provider_id = device.provider_id;
+        config.device_id = device.device_id;
+
+        // Collect default signals (is_default = true)
+        for (const auto &[signal_id, spec] : device.capabilities.signals_by_id) {
+            if (spec.is_default) {
+                config.signal_ids.push_back(signal_id);
+            }
+        }
+
+        if (!config.signal_ids.empty()) {
+            poll_configs_.push_back(config);
+            new_device_count++;
+
+            // Initialize empty device state
+            DeviceState state;
+            state.device_handle = device.get_handle();
+            state.provider_available = true;
+            state.last_poll_time = std::chrono::system_clock::now();
+
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                device_states_[state.device_handle] = state;
+            }
+        }
+    }
+
+    LOG_INFO("[StateCache] Rebuilt poll configs for " << new_device_count << " devices from provider " << provider_id);
+}
+
 void StateCache::start_polling(provider::ProviderRegistry &provider_registry) {
     if (polling_active_) {
         LOG_WARN("[StateCache] Polling already active");

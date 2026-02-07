@@ -75,8 +75,7 @@ public:
 
     // Lookup - Thread-safe by-value returns
     // Returns copy to prevent dangling pointers when registry is mutated
-    std::optional<RegisteredDevice> get_device_copy(const std::string &provider_id,
-                                                     const std::string &device_id) const;
+    std::optional<RegisteredDevice> get_device_copy(const std::string &provider_id, const std::string &device_id) const;
     std::optional<RegisteredDevice> get_device_by_handle_copy(const std::string &handle) const;
 
     // Iteration - Thread-safe by-value returns

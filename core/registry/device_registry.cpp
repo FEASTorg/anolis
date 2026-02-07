@@ -70,7 +70,7 @@ bool DeviceRegistry::discover_provider(const std::string &provider_id, anolis::p
 }
 
 std::optional<RegisteredDevice> DeviceRegistry::get_device_copy(const std::string &provider_id,
-                                                                  const std::string &device_id) const {
+                                                                const std::string &device_id) const {
     std::string handle = provider_id + "/" + device_id;
     return get_device_by_handle_copy(handle);
 }
