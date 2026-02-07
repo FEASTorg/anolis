@@ -40,15 +40,15 @@ void StateCache::set_event_emitter(const std::shared_ptr<events::EventEmitter> &
 
 bool StateCache::initialize() {
     // Build polling configuration from registry
-    auto all_devices = registry_.get_all_devices();
+    auto all_devices = registry_.get_all_devices();  // Returns vector<RegisteredDevice> by value
 
-    for (const auto *device : all_devices) {
+    for (const auto &device : all_devices) {
         PollConfig config;
-        config.provider_id = device->provider_id;
-        config.device_id = device->device_id;
+        config.provider_id = device.provider_id;
+        config.device_id = device.device_id;
 
         // Collect default signals (is_default = true)
-        for (const auto &[signal_id, spec] : device->capabilities.signals_by_id) {
+        for (const auto &[signal_id, spec] : device.capabilities.signals_by_id) {
             if (spec.is_default) {
                 config.signal_ids.push_back(signal_id);
             }
@@ -59,7 +59,7 @@ bool StateCache::initialize() {
 
             // Initialize empty device state
             DeviceState state;
-            state.device_handle = device->get_handle();
+            state.device_handle = device.get_handle();
             state.provider_available = true;
             state.last_poll_time = std::chrono::system_clock::now();
 

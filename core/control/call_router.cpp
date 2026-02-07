@@ -71,16 +71,17 @@ CallResult CallRouter::execute_call(const CallRequest &request, provider::Provid
     }
 
     // Get device and function spec for function_id
-    const auto *device = registry_.get_device(provider_id, device_id);
-    if (device == nullptr) {
+    auto device_opt = registry_.get_device_copy(provider_id, device_id);
+    if (!device_opt.has_value()) {
         result.error_message = "Device not found in registry";
         result.status_code = anolis::deviceprovider::v0::Status_Code_CODE_NOT_FOUND;
         return result;
     }
+    const auto &device = device_opt.value();
 
     const registry::FunctionSpec *func_spec = nullptr;
-    auto func_it = device->capabilities.functions_by_id.find(request.function_name);
-    if (func_it == device->capabilities.functions_by_id.end()) {
+    auto func_it = device.capabilities.functions_by_id.find(request.function_name);
+    if (func_it == device.capabilities.functions_by_id.end()) {
         result.error_message = "Function not found: " + request.function_name;
         result.status_code = anolis::deviceprovider::v0::Status_Code_CODE_NOT_FOUND;
         return result;
@@ -124,15 +125,16 @@ bool CallRouter::validate_call(const CallRequest &request, std::string &error) c
     }
 
     // Get device
-    const auto *device = registry_.get_device(provider_id, device_id);
-    if (!device) {
+    auto device_opt = registry_.get_device_copy(provider_id, device_id);
+    if (!device_opt.has_value()) {
         error = "Device not found in registry: " + request.device_handle;
         return false;
     }
+    const auto &device = device_opt.value();
 
     // Check function exists
     const registry::FunctionSpec *func_spec = nullptr;
-    if (!validate_function_exists(*device, request.function_name, func_spec, error)) {
+    if (!validate_function_exists(device, request.function_name, func_spec, error)) {
         return false;
     }
 
@@ -145,8 +147,8 @@ bool CallRouter::validate_call(const CallRequest &request, std::string &error) c
 }
 
 bool CallRouter::validate_device_exists(const std::string &device_handle, std::string &error) const {
-    const auto *device = registry_.get_device_by_handle(device_handle);
-    if (device == nullptr) {
+    auto device_opt = registry_.get_device_by_handle_copy(device_handle);
+    if (!device_opt.has_value()) {
         error = "Device not found: " + device_handle;
         return false;
     }

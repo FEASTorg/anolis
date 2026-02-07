@@ -19,13 +19,13 @@ void HttpServer::handle_get_state(const httplib::Request &req, httplib::Response
     auto now = std::chrono::system_clock::now();
     auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
 
-    auto devices = registry_.get_all_devices();
+    auto devices = registry_.get_all_devices();  // Returns vector<RegisteredDevice> by value
     nlohmann::json devices_json = nlohmann::json::array();
 
-    for (const auto *device : devices) {
-        auto state = state_cache_.get_device_state(device->get_handle());
+    for (const auto &device : devices) {
+        auto state = state_cache_.get_device_state(device.get_handle());
         if (state) {
-            devices_json.push_back(encode_device_state(*state, device->provider_id, device->device_id));
+            devices_json.push_back(encode_device_state(*state, device.provider_id, device.device_id));
         }
     }
 
@@ -46,14 +46,15 @@ void HttpServer::handle_get_device_state(const httplib::Request &req, httplib::R
         return;
     }
 
-    const auto *device = registry_.get_device(provider_id, device_id);
-    if (device == nullptr) {
+    auto device_opt = registry_.get_device_copy(provider_id, device_id);
+    if (!device_opt.has_value()) {
         send_json(res, StatusCode::NOT_FOUND,
                   make_error_response(StatusCode::NOT_FOUND, "Device not found: " + provider_id + "/" + device_id));
         return;
     }
+    const auto &device = device_opt.value();
 
-    auto state = state_cache_.get_device_state(device->get_handle());
+    auto state = state_cache_.get_device_state(device.get_handle());
     if (!state) {
         // Device exists but no state yet (shouldn't normally happen)
         send_json(res, StatusCode::UNAVAILABLE,

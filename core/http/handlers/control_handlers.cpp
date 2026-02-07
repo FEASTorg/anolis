@@ -51,16 +51,17 @@ void HttpServer::handle_post_call(const httplib::Request &req, httplib::Response
         }
 
         // Look up device to get function name
-        const auto *device = registry_.get_device(provider_id, device_id);
-        if (device == nullptr) {
+        auto device_opt = registry_.get_device_copy(provider_id, device_id);
+        if (!device_opt.has_value()) {
             send_json(res, StatusCode::NOT_FOUND,
                       make_error_response(StatusCode::NOT_FOUND, "Device not found: " + provider_id + "/" + device_id));
             return;
         }
+        const auto &device = device_opt.value();
 
         // Find function by ID
         std::string function_name;
-        for (const auto &[fname, spec] : device->capabilities.functions_by_id) {
+        for (const auto &[fname, spec] : device.capabilities.functions_by_id) {
             if (spec.function_id == function_id) {
                 function_name = fname;
                 break;
@@ -76,7 +77,7 @@ void HttpServer::handle_post_call(const httplib::Request &req, httplib::Response
 
         // Build CallRequest
         control::CallRequest call_request;
-        call_request.device_handle = device->get_handle();
+        call_request.device_handle = device.get_handle();
         call_request.function_name = function_name;
         call_request.args = args;
 

@@ -20,6 +20,10 @@ bool DeviceRegistry::discover_provider(const std::string &provider_id, anolis::p
 
     LOG_INFO("[Registry] Found " << device_list.size() << " devices");
 
+    // Build devices outside lock (discovery is network I/O)
+    std::vector<RegisteredDevice> new_devices;
+    new_devices.reserve(device_list.size());
+
     // Step 2: DescribeDevice for each
     for (const auto &device_brief : device_list) {
         const std::string &device_id = device_brief.device_id();
@@ -43,48 +47,60 @@ bool DeviceRegistry::discover_provider(const std::string &provider_id, anolis::p
             return false;
         }
 
-        // Store device
-        std::string handle = reg_device.get_handle();
-
         // Log BEFORE the move
+        std::string handle = reg_device.get_handle();
         LOG_INFO("[Registry] Registered: " << handle << " (" << reg_device.capabilities.signals_by_id.size()
                                            << " signals, " << reg_device.capabilities.functions_by_id.size()
                                            << " functions)");
 
-        handle_to_index_[handle] = devices_.size();
-        devices_.push_back(std::move(reg_device));
+        new_devices.push_back(std::move(reg_device));
+    }
+
+    // Step 3: Insert into registry under lock (fast operation)
+    {
+        std::unique_lock<std::shared_mutex> lock(mutex_);
+        for (auto &device : new_devices) {
+            std::string handle = device.get_handle();
+            handle_to_index_[handle] = devices_.size();
+            devices_.push_back(std::move(device));
+        }
     }
 
     return true;
 }
 
-const RegisteredDevice *DeviceRegistry::get_device(const std::string &provider_id, const std::string &device_id) const {
+std::optional<RegisteredDevice> DeviceRegistry::get_device_copy(const std::string &provider_id,
+                                                                  const std::string &device_id) const {
     std::string handle = provider_id + "/" + device_id;
-    return get_device_by_handle(handle);
+    return get_device_by_handle_copy(handle);
 }
 
-const RegisteredDevice *DeviceRegistry::get_device_by_handle(const std::string &handle) const {
+std::optional<RegisteredDevice> DeviceRegistry::get_device_by_handle_copy(const std::string &handle) const {
+    // Shared read access - multiple threads can read concurrently
+    std::shared_lock<std::shared_mutex> lock(mutex_);
+
     auto it = handle_to_index_.find(handle);
     if (it == handle_to_index_.end()) {
-        return nullptr;
+        return std::nullopt;
     }
-    return &devices_[it->second];
+    // Return copy under lock (safe even if registry is cleared by another thread)
+    return devices_[it->second];
 }
 
-std::vector<const RegisteredDevice *> DeviceRegistry::get_all_devices() const {
-    std::vector<const RegisteredDevice *> result;
-    result.reserve(devices_.size());
-    for (const auto &device : devices_) {
-        result.push_back(&device);
-    }
-    return result;
+std::vector<RegisteredDevice> DeviceRegistry::get_all_devices() const {
+    // Shared read access - return vector copy
+    std::shared_lock<std::shared_mutex> lock(mutex_);
+    return devices_;  // Copy the vector (RegisteredDevice has implicit copy)
 }
 
-std::vector<const RegisteredDevice *> DeviceRegistry::get_devices_for_provider(const std::string &provider_id) const {
-    std::vector<const RegisteredDevice *> result;
+std::vector<RegisteredDevice> DeviceRegistry::get_devices_for_provider(const std::string &provider_id) const {
+    // Shared read access
+    std::shared_lock<std::shared_mutex> lock(mutex_);
+
+    std::vector<RegisteredDevice> result;
     for (const auto &device : devices_) {
         if (device.provider_id == provider_id) {
-            result.push_back(&device);
+            result.push_back(device);  // Copy device
         }
     }
     return result;
@@ -92,6 +108,9 @@ std::vector<const RegisteredDevice *> DeviceRegistry::get_devices_for_provider(c
 
 void DeviceRegistry::clear_provider_devices(const std::string &provider_id) {
     LOG_INFO("[Registry] Clearing devices for provider: " << provider_id);
+
+    // Exclusive write access
+    std::unique_lock<std::shared_mutex> lock(mutex_);
 
     // Remove all devices matching provider_id
     auto new_end = std::remove_if(devices_.begin(), devices_.end(), [&provider_id](const RegisteredDevice &device) {
@@ -108,6 +127,16 @@ void DeviceRegistry::clear_provider_devices(const std::string &provider_id) {
     }
 
     LOG_INFO("[Registry] Removed " << removed_count << " devices from provider " << provider_id);
+}
+
+size_t DeviceRegistry::device_count() const {
+    std::shared_lock<std::shared_mutex> lock(mutex_);
+    return devices_.size();
+}
+
+std::string DeviceRegistry::last_error() const {
+    std::shared_lock<std::shared_mutex> lock(mutex_);
+    return error_;
 }
 
 bool DeviceRegistry::build_capabilities(const anolis::deviceprovider::v0::Device &proto_device,

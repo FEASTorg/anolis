@@ -11,11 +11,11 @@ namespace http {
 // GET /v0/devices
 //=============================================================================
 void HttpServer::handle_get_devices(const httplib::Request &req, httplib::Response &res) {
-    auto devices = registry_.get_all_devices();
+    auto devices = registry_.get_all_devices();  // Returns vector<RegisteredDevice> by value
 
     nlohmann::json devices_json = nlohmann::json::array();
-    for (const auto *device : devices) {
-        devices_json.push_back(encode_device_info(*device));
+    for (const auto &device : devices) {
+        devices_json.push_back(encode_device_info(device));
     }
 
     nlohmann::json response = {{"status", make_status(StatusCode::OK)}, {"devices", devices_json}};
@@ -34,17 +34,18 @@ void HttpServer::handle_get_device_capabilities(const httplib::Request &req, htt
         return;
     }
 
-    const auto *device = registry_.get_device(provider_id, device_id);
-    if (device == nullptr) {
+    auto device_opt = registry_.get_device_copy(provider_id, device_id);
+    if (!device_opt.has_value()) {
         send_json(res, StatusCode::NOT_FOUND,
                   make_error_response(StatusCode::NOT_FOUND, "Device not found: " + provider_id + "/" + device_id));
         return;
     }
+    const auto &device = device_opt.value();
 
     nlohmann::json response = {{"status", make_status(StatusCode::OK)},
                                {"provider_id", provider_id},
                                {"device_id", device_id},
-                               {"capabilities", encode_capabilities(device->capabilities)}};
+                               {"capabilities", encode_capabilities(device.capabilities)}};
 
     send_json(res, StatusCode::OK, response);
 }
