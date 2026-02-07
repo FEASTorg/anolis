@@ -17,13 +17,14 @@
  * 10. Subscription during emission
  */
 
+#include "events/event_emitter.hpp"
+
 #include <gtest/gtest.h>
 
 #include <chrono>
 #include <thread>
 #include <vector>
 
-#include "events/event_emitter.hpp"
 #include "events/event_types.hpp"
 
 using namespace anolis::events;
@@ -33,8 +34,8 @@ using namespace std::chrono_literals;
  * Helper: Create a test StateUpdateEvent
  */
 StateUpdateEvent create_test_event(const std::string &provider_id = "test_provider",
-                                    const std::string &device_id = "test_device",
-                                    const std::string &signal_id = "test_signal", double value = 42.0) {
+                                   const std::string &device_id = "test_device",
+                                   const std::string &signal_id = "test_signal", double value = 42.0) {
     StateUpdateEvent evt;
     evt.provider_id = provider_id;
     evt.device_id = device_id;
@@ -49,7 +50,7 @@ StateUpdateEvent create_test_event(const std::string &provider_id = "test_provid
  * Helper: Create a test DeviceAvailabilityEvent
  */
 DeviceAvailabilityEvent create_availability_event(const std::string &provider_id = "test_provider",
-                                                   const std::string &device_id = "test_device", bool available = true) {
+                                                  const std::string &device_id = "test_device", bool available = true) {
     DeviceAvailabilityEvent evt;
     evt.provider_id = provider_id;
     evt.device_id = device_id;

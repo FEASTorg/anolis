@@ -1,5 +1,10 @@
 # Convenience deps for running Python test scripts locally/CI.
-requests
-pyyaml
-ruff
-
+# Pinned with version ranges for reproducibility while allowing minor/patch updates.
+# Latest as of 2026-02-07: requests 2.32.5, pyyaml 6.0.3, ruff 0.15.0
+# To update lock file: 
+# - activate clean venv
+# - run `pip install -r requirements.txt`
+# - then `pip freeze > requirements-lock.txt`
+requests>=2.32.0,<3.0.0
+pyyaml>=6.0.0,<7.0.0
+ruff>=0.15.0,<1.0.0

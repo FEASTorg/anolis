@@ -1,5 +1,15 @@
 ---
-Checks: "clang-diagnostic-*,clang-analyzer-*,performance-*,readability-*,bugprone-*,-readability-identifier-naming"
+# Enable core diagnostic groups, then explicitly suppress selected noisy readability checks.
+Checks: >
+  clang-diagnostic-*,
+  clang-analyzer-*,
+  performance-*,
+  readability-*,
+  bugprone-*,
+  -readability-identifier-naming,
+  -readability-identifier-length,
+  -readability-magic-numbers
+# Note: may want to ease these up in the future once we have a clean baseline and want to enforce more style rules.
 WarningsAsErrors: ""
 # Limit diagnostics to repository source roots only.
 # This intentionally excludes generated files under build/core (e.g., protocol.pb.cc/.h).

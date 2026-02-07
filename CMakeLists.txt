@@ -22,6 +22,21 @@ if(ENABLE_CLANG_TIDY)
     endif()
 endif()
 
+# Coverage Analysis (GCC/Clang)
+option(ENABLE_COVERAGE "Enable code coverage instrumentation" OFF)
+
+if(ENABLE_COVERAGE)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        add_compile_options(--coverage -fprofile-arcs -ftest-coverage)
+        add_link_options(--coverage)
+        message(STATUS "Code coverage enabled (gcov/lcov compatible)")
+    elseif(MSVC)
+        message(WARNING "Coverage with MSVC requires Visual Studio profiler tools, not gcov/lcov")
+    else()
+        message(WARNING "Coverage requested but compiler not supported: ${CMAKE_CXX_COMPILER_ID}")
+    endif()
+endif()
+
 # Subdirectories
 add_subdirectory(core)
 

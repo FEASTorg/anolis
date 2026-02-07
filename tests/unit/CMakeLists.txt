@@ -13,6 +13,7 @@ add_executable(anolis_unit_tests
     mode_manager_test.cpp
     provider_process_test.cpp
     event_emitter_test.cpp
+    influx_sink_test.cpp
 )
 
 target_include_directories(anolis_unit_tests PRIVATE
@@ -32,6 +33,7 @@ target_link_libraries(anolis_unit_tests PRIVATE
     anolis_registry
     anolis_http
     anolis_events
+    anolis_telemetry
     anolis_proto
     protobuf::libprotobuf
 )
