@@ -36,6 +36,7 @@ add_library(anolis_provider STATIC
     provider/provider_process.cpp
     provider/provider_handle.cpp
     provider/provider_supervisor.cpp
+    provider/provider_registry.cpp
 )
 
 target_include_directories(anolis_provider PUBLIC

@@ -12,6 +12,7 @@ add_executable(anolis_unit_tests
     http_handlers_test.cpp
     mode_manager_test.cpp
     provider_process_test.cpp
+    provider_registry_test.cpp
     event_emitter_test.cpp
     influx_sink_test.cpp
 )
