@@ -197,13 +197,25 @@ bool CallRouter::validate_arguments(const registry::FunctionSpec &spec,
 
         // Type validation
         if (!validate_argument_type(arg_spec, arg_value, error)) {
-            error = "Argument '" + arg_name + "': " + error;
+            std::string message;
+            message.reserve(arg_name.size() + error.size() + 14);
+            message.append("Argument '");
+            message.append(arg_name);
+            message.append("': ");
+            message.append(error);
+            error = std::move(message);
             return false;
         }
 
         // Range validation for numeric types
         if (!validate_argument_range(arg_spec, arg_value, error)) {
-            error = "Argument '" + arg_name + "': " + error;
+            std::string message;
+            message.reserve(arg_name.size() + error.size() + 14);
+            message.append("Argument '");
+            message.append(arg_name);
+            message.append("': ");
+            message.append(error);
+            error = std::move(message);
             return false;
         }
     }
@@ -342,6 +354,7 @@ std::string CallRouter::value_type_to_string(anolis::deviceprovider::v0::ValueTy
     }
 }
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 bool CallRouter::parse_device_handle(const std::string &device_handle, std::string &provider_id, std::string &device_id,
                                      std::string &error) const {
     // Device handle format: "provider_id/device_id"

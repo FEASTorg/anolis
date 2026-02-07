@@ -47,9 +47,8 @@ inline int status_code_to_http(StatusCode code) {
             return 504;
         case StatusCode::INTERNAL:
             return 500;
-        default:
-            return 500;
     }
+    return 500;
 }
 
 /**
@@ -71,9 +70,8 @@ inline std::string status_code_to_string(StatusCode code) {
             return "DEADLINE_EXCEEDED";
         case StatusCode::INTERNAL:
             return "INTERNAL";
-        default:
-            return "INTERNAL";
     }
+    return "INTERNAL";
 }
 
 /**

@@ -1,15 +1,14 @@
 ---
-# Enable core diagnostic groups, then explicitly suppress selected noisy readability checks.
+# High-value signal only: keep diagnostics/analyzer/bugprone/performance, drop readability noise.
 Checks: >
   clang-diagnostic-*,
   clang-analyzer-*,
   performance-*,
-  readability-*,
   bugprone-*,
-  -readability-identifier-naming,
-  -readability-identifier-length,
-  -readability-magic-numbers
-# Note: may want to ease these up in the future once we have a clean baseline and want to enforce more style rules.
+  -readability-*,
+  -bugprone-macro-parentheses,
+  -bugprone-easily-swappable-parameters
+# Note: consider re-enabling specific readability checks once bugprone/perf are clean.
 WarningsAsErrors: ""
 # Limit diagnostics to repository source roots only.
 # This intentionally excludes generated files under build/core (e.g., protocol.pb.cc/.h).

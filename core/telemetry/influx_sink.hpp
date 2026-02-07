@@ -125,11 +125,9 @@ inline std::string format_line_protocol(const events::StateUpdateEvent &event) {
             using T = std::decay_t<decltype(arg)>;
             if constexpr (std::is_same_v<T, double>) {
                 // Handle special float values
-                if (std::isnan(arg)) {
-                    // InfluxDB doesn't support NaN, skip value field
+                if (std::isnan(arg) || std::isinf(arg)) {
+                    // InfluxDB doesn't support NaN/Inf, skip value field
                     // We still write quality
-                } else if (std::isinf(arg)) {
-                    // InfluxDB doesn't support Inf, skip value field
                 } else {
                     line << "value_double=" << arg;
                 }
@@ -235,7 +233,7 @@ public:
      * @param emitter Event emitter to subscribe to
      * @return true if started successfully
      */
-    bool start(std::shared_ptr<events::EventEmitter> emitter) {
+    bool start(const std::shared_ptr<events::EventEmitter> &emitter) {
         if (running_.load()) {
             LOG_WARN("[InfluxSink] Already running");
             return false;

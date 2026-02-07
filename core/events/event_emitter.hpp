@@ -181,7 +181,7 @@ public:
 
     Subscription(SubscriptionId id, std::shared_ptr<SubscriberQueue> queue,
                  std::function<void(SubscriptionId)> unsubscribe_fn)
-        : id_(id), queue_(queue), unsubscribe_fn_(unsubscribe_fn) {}
+        : id_(id), queue_(std::move(queue)), unsubscribe_fn_(std::move(unsubscribe_fn)) {}
 
     ~Subscription() { unsubscribe(); }
 
@@ -340,7 +340,7 @@ public:
      * @param default_queue_size Default max events per subscriber queue
      * @param max_subscribers Maximum concurrent subscribers (0 = unlimited)
      */
-    explicit EventEmitter(size_t default_queue_size = 100, size_t max_subscribers = 32)
+    explicit EventEmitter(size_t default_queue_size = 100, size_t max_subscribers = 32)  // NOLINT(bugprone-easily-swappable-parameters)
         : default_queue_size_(default_queue_size),
           max_subscribers_(max_subscribers),
           next_subscription_id_(1),
@@ -393,7 +393,7 @@ public:
 
         auto unsubscribe_fn = [this](SubscriptionId sub_id) { this->unsubscribe(sub_id); };
 
-        return std::make_unique<Subscription>(id, queue, unsubscribe_fn);
+        return std::make_unique<Subscription>(id, std::move(queue), std::move(unsubscribe_fn));
     }
 
     /**

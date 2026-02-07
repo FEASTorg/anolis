@@ -36,7 +36,7 @@ StateCache::StateCache(const registry::DeviceRegistry &registry, int poll_interv
 
 StateCache::~StateCache() { stop_polling(); }
 
-void StateCache::set_event_emitter(std::shared_ptr<events::EventEmitter> emitter) { event_emitter_ = emitter; }
+void StateCache::set_event_emitter(const std::shared_ptr<events::EventEmitter> &emitter) { event_emitter_ = emitter; }
 
 bool StateCache::initialize() {
     // Build polling configuration from registry
@@ -185,6 +185,7 @@ bool StateCache::poll_device(const std::string &provider_id, const std::string &
     return true;
 }
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void StateCache::update_device_state(const std::string &device_handle, const std::string &provider_id,
                                      const std::string &device_id,
                                      const anolis::deviceprovider::v0::ReadSignalsResponse &response) {
@@ -219,7 +220,7 @@ void StateCache::update_device_state(const std::string &device_handle, const std
         cached.quality = new_quality;
 
         if (signal_value.has_timestamp()) {
-            auto proto_ts = signal_value.timestamp();
+            const auto &proto_ts = signal_value.timestamp();
             auto duration = std::chrono::duration_cast<std::chrono::system_clock::duration>(
                 std::chrono::seconds(proto_ts.seconds()) + std::chrono::nanoseconds(proto_ts.nanos()));
             cached.timestamp = std::chrono::system_clock::time_point(duration);
@@ -348,6 +349,7 @@ std::shared_ptr<DeviceState> StateCache::get_device_state(const std::string &dev
     return std::make_shared<DeviceState>(it->second);
 }
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 std::shared_ptr<CachedSignalValue> StateCache::get_signal_value(const std::string &device_handle,
                                                                 const std::string &signal_id) const {
     std::lock_guard<std::mutex> lock(mutex_);

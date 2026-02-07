@@ -340,7 +340,13 @@ bool decode_call_request(const nlohmann::json &json, std::string &provider_id, s
             for (const auto &[key, val] : args_json.items()) {
                 anolis::deviceprovider::v0::Value value;
                 if (!decode_value(val, value, error)) {
-                    error = "Invalid value for arg '" + key + "': " + error;
+                    std::string message;
+                    message.reserve(key.size() + error.size() + 23);
+                    message.append("Invalid value for arg '");
+                    message.append(key);
+                    message.append("': ");
+                    message.append(error);
+                    error = std::move(message);
                     return false;
                 }
                 args[key] = value;

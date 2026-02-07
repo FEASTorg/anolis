@@ -63,7 +63,7 @@ public:
      *
      * @param emitter Shared pointer to EventEmitter (can be nullptr to disable)
      */
-    void set_event_emitter(std::shared_ptr<events::EventEmitter> emitter);
+    void set_event_emitter(const std::shared_ptr<events::EventEmitter> &emitter);
 
     // Initialize the cache (build polling configs from registry)
     bool initialize();
@@ -79,6 +79,7 @@ public:
 
     // Read API - Thread-safe snapshots
     std::shared_ptr<DeviceState> get_device_state(const std::string &device_handle) const;
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     std::shared_ptr<CachedSignalValue> get_signal_value(const std::string &device_handle,
                                                         const std::string &signal_id) const;
 
@@ -120,6 +121,7 @@ private:
                      const std::vector<std::string> &signal_ids, provider::IProviderHandle &provider);
 
     // Helper: Update cached values from ReadSignalsResponse (emits events on change)
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     void update_device_state(const std::string &device_handle, const std::string &provider_id,
                              const std::string &device_id,
                              const anolis::deviceprovider::v0::ReadSignalsResponse &response);
