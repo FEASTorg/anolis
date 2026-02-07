@@ -27,20 +27,16 @@ jobs:
           fetch-depth: 0
 
       # ------------------------------------------------------------------
-      # Install Rust (idiomatic method)
+      # Setup Rust
       # ------------------------------------------------------------------
       - name: Setup Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
 
-      # Optional: Cache Rust installs for faster runs
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
 
-      # ------------------------------------------------------------------
-      # Install tokei
-      # ------------------------------------------------------------------
       - name: Install tokei
         run: cargo install tokei --locked
 
@@ -115,7 +111,6 @@ jobs:
       - name: Generate consolidated report
         run: |
           set -euo pipefail
-
           REPORT="metrics/metrics-report.md"
 
           {
@@ -131,24 +126,24 @@ jobs:
             echo "---"
             echo ""
 
-            echo "## 1. Tokei Summary (Text Output)"
+            echo "## 1. Tokei Summary"
             echo ""
             echo '```'
             cat metrics/tokei.txt
             echo '```'
             echo ""
 
-            echo "## 2. Tokei Detailed JSON"
+            echo "## 2. Tokei JSON"
             echo ""
             echo '```json'
-            jq . metrics/tokei.json
+            jq . metrics/tokei.json 2>/dev/null || cat metrics/tokei.json
             echo '```'
             echo ""
 
-            echo "## 3. CLOC Detailed JSON"
+            echo "## 3. CLOC JSON"
             echo ""
             echo '```json'
-            jq . metrics/cloc.json
+            jq . metrics/cloc.json 2>/dev/null || cat metrics/cloc.json
             echo '```'
             echo ""
 
@@ -174,13 +169,12 @@ jobs:
             echo ""
 
             echo "---"
-            echo ""
             echo "_End of Report_"
 
           } > "$REPORT"
 
       # ------------------------------------------------------------------
-      # Add concise summary to GitHub Actions UI
+      # Add concise summary to GitHub UI
       # ------------------------------------------------------------------
       - name: Write summary to workflow page
         run: |
@@ -194,6 +188,8 @@ jobs:
             echo '```'
             head -40 metrics/tokei.txt
             echo '```'
+            echo ""
+            echo "Full report available in uploaded artifacts."
           } >> $GITHUB_STEP_SUMMARY
 
       # ------------------------------------------------------------------
