@@ -31,7 +31,7 @@ def validate_lockfile(path: str) -> bool:
             print(f"ERROR: {path} contains NUL bytes (binary corruption)", file=sys.stderr)
             return False
         
-        print(f"✓ {path} is valid UTF-8 and contains no NUL bytes")
+        print(f"OK: {path} is valid UTF-8 and contains no NUL bytes")
         return True
         
     except FileNotFoundError:
