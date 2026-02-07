@@ -187,6 +187,7 @@ target_link_libraries(anolis_http PUBLIC
     anolis_registry
     anolis_state
     anolis_control
+    anolis_automation
     httplib::httplib
     nlohmann_json::nlohmann_json
     protobuf::libprotobuf
