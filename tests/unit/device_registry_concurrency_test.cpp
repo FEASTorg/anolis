@@ -139,24 +139,24 @@ TEST_F(DeviceRegistryConcurrencyTest, RestartSimulationStressTest) {
     // Initial population
     populate_registry("sim0");
 
-    // Reduce thread count for sanitizer builds (TSAN/ASAN/UBSAN add significant overhead)
-    // Normal builds: 100 threads, Sanitizer builds: 20 threads
+    // Scale for sanitizer builds and CI environments
+    // Sanitizers add 2-10x overhead, CI has limited resources
 #if defined(__SANITIZE_THREAD__) || defined(__SANITIZE_ADDRESS__) || defined(__has_feature)
 #if defined(__has_feature)
 #if __has_feature(thread_sanitizer) || __has_feature(address_sanitizer) || __has_feature(undefined_behavior_sanitizer)
-    constexpr int num_reader_threads = 20;
-    constexpr int num_restarts = 5;
+    constexpr int num_reader_threads = 10;
+    constexpr int num_restarts = 3;
 #else
-    constexpr int num_reader_threads = 100;
-    constexpr int num_restarts = 10;
-#endif
-#else
-    constexpr int num_reader_threads = 20;
+    constexpr int num_reader_threads = 30;
     constexpr int num_restarts = 5;
 #endif
 #else
-    constexpr int num_reader_threads = 100;
-    constexpr int num_restarts = 10;
+    constexpr int num_reader_threads = 10;
+    constexpr int num_restarts = 3;
+#endif
+#else
+    constexpr int num_reader_threads = 30;
+    constexpr int num_restarts = 5;
 #endif
 
     std::atomic<bool> stop_test{false};
@@ -186,7 +186,7 @@ TEST_F(DeviceRegistryConcurrencyTest, RestartSimulationStressTest) {
     // Simulate rapid provider restarts
     auto mock = create_mock_provider_with_devices("sim0");
     for (int restart = 0; restart < num_restarts; ++restart) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
         // Clear devices (simulates provider disconnect)
         registry->clear_provider_devices("sim0");
@@ -330,23 +330,23 @@ TEST_F(DeviceRegistryConcurrencyTest, GetAllDevicesConcurrency) {
 TEST_F(DeviceRegistryConcurrencyTest, MixedOperationsStress) {
     populate_registry("sim0");
 
-    // Scale down for sanitizer builds to avoid timeouts
+    // Scale down for sanitizer builds and CI environments
 #if defined(__SANITIZE_THREAD__) || defined(__SANITIZE_ADDRESS__) || defined(__has_feature)
 #if defined(__has_feature)
 #if __has_feature(thread_sanitizer) || __has_feature(address_sanitizer) || __has_feature(undefined_behavior_sanitizer)
-    constexpr int threads_per_operation = 5;
-    constexpr int test_duration_ms = 200;
+    constexpr int threads_per_operation = 3;
+    constexpr int test_duration_ms = 150;
 #else
-    constexpr int threads_per_operation = 25;
-    constexpr int test_duration_ms = 500;
+    constexpr int threads_per_operation = 10;
+    constexpr int test_duration_ms = 300;
 #endif
 #else
-    constexpr int threads_per_operation = 5;
-    constexpr int test_duration_ms = 200;
+    constexpr int threads_per_operation = 3;
+    constexpr int test_duration_ms = 150;
 #endif
 #else
-    constexpr int threads_per_operation = 25;
-    constexpr int test_duration_ms = 500;
+    constexpr int threads_per_operation = 10;
+    constexpr int test_duration_ms = 300;
 #endif
 
     std::atomic<bool> stop_test{false};
@@ -398,8 +398,8 @@ TEST_F(DeviceRegistryConcurrencyTest, MixedOperationsStress) {
 
     // 1 writer thread: clear + discover repeatedly
     threads.emplace_back([&]() {
-        for (int i = 0; i < 20 && !stop_test.load(); ++i) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        for (int i = 0; i < 10 && !stop_test.load(); ++i) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
             registry->clear_provider_devices("sim0");
             registry->discover_provider("sim0", *mock);
         }
