@@ -317,13 +317,13 @@ Invokes a device function through the CallRouter with validated arguments.
 
 **Ports:**
 
-| Port          | Type   | Direction | Description                                        |
-|---------------|--------|-----------|--------------------------------------------------|
-| device_handle | string | input     | Device handle (format: `provider_id/device_id`)    |
-| function_name | string | input     | Function identifier                                |
-| args          | string | input     | Arguments as JSON object (default: `{}`)           |
-| success       | bool   | output    | Call result (true/false)                           |
-| error         | string | output    | Error message if call failed                       |
+| Port          | Type   | Direction | Description                                     |
+| ------------- | ------ | --------- | ----------------------------------------------- |
+| device_handle | string | input     | Device handle (format: `provider_id/device_id`) |
+| function_name | string | input     | Function identifier                             |
+| args          | string | input     | Arguments as JSON object (default: `{}`)        |
+| success       | bool   | output    | Call result (true/false)                        |
+| error         | string | output    | Error message if call failed                    |
 
 **Args JSON Format:**
 
@@ -331,28 +331,28 @@ The `args` port accepts a JSON object string containing function arguments:
 
 ```xml
 <!-- Single argument -->
-<CallDevice device_handle="sim0/tempctl0" 
-            function_name="set_target_temp" 
+<CallDevice device_handle="sim0/tempctl0"
+            function_name="set_target_temp"
             args='{"target":30.0}'/>
 
 <!-- Multiple arguments -->
-<CallDevice device_handle="sim0/motorctl0" 
-            function_name="set_motor" 
+<CallDevice device_handle="sim0/motorctl0"
+            function_name="set_motor"
             args='{"mode":"PWM","duty":75,"frequency":1000}'/>
 
 <!-- No arguments -->
-<CallDevice device_handle="sim0/relayio0" 
+<CallDevice device_handle="sim0/relayio0"
             function_name="reset"/>
 ```
 
 **Supported JSON Types:**
 
-| JSON Type | Protobuf Value Type | Example                |
-|-----------|--------------------|-----------------------|
-| number (float) | double_value  | `{"target":25.5}`     |
-| number (int)   | int64_value   | `{"count":100}`       |
-| boolean        | bool_value    | `{"enabled":true}`    |
-| string         | string_value  | `{"mode":"AUTO"}`     |
+| JSON Type      | Protobuf Value Type | Example            |
+| -------------- | ------------------- | ------------------ |
+| number (float) | double_value        | `{"target":25.5}`  |
+| number (int)   | int64_value         | `{"count":100}`    |
+| boolean        | bool_value          | `{"enabled":true}` |
+| string         | string_value        | `{"mode":"AUTO"}`  |
 
 **Error Messages:**
 
@@ -363,6 +363,7 @@ The `args` port accepts a JSON object string containing function arguments:
 **Validation:**
 
 Arguments are validated by CallRouter using ArgSpec metadata from the device registry:
+
 - Required arguments must be present
 - Type must match expected type
 - Numeric values must be within min/max range
@@ -373,19 +374,19 @@ Reads a signal value from the StateCache.
 
 **Ports:**
 
-| Port          | Type   | Direction | Description                              |
-|---------------|--------|-----------|----------------------------------------|
-| device_handle | string | input     | Device handle (`provider_id/device_id`)  |
-| signal_id     | string | input     | Signal identifier                        |
-| value         | double | output    | Signal value (as double)                 |
+| Port          | Type   | Direction | Description                                 |
+| ------------- | ------ | --------- | ------------------------------------------- |
+| device_handle | string | input     | Device handle (`provider_id/device_id`)     |
+| signal_id     | string | input     | Signal identifier                           |
+| value         | double | output    | Signal value (as double)                    |
 | quality       | string | output    | Signal quality (OK/STALE/UNAVAILABLE/FAULT) |
 
 **Example:**
 
 ```xml
-<ReadSignal device_handle="sim0/tempctl0" 
-            signal_id="temperature" 
-            value="{current_temp}" 
+<ReadSignal device_handle="sim0/tempctl0"
+            signal_id="temperature"
+            value="{current_temp}"
             quality="{temp_quality}"/>
 ```
 
@@ -395,13 +396,14 @@ Verifies that a signal's quality meets expectations (condition node).
 
 **Ports:**
 
-| Port             | Type   | Direction | Description                          |
-|------------------|--------|-----------|--------------------------------------|
+| Port             | Type   | Direction | Description                             |
+| ---------------- | ------ | --------- | --------------------------------------- |
 | device_handle    | string | input     | Device handle (`provider_id/device_id`) |
-| signal_id        | string | input     | Signal identifier                    |
-| expected_quality | string | input     | Expected quality (default: `OK`)     |
+| signal_id        | string | input     | Signal identifier                       |
+| expected_quality | string | input     | Expected quality (default: `OK`)        |
 
 **Returns:**
+
 - `SUCCESS` — Signal quality matches expected
 - `FAILURE` — Quality mismatch or signal not found
 
@@ -410,11 +412,11 @@ Verifies that a signal's quality meets expectations (condition node).
 ```xml
 <!-- Gate control on sensor availability -->
 <Sequence>
-    <CheckQuality device_handle="sim0/tempctl0" 
-                  signal_id="temperature" 
+    <CheckQuality device_handle="sim0/tempctl0"
+                  signal_id="temperature"
                   expected_quality="OK"/>
-    <CallDevice device_handle="sim0/tempctl0" 
-                function_name="set_target_temp" 
+    <CallDevice device_handle="sim0/tempctl0"
+                function_name="set_target_temp"
                 args='{"target":30.0}'/>
 </Sequence>
 ```
@@ -425,12 +427,13 @@ Reads a runtime parameter from the ParameterManager.
 
 **Ports:**
 
-| Port  | Type   | Direction | Description            |
-|-------|--------|-----------|----------------------|
-| param | string | input     | Parameter name         |
-| value | double | output    | Parameter value        |
+| Port  | Type   | Direction | Description     |
+| ----- | ------ | --------- | --------------- |
+| param | string | input     | Parameter name  |
+| value | double | output    | Parameter value |
 
 **Returns:**
+
 - `SUCCESS` — Parameter read successfully
 - `FAILURE` — Parameter not found or ParameterManager unavailable
 
