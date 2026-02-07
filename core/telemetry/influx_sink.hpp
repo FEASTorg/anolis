@@ -10,6 +10,7 @@
  * - Configurable batch size and flush interval
  * - Graceful degradation on connection failure
  * - Per-type value fields (value_double, value_int, value_bool)
+ * - HTTP and HTTPS support (TLS via OpenSSL)
  *
  * InfluxDB Schema:
  * - Measurement: anolis_signal

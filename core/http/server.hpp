@@ -70,6 +70,7 @@ public:
      * @brief Construct HTTP server with references to kernel components
      *
      * @param config HTTP configuration (bind address, port)
+     * @param polling_interval_ms Polling interval from runtime config
      * @param registry Device registry for inventory/capabilities
      * @param state_cache State cache for reading device state
      * @param call_router Call router for executing device functions
@@ -78,8 +79,8 @@ public:
      * @param mode_manager Mode manager for automation control (optional)
      * @param parameter_manager Parameter manager for runtime parameters (optional)
      */
-    HttpServer(const runtime::HttpConfig &config, registry::DeviceRegistry &registry, state::StateCache &state_cache,
-               control::CallRouter &call_router, ProviderMap &providers,
+    HttpServer(const runtime::HttpConfig &config, int polling_interval_ms, registry::DeviceRegistry &registry,
+               state::StateCache &state_cache, control::CallRouter &call_router, ProviderMap &providers,
                std::shared_ptr<events::EventEmitter> event_emitter = nullptr,
                automation::ModeManager *mode_manager = nullptr,
                automation::ParameterManager *parameter_manager = nullptr);
@@ -119,6 +120,7 @@ private:
     // Configuration
     runtime::HttpConfig config_;
     int port_ = 0;
+    int polling_interval_ms_;
 
     // Kernel component references
     registry::DeviceRegistry &registry_;

@@ -56,3 +56,22 @@ automation:
 ### Logging
 
 - **level**: Controls verbosity. Use `debug` for troubleshooting provider issues.
+
+### Telemetry (InfluxDB)
+
+- **enabled**: Enable/disable telemetry sink
+- **url**: InfluxDB server URL (supports both HTTP and HTTPS)
+- **org**: InfluxDB organization name
+- **bucket**: InfluxDB bucket name
+- **token**: InfluxDB API token (required when enabled)
+
+Both HTTP and HTTPS URLs are supported:
+```yaml
+# Local development
+url: http://localhost:8086
+
+# Cloud/production with TLS
+url: https://influx.example.com:8086
+```
+
+**TLS Certificate Verification:** HTTPS connections verify server certificates using the system's default CA store. For self-signed certificates, either add them to the system trust store or use HTTP with a reverse proxy.

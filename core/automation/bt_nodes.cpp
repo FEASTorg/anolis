@@ -1,6 +1,7 @@
 #include "automation/bt_nodes.hpp"
 
 #include <iostream>
+#include <nlohmann/json.hpp>
 #include <sstream>
 
 #include "automation/parameter_manager.hpp"
@@ -89,6 +90,30 @@ static anolis::deviceprovider::v0::Value double_to_value(double d) {
     return val;
 }
 
+// Helper: Create protobuf Value from int64
+static anolis::deviceprovider::v0::Value int64_to_value(int64_t i) {
+    anolis::deviceprovider::v0::Value val;
+    val.set_type(anolis::deviceprovider::v0::VALUE_TYPE_INT64);
+    val.set_int64_value(i);
+    return val;
+}
+
+// Helper: Create protobuf Value from bool
+static anolis::deviceprovider::v0::Value bool_to_value(bool b) {
+    anolis::deviceprovider::v0::Value val;
+    val.set_type(anolis::deviceprovider::v0::VALUE_TYPE_BOOL);
+    val.set_bool_value(b);
+    return val;
+}
+
+// Helper: Create protobuf Value from string
+static anolis::deviceprovider::v0::Value string_to_value(const std::string &s) {
+    anolis::deviceprovider::v0::Value val;
+    val.set_type(anolis::deviceprovider::v0::VALUE_TYPE_STRING);
+    val.set_string_value(s);
+    return val;
+}
+
 //-----------------------------------------------------------------------------
 // ReadSignalNode
 //-----------------------------------------------------------------------------
@@ -159,9 +184,12 @@ CallDeviceNode::CallDeviceNode(const std::string &name, const BT::NodeConfig &co
     : BT::SyncActionNode(name, config) {}
 
 BT::PortsList CallDeviceNode::providedPorts() {
+    // Structured payload interface: device_handle + function_name + args (JSON)
+    // Args is a JSON object string, e.g., '{"target":30.0}'
+    // Validation handled by CallRouter using ArgSpec metadata
     return {BT::InputPort<std::string>("device_handle", "Device handle (provider_id/device_id)"),
             BT::InputPort<std::string>("function_name", "Function identifier"),
-            BT::InputPort<double>("arg_target", "Target argument (for functions like set_target_temp)"),
+            BT::InputPort<std::string>("args", "{}", "Arguments as JSON object (e.g., '{\"target\":30.0}')"),
             BT::OutputPort<bool>("success", "Call result (true/false)"),
             BT::OutputPort<std::string>("error", "Error message if call failed")};
 }
@@ -187,26 +215,44 @@ BT::NodeStatus CallDeviceNode::tick() {
     }
 
     // Build CallRequest
-    // Note: For now, we don't parse arg_* ports dynamically.
-    // This is a limitation - FIXME
-    // or we'll add a helper method to extract all "arg_*" ports.
     control::CallRequest request;
     request.device_handle = device_handle.value();
     request.function_name = function_name.value();
 
-    // TODO: Parse arg_* ports dynamically
-    // For now, check for specific known arguments
-    auto arg_target = getInput<double>("arg_target");
-    if (arg_target) {
-        request.args["target"] = double_to_value(arg_target.value());
-    }
-
-    auto arg_mode = getInput<std::string>("arg_mode");
-    if (arg_mode) {
-        anolis::deviceprovider::v0::Value val;
-        val.set_type(anolis::deviceprovider::v0::VALUE_TYPE_STRING);
-        val.set_string_value(arg_mode.value());
-        request.args["mode"] = val;
+    // Parse args JSON and convert to protobuf Value map
+    auto args_str = getInput<std::string>("args").value_or("{}");
+    if (!args_str.empty() && args_str != "{}") {
+        try {
+            auto json_args = nlohmann::json::parse(args_str);
+            if (!json_args.is_object()) {
+                LOG_ERROR("[CallDeviceNode] args must be a JSON object, got: " << args_str);
+                setOutput("success", false);
+                setOutput("error", "args must be a JSON object");
+                return BT::NodeStatus::FAILURE;
+            }
+            for (auto &[key, value] : json_args.items()) {
+                if (value.is_number_float()) {
+                    request.args[key] = double_to_value(value.get<double>());
+                } else if (value.is_number_integer()) {
+                    // JSON integers could be int or uint - use int64 as safe default
+                    request.args[key] = int64_to_value(value.get<int64_t>());
+                } else if (value.is_boolean()) {
+                    request.args[key] = bool_to_value(value.get<bool>());
+                } else if (value.is_string()) {
+                    request.args[key] = string_to_value(value.get<std::string>());
+                } else {
+                    LOG_ERROR("[CallDeviceNode] Unsupported JSON type for arg '" << key << "'");
+                    setOutput("success", false);
+                    setOutput("error", "Unsupported JSON type for arg '" + key + "'");
+                    return BT::NodeStatus::FAILURE;
+                }
+            }
+        } catch (const nlohmann::json::parse_error &e) {
+            LOG_ERROR("[CallDeviceNode] JSON parse error: " << e.what());
+            setOutput("success", false);
+            setOutput("error", std::string("JSON parse error: ") + e.what());
+            return BT::NodeStatus::FAILURE;
+        }
     }
 
     // Get providers map from blackboard (fixed)
@@ -231,38 +277,31 @@ BT::NodeStatus CallDeviceNode::tick() {
 
     LOG_ERROR("[CallDeviceNode] Call failed: " << result.error_message);
     return BT::NodeStatus::FAILURE;
-
-    return BT::NodeStatus::SUCCESS;
 }
 
-control::CallRouter *CallDeviceNode::get_call_router() {
+// Template implementation for typed blackboard access
+template <typename T>
+T *CallDeviceNode::get_service(const std::string &key) {
     auto blackboard = config().blackboard;
     if (blackboard == nullptr) {
         return nullptr;
     }
 
-    auto ptr = blackboard->get<void *>("call_router");
+    auto ptr = blackboard->get<void *>(key);
     if (ptr == nullptr) {
         return nullptr;
     }
 
-    return static_cast<control::CallRouter *>(ptr);
+    return static_cast<T *>(ptr);
 }
+
+control::CallRouter *CallDeviceNode::get_call_router() { return get_service<control::CallRouter>("call_router"); }
 
 std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> *CallDeviceNode::get_providers() {
-    auto blackboard = config().blackboard;
-    if (blackboard == nullptr) {
-        return nullptr;
-    }
-
-    auto ptr = blackboard->get<void *>("providers");
-    if (ptr == nullptr) {
-        return nullptr;
-    }
-
-    return static_cast<std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> *>(ptr);
+    return get_service<std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>>>("providers");
 }
 
+//-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 // CheckQualityNode
 //-----------------------------------------------------------------------------

@@ -18,11 +18,12 @@ constexpr int kStatusNotFound = 404;
 constexpr int kStatusInternal = 500;
 }  // namespace
 
-HttpServer::HttpServer(const runtime::HttpConfig &config, registry::DeviceRegistry &registry,
+HttpServer::HttpServer(const runtime::HttpConfig &config, int polling_interval_ms, registry::DeviceRegistry &registry,
                        state::StateCache &state_cache, control::CallRouter &call_router, ProviderMap &providers,
                        std::shared_ptr<events::EventEmitter> event_emitter, automation::ModeManager *mode_manager,
                        automation::ParameterManager *parameter_manager)
     : config_(config),
+      polling_interval_ms_(polling_interval_ms),
       registry_(registry),
       state_cache_(state_cache),
       call_router_(call_router),

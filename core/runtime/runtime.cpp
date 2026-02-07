@@ -237,7 +237,7 @@ bool Runtime::init_http(std::string &error) {
     if (config_.http.enabled) {
         LOG_INFO("[Runtime] Creating HTTP server");
         http_server_ = std::make_unique<http::HttpServer>(
-            config_.http, *registry_, *state_cache_, *call_router_, providers_,
+            config_.http, config_.polling.interval_ms, *registry_, *state_cache_, *call_router_, providers_,
             event_emitter_,           // Pass event emitter for SSE
             mode_manager_.get(),      // Pass mode manager (nullptr if automation disabled)
             parameter_manager_.get()  // Pass parameter manager (nullptr if automation disabled)

@@ -4,10 +4,16 @@
   "dependencies": [
     "protobuf",
     "yaml-cpp",
-    "cpp-httplib",
+    {
+      "name": "cpp-httplib",
+      "features": [
+        "openssl"
+      ]
+    },
     "nlohmann-json",
     "behaviortree-cpp",
-    "gtest"
+    "gtest",
+    "openssl"
   ],
   "overrides": [
     {

@@ -7,7 +7,7 @@
 
 #include "logging/logger.hpp"
 
-// Include cpp-httplib (header-only, no SSL for local InfluxDB)
+// cpp-httplib with OpenSSL support (enabled via vcpkg feature)
 #include <httplib.h>
 
 #include <chrono>
@@ -40,34 +40,9 @@ void InfluxSink::flush_batch() {
         body += '\n';
     }
 
-    // Parse URL for host and port
-    std::string host = config_.url;
-    int port = 8086;
-    bool use_ssl = false;
-
-    // Strip protocol prefix
-    if (host.find("https://") == 0) {
-        host = host.substr(8);
-        use_ssl = true;
-        port = 443;
-    } else if (host.find("http://") == 0) {
-        host = host.substr(7);
-    }
-
-    // Extract port if present
-    auto port_pos = host.find(':');
-    if (port_pos != std::string::npos) {
-        port = std::stoi(host.substr(port_pos + 1));
-        host = host.substr(0, port_pos);
-    }
-
-    // Create HTTP client
-    std::unique_ptr<httplib::Client> client;
-    if (use_ssl) {
-        client = std::make_unique<httplib::Client>(host, port);
-    } else {
-        client = std::make_unique<httplib::Client>(host, port);
-    }
+    // Create HTTP/HTTPS client from URL
+    // httplib::Client auto-detects scheme and handles SSL when built with OpenSSL
+    auto client = std::make_unique<httplib::Client>(config_.url);
 
     client->set_connection_timeout(std::chrono::milliseconds(config_.timeout_ms));
     client->set_read_timeout(std::chrono::milliseconds(config_.timeout_ms));

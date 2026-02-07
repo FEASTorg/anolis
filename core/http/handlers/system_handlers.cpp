@@ -44,7 +44,7 @@ void HttpServer::handle_get_runtime_status(const httplib::Request &req, httplib:
     nlohmann::json response = {{"status", make_status(StatusCode::OK)},
                                {"mode", current_mode},
                                {"uptime_seconds", uptime},
-                               {"polling_interval_ms", 500},  // TODO: Get from config
+                               {"polling_interval_ms", polling_interval_ms_},
                                {"providers", providers_json},
                                {"device_count", total_device_count}};
 

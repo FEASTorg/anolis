@@ -62,7 +62,7 @@ private:
  * XML Port Configuration:
  * - device_handle (input): "provider_id/device_id"
  * - function_name (input): Function identifier
- * - arg_* (input, optional): Function arguments (e.g., arg_target: 25.0)
+ * - args (input, optional): JSON object with function arguments (e.g., '{"target":25.0}')
  * - success (output): Call result (true/false)
  * - error (output): Error message if call failed
  *
@@ -72,7 +72,7 @@ private:
  *
  * Example XML:
  * <CallDevice device_handle="sim/tempctl0" function_name="set_target_temp"
- *             arg_target="25.0" success="{call_success}" error="{call_error}"/>
+ *             args='{"target":25.0}' success="{call_success}" error="{call_error}"/>
  *
  * Note: This node may BLOCK during device call execution. Design BTs accordingly.
  */
@@ -85,6 +85,10 @@ public:
     static BT::PortsList providedPorts();
 
 private:
+    // Typed blackboard access helper
+    template <typename T>
+    T *get_service(const std::string &key);
+
     control::CallRouter *get_call_router();
     std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> *get_providers();
 };
@@ -110,7 +114,8 @@ private:
  * This is useful for gating control actions on sensor availability:
  * <Sequence>
  *   <CheckQuality device_handle="sim/tempctl0" signal_id="tc1_temp"/>
- *   <CallDevice device_handle="sim/tempctl0" function_name="set_target_temp" arg_target="30.0"/>
+ *   <CallDevice device_handle="sim/tempctl0" function_name="set_target_temp"
+ *               args='{"target":30.0}'/>
  * </Sequence>
  */
 class CheckQualityNode : public BT::SyncActionNode {
@@ -140,8 +145,9 @@ private:
  *
  * Example XML:
  * <GetParameter param="temp_setpoint" value="{target_temp}"/>
- * <CallDevice device_handle="sim/tempctl0" function_name="set_target_temp"
- *             arg_target="{target_temp}"/>
+ *
+ * Note: To use parameter values with CallDevice, construct JSON args using Script nodes
+ * or use static values directly in the args attribute.
  */
 class GetParameterNode : public BT::SyncActionNode {
 public:
