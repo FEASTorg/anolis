@@ -8,12 +8,14 @@ Usage:
 Example:
     python scripts/summarize_clang_tidy.py -n 50 -o summary.log clang-tidy.log
 """
+
 from __future__ import annotations
+
 import argparse
 import re
 from collections import Counter
 from pathlib import Path
-from typing import Iterable, List
+from typing import List
 
 ISSUE_RE = re.compile(
     r"^(?P<file>/[^:]+):(?P<line>\d+):(?P<col>\d+): (warning|error): (?P<msg>.*) \[(?P<check>[^\]]+)\]"
@@ -71,9 +73,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("log", type=Path, help="clang-tidy log path")
     ap.add_argument("-n", "--top", type=int, default=10, help="top N entries to show")
-    ap.add_argument(
-        "-o", "--output", type=Path, help="write summary to file instead of stdout"
-    )
+    ap.add_argument("-o", "--output", type=Path, help="write summary to file instead of stdout")
     args = ap.parse_args()
 
     summarize(args.log, args.top, args.output)
