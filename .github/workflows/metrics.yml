@@ -115,43 +115,68 @@ jobs:
       - name: Generate consolidated report
         run: |
           set -euo pipefail
+
           REPORT="metrics/metrics-report.md"
 
           {
             echo "# Repository Metrics Report"
             echo ""
             echo "Generated (UTC): $(date -u)"
+            echo "Repository: $GITHUB_REPOSITORY"
             echo "Commit: $GITHUB_SHA"
             echo "Branch: $GITHUB_REF_NAME"
+            echo "Runner: $RUNNER_OS"
             echo ""
 
-            echo "## Summary (tokei)"
+            echo "---"
+            echo ""
+
+            echo "## 1. Tokei Summary (Text Output)"
             echo ""
             echo '```'
             cat metrics/tokei.txt
             echo '```'
             echo ""
 
-            echo "## Disk Usage"
+            echo "## 2. Tokei Detailed JSON"
+            echo ""
+            echo '```json'
+            jq . metrics/tokei.json
+            echo '```'
+            echo ""
+
+            echo "## 3. CLOC Detailed JSON"
+            echo ""
+            echo '```json'
+            jq . metrics/cloc.json
+            echo '```'
+            echo ""
+
+            echo "## 4. Disk Usage"
             echo ""
             echo '```'
             cat metrics/disk-usage.txt
             echo '```'
             echo ""
 
-            echo "## Directory Structure"
+            echo "## 5. Directory Structure"
             echo ""
             echo '```'
             cat metrics/repo-tree.txt
             echo '```'
             echo ""
 
-            echo "## Raw Data Files"
+            echo "## 6. Repository Statistics"
             echo ""
-            echo "- tokei.json"
-            echo "- cloc.json"
-            echo "- repo-tree.txt"
-            echo "- disk-usage.txt"
+            echo "- Total files: $(find . -type f -not -path './.git/*' | wc -l)"
+            echo "- Total directories: $(find . -type d -not -path './.git/*' | wc -l)"
+            echo "- Git commit count: $(git rev-list --count HEAD)"
+            echo ""
+
+            echo "---"
+            echo ""
+            echo "_End of Report_"
+
           } > "$REPORT"
 
       # ------------------------------------------------------------------
