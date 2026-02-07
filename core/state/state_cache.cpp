@@ -247,7 +247,7 @@ bool StateCache::value_changed(const anolis::deviceprovider::v0::Value &old_val,
     using VT = anolis::deviceprovider::v0::ValueType;
     switch (old_val.type()) {
         case VT::VALUE_TYPE_DOUBLE: {
-            // Bitwise comparison for deterministic NaN/±0 handling
+            // Bitwise comparison for deterministic NaN/+/-0 handling
             double old_d = old_val.double_value();
             double new_d = new_val.double_value();
             uint64_t old_bits, new_bits;

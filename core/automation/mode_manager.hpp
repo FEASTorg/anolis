@@ -11,8 +11,8 @@ namespace automation {
  * Runtime operating modes for automation layer.
  *
  * State transitions:
- * - MANUAL ↔ AUTO (normal operation)
- * - MANUAL ↔ IDLE (operator signaling standby)
+ * - MANUAL <-> AUTO (normal operation)
+ * - MANUAL <-> IDLE (operator signaling standby)
  * - Any → FAULT (error condition)
  * - FAULT → MANUAL (manual recovery)
  * - FAULT -X-> AUTO (must recover through MANUAL first)

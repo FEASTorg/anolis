@@ -2,8 +2,8 @@
  * mode_manager_test.cpp - ModeManager unit tests
  *
  * Tests:
- * - Valid state transitions (MANUAL↔AUTO, MANUAL↔IDLE, Any→FAULT, FAULT→MANUAL)
- * - Invalid transitions (FAULT→AUTO, FAULT→IDLE blocked)
+ * - Valid state transitions (MANUAL<->AUTO, MANUAL<->IDLE, Any->FAULT, FAULT->MANUAL)
+ * - Invalid transitions (FAULT->AUTO, FAULT->IDLE blocked)
  * - Mode change callbacks
  * - Thread-safety of mode queries
  * - String conversion functions
@@ -186,7 +186,7 @@ TEST_F(ModeManagerTest, BlockFaultToAutoTransition) {
     // Enter FAULT
     ASSERT_TRUE(mode_manager_->set_mode(RuntimeMode::FAULT, error));
 
-    // Attempt FAULT → AUTO (should fail)
+    // Attempt FAULT -> AUTO (should fail)
     ASSERT_FALSE(mode_manager_->set_mode(RuntimeMode::AUTO, error));
     EXPECT_EQ(mode_manager_->current_mode(), RuntimeMode::FAULT);  // Still in FAULT
     EXPECT_FALSE(error.empty());
@@ -199,7 +199,7 @@ TEST_F(ModeManagerTest, BlockFaultToIdleTransition) {
     // Enter FAULT
     ASSERT_TRUE(mode_manager_->set_mode(RuntimeMode::FAULT, error));
 
-    // Attempt FAULT → IDLE (should fail)
+    // Attempt FAULT -> IDLE (should fail)
     ASSERT_FALSE(mode_manager_->set_mode(RuntimeMode::IDLE, error));
     EXPECT_EQ(mode_manager_->current_mode(), RuntimeMode::FAULT);  // Still in FAULT
     EXPECT_FALSE(error.empty());
@@ -212,7 +212,7 @@ TEST_F(ModeManagerTest, BlockAutoToIdleDirectTransition) {
     // Enter AUTO
     ASSERT_TRUE(mode_manager_->set_mode(RuntimeMode::AUTO, error));
 
-    // Attempt AUTO → IDLE (should fail - must go through MANUAL)
+    // Attempt AUTO -> IDLE (should fail - must go through MANUAL)
     ASSERT_FALSE(mode_manager_->set_mode(RuntimeMode::IDLE, error));
     EXPECT_EQ(mode_manager_->current_mode(), RuntimeMode::AUTO);  // Still in AUTO
     EXPECT_FALSE(error.empty());
@@ -224,7 +224,7 @@ TEST_F(ModeManagerTest, BlockIdleToAutoDirectTransition) {
     // Enter IDLE
     ASSERT_TRUE(mode_manager_->set_mode(RuntimeMode::IDLE, error));
 
-    // Attempt IDLE → AUTO (should fail - must go through MANUAL)
+    // Attempt IDLE -> AUTO (should fail - must go through MANUAL)
     ASSERT_FALSE(mode_manager_->set_mode(RuntimeMode::AUTO, error));
     EXPECT_EQ(mode_manager_->current_mode(), RuntimeMode::IDLE);  // Still in IDLE
     EXPECT_FALSE(error.empty());

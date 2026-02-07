@@ -304,11 +304,11 @@ TEST_F(ProviderProcessTest, LastErrorClearedOnSuccessfulSpawn) {
  * - Manual testing with misbehaving providers
  *
  * Current test coverage (~60-70%) focuses on:
- * ✅ Constructor and initialization
- * ✅ Error handling for missing executables
- * ✅ Basic spawn success
- * ✅ Process running state checks
- * ✅ Clean shutdown sequence
- * ✅ Double-shutdown safety
- * ✅ Destructor behavior
+ * - Constructor and initialization
+ * - Error handling for missing executables
+ * - Basic spawn success
+ * - Process running state checks
+ * - Clean shutdown sequence
+ * - Double-shutdown safety
+ * - Destructor behavior
  */

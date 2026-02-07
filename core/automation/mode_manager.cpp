@@ -111,7 +111,7 @@ bool ModeManager::is_valid_transition(RuntimeMode from, RuntimeMode to) const {
         return to == RuntimeMode::MANUAL;
     }
 
-    // Normal operations: MANUAL ↔ AUTO, MANUAL ↔ IDLE
+    // Normal operations: MANUAL <-> AUTO, MANUAL <-> IDLE
     if (from == RuntimeMode::MANUAL) {
         return to == RuntimeMode::AUTO || to == RuntimeMode::IDLE;
     }

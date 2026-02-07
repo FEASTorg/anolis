@@ -95,9 +95,9 @@ inline const char *value_type_name(const TypedValue &v) {
 /**
  * @brief Compare two TypedValues for equality
  *
- * Uses bitwise comparison for doubles to handle NaN and ±0 deterministically:
- * - NaN == NaN → true (bitwise same)
- * - +0 == -0 → false (bitwise different)
+ * Uses bitwise comparison for doubles to handle NaN and +/-0 deterministically:
+ * - NaN == NaN -> true (bitwise same)
+ * - +0 == -0 -> false (bitwise different)
  *
  * This prevents spurious change events from floating-point edge cases.
  */
@@ -112,7 +112,7 @@ inline bool values_equal(const TypedValue &a, const TypedValue &b) {
             const auto &arg_b = std::get<T>(b);
 
             if constexpr (std::is_same_v<T, double>) {
-                // Bitwise comparison for deterministic NaN/±0 handling
+                // Bitwise comparison for deterministic NaN/+/-0 handling
                 uint64_t bits_a, bits_b;
                 std::memcpy(&bits_a, &arg_a, sizeof(double));
                 std::memcpy(&bits_b, &arg_b, sizeof(double));
@@ -157,7 +157,7 @@ struct StateUpdateEvent {
 /**
  * @brief Quality-only change event (no value change)
  *
- * Emitted when quality changes but value hasn't (e.g., OK → STALE).
+ * Emitted when quality changes but value hasn't (e.g., OK -> STALE).
  * Allows clients to update quality indicators without full value payload.
  */
 struct QualityChangeEvent {

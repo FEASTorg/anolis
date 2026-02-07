@@ -192,7 +192,7 @@ public:
     /**
      * @brief Get all parameter definitions
      *
-     * @return Map of name → ParameterDef
+     * @return Map of name -> ParameterDef
      */
     std::unordered_map<std::string, ParameterDef> get_all_definitions() const;
 
