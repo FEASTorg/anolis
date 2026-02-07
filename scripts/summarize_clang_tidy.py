@@ -2,11 +2,12 @@
 """
 Summarize clang-tidy logs with actionable buckets.
 Outputs per-check, per-file, most common messages, and file+check hot spots.
+`n` controls how many top entries to show in each category (default 10).
 
 Usage:
   python scripts/summarize_clang_tidy.py [-n TOP] [-o output.log] path/to/clang-tidy.log
 Example:
-    python scripts/summarize_clang_tidy.py -n 50 -o summary.log clang-tidy.log
+    python scripts/summarize_clang_tidy.py -n 50 -o clang-tidy-summary.log clang-tidy.log
 """
 
 from __future__ import annotations

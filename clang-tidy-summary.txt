@@ -1,0 +1,101 @@
+== clang-tidy.log ==
+Total issues: 864
+Top checks:
+   355 readability-identifier-length
+   261 readability-magic-numbers
+    93 readability-braces-around-statements
+    21 performance-unnecessary-value-param
+    19 bugprone-easily-swappable-parameters
+    19 bugprone-macro-parentheses
+    17 readability-function-cognitive-complexity
+    15 readability-isolate-declaration
+    13 readability-convert-member-functions-to-static
+    13 bugprone-branch-clone
+    10 readability-qualified-auto
+     8 readability-uppercase-literal-suffix
+     6 performance-inefficient-string-concatenation
+     3 readability-else-after-return
+     3 readability-implicit-bool-conversion
+     3 readability-redundant-string-cstr
+     2 readability-redundant-string-init
+     1 readability-make-member-function-const
+     1 performance-unnecessary-copy-initialization
+     1 performance-inefficient-vector-operation
+Top files:
+    84 /home/runner/work/anolis/anolis/core/events/event_types.hpp
+    72 /home/runner/work/anolis/anolis/core/runtime/config.hpp
+    63 /home/runner/work/anolis/anolis/core/telemetry/influx_sink.hpp
+    45 /home/runner/work/anolis/anolis/core/telemetry/../events/event_emitter.hpp
+    42 /home/runner/work/anolis/anolis/core/telemetry/../events/event_types.hpp
+    42 /home/runner/work/anolis/anolis/core/runtime/runtime.cpp
+    41 /home/runner/work/anolis/anolis/core/automation/bt_nodes.cpp
+    40 /home/runner/work/anolis/anolis/core/http/handlers/../errors.hpp
+    30 /home/runner/work/anolis/anolis/core/events/event_emitter.hpp
+    26 /home/runner/work/anolis/anolis/core/http/server.cpp
+    25 /home/runner/work/anolis/anolis/core/automation/parameter_manager.hpp
+    24 /home/runner/work/anolis/anolis/core/state/state_cache.cpp
+    24 /home/runner/work/anolis/anolis/tests/unit/state_cache_test.cpp
+    22 /home/runner/work/anolis/anolis/core/http/json.cpp
+    21 /home/runner/work/anolis/anolis/tests/unit/call_router_test.cpp
+    20 /home/runner/work/anolis/anolis/core/control/call_router.cpp
+    18 /home/runner/work/anolis/anolis/core/automation/bt_runtime.cpp
+    16 /home/runner/work/anolis/anolis/core/runtime/config.cpp
+    16 /home/runner/work/anolis/anolis/core/http/handlers/state_handlers.cpp
+    15 /home/runner/work/anolis/anolis/core/http/handlers/../../events/event_emitter.hpp
+    13 /home/runner/work/anolis/anolis/core/provider/framed_stdio_client.cpp
+    13 /home/runner/work/anolis/anolis/core/provider/provider_process.cpp
+    13 /home/runner/work/anolis/anolis/core/state/state_cache.hpp
+    13 /home/runner/work/anolis/anolis/core/automation/parameter_manager.cpp
+    12 /home/runner/work/anolis/anolis/core/logging/logger.hpp
+Top messages (check: message):
+   179 readability-identifier-length: variable name 'ss' is too short, expected at least 3 characters
+    93 readability-braces-around-statements: statement should be inside braces
+    45 readability-magic-numbers: 100 is a magic number; consider replacing it with a named constant
+    33 readability-magic-numbers: 500 is a magic number; consider replacing it with a named constant
+    31 readability-identifier-length: parameter name 'e' is too short, expected at least 3 characters
+    30 readability-magic-numbers: 10 is a magic number; consider replacing it with a named constant
+    21 readability-identifier-length: parameter name 'id' is too short, expected at least 3 characters
+    19 bugprone-macro-parentheses: macro argument should be enclosed in parentheses
+    18 readability-identifier-length: variable name 'it' is too short, expected at least 3 characters
+    17 readability-magic-numbers: 1000 is a magic number; consider replacing it with a named constant
+    16 readability-identifier-length: parameter name 'v' is too short, expected at least 3 characters
+    15 readability-isolate-declaration: multiple declarations in a single statement reduces readability
+    15 readability-magic-numbers: 10000 is a magic number; consider replacing it with a named constant
+    14 readability-magic-numbers: 5000 is a magic number; consider replacing it with a named constant
+    14 readability-identifier-length: parameter name 'to' is too short, expected at least 3 characters
+    13 readability-identifier-length: variable name 'id' is too short, expected at least 3 characters
+    10 readability-identifier-length: parameter name 'q' is too short, expected at least 3 characters
+    10 readability-identifier-length: parameter name 'b' is too short, expected at least 3 characters
+    10 bugprone-branch-clone: switch has 2 consecutive identical branches
+     9 readability-identifier-length: parameter name 'a' is too short, expected at least 3 characters
+     9 readability-magic-numbers: 8080 is a magic number; consider replacing it with a named constant
+     9 readability-magic-numbers: 40 is a magic number; consider replacing it with a named constant
+     8 readability-magic-numbers: 8 is a magic number; consider replacing it with a named constant
+     8 readability-uppercase-literal-suffix: integer literal has suffix 'u', which is not uppercase
+     8 readability-identifier-length: parameter name 's' is too short, expected at least 3 characters
+Top file+check hot spots:
+    72 /home/runner/work/anolis/anolis/core/runtime/config.hpp :: readability-magic-numbers
+    42 /home/runner/work/anolis/anolis/core/events/event_types.hpp :: readability-identifier-length
+    36 /home/runner/work/anolis/anolis/core/events/event_types.hpp :: readability-braces-around-statements
+    36 /home/runner/work/anolis/anolis/core/runtime/runtime.cpp :: readability-identifier-length
+    32 /home/runner/work/anolis/anolis/core/http/handlers/../errors.hpp :: readability-magic-numbers
+    30 /home/runner/work/anolis/anolis/core/telemetry/influx_sink.hpp :: readability-identifier-length
+    26 /home/runner/work/anolis/anolis/core/automation/bt_nodes.cpp :: readability-identifier-length
+    24 /home/runner/work/anolis/anolis/core/telemetry/influx_sink.hpp :: readability-magic-numbers
+    21 /home/runner/work/anolis/anolis/core/telemetry/../events/event_emitter.hpp :: readability-identifier-length
+    21 /home/runner/work/anolis/anolis/core/telemetry/../events/event_types.hpp :: readability-identifier-length
+    21 /home/runner/work/anolis/anolis/core/http/server.cpp :: readability-identifier-length
+    20 /home/runner/work/anolis/anolis/core/automation/parameter_manager.hpp :: readability-braces-around-statements
+    18 /home/runner/work/anolis/anolis/core/telemetry/../events/event_types.hpp :: readability-braces-around-statements
+    17 /home/runner/work/anolis/anolis/core/state/state_cache.cpp :: readability-identifier-length
+    17 /home/runner/work/anolis/anolis/core/automation/bt_runtime.cpp :: readability-identifier-length
+    16 /home/runner/work/anolis/anolis/core/http/json.cpp :: readability-magic-numbers
+    14 /home/runner/work/anolis/anolis/core/events/event_emitter.hpp :: readability-identifier-length
+    13 /home/runner/work/anolis/anolis/core/state/state_cache.hpp :: readability-magic-numbers
+    12 /home/runner/work/anolis/anolis/core/logging/logger.hpp :: bugprone-macro-parentheses
+    12 /home/runner/work/anolis/anolis/core/telemetry/../events/event_emitter.hpp :: readability-magic-numbers
+    12 /home/runner/work/anolis/anolis/tests/unit/state_cache_test.cpp :: readability-magic-numbers
+    12 /home/runner/work/anolis/anolis/tests/unit/call_router_test.cpp :: readability-magic-numbers
+    10 /home/runner/work/anolis/anolis/core/provider/framed_stdio_client.cpp :: readability-magic-numbers
+    10 /home/runner/work/anolis/anolis/core/automation/bt_nodes.cpp :: readability-qualified-auto
+     9 /home/runner/work/anolis/anolis/core/automation/bt_runtime.hpp :: readability-magic-numbers

@@ -9,6 +9,10 @@ add_executable(anolis_unit_tests
     state_cache_test.cpp
     call_router_test.cpp
     config_test.cpp
+    http_handlers_test.cpp
+    mode_manager_test.cpp
+    provider_process_test.cpp
+    event_emitter_test.cpp
 )
 
 target_include_directories(anolis_unit_tests PRIVATE
@@ -26,6 +30,8 @@ target_link_libraries(anolis_unit_tests PRIVATE
     anolis_automation
     anolis_provider
     anolis_registry
+    anolis_http
+    anolis_events
     anolis_proto
     protobuf::libprotobuf
 )
