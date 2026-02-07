@@ -1,0 +1,183 @@
+name: Repository Metrics
+
+on:
+  push:
+    branches:
+      - "**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  metrics:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      # ------------------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ------------------------------------------------------------------
+      # Install Rust (idiomatic method)
+      # ------------------------------------------------------------------
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      # Optional: Cache Rust installs for faster runs
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+
+      # ------------------------------------------------------------------
+      # Install tokei
+      # ------------------------------------------------------------------
+      - name: Install tokei
+        run: cargo install tokei --locked
+
+      # ------------------------------------------------------------------
+      # Install system utilities
+      # ------------------------------------------------------------------
+      - name: Install utilities
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cloc tree jq
+
+      # ------------------------------------------------------------------
+      # Prepare output directory
+      # ------------------------------------------------------------------
+      - name: Create metrics directory
+        run: mkdir -p metrics
+
+      # ------------------------------------------------------------------
+      # Run tokei
+      # ------------------------------------------------------------------
+      - name: Run tokei (JSON + Text)
+        run: |
+          set -euo pipefail
+          EXCLUDES=".git,node_modules,dist,build"
+
+          tokei --exclude $EXCLUDES --output json > metrics/tokei.json
+          tokei --exclude $EXCLUDES > metrics/tokei.txt
+
+      # ------------------------------------------------------------------
+      # Run cloc
+      # ------------------------------------------------------------------
+      - name: Run cloc
+        run: |
+          set -euo pipefail
+          cloc . \
+            --exclude-dir=.git,node_modules,dist,build \
+            --json \
+            --out=metrics/cloc.json
+
+      # ------------------------------------------------------------------
+      # Repository structure snapshot
+      # ------------------------------------------------------------------
+      - name: Generate directory tree
+        run: |
+          set -euo pipefail
+          tree -a \
+            -I ".git|node_modules|dist|build" \
+            > metrics/repo-tree.txt
+
+      # ------------------------------------------------------------------
+      # Disk usage + largest files
+      # ------------------------------------------------------------------
+      - name: Repository disk usage
+        run: |
+          set -euo pipefail
+
+          {
+            echo "Total repository size:"
+            du -sh .
+
+            echo ""
+            echo "Top 20 largest files:"
+            find . -type f -not -path "./.git/*" \
+              -exec du -h {} + \
+              | sort -rh \
+              | head -20
+          } > metrics/disk-usage.txt
+
+      # ------------------------------------------------------------------
+      # Consolidated Markdown Report
+      # ------------------------------------------------------------------
+      - name: Generate consolidated report
+        run: |
+          set -euo pipefail
+          REPORT="metrics/metrics-report.md"
+
+          {
+            echo "# Repository Metrics Report"
+            echo ""
+            echo "Generated (UTC): $(date -u)"
+            echo "Commit: $GITHUB_SHA"
+            echo "Branch: $GITHUB_REF_NAME"
+            echo ""
+
+            echo "## Summary (tokei)"
+            echo ""
+            echo '```'
+            cat metrics/tokei.txt
+            echo '```'
+            echo ""
+
+            echo "## Disk Usage"
+            echo ""
+            echo '```'
+            cat metrics/disk-usage.txt
+            echo '```'
+            echo ""
+
+            echo "## Directory Structure"
+            echo ""
+            echo '```'
+            cat metrics/repo-tree.txt
+            echo '```'
+            echo ""
+
+            echo "## Raw Data Files"
+            echo ""
+            echo "- tokei.json"
+            echo "- cloc.json"
+            echo "- repo-tree.txt"
+            echo "- disk-usage.txt"
+          } > "$REPORT"
+
+      # ------------------------------------------------------------------
+      # Add concise summary to GitHub Actions UI
+      # ------------------------------------------------------------------
+      - name: Write summary to workflow page
+        run: |
+          {
+            echo "## Repository Metrics Summary"
+            echo ""
+            echo "**Commit:** $GITHUB_SHA"
+            echo "**Branch:** $GITHUB_REF_NAME"
+            echo ""
+            echo "### Tokei Totals"
+            echo '```'
+            head -40 metrics/tokei.txt
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+
+      # ------------------------------------------------------------------
+      # Upload artifacts
+      # ------------------------------------------------------------------
+      - name: Upload metrics artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-metrics-${{ github.run_number }}
+          path: metrics/
+          retention-days: 30
