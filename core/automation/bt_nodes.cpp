@@ -255,17 +255,17 @@ BT::NodeStatus CallDeviceNode::tick() {
         }
     }
 
-    // Get providers map from blackboard (fixed)
-    auto providers = get_providers();
-    if (providers == nullptr) {
-        LOG_ERROR("[CallDeviceNode] Providers map not available in blackboard");
+    // Get provider registry from blackboard
+    auto provider_registry = get_provider_registry();
+    if (provider_registry == nullptr) {
+        LOG_ERROR("[CallDeviceNode] ProviderRegistry not available in blackboard");
         setOutput("success", false);
-        setOutput("error", "Providers not available");
+        setOutput("error", "Provider registry not available");
         return BT::NodeStatus::FAILURE;
     }
 
     // Execute call via CallRouter
-    auto result = call_router->execute_call(request, *providers);
+    auto result = call_router->execute_call(request, *provider_registry);
 
     setOutput("success", result.success);
     setOutput("error", result.error_message);
@@ -297,8 +297,8 @@ T *CallDeviceNode::get_service(const std::string &key) {
 
 control::CallRouter *CallDeviceNode::get_call_router() { return get_service<control::CallRouter>("call_router"); }
 
-std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> *CallDeviceNode::get_providers() {
-    return get_service<std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>>>("providers");
+provider::ProviderRegistry *CallDeviceNode::get_provider_registry() {
+    return get_service<provider::ProviderRegistry>("provider_registry");
 }
 
 //-----------------------------------------------------------------------------

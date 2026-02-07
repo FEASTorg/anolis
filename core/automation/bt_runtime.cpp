@@ -19,11 +19,11 @@ namespace anolis {
 namespace automation {
 
 BTRuntime::BTRuntime(state::StateCache &state_cache, control::CallRouter &call_router,
-                     std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers,
-                     ModeManager &mode_manager, ParameterManager *parameter_manager)
+                     provider::ProviderRegistry &provider_registry, ModeManager &mode_manager,
+                     ParameterManager *parameter_manager)
     : state_cache_(state_cache),
       call_router_(call_router),
-      providers_(providers),
+      provider_registry_(provider_registry),
       mode_manager_(mode_manager),
       parameter_manager_(parameter_manager),
       factory_(std::make_unique<BT::BehaviorTreeFactory>()) {
@@ -184,9 +184,9 @@ void BTRuntime::populate_blackboard() {
     // BT nodes will cast this back to StateCache* when needed
     blackboard->set("state_cache", static_cast<void *>(&state_cache_));
 
-    // Store providers map reference for CallDeviceNode (fix)
-    // CallRouter::execute_call() requires providers map
-    blackboard->set("providers", static_cast<void *>(&providers_));
+    // Store provider registry reference for CallDeviceNode
+    // CallRouter::execute_call() requires provider registry
+    blackboard->set("provider_registry", static_cast<void *>(&provider_registry_));
 
     // Add parameter_manager to blackboard
     if (parameter_manager_ != nullptr) {

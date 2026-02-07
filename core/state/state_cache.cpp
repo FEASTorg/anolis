@@ -72,7 +72,7 @@ bool StateCache::initialize() {
     return true;
 }
 
-void StateCache::start_polling(std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers) {
+void StateCache::start_polling(provider::ProviderRegistry &provider_registry) {
     if (polling_active_) {
         LOG_WARN("[StateCache] Polling already active");
         return;
@@ -81,11 +81,11 @@ void StateCache::start_polling(std::unordered_map<std::string, std::shared_ptr<p
     polling_active_ = true;
     LOG_INFO("[StateCache] Polling thread starting");
 
-    polling_thread_ = std::thread([this, &providers]() {
+    polling_thread_ = std::thread([this, &provider_registry]() {
         while (polling_active_) {
             auto poll_start = std::chrono::steady_clock::now();
 
-            poll_once(providers);
+            poll_once(provider_registry);
 
             // Sleep until next poll interval
             auto poll_duration = std::chrono::steady_clock::now() - poll_start;
@@ -109,16 +109,15 @@ void StateCache::stop_polling() {
     }
 }
 
-void StateCache::poll_once(std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers) {
+void StateCache::poll_once(provider::ProviderRegistry &provider_registry) {
     for (const auto &config : poll_configs_) {
         // Get provider handle
-        auto it = providers.find(config.provider_id);
-        if (it == providers.end()) {
+        auto provider = provider_registry.get_provider(config.provider_id);
+        if (!provider) {
             LOG_WARN("[StateCache] Provider " << config.provider_id << " not found");
             continue;
         }
 
-        auto &provider = it->second;
         if (!provider->is_available()) {
             LOG_WARN("[StateCache] Provider " << config.provider_id << " not available");
 
@@ -139,16 +138,14 @@ void StateCache::poll_once(std::unordered_map<std::string, std::shared_ptr<provi
     }
 }
 
-void StateCache::poll_device_now(
-    const std::string &device_handle,
-    std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers) {
+void StateCache::poll_device_now(const std::string &device_handle, provider::ProviderRegistry &provider_registry) {
     // Find poll config for this device
     for (const auto &config : poll_configs_) {
         std::string handle = config.provider_id + "/" + config.device_id;
         if (handle == device_handle) {
-            auto it = providers.find(config.provider_id);
-            if (it != providers.end() && it->second->is_available()) {
-                poll_device(config.provider_id, config.device_id, config.signal_ids, *it->second);
+            auto provider = provider_registry.get_provider(config.provider_id);
+            if (provider && provider->is_available()) {
+                poll_device(config.provider_id, config.device_id, config.signal_ids, *provider);
             }
             return;
         }

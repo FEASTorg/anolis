@@ -16,6 +16,7 @@
 
 #include "events/event_types.hpp"
 #include "provider/i_provider_handle.hpp"  // Updated include
+#include "provider/provider_registry.hpp"
 #include "runtime/config.hpp"
 
 // Forward declarations
@@ -40,9 +41,6 @@ class ModeManager;
 class ParameterManager;
 }  // namespace automation
 }  // namespace anolis
-
-// Typedef for provider map
-using ProviderMap = std::unordered_map<std::string, std::shared_ptr<anolis::provider::IProviderHandle>>;
 
 namespace anolis {
 namespace http {
@@ -74,13 +72,14 @@ public:
      * @param registry Device registry for inventory/capabilities
      * @param state_cache State cache for reading device state
      * @param call_router Call router for executing device functions
-     * @param providers Provider map for call execution
+     * @param provider_registry Provider registry for call execution
      * @param event_emitter Event emitter for SSE streaming
      * @param mode_manager Mode manager for automation control (optional)
      * @param parameter_manager Parameter manager for runtime parameters (optional)
      */
     HttpServer(const runtime::HttpConfig &config, int polling_interval_ms, registry::DeviceRegistry &registry,
-               state::StateCache &state_cache, control::CallRouter &call_router, ProviderMap &providers,
+               state::StateCache &state_cache, control::CallRouter &call_router,
+               provider::ProviderRegistry &provider_registry,
                std::shared_ptr<events::EventEmitter> event_emitter = nullptr,
                automation::ModeManager *mode_manager = nullptr,
                automation::ParameterManager *parameter_manager = nullptr);
@@ -126,7 +125,7 @@ private:
     registry::DeviceRegistry &registry_;
     state::StateCache &state_cache_;
     control::CallRouter &call_router_;
-    ProviderMap &providers_;
+    provider::ProviderRegistry &provider_registry_;
     automation::ParameterManager *parameter_manager_;  // optional
     std::shared_ptr<events::EventEmitter> event_emitter_;
     automation::ModeManager *mode_manager_;  // optional

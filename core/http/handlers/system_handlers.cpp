@@ -25,7 +25,7 @@ void HttpServer::handle_get_runtime_status(const httplib::Request &req, httplib:
     nlohmann::json providers_json = nlohmann::json::array();
     size_t total_device_count = 0;
 
-    for (const auto &[provider_id, provider] : providers_) {
+    for (const auto &[provider_id, provider] : provider_registry_.get_all_providers()) {
         auto devices = registry_.get_devices_for_provider(provider_id);
 
         std::string state = provider->is_available() ? "AVAILABLE" : "UNAVAILABLE";

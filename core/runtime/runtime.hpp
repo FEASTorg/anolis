@@ -12,6 +12,7 @@
 #include "events/event_emitter.hpp"
 #include "http/server.hpp"
 #include "provider/i_provider_handle.hpp"  // Changed to interface
+#include "provider/provider_registry.hpp"
 #include "provider/provider_supervisor.hpp"
 #include "registry/device_registry.hpp"
 #include "state/state_cache.hpp"
@@ -43,8 +44,8 @@ public:
     control::CallRouter &get_call_router() { return *call_router_; }
     events::EventEmitter &get_event_emitter() { return *event_emitter_; }
 
-    // Provider map access (for HTTP layer)
-    std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &get_providers() { return providers_; }
+    // Provider registry access (for HTTP layer)
+    provider::ProviderRegistry &get_provider_registry() { return provider_registry_; }
 
 private:
     // Staged initialization helpers
@@ -59,7 +60,7 @@ private:
 
     RuntimeConfig config_;
 
-    std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> providers_;
+    provider::ProviderRegistry provider_registry_;
     std::unique_ptr<registry::DeviceRegistry> registry_;
     std::shared_ptr<events::EventEmitter> event_emitter_;  // Shared with StateCache + HTTP
     std::unique_ptr<state::StateCache> state_cache_;

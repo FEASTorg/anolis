@@ -17,7 +17,8 @@ class CallRouter;
 }
 namespace provider {
 class IProviderHandle;
-}
+class ProviderRegistry;
+}  // namespace provider
 
 namespace automation {
 
@@ -90,7 +91,7 @@ private:
     T *get_service(const std::string &key);
 
     control::CallRouter *get_call_router();
-    std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> *get_providers();
+    provider::ProviderRegistry *get_provider_registry();
 };
 
 /**

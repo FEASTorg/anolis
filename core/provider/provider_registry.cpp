@@ -20,7 +20,7 @@ bool ProviderRegistry::remove_provider(const std::string& provider_id) {
 std::shared_ptr<IProviderHandle> ProviderRegistry::get_provider(const std::string& provider_id) const {
     // Shared read access - multiple threads can read concurrently
     std::shared_lock<std::shared_mutex> lock(mutex_);
-    
+
     auto it = providers_.find(provider_id);
     if (it != providers_.end()) {
         return it->second;  // Return shared_ptr copy (increments ref count)
@@ -37,14 +37,14 @@ std::unordered_map<std::string, std::shared_ptr<IProviderHandle>> ProviderRegist
 std::vector<std::string> ProviderRegistry::get_provider_ids() const {
     // Shared read access
     std::shared_lock<std::shared_mutex> lock(mutex_);
-    
+
     std::vector<std::string> ids;
     ids.reserve(providers_.size());
-    
+
     for (const auto& [id, provider] : providers_) {
         ids.push_back(id);
     }
-    
+
     return ids;
 }
 

@@ -19,7 +19,8 @@ constexpr int kStatusInternal = 500;
 }  // namespace
 
 HttpServer::HttpServer(const runtime::HttpConfig &config, int polling_interval_ms, registry::DeviceRegistry &registry,
-                       state::StateCache &state_cache, control::CallRouter &call_router, ProviderMap &providers,
+                       state::StateCache &state_cache, control::CallRouter &call_router,
+                       provider::ProviderRegistry &provider_registry,
                        std::shared_ptr<events::EventEmitter> event_emitter, automation::ModeManager *mode_manager,
                        automation::ParameterManager *parameter_manager)
     : config_(config),
@@ -27,7 +28,7 @@ HttpServer::HttpServer(const runtime::HttpConfig &config, int polling_interval_m
       registry_(registry),
       state_cache_(state_cache),
       call_router_(call_router),
-      providers_(providers),
+      provider_registry_(provider_registry),
       event_emitter_(std::move(event_emitter)),
       mode_manager_(mode_manager),
       parameter_manager_(parameter_manager) {}

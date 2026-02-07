@@ -266,7 +266,7 @@ TEST_F(ProviderRegistryTest, ConcurrentReadersAndWriters) {
                 auto all = registry->get_all_providers();
                 auto ids = registry->get_provider_ids();
 
-                //Try to get specific provider (may or may not exist)
+                // Try to get specific provider (may or may not exist)
                 auto provider = registry->get_provider("writer0_5");
 
                 // These operations should never crash
@@ -407,4 +407,3 @@ TEST_F(ProviderRegistryTest, MultipleOperationsIdempotent) {
     registry->clear();
     EXPECT_EQ(registry->provider_count(), 0);
 }
-

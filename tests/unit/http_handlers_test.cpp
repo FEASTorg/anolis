@@ -23,6 +23,7 @@
 #include "control/call_router.hpp"
 #include "http/server.hpp"
 #include "mocks/mock_provider_handle.hpp"
+#include "provider/provider_registry.hpp"
 #include "registry/device_registry.hpp"
 #include "runtime/config.hpp"
 #include "state/state_cache.hpp"
@@ -58,7 +59,8 @@ protected:
         EXPECT_CALL(*mock_provider, provider_id()).WillRepeatedly(ReturnRef(mock_provider->_id));
         EXPECT_CALL(*mock_provider, is_available()).WillRepeatedly(Return(true));
 
-        providers["test_provider"] = mock_provider;
+        provider_registry = std::make_unique<provider::ProviderRegistry>();
+        provider_registry->add_provider("test_provider", mock_provider);
 
         // Configure HTTP server for testing
         runtime::HttpConfig http_config;
@@ -70,7 +72,7 @@ protected:
         // Create HTTP server
         server = std::make_unique<HttpServer>(http_config,
                                               100,  // polling_interval_ms
-                                              *registry, *state_cache, *call_router, providers,
+                                              *registry, *state_cache, *call_router, *provider_registry,
                                               nullptr,  // event_emitter
                                               nullptr,  // mode_manager
                                               nullptr   // parameter_manager
@@ -144,14 +146,14 @@ protected:
                 return true;
             }));
 
-        state_cache->poll_once(providers);
+        state_cache->poll_once(*provider_registry);
     }
 
     std::unique_ptr<registry::DeviceRegistry> registry;
     std::unique_ptr<state::StateCache> state_cache;
     std::unique_ptr<control::CallRouter> call_router;
     std::shared_ptr<MockProviderHandle> mock_provider;
-    ProviderMap providers;
+    std::unique_ptr<provider::ProviderRegistry> provider_registry;
     std::unique_ptr<HttpServer> server;
     std::unique_ptr<httplib::Client> client;
 };

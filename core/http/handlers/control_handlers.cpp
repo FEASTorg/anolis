@@ -36,15 +36,15 @@ void HttpServer::handle_post_call(const httplib::Request &req, httplib::Response
         }
 
         // Check if provider exists
-        auto provider_it = providers_.find(provider_id);
-        if (provider_it == providers_.end()) {
+        auto provider = provider_registry_.get_provider(provider_id);
+        if (!provider) {
             send_json(res, StatusCode::NOT_FOUND,
                       make_error_response(StatusCode::NOT_FOUND, "Provider not found: " + provider_id));
             return;
         }
 
         // Check if provider is available
-        if (!provider_it->second->is_available()) {
+        if (!provider->is_available()) {
             send_json(res, StatusCode::UNAVAILABLE,
                       make_error_response(StatusCode::UNAVAILABLE, "Provider unavailable: " + provider_id));
             return;
@@ -81,7 +81,7 @@ void HttpServer::handle_post_call(const httplib::Request &req, httplib::Response
         call_request.args = args;
 
         // Execute call
-        auto result = call_router_.execute_call(call_request, providers_);
+        auto result = call_router_.execute_call(call_request, provider_registry_);
 
         if (!result.success) {
             // Map ADPP status code to internal StatusCode

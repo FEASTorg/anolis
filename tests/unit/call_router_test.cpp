@@ -10,6 +10,7 @@
 
 #include "automation/mode_manager.hpp"
 #include "mocks/mock_provider_handle.hpp"
+#include "provider/provider_registry.hpp"
 #include "registry/device_registry.hpp"
 #include "state/state_cache.hpp"
 
@@ -24,6 +25,7 @@ protected:
         state_cache = std::make_unique<state::StateCache>(*registry, 100);
         router = std::make_unique<control::CallRouter>(*registry, *state_cache);
         mode_manager = std::make_unique<automation::ModeManager>();
+        provider_registry = std::make_unique<provider::ProviderRegistry>();
 
         // Default: Connect router to mode manager with NO blocking
         router->set_mode_manager(mode_manager.get(), "OVERRIDE");
@@ -33,7 +35,7 @@ protected:
         EXPECT_CALL(*mock_provider, provider_id()).WillRepeatedly(ReturnRef(mock_provider->_id));
         EXPECT_CALL(*mock_provider, is_available()).WillRepeatedly(Return(true));
 
-        providers["sim0"] = mock_provider;
+        provider_registry->add_provider("sim0", mock_provider);
     }
 
     // ... existing RegisterMockDevice ...
@@ -66,8 +68,8 @@ protected:
     std::unique_ptr<state::StateCache> state_cache;
     std::unique_ptr<control::CallRouter> router;
     std::unique_ptr<automation::ModeManager> mode_manager;
+    std::unique_ptr<provider::ProviderRegistry> provider_registry;
     std::shared_ptr<MockProviderHandle> mock_provider;
-    std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> providers;
 };
 
 TEST_F(CallRouterTest, ExecuteCallSuccess) {
@@ -80,7 +82,7 @@ TEST_F(CallRouterTest, ExecuteCallSuccess) {
     // Successful call
     EXPECT_CALL(*mock_provider, call("dev1", _, "reset", _, _)).WillOnce(Return(true));
 
-    auto result = router->execute_call(req, providers);
+    auto result = router->execute_call(req, *provider_registry);
     EXPECT_TRUE(result.success);
     EXPECT_EQ(result.status_code, anolis::deviceprovider::v0::Status_Code_CODE_OK);
 }
@@ -97,7 +99,7 @@ TEST_F(CallRouterTest, ProviderUnavailable) {
     req.device_handle = "sim0/dev1";
     req.function_name = "reset";
 
-    auto result = router->execute_call(req, providers);
+    auto result = router->execute_call(req, *provider_registry);
     EXPECT_FALSE(result.success);
     EXPECT_EQ(result.status_code, anolis::deviceprovider::v0::Status_Code_CODE_UNAVAILABLE);
 }
@@ -109,7 +111,7 @@ TEST_F(CallRouterTest, InvalidFunction) {
     req.device_handle = "sim0/dev1";
     req.function_name = "explode";  // Not registered
 
-    auto result = router->execute_call(req, providers);
+    auto result = router->execute_call(req, *provider_registry);
     EXPECT_FALSE(result.success);
     EXPECT_EQ(result.status_code, anolis::deviceprovider::v0::Status_Code_CODE_NOT_FOUND);
 }
@@ -144,7 +146,7 @@ TEST_F(CallRouterTest, PreconditionFailure) {
     EXPECT_CALL(*mock_provider, last_error()).WillRepeatedly(ReturnRef(mock_provider->_err));
     mock_provider->_err = "Precondition failed";
 
-    auto result = router->execute_call(req, providers);
+    auto result = router->execute_call(req, *provider_registry);
     EXPECT_FALSE(result.success);
     EXPECT_EQ(result.status_code, anolis::deviceprovider::v0::Status_Code_CODE_FAILED_PRECONDITION);
 }
@@ -165,7 +167,7 @@ TEST_F(CallRouterTest, PolicyBlockInAuto) {
     // Expect NO CALL to provider
     EXPECT_CALL(*mock_provider, call(_, _, _, _, _)).Times(0);
 
-    auto result = router->execute_call(req, providers);
+    auto result = router->execute_call(req, *provider_registry);
     EXPECT_FALSE(result.success);
     EXPECT_EQ(result.status_code, anolis::deviceprovider::v0::Status_Code_CODE_FAILED_PRECONDITION);
     EXPECT_THAT(result.error_message, HasSubstr("blocked in AUTO"));
@@ -188,7 +190,7 @@ TEST_F(CallRouterTest, PolicyOverrideInAuto) {
     // Expect CALL to provider
     EXPECT_CALL(*mock_provider, call("dev1", _, "reset", _, _)).WillOnce(Return(true));
 
-    auto result = router->execute_call(req, providers);
+    auto result = router->execute_call(req, *provider_registry);
     EXPECT_TRUE(result.success);
 }
 
@@ -210,7 +212,7 @@ TEST_F(CallRouterTest, InvalidArgumentPropagation) {
     mock_provider->_err = "Invalid voltage";
     EXPECT_CALL(*mock_provider, last_error()).WillRepeatedly(ReturnRef(mock_provider->_err));
 
-    auto result = router->execute_call(req, providers);
+    auto result = router->execute_call(req, *provider_registry);
     EXPECT_FALSE(result.success);
     EXPECT_EQ(result.status_code, anolis::deviceprovider::v0::Status_Code_CODE_INVALID_ARGUMENT);
     EXPECT_THAT(result.error_message, HasSubstr("Invalid voltage"));

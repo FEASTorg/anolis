@@ -17,9 +17,7 @@ void CallRouter::set_mode_manager(automation::ModeManager *mode_manager, const s
     manual_gating_policy_ = gating_policy;
 }
 
-CallResult CallRouter::execute_call(
-    const CallRequest &request,
-    std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers) {
+CallResult CallRouter::execute_call(const CallRequest &request, provider::ProviderRegistry &provider_registry) {
     CallResult result;
     result.success = false;
 
@@ -57,15 +55,14 @@ CallResult CallRouter::execute_call(
     }
 
     // Get provider handle
-    auto provider_it = providers.find(provider_id);
-    if (provider_it == providers.end()) {
+    auto provider = provider_registry.get_provider(provider_id);
+    if (!provider) {
         result.error_message = "Provider not found: " + provider_id;
         result.status_code = anolis::deviceprovider::v0::Status_Code_CODE_NOT_FOUND;
         LOG_ERROR("[CallRouter] " << result.error_message);
         return result;
     }
 
-    auto &provider = provider_it->second;
     if (!provider->is_available()) {
         result.error_message = "Provider not available: " + provider_id;
         result.status_code = anolis::deviceprovider::v0::Status_Code_CODE_UNAVAILABLE;
@@ -108,7 +105,7 @@ CallResult CallRouter::execute_call(
     }
 
     // Post-call state update: immediate poll of affected device
-    state_cache_.poll_device_now(request.device_handle, providers);
+    state_cache_.poll_device_now(request.device_handle, provider_registry);
 
     result.success = true;
     return result;

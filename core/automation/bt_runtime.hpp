@@ -26,7 +26,8 @@ class CallRouter;
 }
 namespace provider {
 class IProviderHandle;
-}
+class ProviderRegistry;
+}  // namespace provider
 
 namespace automation {
 
@@ -70,13 +71,13 @@ public:
      *
      * @param state_cache Reference to state cache (for reading device state)
      * @param call_router Reference to call router (for device calls)
-     * @param providers Provider map (for CallRouter::execute_call)
+     * @param provider_registry Provider registry (for CallRouter::execute_call)
      * @param mode_manager Mode state machine (for AUTO/MANUAL gating)
      * @param parameter_manager Parameter manager (nullptr if not used)
      */
     BTRuntime(state::StateCache& state_cache, control::CallRouter& call_router,
-              std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>>& providers,
-              ModeManager& mode_manager, ParameterManager* parameter_manager = nullptr);
+              provider::ProviderRegistry& provider_registry, ModeManager& mode_manager,
+              ParameterManager* parameter_manager = nullptr);
 
     ~BTRuntime();
 
@@ -138,7 +139,7 @@ private:
     // Kernel service references (non-owning)
     state::StateCache& state_cache_;
     control::CallRouter& call_router_;
-    std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>>& providers_;
+    provider::ProviderRegistry& provider_registry_;
     ModeManager& mode_manager_;
     ParameterManager* parameter_manager_;  // nullable
 

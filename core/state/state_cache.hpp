@@ -12,6 +12,7 @@
 
 #include "protocol.pb.h"
 #include "provider/i_provider_handle.hpp"
+#include "provider/provider_registry.hpp"
 #include "registry/device_registry.hpp"
 
 // Forward declaration
@@ -69,13 +70,13 @@ public:
     bool initialize();
 
     // Start polling thread
-    void start_polling(std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers);
+    void start_polling(provider::ProviderRegistry &provider_registry);
 
     // Stop polling
     void stop_polling();
 
     // Poll once (for testing or manual control)
-    void poll_once(std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers);
+    void poll_once(provider::ProviderRegistry &provider_registry);
 
     // Read API - Thread-safe snapshots
     std::shared_ptr<DeviceState> get_device_state(const std::string &device_handle) const;
@@ -84,8 +85,7 @@ public:
                                                         const std::string &signal_id) const;
 
     // Immediate poll of specific device (post-call update)
-    void poll_device_now(const std::string &device_handle,
-                         std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> &providers);
+    void poll_device_now(const std::string &device_handle, provider::ProviderRegistry &provider_registry);
 
     // Status
     size_t device_count() const;

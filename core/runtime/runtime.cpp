@@ -32,7 +32,7 @@ bool Runtime::initialize(std::string &error) {
     }
 
     // Prime state cache once so initial HTTP calls observe a full snapshot
-    state_cache_->poll_once(providers_);
+    state_cache_->poll_once(provider_registry_);
 
     if (!init_automation(error)) {
         return false;
@@ -100,7 +100,7 @@ bool Runtime::init_providers(std::string &error) {
             return false;
         }
 
-        providers_[provider_config.id] = provider;
+        provider_registry_.add_provider(provider_config.id, provider);
     }
 
     LOG_INFO("[Runtime] All providers started");
@@ -223,9 +223,10 @@ bool Runtime::init_automation(std::string &error) {
     // Create and initialize BTRuntime if enabled
     if (config_.automation.enabled) {
         LOG_INFO("[Runtime] Creating BT runtime");
-        bt_runtime_ = std::make_unique<automation::BTRuntime>(*state_cache_, *call_router_, providers_, *mode_manager_,
-                                                              parameter_manager_.get()  // Pass parameter manager
-        );
+        bt_runtime_ =
+            std::make_unique<automation::BTRuntime>(*state_cache_, *call_router_, provider_registry_, *mode_manager_,
+                                                    parameter_manager_.get()  // Pass parameter manager
+            );
 
         if (!bt_runtime_->load_tree(config_.automation.behavior_tree)) {
             error = "Failed to load behavior tree: " + config_.automation.behavior_tree;
@@ -245,7 +246,7 @@ bool Runtime::init_http(std::string &error) {
     if (config_.http.enabled) {
         LOG_INFO("[Runtime] Creating HTTP server");
         http_server_ = std::make_unique<http::HttpServer>(
-            config_.http, config_.polling.interval_ms, *registry_, *state_cache_, *call_router_, providers_,
+            config_.http, config_.polling.interval_ms, *registry_, *state_cache_, *call_router_, provider_registry_,
             event_emitter_,           // Pass event emitter for SSE
             mode_manager_.get(),      // Pass mode manager (nullptr if automation disabled)
             parameter_manager_.get()  // Pass parameter manager (nullptr if automation disabled)
@@ -297,7 +298,7 @@ void Runtime::run() {
     running_ = true;
 
     // Start state cache polling
-    state_cache_->start_polling(providers_);
+    state_cache_->start_polling(provider_registry_);
 
     LOG_INFO("[Runtime] State cache polling active");
 
@@ -326,13 +327,11 @@ void Runtime::run() {
         // Check provider health and handle restarts
         for (const auto &provider_config : config_.providers) {
             const std::string &id = provider_config.id;
-            auto provider_it = providers_.find(id);
+            auto provider = provider_registry_.get_provider(id);
 
-            if (provider_it == providers_.end()) {
+            if (!provider) {
                 continue;  // Provider not initialized (shouldn't happen)
             }
-
-            auto &provider = provider_it->second;
 
             // Check if provider is available
             if (!provider->is_available()) {
@@ -404,17 +403,13 @@ void Runtime::shutdown() {
         state_cache_->stop_polling();
     }
 
-    for (auto &[id, provider] : providers_) {
-        LOG_INFO("[Runtime] Stopping provider: " << id);
-        // ProviderHandle/ProviderProcess destructor handles cleanup
-    }
-
-    providers_.clear();
+    // Provider cleanup handled by ProviderRegistry destructor
+    provider_registry_.clear();
 }
 
 bool Runtime::restart_provider(const std::string &provider_id, const ProviderConfig &provider_config) {
     // Remove old provider instance
-    providers_.erase(provider_id);
+    provider_registry_.remove_provider(provider_id);
 
     // Clear devices from registry
     registry_->clear_provider_devices(provider_id);
@@ -439,8 +434,8 @@ bool Runtime::restart_provider(const std::string &provider_id, const ProviderCon
         return false;
     }
 
-    // Re-add to provider map
-    providers_[provider_id] = provider;
+    // Re-add to provider registry
+    provider_registry_.add_provider(provider_id, provider);
 
     LOG_INFO("[Runtime] Provider " << provider_id << " restarted and devices rediscovered");
     return true;

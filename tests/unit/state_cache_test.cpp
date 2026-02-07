@@ -12,6 +12,7 @@
 
 #include "mocks/mock_provider_handle.hpp"
 #include "provider/i_provider_handle.hpp"
+#include "provider/provider_registry.hpp"
 #include "registry/device_registry.hpp"
 
 using namespace anolis;
@@ -22,10 +23,11 @@ class StateCacheTest : public Test {
 protected:
     void SetUp() override {
         registry = std::make_unique<registry::DeviceRegistry>();
+        provider_registry = std::make_unique<provider::ProviderRegistry>();
         mock_provider = std::make_shared<StrictMock<MockProviderHandle>>();
         EXPECT_CALL(*mock_provider, provider_id()).WillRepeatedly(ReturnRef(mock_provider->_id));
         EXPECT_CALL(*mock_provider, is_available()).WillRepeatedly(Return(true));
-        providers["sim0"] = mock_provider;
+        provider_registry->add_provider("sim0", mock_provider);
     }
 
     void RegisterMockDevice() {
@@ -58,9 +60,9 @@ protected:
     }
 
     std::unique_ptr<registry::DeviceRegistry> registry;
+    std::unique_ptr<provider::ProviderRegistry> provider_registry;
     std::shared_ptr<MockProviderHandle> mock_provider;
     std::unique_ptr<state::StateCache> state_cache;
-    std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> providers;
 };
 
 TEST_F(StateCacheTest, Initialization) {
@@ -92,7 +94,7 @@ TEST_F(StateCacheTest, PollAndRead) {
             return true;
         }));
 
-    state_cache->poll_once(providers);
+    state_cache->poll_once(*provider_registry);
 
     auto result = state_cache->get_signal_value("sim0/dev1", "temp");
     ASSERT_TRUE(result != nullptr);
@@ -115,7 +117,7 @@ TEST_F(StateCacheTest, Staleness) {
             return true;
         }));
 
-    state_cache->poll_once(providers);
+    state_cache->poll_once(*provider_registry);
     auto result = state_cache->get_signal_value("sim0/dev1", "temp");
     ASSERT_TRUE(result != nullptr);
     EXPECT_TRUE(result->is_stale(std::chrono::seconds(2)));
@@ -137,7 +139,7 @@ TEST_F(StateCacheTest, TimeBasedStaleness) {
         }));
 
     // Perform poll
-    state_cache->poll_once(providers);
+    state_cache->poll_once(*provider_registry);
 
     // Capture the time "now" effectively used by the poll (it uses system_clock internally for setting timestamp during
     // poll) Actually, poll_once sets the timestamp = now(). We can't easily inject time into poll_once without
@@ -188,7 +190,7 @@ TEST_F(StateCacheTest, ConcurrencyStress) {
                 }));
 
         while (running) {
-            state_cache->poll_once(providers);
+            state_cache->poll_once(*provider_registry);
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
         }
     });
