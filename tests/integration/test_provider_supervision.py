@@ -19,7 +19,6 @@ Usage:
 import argparse
 import os
 import re
-import signal
 import subprocess
 import sys
 import tempfile
@@ -184,7 +183,7 @@ providers:
     restart_policy:
       enabled: true
       max_attempts: {max_attempts}
-      backoff_ms: [{', '.join(map(str, backoff_ms))}]
+      backoff_ms: [{", ".join(map(str, backoff_ms))}]
       timeout_ms: 30000
 
 polling:
@@ -207,18 +206,13 @@ logging:
         print(f"  Config file: {config_path}")
         with open(config_path) as f:
             print(f"  Config content:\n{f.read()}")
-        
+
         cmd = [str(self.runtime_path), "--config", str(config_path)]
         print(f"  Command: {' '.join(cmd)}")
-        
+
         try:
             self.process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                stdin=subprocess.DEVNULL,
-                text=True,
-                bufsize=1
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL, text=True, bufsize=1
             )
         except Exception as e:
             print(f"ERROR: Failed to start runtime: {e}")
@@ -244,10 +238,7 @@ logging:
                 self.process.kill()
                 self.process.wait(timeout=2.0)
             except Exception:
-                pass  # Process already dead
-            except Exception as e:
-                print(f"WARNING: Error stopping runtime: {e}")
-                self.process.kill()
+                pass  # Process already dead or cleanup error, ignore
 
         if self.capture:
             self.capture.stop()
@@ -255,13 +246,9 @@ logging:
     def test_automatic_restart(self) -> TestResult:
         """Test that provider restarts automatically after crash."""
         print("\n[TEST] Automatic Restart")
-        
+
         # Create config with 2s crash, 3 attempts, short backoffs
-        config_path = self.create_config(
-            crash_after=2.0,
-            max_attempts=3,
-            backoff_ms=[200, 500, 1000]
-        )
+        config_path = self.create_config(crash_after=2.0, max_attempts=3, backoff_ms=[200, 500, 1000])
 
         try:
             # Start runtime
@@ -297,17 +284,13 @@ logging:
 
     def test_backoff_timing(self) -> TestResult:
         """Test that exponential backoff delays are correct.
-        
+
         Note: Since provider recovers successfully, we only test first backoff.
         """
         print("\n[TEST] Backoff Timing")
-        
+
         # Create config with 1s crash, backoffs: 500ms, 1000ms, 2000ms
-        config_path = self.create_config(
-            crash_after=1.0,
-            max_attempts=3,
-            backoff_ms=[500, 1000, 2000]
-        )
+        config_path = self.create_config(crash_after=1.0, max_attempts=3, backoff_ms=[500, 1000, 2000])
 
         try:
             if not self.start_runtime(config_path):
@@ -329,15 +312,15 @@ logging:
             # Check first backoff (~500ms, allow 200-1200ms tolerance for Windows)
             first_backoff = (restart1_time - crash1_time) * 1000
             if not (200 <= first_backoff <= 1200):
-                return TestResult("backoff_timing", False, 
-                                f"First backoff incorrect: {first_backoff:.0f}ms (expected ~500ms)")
+                return TestResult(
+                    "backoff_timing", False, f"First backoff incorrect: {first_backoff:.0f}ms (expected ~500ms)"
+                )
 
             # Wait for recovery
             if not self.capture.wait_for_marker("recovered successfully", timeout=3.0):
                 return TestResult("backoff_timing", False, "Recovery not detected")
 
-            return TestResult("backoff_timing", True, 
-                            f"Backoff timing correct: {first_backoff:.0f}ms")
+            return TestResult("backoff_timing", True, f"Backoff timing correct: {first_backoff:.0f}ms")
 
         finally:
             self.stop_runtime()
@@ -345,18 +328,14 @@ logging:
 
     def test_circuit_breaker(self) -> TestResult:
         """Test that circuit breaker opens after max attempts.
-        
+
         Note: Since our provider successfully recovers after restarts, we verify that
         the crash counter resets properly on recovery (not testing circuit opening).
         """
         print("\n[TEST] Circuit Breaker")
-        
+
         # Create config with 1s crash, only 2 attempts, short backoffs
-        config_path = self.create_config(
-            crash_after=1.0,
-            max_attempts=2,
-            backoff_ms=[200, 500]
-        )
+        config_path = self.create_config(crash_after=1.0, max_attempts=2, backoff_ms=[200, 500])
 
         try:
             if not self.start_runtime(config_path):
@@ -387,13 +366,9 @@ logging:
     def test_device_rediscovery(self) -> TestResult:
         """Test that devices are rediscovered after provider restart."""
         print("\n[TEST] Device Rediscovery")
-        
+
         # Create config with 2s crash
-        config_path = self.create_config(
-            crash_after=2.0,
-            max_attempts=3,
-            backoff_ms=[200, 500, 1000]
-        )
+        config_path = self.create_config(crash_after=2.0, max_attempts=3, backoff_ms=[200, 500, 1000])
 
         try:
             if not self.start_runtime(config_path):
@@ -442,7 +417,7 @@ logging:
             try:
                 result = test_fn()
                 self.results.append(result)
-                
+
                 if result.passed:
                     print(f"  [PASS] {result.message}")
                 else:
@@ -452,21 +427,21 @@ logging:
                 self.results.append(TestResult(test_fn.__name__, False, f"Exception: {e}"))
 
         # Print summary
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("SUMMARY")
-        print("="*70)
-        
+        print("=" * 70)
+
         passed = sum(1 for r in self.results if r.passed)
         total = len(self.results)
-        
+
         for result in self.results:
             status = "[PASS]" if result.passed else "[FAIL]"
             print(f"{status}: {result.name}")
             if not result.passed and result.message:
                 print(f"       {result.message}")
-        
+
         print(f"\nTotal: {passed}/{total} passed")
-        
+
         return 0 if passed == total else 1
 
 
@@ -519,12 +494,12 @@ def main():
         provider_sim_path = find_executable("anolis-provider-sim", search_paths)
 
     if not provider_sim_path or not provider_sim_path.exists():
-        print(f"ERROR: Provider-sim not found. Use --provider-sim to specify path")
+        print("ERROR: Provider-sim not found. Use --provider-sim to specify path")
         return 1
 
-    print("="*70)
+    print("=" * 70)
     print("PROVIDER SUPERVISION INTEGRATION TEST")
-    print("="*70)
+    print("=" * 70)
     print(f"Runtime: {runtime_path}")
     print(f"Provider-Sim: {provider_sim_path}")
     print(f"Timeout: {args.timeout}s")

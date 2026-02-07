@@ -340,7 +340,8 @@ public:
      * @param default_queue_size Default max events per subscriber queue
      * @param max_subscribers Maximum concurrent subscribers (0 = unlimited)
      */
-    explicit EventEmitter(size_t default_queue_size = 100, size_t max_subscribers = 32)  // NOLINT(bugprone-easily-swappable-parameters)
+    explicit EventEmitter(size_t default_queue_size = 100,
+                          size_t max_subscribers = 32)  // NOLINT(bugprone-easily-swappable-parameters)
         : default_queue_size_(default_queue_size),
           max_subscribers_(max_subscribers),
           next_subscription_id_(1),
