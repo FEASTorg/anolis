@@ -27,7 +27,7 @@ struct FunctionSpec {
     uint32_t function_id;
     std::string function_name;
     std::string label;
-    std::vector<std::string> param_ids;
+    std::vector<anolis::deviceprovider::v0::ArgSpec> args;  // Full ArgSpec for validation
 };
 
 // Immutable device capabilities (populated from DescribeDevice)

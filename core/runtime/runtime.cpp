@@ -5,6 +5,7 @@
 
 #include "logging/logger.hpp"
 #include "provider/provider_handle.hpp"  // Required for instantiation
+#include "signal_handler.hpp"
 
 namespace anolis {
 namespace runtime {
@@ -307,6 +308,13 @@ void Runtime::run() {
     // Future: HTTP server, BT engine, etc. will run here
     while (running_) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+        // Check for shutdown signal
+        if (anolis::runtime::SignalHandler::is_shutdown_requested()) {
+            LOG_INFO("[Runtime] Signal received, stopping...");
+            running_ = false;
+            break;
+        }
 
         // Check provider health
         for (const auto &[id, provider] : providers_) {

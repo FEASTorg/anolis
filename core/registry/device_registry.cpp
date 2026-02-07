@@ -116,8 +116,9 @@ bool DeviceRegistry::build_capabilities(const anolis::deviceprovider::v0::Device
         spec.function_name = function.name();
         spec.label = function.description();
 
+        // Store full ArgSpec for validation (type, required, min/max constraints)
         for (const auto &arg : function.args()) {
-            spec.param_ids.push_back(arg.name());
+            spec.args.push_back(arg);
         }
 
         caps.functions_by_id[spec.function_name] = spec;

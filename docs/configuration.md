@@ -2,6 +2,9 @@
 
 Anolis Runtime is configured via a YAML file (default: `anolis-runtime.yaml`).
 
+> **📖 Complete Schema Reference:**
+> See [configuration-schema.md](configuration-schema.md) for the canonical v1.0 schema with validation rules, constraints, and migration notes.
+
 ## Structure
 
 ```yaml
@@ -17,13 +20,13 @@ http:
     - http://localhost:3000
     - http://127.0.0.1:3000
   cors_allow_credentials: false
-  thread_pool_size: 40    # Worker threads (default: 40)
+  thread_pool_size: 40 # Worker threads (default: 40)
 
 polling:
-  interval_ms: 500        # Device polling interval
+  interval_ms: 500 # Device polling interval
 
 logging:
-  level: info             # debug, info, warn, error
+  level: info # debug, info, warn, error
 
 telemetry:
   enabled: false

@@ -75,7 +75,7 @@ FAULT mode is _policy_, not a certified safety mechanism.
 ## Demo & Documentation
 
 Demo behavior tree available at: `behaviors/demo.xml`
-Comprehensive documentation: `docs/automation.md`
+Full documentation: `docs/automation.md`
 
 Enable automation in `anolis-runtime.yaml`:
 

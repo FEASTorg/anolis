@@ -187,12 +187,43 @@ nlohmann::json encode_signal_spec(const registry::SignalSpec &spec) {
 }
 
 nlohmann::json encode_function_spec(const registry::FunctionSpec &spec) {
-    // Build args structure
+    // Build args structure with full ArgSpec metadata
     nlohmann::json args = nlohmann::json::object();
-    for (const auto &param_id : spec.param_ids) {
-        // Note: param types not currently tracked in FunctionSpec
-        // Would need to extend registry to include param type info
-        args[param_id] = nlohmann::json::object();
+    for (const auto &arg : spec.args) {
+        nlohmann::json arg_info = {{"type", value_type_to_string(arg.type())}, {"required", arg.required()}};
+
+        // Add description if present
+        if (!arg.description().empty()) {
+            arg_info["description"] = arg.description();
+        }
+
+        // Add unit if present
+        if (!arg.unit().empty()) {
+            arg_info["unit"] = arg.unit();
+        }
+
+        // Add range constraints for numeric types
+        if (arg.type() == anolis::deviceprovider::v0::VALUE_TYPE_DOUBLE) {
+            bool has_bounds = arg.min_double() != 0.0 || arg.max_double() != 0.0;
+            if (has_bounds) {
+                arg_info["min"] = arg.min_double();
+                arg_info["max"] = arg.max_double();
+            }
+        } else if (arg.type() == anolis::deviceprovider::v0::VALUE_TYPE_INT64) {
+            bool has_bounds = arg.min_int64() != 0 || arg.max_int64() != 0;
+            if (has_bounds) {
+                arg_info["min"] = arg.min_int64();
+                arg_info["max"] = arg.max_int64();
+            }
+        } else if (arg.type() == anolis::deviceprovider::v0::VALUE_TYPE_UINT64) {
+            bool has_bounds = arg.min_uint64() != 0 || arg.max_uint64() != 0;
+            if (has_bounds) {
+                arg_info["min"] = static_cast<int64_t>(arg.min_uint64());
+                arg_info["max"] = static_cast<int64_t>(arg.max_uint64());
+            }
+        }
+
+        args[arg.name()] = arg_info;
     }
 
     return {{"function_id", spec.function_id}, {"name", spec.function_name}, {"label", spec.label}, {"args", args}};

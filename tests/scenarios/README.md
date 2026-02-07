@@ -1,6 +1,6 @@
 # Validation Scenario Suite
 
-Comprehensive test scenarios validating anolis runtime behavior against the provider-sim dry-run machine.
+These are our test scenarios validating anolis runtime behavior against the provider-sim dry-run machine.
 
 ## Overview
 

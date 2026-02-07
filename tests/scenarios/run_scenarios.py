@@ -116,16 +116,17 @@ class ScenarioRunner:
 
         # Create temporary config file
         config = {
-            "http": {"enabled": True, "port": self.port, "host": "127.0.0.1"},
+            "runtime": {"mode": "MANUAL"},
+            "http": {"enabled": True, "port": self.port, "bind": "127.0.0.1"},
             "providers": [
                 {
                     "id": "sim0",
-                    "type": "stdio",
                     "command": self.provider_path,
                     "args": [],
                 }
             ],
-            "control": {"default_mode": "MANUAL"},
+            "polling": {"interval_ms": 500},
+            "logging": {"level": "info"},
             "automation": {
                 "enabled": True,
                 "behavior_tree": str(bt_path),

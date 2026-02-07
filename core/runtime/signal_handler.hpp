@@ -1,20 +1,18 @@
 #pragma once
 
 #include <atomic>
-#include <functional>
 
 namespace anolis {
 namespace runtime {
 
 class SignalHandler {
 public:
-    using Callback = std::function<void()>;
-
-    static void install(Callback callback);
+    static void install();
+    static bool is_shutdown_requested();
 
 private:
     static void handle_signal(int signal);
-    static Callback callback_;
+    static std::atomic<bool> shutdown_requested_;
 };
 
 }  // namespace runtime

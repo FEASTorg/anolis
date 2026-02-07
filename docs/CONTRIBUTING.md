@@ -181,6 +181,90 @@ dmesg 2>/dev/null | grep -i "oom\|killed" || true
 
 ---
 
+## Signal Handling Safety
+
+The Anolis runtime uses POSIX signal handlers for graceful shutdown (SIGINT/SIGTERM).
+Signal handlers have **strict safety constraints** that must be followed.
+
+### Async-Signal-Safe Requirements
+
+According to POSIX standards, signal handlers may **only** call async-signal-safe functions.
+Most C/C++ standard library functions are **NOT** safe, including:
+
+- ❌ `malloc/free`, `new/delete` (heap allocation)
+- ❌ `std::mutex::lock()`, `std::lock_guard` (mutexes)
+- ❌ `LOG_INFO()`, `std::cout`, `printf()` (I/O operations)
+- ❌ `std::function` callback invocation (may allocate)
+- ✅ `std::atomic<T>::load/store()` (safe)
+- ✅ Writing to `volatile sig_atomic_t` (safe, but atomic preferred)
+
+**Violation Consequences**: Deadlocks, crashes, undefined behavior (especially under ThreadSanitizer/ASAN).
+
+### Implementation Pattern
+
+The runtime uses an **atomic flag polling pattern**:
+
+```cpp
+// signal_handler.hpp
+class SignalHandler {
+public:
+    static void install();
+    static bool is_shutdown_requested();
+private:
+    static void handle_signal(int signal);
+    static std::atomic<bool> shutdown_requested_;
+};
+
+// signal_handler.cpp
+std::atomic<bool> SignalHandler::shutdown_requested_{false};
+
+void SignalHandler::handle_signal(int signal) {
+    // ONLY atomic operations in signal context
+    shutdown_requested_.store(true);
+    // NO callbacks, NO logging, NO mutexes
+}
+
+bool SignalHandler::is_shutdown_requested() {
+    return shutdown_requested_.load();
+}
+
+// Main loop polls the flag
+while (running_) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    if (SignalHandler::is_shutdown_requested()) {
+        LOG_INFO("Signal received, stopping...");  // Safe: not in signal context
+        running_ = false;
+        break;
+    }
+}
+```
+
+### Testing
+
+Signal handling is validated by `tests/integration/test_signal_handling.py`:
+
+```bash
+python tests/integration/test_signal_handling.py
+```
+
+This test verifies:
+
+- Clean shutdown on SIGINT (Ctrl+C)
+- Clean shutdown on SIGTERM (kill)
+- No hangs or deadlocks
+- Shutdown completes within timeout
+
+Run with ThreadSanitizer when available to detect data races:
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Debug -DSANITIZER=thread
+cmake --build build
+python tests/integration/test_signal_handling.py --runtime=build/core/anolis-runtime
+```
+
+---
+
 ## Code Style
 
 - **C++**: Modern C++17, prefer value semantics

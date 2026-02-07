@@ -1,6 +1,7 @@
 #include "call_router.hpp"
 
 #include <sstream>
+#include <unordered_map>
 
 #include "automation/mode_manager.hpp"
 #include "logging/logger.hpp"
@@ -169,26 +170,176 @@ bool CallRouter::validate_function_exists(const registry::RegisteredDevice &devi
 bool CallRouter::validate_arguments(const registry::FunctionSpec &spec,
                                     const std::map<std::string, anolis::deviceprovider::v0::Value> &args,
                                     std::string &error) const {
-    // v0: Basic validation - check that all required params are present
-    // TODO: Full type checking would require ArgSpec metadata
-
-    // For now, just verify we have the expected number of arguments
-    if (args.size() != spec.param_ids.size()) {
-        std::ostringstream oss;
-        oss << "Argument count mismatch: expected " << spec.param_ids.size() << ", got " << args.size();
-        error = oss.str();
-        return false;
+    // Build arg name to ArgSpec map for validation
+    std::unordered_map<std::string, const anolis::deviceprovider::v0::ArgSpec *> spec_map;
+    for (const auto &arg_spec : spec.args) {
+        spec_map[arg_spec.name()] = &arg_spec;
     }
 
-    // Check that all expected parameters are present
-    for (const auto &param_id : spec.param_ids) {
-        if (args.find(param_id) == args.end()) {
-            error = "Missing required argument: " + param_id;
+    // Check all required arguments are present
+    for (const auto &arg_spec : spec.args) {
+        if (arg_spec.required() && args.find(arg_spec.name()) == args.end()) {
+            error = "Missing required argument: " + arg_spec.name();
+            return false;
+        }
+    }
+
+    // Validate provided arguments
+    for (const auto &[arg_name, arg_value] : args) {
+        // Check that argument is expected
+        auto spec_it = spec_map.find(arg_name);
+        if (spec_it == spec_map.end()) {
+            error = "Unknown argument: " + arg_name;
+            return false;
+        }
+
+        const auto &arg_spec = *spec_it->second;
+
+        // Type validation
+        if (!validate_argument_type(arg_spec, arg_value, error)) {
+            error = "Argument '" + arg_name + "': " + error;
+            return false;
+        }
+
+        // Range validation for numeric types
+        if (!validate_argument_range(arg_spec, arg_value, error)) {
+            error = "Argument '" + arg_name + "': " + error;
             return false;
         }
     }
 
     return true;
+}
+
+bool CallRouter::validate_argument_type(const anolis::deviceprovider::v0::ArgSpec &spec,
+                                        const anolis::deviceprovider::v0::Value &value, std::string &error) const {
+    using ValueType = anolis::deviceprovider::v0::ValueType;
+
+    // Check that value type matches spec type
+    bool type_match = false;
+    switch (spec.type()) {
+        case ValueType::VALUE_TYPE_BOOL:
+            type_match = value.has_bool_value();
+            break;
+        case ValueType::VALUE_TYPE_INT64:
+            type_match = value.has_int64_value();
+            break;
+        case ValueType::VALUE_TYPE_UINT64:
+            type_match = value.has_uint64_value();
+            break;
+        case ValueType::VALUE_TYPE_DOUBLE:
+            type_match = value.has_double_value();
+            break;
+        case ValueType::VALUE_TYPE_STRING:
+            type_match = value.has_string_value();
+            break;
+        case ValueType::VALUE_TYPE_BYTES:
+            type_match = value.has_bytes_value();
+            break;
+        default:
+            error = "Unknown type in ArgSpec";
+            return false;
+    }
+
+    if (!type_match) {
+        error = "Type mismatch: expected " + value_type_to_string(spec.type()) + ", got " +
+                value_type_to_string(value.type());
+        return false;
+    }
+
+    return true;
+}
+
+bool CallRouter::validate_argument_range(const anolis::deviceprovider::v0::ArgSpec &spec,
+                                         const anolis::deviceprovider::v0::Value &value, std::string &error) const {
+    using ValueType = anolis::deviceprovider::v0::ValueType;
+
+    switch (spec.type()) {
+        case ValueType::VALUE_TYPE_DOUBLE: {
+            double val = value.double_value();
+            // Check if bounds are set (protobuf defaults to 0.0)
+            // We use -inf/+inf to indicate unbounded
+            bool has_min = spec.min_double() != 0.0 || spec.max_double() != 0.0;
+            bool has_max = spec.min_double() != 0.0 || spec.max_double() != 0.0;
+
+            if (has_min && val < spec.min_double()) {
+                std::ostringstream oss;
+                oss << "Value " << val << " below minimum " << spec.min_double();
+                error = oss.str();
+                return false;
+            }
+            if (has_max && val > spec.max_double()) {
+                std::ostringstream oss;
+                oss << "Value " << val << " above maximum " << spec.max_double();
+                error = oss.str();
+                return false;
+            }
+            break;
+        }
+        case ValueType::VALUE_TYPE_INT64: {
+            int64_t val = value.int64_value();
+            bool has_min = spec.min_int64() != 0 || spec.max_int64() != 0;
+            bool has_max = spec.min_int64() != 0 || spec.max_int64() != 0;
+
+            if (has_min && val < spec.min_int64()) {
+                std::ostringstream oss;
+                oss << "Value " << val << " below minimum " << spec.min_int64();
+                error = oss.str();
+                return false;
+            }
+            if (has_max && val > spec.max_int64()) {
+                std::ostringstream oss;
+                oss << "Value " << val << " above maximum " << spec.max_int64();
+                error = oss.str();
+                return false;
+            }
+            break;
+        }
+        case ValueType::VALUE_TYPE_UINT64: {
+            uint64_t val = value.uint64_value();
+            bool has_min = spec.min_uint64() != 0 || spec.max_uint64() != 0;
+            bool has_max = spec.min_uint64() != 0 || spec.max_uint64() != 0;
+
+            if (has_min && val < spec.min_uint64()) {
+                std::ostringstream oss;
+                oss << "Value " << val << " below minimum " << spec.min_uint64();
+                error = oss.str();
+                return false;
+            }
+            if (has_max && val > spec.max_uint64()) {
+                std::ostringstream oss;
+                oss << "Value " << val << " above maximum " << spec.max_uint64();
+                error = oss.str();
+                return false;
+            }
+            break;
+        }
+        default:
+            // No range validation for bool, string, bytes
+            break;
+    }
+
+    return true;
+}
+
+std::string CallRouter::value_type_to_string(anolis::deviceprovider::v0::ValueType type) const {
+    using ValueType = anolis::deviceprovider::v0::ValueType;
+    switch (type) {
+        case ValueType::VALUE_TYPE_BOOL:
+            return "bool";
+        case ValueType::VALUE_TYPE_INT64:
+            return "int64";
+        case ValueType::VALUE_TYPE_UINT64:
+            return "uint64";
+        case ValueType::VALUE_TYPE_DOUBLE:
+            return "double";
+        case ValueType::VALUE_TYPE_STRING:
+            return "string";
+        case ValueType::VALUE_TYPE_BYTES:
+            return "bytes";
+        default:
+            return "unknown";
+    }
 }
 
 bool CallRouter::parse_device_handle(const std::string &device_handle, std::string &provider_id, std::string &device_id,

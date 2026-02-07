@@ -70,6 +70,11 @@ private:
     bool validate_arguments(const registry::FunctionSpec &spec,
                             const std::map<std::string, anolis::deviceprovider::v0::Value> &args,
                             std::string &error) const;
+    bool validate_argument_type(const anolis::deviceprovider::v0::ArgSpec &spec,
+                                const anolis::deviceprovider::v0::Value &value, std::string &error) const;
+    bool validate_argument_range(const anolis::deviceprovider::v0::ArgSpec &spec,
+                                 const anolis::deviceprovider::v0::Value &value, std::string &error) const;
+    std::string value_type_to_string(anolis::deviceprovider::v0::ValueType type) const;
 
     // Helper: Parse device_handle into provider_id and device_id
     bool parse_device_handle(const std::string &device_handle, std::string &provider_id, std::string &device_id,

@@ -8,6 +8,7 @@ add_executable(anolis_unit_tests
     sanity_test.cpp
     state_cache_test.cpp
     call_router_test.cpp
+    config_test.cpp
 )
 
 target_include_directories(anolis_unit_tests PRIVATE
@@ -19,6 +20,7 @@ target_include_directories(anolis_unit_tests PRIVATE
 target_link_libraries(anolis_unit_tests PRIVATE
     GTest::gtest
     GTest::gmock
+    anolis_runtime
     anolis_state
     anolis_control
     anolis_automation

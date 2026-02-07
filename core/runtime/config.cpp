@@ -115,6 +115,23 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
     try {
         YAML::Node yaml = YAML::LoadFile(config_path);
 
+        // Check for unknown top-level keys
+        const std::vector<std::string> valid_keys = {"runtime",   "http",    "providers", "polling",
+                                                     "telemetry", "logging", "automation"};
+        for (const auto &key_node : yaml) {
+            std::string key = key_node.first.as<std::string>();
+            bool known = false;
+            for (const auto &valid_key : valid_keys) {
+                if (key == valid_key) {
+                    known = true;
+                    break;
+                }
+            }
+            if (!known) {
+                LOG_WARN("[Config] Unknown top-level key: '" << key << "' (will be ignored)");
+            }
+        }
+
         // Load runtime mode config
         if (yaml["runtime"]) {
             if (yaml["runtime"]["mode"]) {
@@ -208,7 +225,22 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
                 config.telemetry.enabled = yaml["telemetry"]["enabled"].as<bool>();
             }
 
-            // InfluxDB settings
+            // Check for deprecated flat keys
+            const std::vector<std::string> deprecated_flat_keys = {"influx_url",   "influx_org", "influx_bucket",
+                                                                   "influx_token", "batch_size", "flush_interval_ms"};
+            for (const auto &deprecated_key : deprecated_flat_keys) {
+                if (yaml["telemetry"][deprecated_key]) {
+                    // Strip "influx_" prefix if present for canonical key name
+                    std::string canonical_key = deprecated_key;
+                    if (canonical_key.find("influx_") == 0) {
+                        canonical_key = canonical_key.substr(7);  // Remove "influx_" prefix
+                    }
+                    LOG_WARN("[Config] Deprecated telemetry key 'telemetry."
+                             << deprecated_key << "' - use 'telemetry.influxdb." << canonical_key << "' instead");
+                }
+            }
+
+            // InfluxDB settings (canonical nested structure)
             if (yaml["telemetry"]["influxdb"]) {
                 auto influx = yaml["telemetry"]["influxdb"];
 
