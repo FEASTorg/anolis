@@ -7,7 +7,7 @@ Outputs per-check, per-file, most common messages, and file+check hot spots.
 Usage:
   python scripts/summarize_clang_tidy.py [-n TOP] [-o output.log] path/to/clang-tidy.log
 Example:
-    python scripts/summarize_clang_tidy.py -n 50 -o clang-tidy-summary.log clang-tidy.log
+    python scripts/summarize_clang_tidy.py -n 25 -o clang-tidy-summary.log clang-tidy.log
 """
 
 from __future__ import annotations
