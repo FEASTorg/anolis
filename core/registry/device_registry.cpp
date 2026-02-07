@@ -90,6 +90,27 @@ std::vector<const RegisteredDevice *> DeviceRegistry::get_devices_for_provider(c
     return result;
 }
 
+void DeviceRegistry::clear_provider_devices(const std::string &provider_id) {
+    LOG_INFO("[Registry] Clearing devices for provider: " << provider_id);
+
+    // Remove all devices matching provider_id
+    auto new_end = std::remove_if(devices_.begin(), devices_.end(),
+                                   [&provider_id](const RegisteredDevice &device) {
+                                       return device.provider_id == provider_id;
+                                   });
+
+    size_t removed_count = std::distance(new_end, devices_.end());
+    devices_.erase(new_end, devices_.end());
+
+    // Rebuild handle index since indices may have shifted
+    handle_to_index_.clear();
+    for (size_t i = 0; i < devices_.size(); ++i) {
+        handle_to_index_[devices_[i].get_handle()] = i;
+    }
+
+    LOG_INFO("[Registry] Removed " << removed_count << " devices from provider " << provider_id);
+}
+
 bool DeviceRegistry::build_capabilities(const anolis::deviceprovider::v0::Device &proto_device,
                                         const anolis::deviceprovider::v0::CapabilitySet &proto_caps,
                                         DeviceCapabilitySet &caps) {

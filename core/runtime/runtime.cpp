@@ -5,6 +5,7 @@
 
 #include "logging/logger.hpp"
 #include "provider/provider_handle.hpp"  // Required for instantiation
+#include "provider/provider_supervisor.hpp"
 #include "signal_handler.hpp"
 
 namespace anolis {
@@ -67,6 +68,10 @@ bool Runtime::init_core_services(std::string &error) {
     // Create call router
     call_router_ = std::make_unique<control::CallRouter>(*registry_, *state_cache_);
 
+    // Create provider supervisor
+    supervisor_ = std::make_unique<provider::ProviderSupervisor>();
+    LOG_INFO("[Runtime] Provider supervisor created");
+
     return true;
 }
 
@@ -85,6 +90,9 @@ bool Runtime::init_providers(std::string &error) {
         }
 
         LOG_INFO("[Runtime] Provider " << provider_config.id << " started");
+
+        // Register provider with supervisor
+        supervisor_->register_provider(provider_config.id, provider_config.restart_policy);
 
         // Discover devices
         if (!registry_->discover_provider(provider_config.id, *provider)) {
@@ -304,8 +312,7 @@ void Runtime::run() {
 
     LOG_INFO("[Runtime] Press Ctrl+C to exit");
 
-    // Main loop (v0: just keep polling alive)
-    // Future: HTTP server, BT engine, etc. will run here
+    // Main loop: polling, provider health monitoring, crash recovery
     while (running_) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -316,10 +323,41 @@ void Runtime::run() {
             break;
         }
 
-        // Check provider health
-        for (const auto &[id, provider] : providers_) {
+        // Check provider health and handle restarts
+        for (const auto &provider_config : config_.providers) {
+            const std::string &id = provider_config.id;
+            auto provider_it = providers_.find(id);
+
+            if (provider_it == providers_.end()) {
+                continue;  // Provider not initialized (shouldn't happen)
+            }
+
+            auto &provider = provider_it->second;
+
+            // Check if provider is available
             if (!provider->is_available()) {
-                LOG_WARN("[Runtime] Provider " << id << " unavailable");
+                // Provider crashed or unavailable
+                if (!supervisor_->is_circuit_open(id)) {
+                    // Record crash and check if restart is allowed
+                    if (supervisor_->record_crash(id)) {
+                        // Wait for backoff period
+                        if (supervisor_->should_restart(id)) {
+                            // Attempt restart
+                            LOG_INFO("[Runtime] Attempting to restart provider: " << id);
+                            if (restart_provider(id, provider_config)) {
+                                LOG_INFO("[Runtime] Provider " << id << " restarted successfully");
+                                supervisor_->record_success(id);
+                            } else {
+                                LOG_ERROR("[Runtime] Failed to restart provider " << id);
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Provider is healthy - ensure supervisor knows about recovery
+                if (supervisor_->get_attempt_count(id) > 0) {
+                    supervisor_->record_success(id);
+                }
             }
         }
     }
@@ -357,6 +395,40 @@ void Runtime::shutdown() {
     }
 
     providers_.clear();
+}
+
+bool Runtime::restart_provider(const std::string &provider_id, const ProviderConfig &provider_config) {
+    // Remove old provider instance
+    providers_.erase(provider_id);
+
+    // Clear devices from registry
+    registry_->clear_provider_devices(provider_id);
+
+    LOG_INFO("[Runtime] Restarting provider: " << provider_id);
+    LOG_DEBUG("[Runtime]   Command: " << provider_config.command);
+
+    // Create new provider instance
+    auto provider = std::make_shared<provider::ProviderHandle>(provider_id, provider_config.command,
+                                                               provider_config.args, provider_config.timeout_ms);
+
+    if (!provider->start()) {
+        LOG_ERROR("[Runtime] Failed to start provider '" << provider_id << "': " << provider->last_error());
+        return false;
+    }
+
+    LOG_INFO("[Runtime] Provider " << provider_id << " process started");
+
+    // Rediscover devices
+    if (!registry_->discover_provider(provider_id, *provider)) {
+        LOG_ERROR("[Runtime] Discovery failed for provider '" << provider_id << "': " << registry_->last_error());
+        return false;
+    }
+
+    // Re-add to provider map
+    providers_[provider_id] = provider;
+
+    LOG_INFO("[Runtime] Provider " << provider_id << " restarted and devices rediscovered");
+    return true;
 }
 
 }  // namespace runtime

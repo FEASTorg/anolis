@@ -12,6 +12,7 @@
 #include "events/event_emitter.hpp"
 #include "http/server.hpp"
 #include "provider/i_provider_handle.hpp"  // Changed to interface
+#include "provider/provider_supervisor.hpp"
 #include "registry/device_registry.hpp"
 #include "state/state_cache.hpp"
 #include "telemetry/influx_sink.hpp"
@@ -53,6 +54,9 @@ private:
     bool init_http(std::string &error);
     bool init_telemetry(std::string &error);
 
+    // Provider restart helpers
+    bool restart_provider(const std::string &provider_id, const ProviderConfig &provider_config);
+
     RuntimeConfig config_;
 
     std::unordered_map<std::string, std::shared_ptr<provider::IProviderHandle>> providers_;
@@ -65,6 +69,7 @@ private:
     std::unique_ptr<automation::ModeManager> mode_manager_;
     std::unique_ptr<automation::ParameterManager> parameter_manager_;
     std::unique_ptr<automation::BTRuntime> bt_runtime_;
+    std::unique_ptr<provider::ProviderSupervisor> supervisor_;
 
     std::atomic<bool> running_{false};
 };

@@ -67,6 +67,9 @@ public:
     std::vector<const RegisteredDevice *> get_all_devices() const;
     std::vector<const RegisteredDevice *> get_devices_for_provider(const std::string &provider_id) const;
 
+    // Management
+    void clear_provider_devices(const std::string &provider_id);
+
     // Status
     size_t device_count() const { return devices_.size(); }
     const std::string &last_error() const { return error_; }
