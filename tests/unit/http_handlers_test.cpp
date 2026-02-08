@@ -37,9 +37,11 @@
 // - These tests validate HTTP endpoint functionality, not concurrency
 // - The anolis HTTP code itself is straightforward without complex threading
 // - The concurrency safety of kernel components is thoroughly tested elsewhere
-#if !defined(__SANITIZE_THREAD__) && !defined(__has_feature)
-#define ANOLIS_SKIP_HTTP_TESTS 0
+#if defined(__SANITIZE_THREAD__)
+// GCC automatically defines __SANITIZE_THREAD__ when -fsanitize=thread is used
+#define ANOLIS_SKIP_HTTP_TESTS 1
 #elif defined(__has_feature)
+// Clang requires checking __has_feature(thread_sanitizer)
 #if __has_feature(thread_sanitizer)
 #define ANOLIS_SKIP_HTTP_TESTS 1
 #else
@@ -518,6 +520,16 @@ TEST_F(HttpHandlersTest, ErrorResponseFormat) {
 
     EXPECT_EQ("NOT_FOUND", json["status"]["code"]);
     EXPECT_FALSE(json["status"]["message"].get<std::string>().empty());
+}
+
+#else  // ANOLIS_SKIP_HTTP_TESTS
+
+// Placeholder test to indicate HTTP tests are disabled
+TEST(HttpHandlersTest, DISABLED_SkippedUnderThreadSanitizer) {
+    // This test exists to document that HttpHandlersTest suite is disabled
+    // under TSAN due to cpp-httplib incompatibility. All 19 HTTP handler
+    // tests are skipped when building with -fsanitize=thread.
+    GTEST_SKIP() << "HTTP handler tests disabled under ThreadSanitizer";
 }
 
 #endif  // !ANOLIS_SKIP_HTTP_TESTS
