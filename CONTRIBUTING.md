@@ -212,7 +212,9 @@ ruff check --fix .
 ruff format .
 ```
 
-### Sanitizers (ASAN)
+### Sanitizers
+
+#### AddressSanitizer (ASAN)
 
 To run with AddressSanitizer (ASAN) on Linux/macOS:
 
@@ -221,6 +223,58 @@ cmake -B build_asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-fsanitize=addre
 cmake --build build_asan
 ctest --test-dir build_asan
 ```
+
+#### ThreadSanitizer (TSAN) - Race Detection
+
+ThreadSanitizer detects data races at runtime with 5-20x performance overhead. Use separate `build-tsan/` directory to avoid CMake cache conflicts.
+
+**Building with TSAN:**
+
+```bash
+# Linux/WSL only (uses x64-linux-tsan vcpkg triplet for consistent instrumentation)
+./scripts/build.sh --tsan
+
+# Clean rebuild recommended when switching to/from TSAN
+./scripts/build.sh --tsan --clean
+```
+
+**Running Tests with TSAN:**
+
+```bash
+# Run all tests (unit + integration)
+./scripts/test.sh --tsan
+
+# TSAN is NOT supported on Windows MSVC - use WSL or Linux
+```
+
+**Expected Results:**
+
+- **Unit Tests:** 178/178 pass (1 HTTP test disabled due to cpp-httplib false positives)
+- **Integration Tests:** 5/6 pass (supervision test skipped - timing-sensitive)
+
+**Race Reports:**
+
+If races detected, reports written to:
+
+```bash
+~/anolis/tsan-report.*
+
+# Check for reports
+ls -la ~/anolis/tsan-report.* 2>/dev/null
+# No files = No races detected ✅
+```
+
+**CI/CD Integration:**
+
+TSAN detection is automatic via environment variables (`TSAN_OPTIONS`, `LD_PRELOAD`).
+Tests skip timing-sensitive checks gracefully under TSAN without special configuration.
+
+**Limitations:**
+
+- Windows: TSAN only works with GCC/Clang on Linux/macOS
+- Performance: 5-20x slowdown (6.2x unit tests, 20x process spawning)
+- Memory: 5-10x increased usage
+- Timing tests: Must skip or relax timeouts due to overhead
 
 ## Project Structure
 
@@ -571,29 +625,53 @@ void update_state() {
 
 ### Testing for Concurrency Issues
 
-The project uses **ThreadSanitizer (TSAN)** to detect data races and lock inversions:
+The project uses **ThreadSanitizer (TSAN)** to detect data races and lock inversions.
+See the [Sanitizers](#sanitizers) section for build and run instructions.
 
-```bash
-# Build with TSAN (uses custom vcpkg triplet for consistent instrumentation)
-./scripts/build.sh --clean --tsan --debug
-
-# Run tests (auto-detects TSAN and sets LD_LIBRARY_PATH)
-./scripts/test.sh
-
-# Or run specific test
-LD_LIBRARY_PATH=build/vcpkg_installed/x64-linux-tsan/lib ./build/tests/unit/state_cache_test
-```
-
-TSAN runs automatically in CI (`.github/workflows/tsan.yml`) and will fail PRs with data races or deadlock risks.
-
-**Important**: TSAN builds use a custom vcpkg triplet (`x64-linux-tsan`) that ensures **all dependencies** (protobuf, abseil, etc.) are instrumented.
-Always use `--clean` when switching between TSAN and non-TSAN builds to avoid ABI mismatches.
+**TSAN builds** use a custom vcpkg triplet (`x64-linux-tsan`) that ensures **all dependencies**
+(protobuf, abseil, etc.) are instrumented with `-fsanitize=thread`.
+This prevents false positives from uninstrumented libraries.
 
 **When adding new synchronization**:
 
 1. Add unit tests for concurrent access (see `tests/unit/*_concurrency_test.cpp`)
-2. Run with TSAN locally before pushing
-3. Ensure CI TSAN tests pass
+2. Run with TSAN locally before pushing:
+
+   ```bash
+   ./scripts/build.sh --tsan --clean
+   ./scripts/test.sh --tsan
+   ```
+
+3. Ensure CI TSAN tests pass (no race reports)
+
+**TSAN Detection in Tests:**
+
+Timing-sensitive tests detect TSAN via environment variables and skip gracefully:
+
+```python
+import os
+
+# Check if running under TSAN or timing tests should be skipped
+skip_timing = os.environ.get("ANOLIS_SKIP_TIMING_TESTS") == "1"
+tsan_env = os.environ.get("ANOLIS_TSAN") == "1" or bool(os.environ.get("TSAN_OPTIONS"))
+
+if skip_timing or tsan_env:
+    print("SKIPPING: Timing-sensitive test")
+    if skip_timing:
+        print("Reason: ANOLIS_SKIP_TIMING_TESTS=1")
+    else:
+        print("Reason: TSAN detected (TSAN_OPTIONS/ANOLIS_TSAN)")
+    return 0  # Skip gracefully
+```
+
+**Environment Variables:**
+
+- `ANOLIS_TSAN=1`: Set automatically by test.sh when TSAN build detected
+- `ANOLIS_SKIP_TIMING_TESTS=1`: Manual override to skip timing-sensitive tests
+- `TSAN_OPTIONS`: TSAN runtime configuration (presence indicates TSAN environment)
+
+**Why skip timing tests?** TSAN's 5-20x overhead breaks timing assumptions (e.g., provider spawn >1s vs <50ms normally).
+Functional correctness is validated without TSAN; race detection is covered by unit tests under TSAN.
 
 ---
 

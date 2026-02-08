@@ -75,8 +75,12 @@ if grep -q "ENABLE_TSAN:BOOL=ON" "$BUILD_DIR/CMakeCache.txt" 2>/dev/null; then
 	# Setting LD_LIBRARY_PATH causes ctest itself to load TSAN libraries, which
 	# triggers segfaults during fork(). Only the test executables should load TSAN.
 
+	# Set explicit TSAN environment marker for test detection
+	export ANOLIS_TSAN=1
+
 	# Configure TSAN runtime behavior for test processes
 	export TSAN_OPTIONS="second_deadlock_stack=1 detect_deadlocks=1 history_size=7 log_path=$REPO_ROOT/tsan-report"
+	echo "[INFO] ANOLIS_TSAN=1 (timing-sensitive tests will skip)"
 	echo "[INFO] TSAN_OPTIONS=$TSAN_OPTIONS"
 	echo "[INFO] Race reports will be written to: $REPO_ROOT/tsan-report.*"
 

@@ -17,6 +17,7 @@ Usage:
 """
 
 import argparse
+import os
 import sys
 import time
 from dataclasses import dataclass
@@ -36,7 +37,9 @@ class TestResult:
 class SupervisionTester:
     """Test harness for provider supervision integration tests."""
 
-    def __init__(self, runtime_path: Path, provider_sim_path: Path, timeout: float = 60.0):
+    def __init__(
+        self, runtime_path: Path, provider_sim_path: Path, timeout: float = 60.0
+    ):
         self.runtime_path = runtime_path
         self.provider_sim_path = provider_sim_path
         self.timeout = timeout
@@ -64,7 +67,9 @@ class SupervisionTester:
             return self.fixture.get_output_capture()
         return None
 
-    def create_config(self, crash_after: float, max_attempts: int = 3, backoff_ms: List[int] = None) -> dict:
+    def create_config(
+        self, crash_after: float, max_attempts: int = 3, backoff_ms: List[int] = None
+    ) -> dict:
         """Create config dict with supervision settings."""
         if backoff_ms is None:
             backoff_ms = [100, 1000, 5000]
@@ -113,7 +118,9 @@ class SupervisionTester:
 
         # Wait for runtime to start
         capture = self.fixture.get_output_capture()
-        if not capture or not capture.wait_for_marker("Initialization complete", timeout=10.0):
+        if not capture or not capture.wait_for_marker(
+            "Initialization complete", timeout=10.0
+        ):
             print("ERROR: Runtime failed to initialize")
             if capture:
                 print(f"  Output:\n{capture.get_all_output()}")
@@ -134,7 +141,9 @@ class SupervisionTester:
         print("\n[TEST] Automatic Restart")
 
         # Create config with 2s crash, 3 attempts, short backoffs
-        config_dict = self.create_config(crash_after=2.0, max_attempts=3, backoff_ms=[200, 500, 1000])
+        config_dict = self.create_config(
+            crash_after=2.0, max_attempts=3, backoff_ms=[200, 500, 1000]
+        )
 
         try:
             # Start runtime
@@ -142,27 +151,43 @@ class SupervisionTester:
                 return TestResult("automatic_restart", False, "Failed to start runtime")
 
             # Wait for initial provider start
-            if not self.capture.wait_for_marker("Registered provider 'provider-sim'", timeout=10.0):
+            if not self.capture.wait_for_marker(
+                "Registered provider 'provider-sim'", timeout=10.0
+            ):
                 return TestResult("automatic_restart", False, "Provider not registered")
 
             # Wait for first crash (after 2s)
             if not self.capture.wait_for_marker("crashed (attempt 1/3", timeout=5.0):
                 output = self.capture.get_all_output()
-                return TestResult("automatic_restart", False, f"No crash detected. Output:\n{output}")
+                return TestResult(
+                    "automatic_restart", False, f"No crash detected. Output:\n{output}"
+                )
 
             # Wait for restart attempt
-            if not self.capture.wait_for_marker("Attempting to restart provider: provider-sim", timeout=2.0):
-                return TestResult("automatic_restart", False, "No restart attempt logged")
+            if not self.capture.wait_for_marker(
+                "Attempting to restart provider: provider-sim", timeout=2.0
+            ):
+                return TestResult(
+                    "automatic_restart", False, "No restart attempt logged"
+                )
 
             # Wait for successful restart
-            if not self.capture.wait_for_marker("Provider restarted successfully", timeout=5.0):
-                return TestResult("automatic_restart", False, "Provider failed to restart")
+            if not self.capture.wait_for_marker(
+                "Provider restarted successfully", timeout=5.0
+            ):
+                return TestResult(
+                    "automatic_restart", False, "Provider failed to restart"
+                )
 
             # Wait for recovery message
             if not self.capture.wait_for_marker("recovered successfully", timeout=2.0):
                 return TestResult("automatic_restart", False, "No recovery message")
 
-            return TestResult("automatic_restart", True, "Provider restarted automatically after crash")
+            return TestResult(
+                "automatic_restart",
+                True,
+                "Provider restarted automatically after crash",
+            )
 
         finally:
             self.stop_runtime()
@@ -175,37 +200,49 @@ class SupervisionTester:
         print("\n[TEST] Backoff Timing")
 
         # Create config with 1s crash, backoffs: 500ms, 1000ms, 2000ms
-        config_dict = self.create_config(crash_after=1.0, max_attempts=3, backoff_ms=[500, 1000, 2000])
+        config_dict = self.create_config(
+            crash_after=1.0, max_attempts=3, backoff_ms=[500, 1000, 2000]
+        )
 
         try:
             if not self.start_runtime(config_dict):
                 return TestResult("backoff_timing", False, "Failed to start runtime")
 
             # Wait for registration
-            if not self.capture.wait_for_marker("Registered provider 'provider-sim'", timeout=10.0):
+            if not self.capture.wait_for_marker(
+                "Registered provider 'provider-sim'", timeout=10.0
+            ):
                 return TestResult("backoff_timing", False, "Provider not registered")
 
             # Measure first crash and restart
             crash1_time = time.time()
-            if not self.capture.wait_for_marker("crashed (attempt 1/3, retry in 500ms)", timeout=3.0):
+            if not self.capture.wait_for_marker(
+                "crashed (attempt 1/3, retry in 500ms)", timeout=3.0
+            ):
                 return TestResult("backoff_timing", False, "First crash not logged")
 
             restart1_time = time.time()
             if not self.capture.wait_for_marker("Attempting to restart", timeout=2.0):
-                return TestResult("backoff_timing", False, "First restart not attempted")
+                return TestResult(
+                    "backoff_timing", False, "First restart not attempted"
+                )
 
             # Check first backoff (~500ms, allow 200-1200ms tolerance for Windows)
             first_backoff = (restart1_time - crash1_time) * 1000
             if not (200 <= first_backoff <= 1200):
                 return TestResult(
-                    "backoff_timing", False, f"First backoff incorrect: {first_backoff:.0f}ms (expected ~500ms)"
+                    "backoff_timing",
+                    False,
+                    f"First backoff incorrect: {first_backoff:.0f}ms (expected ~500ms)",
                 )
 
             # Wait for recovery
             if not self.capture.wait_for_marker("recovered successfully", timeout=3.0):
                 return TestResult("backoff_timing", False, "Recovery not detected")
 
-            return TestResult("backoff_timing", True, f"Backoff timing correct: {first_backoff:.0f}ms")
+            return TestResult(
+                "backoff_timing", True, f"Backoff timing correct: {first_backoff:.0f}ms"
+            )
 
         finally:
             self.stop_runtime()
@@ -219,14 +256,18 @@ class SupervisionTester:
         print("\n[TEST] Circuit Breaker")
 
         # Create config with 1s crash, only 2 attempts, short backoffs
-        config_dict = self.create_config(crash_after=1.0, max_attempts=2, backoff_ms=[200, 500])
+        config_dict = self.create_config(
+            crash_after=1.0, max_attempts=2, backoff_ms=[200, 500]
+        )
 
         try:
             if not self.start_runtime(config_dict):
                 return TestResult("circuit_breaker", False, "Failed to start runtime")
 
             # Wait for provider to start
-            if not self.capture.wait_for_marker("Provider provider-sim started", timeout=10.0):
+            if not self.capture.wait_for_marker(
+                "Provider provider-sim started", timeout=10.0
+            ):
                 return TestResult("circuit_breaker", False, "Provider not startd")
 
             # Wait for first crash
@@ -241,7 +282,9 @@ class SupervisionTester:
             if not self.capture.wait_for_marker("crashed (attempt 1/2", timeout=5.0):
                 return TestResult("circuit_breaker", False, "Second crash not detected")
 
-            return TestResult("circuit_breaker", True, "Crash counter resets properly after recovery")
+            return TestResult(
+                "circuit_breaker", True, "Crash counter resets properly after recovery"
+            )
 
         finally:
             self.stop_runtime()
@@ -251,33 +294,57 @@ class SupervisionTester:
         print("\n[TEST] Device Rediscovery")
 
         # Create config with 2s crash
-        config_dict = self.create_config(crash_after=2.0, max_attempts=3, backoff_ms=[200, 500, 1000])
+        config_dict = self.create_config(
+            crash_after=2.0, max_attempts=3, backoff_ms=[200, 500, 1000]
+        )
 
         try:
             if not self.start_runtime(config_dict):
-                return TestResult("device_rediscovery", False, "Failed to start runtime")
+                return TestResult(
+                    "device_rediscovery", False, "Failed to start runtime"
+                )
 
             # Wait for initial device discovery
-            if not self.capture.wait_for_marker("Registered: provider-sim/tempctl0", timeout=10.0):
-                return TestResult("device_rediscovery", False, "Initial device not discovered")
+            if not self.capture.wait_for_marker(
+                "Registered: provider-sim/tempctl0", timeout=10.0
+            ):
+                return TestResult(
+                    "device_rediscovery", False, "Initial device not discovered"
+                )
 
             # Wait for crash
             if not self.capture.wait_for_marker("crashed (attempt 1/3", timeout=5.0):
                 return TestResult("device_rediscovery", False, "No crash detected")
 
             # Wait for device clearing
-            if not self.capture.wait_for_marker("Clearing devices for provider: provider-sim", timeout=2.0):
-                return TestResult("device_rediscovery", False, "Devices not cleared before restart")
+            if not self.capture.wait_for_marker(
+                "Clearing devices for provider: provider-sim", timeout=2.0
+            ):
+                return TestResult(
+                    "device_rediscovery", False, "Devices not cleared before restart"
+                )
 
             # Wait for restart
-            if not self.capture.wait_for_marker("Provider restarted successfully", timeout=5.0):
-                return TestResult("device_rediscovery", False, "Provider failed to restart")
+            if not self.capture.wait_for_marker(
+                "Provider restarted successfully", timeout=5.0
+            ):
+                return TestResult(
+                    "device_rediscovery", False, "Provider failed to restart"
+                )
 
             # Wait for device rediscovery
-            if not self.capture.wait_for_marker("Registered: provider-sim/tempctl0", timeout=2.0):
-                return TestResult("device_rediscovery", False, "Device not rediscovered after restart")
+            if not self.capture.wait_for_marker(
+                "Registered: provider-sim/tempctl0", timeout=2.0
+            ):
+                return TestResult(
+                    "device_rediscovery", False, "Device not rediscovered after restart"
+                )
 
-            return TestResult("device_rediscovery", True, "Devices rediscovered after successful restart")
+            return TestResult(
+                "device_rediscovery",
+                True,
+                "Devices rediscovered after successful restart",
+            )
 
         finally:
             self.stop_runtime()
@@ -306,7 +373,9 @@ class SupervisionTester:
                     print(f"  [FAIL] {result.message}")
             except Exception as e:
                 print(f"  [EXCEPTION] {e}")
-                self.results.append(TestResult(test_fn.__name__, False, f"Exception: {e}"))
+                self.results.append(
+                    TestResult(test_fn.__name__, False, f"Exception: {e}")
+                )
 
         # Print summary
         print("\n" + "=" * 70)
@@ -334,7 +403,12 @@ def find_executable(name: str, search_paths: List[Path]) -> Optional[Path]:
             if search_path.is_file():
                 return search_path
             # Search in directory
-            for pattern in [name, f"{name}.exe", f"Release/{name}.exe", f"Debug/{name}.exe"]:
+            for pattern in [
+                name,
+                f"{name}.exe",
+                f"Release/{name}.exe",
+                f"Debug/{name}.exe",
+            ]:
                 candidate = search_path / pattern
                 if candidate.exists():
                     return candidate
@@ -342,10 +416,55 @@ def find_executable(name: str, search_paths: List[Path]) -> Optional[Path]:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Provider Supervision Integration Test")
-    parser.add_argument("--runtime", type=Path, help="Path to anolis runtime executable")
-    parser.add_argument("--provider-sim", type=Path, help="Path to anolis-provider-sim executable")
-    parser.add_argument("--timeout", type=float, default=60.0, help="Test timeout in seconds")
+    # -------------------------------------------------------------------------
+    # ThreadSanitizer (TSAN) and Timing Test Detection
+    # -------------------------------------------------------------------------
+    # This test validates supervision timing contracts (backoff delays,
+    # crash detection windows) that are tuned for production performance.
+    # TSAN adds 5-20x slowdown to process operations that breaks these:
+    #   - Provider processes take >1s to spawn (vs <50ms normally)
+    #   - IPC timeouts trigger before handshakes complete
+    #   - Backoff delays don't match wall-clock time due to TSAN overhead
+    #
+    # Skip conditions:
+    #   - ANOLIS_SKIP_TIMING_TESTS=1: Explicit timing test skip flag
+    #   - ANOLIS_TSAN=1 or TSAN_OPTIONS set: TSAN environment detected
+    #
+    # TSAN's purpose is race detection (validated by unit tests), not
+    # timing precision. Functional correctness is verified without TSAN.
+    # -------------------------------------------------------------------------
+    skip_timing = os.environ.get("ANOLIS_SKIP_TIMING_TESTS") == "1"
+    tsan_env = os.environ.get("ANOLIS_TSAN") == "1" or bool(
+        os.environ.get("TSAN_OPTIONS")
+    )
+
+    if skip_timing or tsan_env:
+        print("=" * 70)
+        print("SKIPPING: Provider supervision test")
+        print("=" * 70)
+        if skip_timing:
+            print("Reason: ANOLIS_SKIP_TIMING_TESTS=1")
+        else:
+            print("Reason: TSAN detected (TSAN_OPTIONS/ANOLIS_TSAN)")
+            print("        TSAN adds 5-20x slowdown that breaks timing assumptions")
+        print("")
+        print("Race detection: Covered by unit tests under TSAN")
+        print("Functional correctness: Validated without TSAN overhead")
+        print("=" * 70)
+        return 0
+
+    parser = argparse.ArgumentParser(
+        description="Provider Supervision Integration Test"
+    )
+    parser.add_argument(
+        "--runtime", type=Path, help="Path to anolis runtime executable"
+    )
+    parser.add_argument(
+        "--provider-sim", type=Path, help="Path to anolis-provider-sim executable"
+    )
+    parser.add_argument(
+        "--timeout", type=float, default=60.0, help="Test timeout in seconds"
+    )
     args = parser.parse_args()
 
     # Find runtime

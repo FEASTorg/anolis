@@ -85,8 +85,12 @@ if ($cacheContent -match "ENABLE_TSAN:BOOL=ON") {
     # and vcpkg's automatic DLL copying. Modifying PATH here can cause ctest.exe
     # itself to load TSAN libraries, potentially causing issues.
     
+    # Set explicit TSAN environment marker for test detection
+    $env:ANOLIS_TSAN = "1"
+    
     # Configure TSAN runtime behavior (for test processes)
     $env:TSAN_OPTIONS = "second_deadlock_stack=1 detect_deadlocks=1 history_size=7"
+    Write-Host "[INFO] ANOLIS_TSAN=1 (timing-sensitive tests will skip)" -ForegroundColor Green
     Write-Host "[INFO] TSAN_OPTIONS=$env:TSAN_OPTIONS" -ForegroundColor Green
 
     # Ensure provider also built with TSAN
