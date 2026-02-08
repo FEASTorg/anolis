@@ -37,6 +37,20 @@ if [ ! -f "$REPO_ROOT/build/CTestTestfile.cmake" ]; then
   exit 2
 fi
 
+# Detect if TSAN is enabled in build
+TSAN_ENABLED=false
+if grep -q "fsanitize=thread" "$REPO_ROOT/build/CMakeCache.txt" 2>/dev/null || \
+   grep -q "ENABLE_TSAN:BOOL=ON" "$REPO_ROOT/build/CMakeCache.txt" 2>/dev/null; then
+    TSAN_ENABLED=true
+    echo "[INFO] ThreadSanitizer build detected"
+    
+    # Configure TSAN to capture ALL races, not halt on first error
+    # This lets us see the actual race before any crash
+    export TSAN_OPTIONS="second_deadlock_stack=1 detect_deadlocks=1 history_size=7 log_path=$REPO_ROOT/tsan-report"
+    echo "[INFO] TSAN_OPTIONS=$TSAN_OPTIONS"
+    echo "[INFO] Race reports will be written to: $REPO_ROOT/tsan-report.*"
+fi
+
 echo "[INFO] Running C++ unit tests..."
 
 # First, check how many tests exist
@@ -59,6 +73,16 @@ if [ $TEST_RESULT -ne 0 ]; then
 fi
 
 echo "[INFO] Unit tests passed"
+
+# Check for TSAN race reports from unit tests
+if [ "$TSAN_ENABLED" = true ] && ls "$REPO_ROOT"/tsan-report.* 1>/dev/null 2>&1; then
+    echo "[WARN] ThreadSanitizer detected races in unit tests:"
+    for report in "$REPO_ROOT"/tsan-report.*; do
+        echo "  - $(basename "$report")"
+    done
+    echo "[INFO] Review reports above. Continuing to integration tests..."
+fi
+
 echo ""
 
 # Run integration tests
@@ -72,6 +96,18 @@ if [ $INTEGRATION_RESULT -ne 0 ]; then
 fi
 
 echo "[INFO] Integration tests passed"
+
+# Check for TSAN race reports from integration tests
+if [ "$TSAN_ENABLED" = true ] && ls "$REPO_ROOT"/tsan-report.* 1>/dev/null 2>&1; then
+    echo "[WARN] ThreadSanitizer detected races during testing:"
+    RACE_COUNT=$(ls "$REPO_ROOT"/tsan-report.* 2>/dev/null | wc -l)
+    echo "[WARN] Total race reports: $RACE_COUNT"
+    echo "[WARN] First report preview:"
+    head -50 "$REPO_ROOT"/tsan-report.* 2>/dev/null | head -50 || true
+    echo ""
+    echo "[WARN] Full reports available in: $REPO_ROOT/tsan-report.*"
+fi
+
 echo ""
 
 # Run validation scenarios

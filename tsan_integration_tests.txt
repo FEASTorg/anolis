@@ -1,0 +1,191 @@
+[INFO] Unit tests passed
+
+[INFO] Running integration tests...
+============================================================
+Anolis Test Suite
+============================================================
+Runtime:  /home/cambr/anolis/build/core/anolis-runtime
+Provider: /home/cambr/anolis-provider-sim/build/anolis-provider-sim
+Timeout:  60s per suite
+Port:     8080
+============================================================
+
+Note: Concurrency stress test uses 'light' mode for CI speed
+      Run manually with --stress-level=moderate or =heavy for deeper testing
+
+  Cleaning up processes...
+Running: test_core.py
+----------------------------------------
+[FAIL] test_core.py (11.2s)
+  Error: Exit code 1. Log tail:
+ anolis::provider::ProviderHandle::hello(anolis::deviceprovider::v0::HelloResponse&) /home/cambr/anolis/core/provider/provider_handle.cpp:46 (anolis-runtime+0x1ea4f9) (BuildId: 539e436db083a93f323c46e0148407010ba20d09)
+    #9 anolis::provider::ProviderHandle::start() /home/cambr/anolis/core/provider/provider_handle.cpp:27 (anolis-runtime+0x1e9577) (BuildId: 539e436db083a93f323c46e0148407010ba20d09)
+    #10 anolis::runtime::Runtime::init_providers(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&) /home/cambr/anolis/core/runtime/runtime.cpp:87 (anolis-runtime+0x1cc818) (BuildId: 539e436db083a93f323c46e0148407010ba20d09)
+    #11 anolis::runtime::Runtime::initialize(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&) /home/cambr/anolis/core/runtime/runtime.cpp:25 (anolis-runtime+0x1d3f2a) (BuildId: 539e436db083a93f323c46e0148407010ba20d09)
+    #12 main /home/cambr/anolis/core/src/main.cpp:63 (anolis-runtime+0x10daaf) (BuildId: 539e436db083a93f323c46e0148407010ba20d09)
+    #13 <null> <null> (libc.so.6+0x2a1c9) (BuildId: 8e9fd827446c24067541ac5390e6f527fb5947bb)
+    #14 __libc_start_main <null> (libc.so.6+0x2a28a) (BuildId: 8e9fd827446c24067541ac5390e6f527fb5947bb)
+    #15 _start <null> (anolis-runtime+0x10ff54) (BuildId: 539e436db083a93f323c46e0148407010ba20d09)
+
+ThreadSanitizer can not provide additional info.
+SUMMARY: ThreadSanitizer: SEGV (/home/cambr/anolis/build/core/anolis-runtime+0x2c2a28) (BuildId: 539e436db083a93f323c46e0148407010ba20d09) in google::protobuf::internal::ThreadSafeArena::GetSerialArenaFallback(unsigned long)
+==47407==ABORTING
+anolis-provider-sim: EOF on stdin; exiting cleanly
+
+============================================================
+  Test Summary
+============================================================
+
+  Passed: 0/1
+
+  [FAIL] SOME TESTS FAILED
+
+  Failed tests:
+    - HTTP server: HTTP server did not become available
+
+============================================================
+
+  Cleaning up processes...
+Running: test_http.py
+----------------------------------------
+[FAIL] test_http.py (15.2s)
+  Error: Exit code 1. Log tail:
+Runtime:  /home/cambr/anolis/build/core/anolis-runtime
+Provider: /home/cambr/anolis-provider-sim/build/anolis-provider-sim
+Port:     8080
+
+============================================================
+  HTTP Gateway Integration Tests
+============================================================
+
+1. Runtime Startup & HTTP Ready
+  [FAIL] HTTP responsive
+      Could not connect to HTTP server
+
+[FAIL] Some tests failed
+
+
+  Cleaning up processes...
+Running: test_automation.py
+----------------------------------------
+[FAIL] test_automation.py (0.5s)
+  Error: Exit code 1. Log tail:
+  [INFO] Starting runtime: /home/cambr/anolis/build/core/anolis-runtime
+
+Error: Runtime process terminated
+
+  Cleaning up processes...
+Running: test_signal_handling.py
+----------------------------------------
+[FAIL] test_signal_handling.py (30.1s)
+  Error: Exit code 1. Log tail:
+============================================================
+  Signal Handling Integration Tests
+============================================================
+
+Using runtime: /home/cambr/anolis/build/core/anolis-runtime
+Using provider: /home/cambr/anolis-provider-sim/build/anolis-provider-sim
+
+Testing SIGINT (Ctrl+C)...
+  [FAIL] SIGINT (Ctrl+C)
+      Runtime did not become ready within 15s
+
+Testing SIGTERM (kill)...
+  [FAIL] SIGTERM (kill)
+      Runtime did not become ready within 15s
+
+============================================================
+  Test Summary: 0/2 passed
+============================================================
+
+  [FAIL] SOME TESTS FAILED
+
+  Failed tests:
+    - SIGINT (Ctrl+C): Runtime did not become ready within 15s
+    - SIGTERM (kill): Runtime did not become ready within 15s
+
+  Cleaning up processes...
+Running: test_provider_supervision.py
+----------------------------------------
+[FAIL] test_provider_supervision.py (40.6s)
+  Error: Exit code 1. Log tail:
+ovider/provider_handle.cpp:46 (anolis-runtime+0x1ea4f9) (BuildId: 539e436db083a93f323c46e0148407010ba20d09)
+    #9 anolis::provider::ProviderHandle::start() /home/cambr/anolis/core/provider/provider_handle.cpp:27 (anolis-runtime+0x1e9577) (BuildId: 539e436db083a93f323c46e0148407010ba20d09)
+    #10 anolis::runtime::Runtime::init_providers(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&) /home/cambr/anolis/core/runtime/runtime.cpp:87 (anolis-runtime+0x1cc818) (BuildId: 539e436db083a93f323c46e0148407010ba20d09)
+    #11 anolis::runtime::Runtime::initialize(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&) /home/cambr/anolis/core/runtime/runtime.cpp:25 (anolis-runtime+0x1d3f2a) (BuildId: 539e436db083a93f323c46e0148407010ba20d09)
+    #12 main /home/cambr/anolis/core/src/main.cpp:63 (anolis-runtime+0x10daaf) (BuildId: 539e436db083a93f323c46e0148407010ba20d09)
+    #13 <null> <null> (libc.so.6+0x2a1c9) (BuildId: 8e9fd827446c24067541ac5390e6f527fb5947bb)
+    #14 __libc_start_main <null> (libc.so.6+0x2a28a) (BuildId: 8e9fd827446c24067541ac5390e6f527fb5947bb)
+    #15 _start <null> (anolis-runtime+0x10ff54) (BuildId: 539e436db083a93f323c46e0148407010ba20d09)
+
+ThreadSanitizer can not provide additional info.
+SUMMARY: ThreadSanitizer: SEGV (/home/cambr/anolis/build/core/anolis-runtime+0x2c2a28) (BuildId: 539e436db083a93f323c46e0148407010ba20d09) in google::protobuf::internal::ThreadSafeArena::GetSerialArenaFallback(unsigned long)
+==47466==ABORTING
+anolis-provider-sim: EOF on stdin; exiting cleanly
+  [FAIL] Failed to start runtime
+
+======================================================================
+SUMMARY
+======================================================================
+[FAIL]: automatic_restart
+       Failed to start runtime
+[FAIL]: backoff_timing
+       Failed to start runtime
+[FAIL]: circuit_breaker
+       Failed to start runtime
+[FAIL]: device_rediscovery
+       Failed to start runtime
+
+Total: 0/4 passed
+
+  Cleaning up processes...
+Running: test_concurrency_stress.py
+----------------------------------------
+[FAIL] test_concurrency_stress.py (15.2s)
+  Error: Exit code 1. Log tail:
+================================================================================
+CONCURRENCY STRESS TEST FOR THREADSANITIZER
+================================================================================
+Runtime:       /home/cambr/anolis/build/core/anolis-runtime
+Provider:      /home/cambr/anolis-provider-sim/build/anolis-provider-sim
+Stress Level:  light
+Restarts:      10
+Clients:       2
+HTTP Port:     8082
+================================================================================
+
+[STRESS TEST] 10 restarts with 2 concurrent HTTP clients
+  Starting runtime with RuntimeFixture
+  Waiting for runtime to initialize...
+ERROR: Runtime not responsive after 15 seconds
+  Runtime process crashed during startup
+
+================================================================================
+[FAIL] STRESS TEST FAILED
+   - Failed to start runtime
+   - Restarts completed: 0
+   - HTTP requests: 0
+================================================================================
+
+  Cleaning up processes...
+Running: bt_nodes_sanity
+----------------------------------------
+[PASS] bt_nodes_sanity (0.0s)
+
+  Cleaning up processes...
+============================================================
+Summary
+============================================================
+  [FAIL] test_core.py
+  [FAIL] test_http.py
+  [FAIL] test_automation.py
+  [FAIL] test_signal_handling.py
+  [FAIL] test_provider_supervision.py
+  [FAIL] test_concurrency_stress.py
+  [PASS] bt_nodes_sanity
+
+Passed: 1/7
+Duration: 112.7s
+
+[FAIL] 6 test suite(s) failed
+cambr@CKBPC:~/anolis$

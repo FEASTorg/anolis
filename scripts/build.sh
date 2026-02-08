@@ -44,12 +44,6 @@ echo "[INFO] Build tests: $BUILD_TESTS"
 echo "[INFO] clang-tidy: $CLANG_TIDY"
 echo "[INFO] ThreadSanitizer: $TSAN"
 
-# Set sanitizer flags if enabled
-SANITIZER_FLAGS=""
-if [ "$TSAN" = true ]; then
-    SANITIZER_FLAGS="-fsanitize=thread -g -fno-omit-frame-pointer"
-fi
-
 # Check vcpkg
 if [ -z "$VCPKG_ROOT" ]; then
     if [ -d "$HOME/vcpkg" ]; then
@@ -73,8 +67,6 @@ if [ -d "$PROVIDER_SIM_DIR" ]; then
     cd "$PROVIDER_SIM_DIR"
     cmake -B build -S . \
         -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
-        -DCMAKE_CXX_FLAGS="$SANITIZER_FLAGS" \
-        -DCMAKE_C_FLAGS="$SANITIZER_FLAGS" \
         -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
     cmake --build build --config "$BUILD_TYPE" --parallel
 fi
@@ -82,12 +74,17 @@ fi
 # Build anolis
 echo "[INFO] Building anolis..."
 cd "$REPO_ROOT"
+
+TSAN_FLAG=""
+if [ "$TSAN" = true ]; then
+    TSAN_FLAG="-DENABLE_TSAN=ON"
+fi
+
 cmake -B build -S . \
     -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
     -DBUILD_TESTING=$([ "$BUILD_TESTS" = true ] && echo "ON" || echo "OFF") \
     -DENABLE_CLANG_TIDY=$([ "$CLANG_TIDY" = true ] && echo "ON" || echo "OFF") \
-    -DCMAKE_CXX_FLAGS="$SANITIZER_FLAGS" \
-    -DCMAKE_C_FLAGS="$SANITIZER_FLAGS" \
+    $TSAN_FLAG \
     -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
 cmake --build build --config "$BUILD_TYPE" --parallel
 

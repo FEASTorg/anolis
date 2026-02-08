@@ -164,10 +164,6 @@ jobs:
             echo "- All tests passed successfully"
           } >> $GITHUB_STEP_SUMMARY
 
-      - name: Run provider standalone under TSAN
-        run: |
-          timeout 25s anolis-provider-sim/build/anolis-provider-sim || true
-
       - name: Run integration tests with TSAN
         env:
           LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/lib
