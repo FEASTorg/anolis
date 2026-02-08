@@ -1,18 +1,35 @@
 # Anolis Test Script (Windows)
 #
 # Usage:
-#   .\scripts\test.ps1 [-Verbose] [-Configuration Release]
+#   .\scripts\test.ps1 [-Verbose] [-Configuration Release] [-TSan] [-BuildDir PATH]
 
 param(
     [switch]$Verbose,
-    [string]$Configuration
+    [string]$Configuration,
+    [switch]$TSan,
+    [string]$BuildDir
 )
 
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = Split-Path -Parent $ScriptDir
-$BuildDir = Join-Path $RepoRoot "build"
+
+if (-not $BuildDir) {
+    if ($TSan) {
+        $BuildDir = Join-Path $RepoRoot "build-tsan"
+        $ProviderBuildDir = "build-tsan"
+        Write-Host "[INFO] Using TSan build directories" -ForegroundColor Green
+    }
+    else {
+        $BuildDir = Join-Path $RepoRoot "build"
+        $ProviderBuildDir = "build"
+    }
+}
+else {
+    $ProviderBuildDir = "build"
+}
+
 $ProviderDir = Join-Path (Split-Path -Parent $RepoRoot) "anolis-provider-sim"
 
 Write-Host "[INFO] Running Anolis test suite..." -ForegroundColor Green
@@ -68,12 +85,12 @@ if ($cacheContent -match "ENABLE_TSAN:BOOL=ON") {
     Write-Host "[INFO] PATH updated with: $VcpkgLib"
 
     # Ensure provider also built with TSAN
-    $providerCache = Join-Path $ProviderDir "build\CMakeCache.txt"
+    $providerCache = Join-Path $ProviderDir "$ProviderBuildDir\CMakeCache.txt"
     if (Test-Path $providerCache) {
         $providerCacheContent = Get-Content $providerCache
         if (-not ($providerCacheContent -match "ENABLE_TSAN:BOOL=ON")) {
             Write-Host "[ERROR] Provider built without TSAN while runtime uses TSAN." -ForegroundColor Red
-            Write-Host "        Rebuild provider with -TSAN to avoid mixed instrumentation."
+            Write-Host "        Rebuild provider with -TSan to avoid mixed instrumentation."
             exit 4
         }
     }

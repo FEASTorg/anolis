@@ -2,13 +2,14 @@
 # Anolis Test Script (Linux/macOS)
 #
 # Usage:
-#   ./scripts/test.sh [--verbose]
+#   ./scripts/test.sh [--verbose] [--tsan] [--build-dir PATH]
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 BUILD_DIR="$REPO_ROOT/build"
+PROVIDER_BUILD_DIR="build"
 PROVIDER_DIR="$(dirname "$REPO_ROOT")/anolis-provider-sim"
 
 VERBOSE_FLAG=""
@@ -17,9 +18,24 @@ while [[ $# -gt 0 ]]; do
 	case "$1" in
 	--verbose | -v)
 		VERBOSE_FLAG="-VV"
+		shift
+		;;
+	--tsan)
+		BUILD_DIR="$REPO_ROOT/build-tsan"
+		PROVIDER_BUILD_DIR="build-tsan"
+		echo "[INFO] Using TSan build directories"
+		shift
+		;;
+	--build-dir)
+		BUILD_DIR="$2"
+		shift 2
+		;;
+	*)
+		echo "[ERROR] Unknown argument: $1"
+		echo "Usage: ./scripts/test.sh [--verbose] [--tsan] [--build-dir PATH]"
+		exit 1
 		;;
 	esac
-	shift
 done
 
 echo "[INFO] Running Anolis test suite..."
@@ -61,8 +77,8 @@ if grep -q "ENABLE_TSAN:BOOL=ON" "$BUILD_DIR/CMakeCache.txt" 2>/dev/null; then
 	echo "[INFO] Race reports will be written to: $REPO_ROOT/tsan-report.*"
 
 	# Ensure provider built with TSAN as well
-	if [[ -f "$PROVIDER_DIR/build/CMakeCache.txt" ]]; then
-		if ! grep -q "ENABLE_TSAN:BOOL=ON" "$PROVIDER_DIR/build/CMakeCache.txt"; then
+	if [[ -f "$PROVIDER_DIR/$PROVIDER_BUILD_DIR/CMakeCache.txt" ]]; then
+		if ! grep -q "ENABLE_TSAN:BOOL=ON" "$PROVIDER_DIR/$PROVIDER_BUILD_DIR/CMakeCache.txt"; then
 			echo "[ERROR] Provider built without TSAN while runtime uses TSAN."
 			echo "        Rebuild provider with --tsan to avoid mixed instrumentation."
 			exit 4
