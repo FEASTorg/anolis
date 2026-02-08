@@ -3,11 +3,10 @@
 #include <chrono>
 #include <cstring>
 #include <iostream>
+#include <thread>
 
 #ifdef _WIN32
 #include <windows.h>
-
-#include <thread>
 #else
 #include <errno.h>
 #include <poll.h>
