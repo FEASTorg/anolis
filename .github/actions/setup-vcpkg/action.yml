@@ -1,15 +1,15 @@
-name: 'Setup vcpkg'
-description: 'Configure vcpkg package manager with specified commit'
+name: "Setup vcpkg"
+description: "Configure vcpkg package manager with specified commit"
 inputs:
   vcpkg-commit:
-    description: 'vcpkg git commit hash to use'
+    description: "vcpkg git commit hash to use"
     required: true
   do-not-cache:
-    description: 'Skip vcpkg caching (default: true)'
+    description: "Skip vcpkg caching (default: true)"
     required: false
-    default: 'true'
+    default: "true"
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Setup vcpkg
       uses: lukka/run-vcpkg@v11
