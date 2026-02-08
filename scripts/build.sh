@@ -2,7 +2,7 @@
 # Anolis Build Script (Linux/macOS)
 #
 # Usage:
-#   ./scripts/build.sh [--clean] [--debug] [--no-tests] [--no-clang-tidy|--clang-tidy]
+#   ./scripts/build.sh [--clean] [--debug] [--no-tests] [--no-clang-tidy|--clang-tidy] [--tsan]
 
 set -e
 
@@ -14,6 +14,7 @@ BUILD_TYPE="Release"
 CLEAN=false
 BUILD_TESTS=true
 CLANG_TIDY=true
+TSAN=false
 
 for arg in "$@"; do
     case $arg in
@@ -32,12 +33,22 @@ for arg in "$@"; do
         --clang-tidy)
             CLANG_TIDY=true
             ;;
+        --tsan)
+            TSAN=true
+            ;;
     esac
 done
 
 echo "[INFO] Build type: $BUILD_TYPE"
 echo "[INFO] Build tests: $BUILD_TESTS"
 echo "[INFO] clang-tidy: $CLANG_TIDY"
+echo "[INFO] ThreadSanitizer: $TSAN"
+
+# Set sanitizer flags if enabled
+SANITIZER_FLAGS=""
+if [ "$TSAN" = true ]; then
+    SANITIZER_FLAGS="-fsanitize=thread -g -fno-omit-frame-pointer"
+fi
 
 # Check vcpkg
 if [ -z "$VCPKG_ROOT" ]; then
@@ -62,6 +73,8 @@ if [ -d "$PROVIDER_SIM_DIR" ]; then
     cd "$PROVIDER_SIM_DIR"
     cmake -B build -S . \
         -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+        -DCMAKE_CXX_FLAGS="$SANITIZER_FLAGS" \
+        -DCMAKE_C_FLAGS="$SANITIZER_FLAGS" \
         -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
     cmake --build build --config "$BUILD_TYPE" --parallel
 fi
@@ -73,6 +86,8 @@ cmake -B build -S . \
     -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
     -DBUILD_TESTING=$([ "$BUILD_TESTS" = true ] && echo "ON" || echo "OFF") \
     -DENABLE_CLANG_TIDY=$([ "$CLANG_TIDY" = true ] && echo "ON" || echo "OFF") \
+    -DCMAKE_CXX_FLAGS="$SANITIZER_FLAGS" \
+    -DCMAKE_C_FLAGS="$SANITIZER_FLAGS" \
     -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
 cmake --build build --config "$BUILD_TYPE" --parallel
 

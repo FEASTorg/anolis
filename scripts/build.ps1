@@ -1,12 +1,13 @@
 # Anolis Build Script (Windows)
 #
 # Usage:
-#   .\scripts\build.ps1 [-Clean] [-Debug] [-NoTests]
+#   .\scripts\build.ps1 [-Clean] [-Debug] [-NoTests] [-TSan]
 
 param(
     [switch]$Clean,
     [switch]$Debug,
-    [switch]$NoTests
+    [switch]$NoTests,
+    [switch]$TSan
 )
 
 $ErrorActionPreference = "Stop"
@@ -18,6 +19,12 @@ $ProviderSimDir = Join-Path (Split-Path -Parent $RepoRoot) "anolis-provider-sim"
 $BuildType = if ($Debug) { "Debug" } else { "Release" }
 $BuildTests = -not $NoTests
 $BuildTestingValue = if ($BuildTests) { "ON" } else { "OFF" }
+
+# Set sanitizer flags if enabled
+$SanitizerFlags = ""
+if ($TSan) {
+    $SanitizerFlags = "-fsanitize=thread -g -fno-omit-frame-pointer"
+}
 
 # Choose generator (prefer VS 2022 Build Tools if present, fall back to Ninja)
 $CMakeGeneratorArgs = @()
@@ -40,6 +47,7 @@ if ($vsInstance) {
 
 Write-Host "[INFO] Build type: $BuildType" -ForegroundColor Green
 Write-Host "[INFO] Build tests: $BuildTests" -ForegroundColor Green
+Write-Host "[INFO] ThreadSanitizer: $TSan" -ForegroundColor Green
 
 # Check vcpkg
 if (-not $env:VCPKG_ROOT) {
@@ -69,6 +77,8 @@ if (Test-Path $ProviderSimDir) {
     Push-Location $ProviderSimDir
     cmake @CMakeGeneratorArgs -B build -S . `
         -DCMAKE_BUILD_TYPE="$BuildType" `
+        -DCMAKE_CXX_FLAGS="$SanitizerFlags" `
+        -DCMAKE_C_FLAGS="$SanitizerFlags" `
         -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
     cmake --build build --config $BuildType
     Pop-Location
@@ -80,6 +90,8 @@ Push-Location $RepoRoot
 cmake @CMakeGeneratorArgs -B build -S . `
     -DCMAKE_BUILD_TYPE="$BuildType" `
     -DBUILD_TESTING=$BuildTestingValue `
+    -DCMAKE_CXX_FLAGS="$SanitizerFlags" `
+    -DCMAKE_C_FLAGS="$SanitizerFlags" `
     -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
 cmake --build build --config $BuildType
 Pop-Location
