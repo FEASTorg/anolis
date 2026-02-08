@@ -58,12 +58,15 @@ public:
         bool should_log = false;
         std::string log_name;
         size_t log_dropped = 0;
+        std::optional<Event> dropped_event;  // Hold dropped event to destroy outside lock
 
         {
             std::lock_guard<std::mutex> lock(mutex_);
 
             // If at capacity, drop oldest
             if (queue_.size() >= max_size_) {
+                // Move out the event BEFORE popping to avoid destructor under lock
+                dropped_event = std::move(queue_.front());
                 queue_.pop();
                 dropped_count_++;
 
@@ -78,6 +81,9 @@ public:
             queue_.push(event);
             cv_.notify_one();
         }  // Release lock before I/O
+
+        // Dropped event destructor runs here, outside the lock
+        dropped_event.reset();
 
         // Log outside critical section to avoid blocking
         if (should_log) {
@@ -97,18 +103,26 @@ public:
      * @return Event if available, std::nullopt on timeout
      */
     std::optional<Event> pop(int timeout_ms = 0) {
-        std::unique_lock<std::mutex> lock(mutex_);
+        std::optional<Event> event;
 
-        if (timeout_ms > 0) {
-            cv_.wait_for(lock, std::chrono::milliseconds(timeout_ms), [this] { return !queue_.empty() || closed_; });
-        }
+        {
+            std::unique_lock<std::mutex> lock(mutex_);
 
-        if (queue_.empty()) {
-            return std::nullopt;
-        }
+            if (timeout_ms > 0) {
+                cv_.wait_for(lock, std::chrono::milliseconds(timeout_ms),
+                             [this] { return !queue_.empty() || closed_; });
+            }
 
-        Event event = std::move(queue_.front());
-        queue_.pop();
+            if (queue_.empty()) {
+                return std::nullopt;
+            }
+
+            // Move event out while holding lock, but don't pop yet
+            event = std::move(queue_.front());
+            queue_.pop();  // Now safe - front() was already moved
+        }  // Release lock before returning
+
+        // Event destructor (if any) will run outside the lock when event goes out of scope
         return event;
     }
 
