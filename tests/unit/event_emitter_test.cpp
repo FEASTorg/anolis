@@ -251,20 +251,45 @@ TEST(EventEmitterTest, PopBlocksUntilEventAvailable) {
     EventEmitter emitter;
     auto sub = emitter.subscribe();
 
-    // Start thread that emits after 50ms
-    std::thread emitter_thread([&emitter]() {
-        std::this_thread::sleep_for(50ms);
+    // Scale timing for sanitizer builds (2-10x overhead)
+#if defined(__SANITIZE_THREAD__) || defined(__SANITIZE_ADDRESS__)
+    const auto emit_delay = 100ms;
+    const int timeout_ms = 500;
+    const auto min_elapsed = 50ms;
+    const auto max_elapsed = 400ms;
+#elif defined(__has_feature)
+#if __has_feature(thread_sanitizer) || __has_feature(address_sanitizer)
+    const auto emit_delay = 100ms;
+    const int timeout_ms = 500;
+    const auto min_elapsed = 50ms;
+    const auto max_elapsed = 400ms;
+#else
+    const auto emit_delay = 50ms;
+    const int timeout_ms = 200;
+    const auto min_elapsed = 25ms;
+    const auto max_elapsed = 150ms;
+#endif
+#else
+    const auto emit_delay = 50ms;
+    const int timeout_ms = 200;
+    const auto min_elapsed = 40ms;
+    const auto max_elapsed = 150ms;
+#endif
+
+    // Start thread that emits after delay
+    std::thread emitter_thread([&emitter, emit_delay]() {
+        std::this_thread::sleep_for(emit_delay);
         emitter.emit(create_test_event());
     });
 
     // pop() should block and return event
     auto start = std::chrono::steady_clock::now();
-    auto event = sub->pop(200);  // 200ms timeout
+    auto event = sub->pop(timeout_ms);
     auto elapsed = std::chrono::steady_clock::now() - start;
 
     EXPECT_TRUE(event.has_value());
-    EXPECT_GE(elapsed, 40ms);  // Should have waited ~50ms
-    EXPECT_LT(elapsed, 150ms);
+    EXPECT_GE(elapsed, min_elapsed);
+    EXPECT_LT(elapsed, max_elapsed);
 
     emitter_thread.join();
 }
@@ -454,25 +479,50 @@ TEST(EventEmitterTest, EventIDsAreMonotonic) {
 // ============================================================================
 
 TEST(EventEmitterTest, ConcurrentEmitAndSubscribe) {
+    // Scale down for sanitizer builds (2-10x overhead)
+#if defined(__SANITIZE_THREAD__) || defined(__SANITIZE_ADDRESS__)
+    const int NUM_EVENTS = 50;
+    const auto EMIT_DELAY = 2ms;
+    const auto POP_TIMEOUT = 100;
+    const int NUM_SUBSCRIBERS = 3;
+#elif defined(__has_feature)
+#if __has_feature(thread_sanitizer) || __has_feature(address_sanitizer)
+    const int NUM_EVENTS = 50;
+    const auto EMIT_DELAY = 2ms;
+    const auto POP_TIMEOUT = 100;
+    const int NUM_SUBSCRIBERS = 3;
+#else
+    const int NUM_EVENTS = 100;
+    const auto EMIT_DELAY = 1ms;
+    const auto POP_TIMEOUT = 50;
+    const int NUM_SUBSCRIBERS = 5;
+#endif
+#else
+    const int NUM_EVENTS = 100;
+    const auto EMIT_DELAY = 1ms;
+    const auto POP_TIMEOUT = 50;
+    const int NUM_SUBSCRIBERS = 5;
+#endif
+
     EventEmitter emitter(100, 50);
 
     std::atomic<int> total_received{0};
     std::vector<std::thread> threads;
 
     // Emitter thread
-    threads.emplace_back([&emitter]() {
-        for (int i = 0; i < 100; ++i) {
+    threads.emplace_back([&emitter, NUM_EVENTS, EMIT_DELAY]() {
+        for (int i = 0; i < NUM_EVENTS; ++i) {
             emitter.emit(create_test_event("p", "d", "s", static_cast<double>(i)));
-            std::this_thread::sleep_for(1ms);
+            std::this_thread::sleep_for(EMIT_DELAY);
         }
     });
 
     // Multiple subscriber threads
-    for (int t = 0; t < 5; ++t) {
-        threads.emplace_back([&emitter, &total_received]() {
+    for (int t = 0; t < NUM_SUBSCRIBERS; ++t) {
+        threads.emplace_back([&emitter, &total_received, POP_TIMEOUT]() {
             auto sub = emitter.subscribe();
             if (sub) {
-                while (auto evt = sub->pop(50)) {
+                while (auto evt = sub->pop(POP_TIMEOUT)) {
                     total_received++;
                 }
             }

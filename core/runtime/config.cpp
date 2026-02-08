@@ -110,7 +110,7 @@ bool validate_config(const RuntimeConfig &config, std::string &error) {
 
     // Validate Polling settings
     if (config.polling.interval_ms < 100) {
-        error = "Polling interval must be >= 100ms";
+        error = "polling interval must be >= 100ms";
         return false;
     }
 
@@ -173,9 +173,11 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
             if (yaml["runtime"]["mode"]) {
                 auto mode_str = yaml["runtime"]["mode"].as<std::string>();
                 auto mode = automation::string_to_mode(mode_str);
-                // Note: string_to_mode() returns MANUAL for invalid strings (safe default)
-                // Config schema validation warns users about unrecognized values
-                config.runtime.mode = mode;
+                if (!mode) {
+                    error = "Invalid runtime mode '" + mode_str + "': must be MANUAL, AUTO, IDLE, or FAULT";
+                    return false;
+                }
+                config.runtime.mode = *mode;
             }
         }
 
@@ -218,6 +220,7 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
 
         // Load providers
         if (yaml["providers"]) {
+            config.providers.clear();  // Ensure idempotent parsing
             for (const auto &provider_node : yaml["providers"]) {
                 ProviderConfig provider;
 
@@ -358,6 +361,7 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
 
             // Load parameters
             if (yaml["automation"]["parameters"]) {
+                config.automation.parameters.clear();  // Ensure idempotent parsing
                 for (const auto &param_node : yaml["automation"]["parameters"]) {
                     ParameterConfig param;
 

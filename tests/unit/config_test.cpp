@@ -491,7 +491,186 @@ logging:
     EXPECT_FALSE(error.empty());
     EXPECT_NE(error.find("max_attempts must be >= 1"), std::string::npos);
 }
+// Sprint 2.1.3: Negative configuration tests for idempotency and strict validation
 
+TEST_F(ConfigTest, InvalidRuntimeMode) {
+    std::string config_content = R"(
+runtime:
+  mode: INVALID_MODE
+
+http:
+  enabled: false
+
+providers:
+  - id: test
+    command: /path/to/provider
+
+logging:
+  level: info
+)";
+
+    std::string config_path = create_config_file("invalid_mode.yaml", config_content);
+    RuntimeConfig config;
+    std::string error;
+
+    EXPECT_FALSE(load_config(config_path, config, error));
+    EXPECT_FALSE(error.empty());
+    EXPECT_NE(error.find("Invalid runtime mode"), std::string::npos);
+    EXPECT_NE(error.find("INVALID_MODE"), std::string::npos);
+}
+
+TEST_F(ConfigTest, InvalidRuntimeModeCaseSensitive) {
+    std::string config_content = R"(
+runtime:
+  mode: manual
+
+http:
+  enabled: false
+
+providers:
+  - id: test
+    command: /path/to/provider
+
+logging:
+  level: info
+)";
+
+    std::string config_path = create_config_file("invalid_mode_lowercase.yaml", config_content);
+    RuntimeConfig config;
+    std::string error;
+
+    EXPECT_FALSE(load_config(config_path, config, error));
+    EXPECT_FALSE(error.empty());
+    EXPECT_NE(error.find("Invalid runtime mode"), std::string::npos);
+}
+
+TEST_F(ConfigTest, IdempotentParsing) {
+    std::string config_content = R"(
+runtime:
+  mode: MANUAL
+
+http:
+  enabled: false
+
+providers:
+  - id: provider1
+    command: /path/to/provider1
+  - id: provider2
+    command: /path/to/provider2
+
+automation:
+  enabled: true
+  behavior_tree: test.xml
+  parameters:
+    - name: param1
+      type: double
+      default: 1.0
+    - name: param2
+      type: int64
+      default: 100
+
+logging:
+  level: info
+)";
+
+    std::string config_path = create_config_file("idempotent.yaml", config_content);
+    RuntimeConfig config;
+    std::string error;
+
+    // First load
+    ASSERT_TRUE(load_config(config_path, config, error)) << "Error: " << error;
+    EXPECT_EQ(config.providers.size(), 2);
+    EXPECT_EQ(config.automation.parameters.size(), 2);
+
+    // Second load should replace, not accumulate
+    ASSERT_TRUE(load_config(config_path, config, error)) << "Error: " << error;
+    EXPECT_EQ(config.providers.size(), 2) << "Providers should be replaced, not accumulated";
+    EXPECT_EQ(config.automation.parameters.size(), 2) << "Parameters should be replaced, not accumulated";
+
+    // Third load with different content
+    std::string config_content2 = R"(
+runtime:
+  mode: AUTO
+
+http:
+  enabled: false
+
+providers:
+  - id: provider_new
+    command: /path/to/new_provider
+
+automation:
+  enabled: true
+  behavior_tree: test.xml
+  parameters:
+    - name: param_new
+      type: string
+      default: "test"
+
+logging:
+  level: info
+)";
+
+    std::string config_path2 = create_config_file("idempotent2.yaml", config_content2);
+    ASSERT_TRUE(load_config(config_path2, config, error)) << "Error: " << error;
+    EXPECT_EQ(config.providers.size(), 1) << "Old providers should be cleared";
+    EXPECT_EQ(config.providers[0].id, "provider_new");
+    EXPECT_EQ(config.automation.parameters.size(), 1) << "Old parameters should be cleared";
+    EXPECT_EQ(config.automation.parameters[0].name, "param_new");
+}
+
+TEST_F(ConfigTest, MissingProviderCommand) {
+    std::string config_content = R"(
+runtime:
+  mode: MANUAL
+
+http:
+  enabled: false
+
+providers:
+  - id: test_provider
+    # Missing command field
+
+logging:
+  level: info
+)";
+
+    std::string config_path = create_config_file("missing_command.yaml", config_content);
+    RuntimeConfig config;
+    std::string error;
+
+    EXPECT_FALSE(load_config(config_path, config, error));
+    EXPECT_FALSE(error.empty());
+    EXPECT_NE(error.find("missing 'command' field"), std::string::npos);
+}
+
+TEST_F(ConfigTest, PollingIntervalTooSmall) {
+    std::string config_content = R"(
+runtime:
+  mode: MANUAL
+
+http:
+  enabled: false
+
+providers:
+  - id: test
+    command: /path/to/provider
+
+polling:
+  interval_ms: -100
+
+logging:
+  level: info
+)";
+
+    std::string config_path = create_config_file("invalid_polling.yaml", config_content);
+    RuntimeConfig config;
+    std::string error;
+
+    EXPECT_FALSE(load_config(config_path, config, error));
+    EXPECT_FALSE(error.empty());
+    EXPECT_NE(error.find("polling interval"), std::string::npos);
+}
 TEST_F(ConfigTest, RestartPolicyShortTimeout) {
     std::string config_content = R"(
 runtime:

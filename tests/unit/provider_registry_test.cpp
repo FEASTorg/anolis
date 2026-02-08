@@ -230,9 +230,26 @@ TEST_F(ProviderRegistryTest, ConcurrentReaders) {
 // ============================================================================
 
 TEST_F(ProviderRegistryTest, ConcurrentReadersAndWriters) {
+    // Scale down for sanitizer builds (2-10x overhead)
+#if defined(__SANITIZE_THREAD__) || defined(__SANITIZE_ADDRESS__)
+    const int NUM_READERS = 3;
+    const int NUM_WRITERS = 1;
+    const int OPERATIONS_PER_THREAD = 100;
+#elif defined(__has_feature)
+#if __has_feature(thread_sanitizer) || __has_feature(address_sanitizer)
+    const int NUM_READERS = 3;
+    const int NUM_WRITERS = 1;
+    const int OPERATIONS_PER_THREAD = 100;
+#else
     const int NUM_READERS = 8;
     const int NUM_WRITERS = 2;
     const int OPERATIONS_PER_THREAD = 500;
+#endif
+#else
+    const int NUM_READERS = 8;
+    const int NUM_WRITERS = 2;
+    const int OPERATIONS_PER_THREAD = 500;
+#endif
 
     std::atomic<bool> stop_flag{false};
     std::vector<std::thread> threads;

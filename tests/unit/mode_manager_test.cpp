@@ -51,26 +51,26 @@ TEST(ModeManagerStringTest, ModeToString) {
 }
 
 TEST(ModeManagerStringTest, StringToMode) {
-    EXPECT_EQ(string_to_mode("MANUAL"), RuntimeMode::MANUAL);
-    EXPECT_EQ(string_to_mode("AUTO"), RuntimeMode::AUTO);
-    EXPECT_EQ(string_to_mode("IDLE"), RuntimeMode::IDLE);
-    EXPECT_EQ(string_to_mode("FAULT"), RuntimeMode::FAULT);
+    EXPECT_EQ(string_to_mode("MANUAL").value(), RuntimeMode::MANUAL);
+    EXPECT_EQ(string_to_mode("AUTO").value(), RuntimeMode::AUTO);
+    EXPECT_EQ(string_to_mode("IDLE").value(), RuntimeMode::IDLE);
+    EXPECT_EQ(string_to_mode("FAULT").value(), RuntimeMode::FAULT);
 }
 
 TEST(ModeManagerStringTest, StringToModeInvalid) {
-    // Invalid strings default to MANUAL
-    EXPECT_EQ(string_to_mode("INVALID"), RuntimeMode::MANUAL);
-    EXPECT_EQ(string_to_mode(""), RuntimeMode::MANUAL);
-    EXPECT_EQ(string_to_mode("manual"), RuntimeMode::MANUAL);  // Case-sensitive
-    EXPECT_EQ(string_to_mode("auto"), RuntimeMode::MANUAL);
+    // Invalid strings return nullopt (strict validation)
+    EXPECT_FALSE(string_to_mode("INVALID").has_value());
+    EXPECT_FALSE(string_to_mode("").has_value());
+    EXPECT_FALSE(string_to_mode("manual").has_value());  // Case-sensitive
+    EXPECT_FALSE(string_to_mode("auto").has_value());
 }
 
 TEST(ModeManagerStringTest, RoundTripConversion) {
     // Verify mode_to_string() -> string_to_mode() round-trip
-    EXPECT_EQ(string_to_mode(mode_to_string(RuntimeMode::MANUAL)), RuntimeMode::MANUAL);
-    EXPECT_EQ(string_to_mode(mode_to_string(RuntimeMode::AUTO)), RuntimeMode::AUTO);
-    EXPECT_EQ(string_to_mode(mode_to_string(RuntimeMode::IDLE)), RuntimeMode::IDLE);
-    EXPECT_EQ(string_to_mode(mode_to_string(RuntimeMode::FAULT)), RuntimeMode::FAULT);
+    EXPECT_EQ(string_to_mode(mode_to_string(RuntimeMode::MANUAL)).value(), RuntimeMode::MANUAL);
+    EXPECT_EQ(string_to_mode(mode_to_string(RuntimeMode::AUTO)).value(), RuntimeMode::AUTO);
+    EXPECT_EQ(string_to_mode(mode_to_string(RuntimeMode::IDLE)).value(), RuntimeMode::IDLE);
+    EXPECT_EQ(string_to_mode(mode_to_string(RuntimeMode::FAULT)).value(), RuntimeMode::FAULT);
 }
 
 /******************************************************************************

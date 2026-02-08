@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <mutex>
+#include <optional>
 #include <string>
 
 namespace anolis {
@@ -31,9 +32,10 @@ const char *mode_to_string(RuntimeMode mode);
 
 /**
  * Parse string to RuntimeMode enum.
- * Returns MANUAL if string is invalid.
+ * Returns std::nullopt if string is invalid.
+ * Valid values: "MANUAL", "AUTO", "IDLE", "FAULT"
  */
-RuntimeMode string_to_mode(const std::string &str);
+std::optional<RuntimeMode> string_to_mode(const std::string &str);
 
 /**
  * ModeManager - Thread-safe runtime mode state machine.

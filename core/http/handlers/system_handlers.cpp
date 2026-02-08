@@ -113,10 +113,16 @@ void HttpServer::handle_post_mode(const httplib::Request &req, httplib::Response
 
     // Parse mode string
     auto new_mode = automation::string_to_mode(mode_str);
+    if (!new_mode) {
+        // This should never happen since we validated above, but handle defensive
+        nlohmann::json response = make_error_response(StatusCode::INVALID_ARGUMENT, "Invalid mode string");
+        send_json(res, StatusCode::INVALID_ARGUMENT, response);
+        return;
+    }
 
     // Attempt mode transition
     std::string error;
-    if (!mode_manager_->set_mode(new_mode, error)) {
+    if (!mode_manager_->set_mode(*new_mode, error)) {
         nlohmann::json response = make_error_response(StatusCode::FAILED_PRECONDITION, error);
         send_json(res, StatusCode::FAILED_PRECONDITION, response);
         return;
