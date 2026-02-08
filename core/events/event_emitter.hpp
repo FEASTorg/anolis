@@ -79,8 +79,11 @@ public:
             }
 
             queue_.push(event);
-            cv_.notify_one();
-        }  // Release lock before I/O
+        }  // Release lock before notification
+
+        // Notify outside lock to avoid "hurry up and wait" where notified thread
+        // would immediately block trying to acquire the mutex we still hold
+        cv_.notify_one();
 
         // Dropped event destructor runs here, outside the lock
         dropped_event.reset();
@@ -159,8 +162,12 @@ public:
      * @brief Close queue (unblocks waiting consumers)
      */
     void close() {
-        std::lock_guard<std::mutex> lock(mutex_);
-        closed_ = true;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            closed_ = true;
+        }  // Release lock before notification
+
+        // Notify outside lock for same reason as push()
         cv_.notify_all();
     }
 
