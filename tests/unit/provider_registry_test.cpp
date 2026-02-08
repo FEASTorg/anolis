@@ -186,6 +186,7 @@ TEST_F(ProviderRegistryTest, ConcurrentReaders) {
 
     // Test: Multiple threads reading concurrently
     std::vector<std::thread> threads;
+    threads.reserve(NUM_READERS);
     std::atomic<int> success_count{0};
 
     for (int t = 0; t < NUM_READERS; ++t) {
@@ -253,6 +254,7 @@ TEST_F(ProviderRegistryTest, ConcurrentReadersAndWriters) {
 
     std::atomic<bool> stop_flag{false};
     std::vector<std::thread> threads;
+    threads.reserve(NUM_WRITERS + NUM_READERS);
 
     // Writer threads: add/remove/replace providers
     for (int t = 0; t < NUM_WRITERS; ++t) {
@@ -340,6 +342,7 @@ TEST_F(ProviderRegistryTest, ProviderRestartSimulation) {
 
     // Reader threads: simulate StateCache polling during restarts
     std::vector<std::thread> reader_threads;
+    reader_threads.reserve(NUM_READERS);
     for (int t = 0; t < NUM_READERS; ++t) {
         reader_threads.emplace_back([this, &restart_complete, &read_successes]() {
             while (!restart_complete.load()) {

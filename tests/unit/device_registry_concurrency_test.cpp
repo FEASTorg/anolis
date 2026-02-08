@@ -95,6 +95,7 @@ TEST_F(DeviceRegistryConcurrencyTest, ClearWhileConcurrentReads) {
     std::atomic<size_t> successful_reads{0};
     std::atomic<size_t> device_not_found{0};
     std::vector<std::thread> reader_threads;
+    reader_threads.reserve(50);
 
     for (int i = 0; i < 50; ++i) {
         reader_threads.emplace_back([&]() {
@@ -163,6 +164,7 @@ TEST_F(DeviceRegistryConcurrencyTest, RestartSimulationStressTest) {
     std::atomic<size_t> successful_reads{0};
     std::atomic<size_t> failed_reads{0};
     std::vector<std::thread> reader_threads;
+    reader_threads.reserve(num_reader_threads);
 
     for (int i = 0; i < num_reader_threads; ++i) {
         reader_threads.emplace_back([&]() {
@@ -254,6 +256,7 @@ TEST_F(DeviceRegistryConcurrencyTest, HandleLookupConcurrency) {
     std::atomic<bool> stop_reading{false};
     std::atomic<size_t> handle_reads{0};
     std::vector<std::thread> threads;
+    threads.reserve(30);
 
     // 30 threads reading by handle
     for (int i = 0; i < 30; ++i) {
@@ -289,6 +292,7 @@ TEST_F(DeviceRegistryConcurrencyTest, GetAllDevicesConcurrency) {
     std::atomic<bool> stop_test{false};
     std::atomic<size_t> snapshot_count{0};
     std::vector<std::thread> threads;
+    threads.reserve(20);
 
     // 20 threads calling get_all_devices repeatedly
     for (int i = 0; i < 20; ++i) {
@@ -354,6 +358,7 @@ TEST_F(DeviceRegistryConcurrencyTest, MixedOperationsStress) {
     std::atomic<size_t> get_all_calls{0};
     std::atomic<size_t> get_by_handle_calls{0};
     std::vector<std::thread> threads;
+    threads.reserve(3 * threads_per_operation + 1);
 
     auto mock = create_mock_provider_with_devices("sim0");
 
