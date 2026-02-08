@@ -191,6 +191,7 @@ jobs:
             tsan.*
             tsan-stress.*
             build/test-logs/
+          if-no-files-found: ignore
 
       - name: Summary
         if: success()
