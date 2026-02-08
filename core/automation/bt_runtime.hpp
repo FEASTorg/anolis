@@ -51,22 +51,6 @@ class ParameterManager;
 class BTRuntime {
 public:
     /**
-     * Configuration for BT runtime
-     */
-    struct Config {
-        bool enabled = false;            // Whether automation is enabled
-        std::string behavior_tree_path;  // Path to XML behavior tree file
-        int tick_rate_hz = 10;           // BT tick frequency (default 10 Hz)
-
-        // (placeholders for now) FIXME
-        // RuntimeMode initial_mode = RuntimeMode::MANUAL;
-        // std::string manual_gating_policy = "BLOCK";
-
-        // (placeholders for now) FIXME
-        // bool persist_parameters = false;
-    };
-
-    /**
      * Construct BT runtime with kernel service dependencies.
      *
      * @param state_cache Reference to state cache (for reading device state)
