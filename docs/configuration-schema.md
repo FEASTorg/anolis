@@ -112,19 +112,22 @@ runtime:
 - **Required:** No
 - **Default:** `["*"]` (allow all origins)
 - **Description:** CORS allowed origins. Use `"*"` to allow all, or list specific origins.
+- **Validation:** Cannot use `"*"` wildcard when `cors_allow_credentials` is `true` (CORS spec violation)
 
 **Examples:**
 
 ```yaml
-# Allow all
+# Allow all origins (credentials must be false)
 http:
   cors_allowed_origins: "*"
+  cors_allow_credentials: false
 
-# Allow specific origins
+# Allow specific origins (works with credentials)
 http:
   cors_allowed_origins:
     - http://localhost:3000
     - http://127.0.0.1:3000
+  cors_allow_credentials: true
 ```
 
 ### `http.cors_allow_credentials`
@@ -133,6 +136,10 @@ http:
 - **Required:** No
 - **Default:** `false`
 - **Description:** Whether to include `Access-Control-Allow-Credentials` header.
+- **Validation:** Cannot be `true` when `cors_allowed_origins` contains wildcard `"*"` (CORS spec violation)
+
+**Note:** Browsers enforce CORS security: wildcard origins cannot be used with credentials.
+Attempting this configuration will be rejected at startup with a clear error message.
 
 ### `http.thread_pool_size`
 
@@ -332,6 +339,21 @@ Nested configuration for InfluxDB connection.
 - **Default:** `1000`
 - **Description:** Maximum time (in milliseconds) to wait before flushing batched data.
 
+#### `telemetry.influxdb.max_retry_buffer_size`
+
+- **Type:** `int`
+- **Required:** No
+- **Default:** `1000`
+- **Constraints:** Must be at least 0
+- **Description:** Maximum number of telemetry events to buffer when InfluxDB writes fail. Failed batches are prepended to the next flush attempt. When the buffer is full, oldest events are dropped. Set to 0 to disable retry buffering (failed batches are immediately discarded).
+
+**Retry Behavior:**
+
+- Failed batches are saved to a retry buffer (FIFO queue)
+- Next successful write attempts to send: retry_buffer + current_batch
+- If buffer exceeds `max_retry_buffer_size`, oldest events are dropped
+- Memory usage: ~200 bytes per event worst case
+
 **Example:**
 
 ```yaml
@@ -344,6 +366,7 @@ telemetry:
     token: my-secret-token # Or use INFLUXDB_TOKEN env var
     batch_size: 100
     flush_interval_ms: 1000
+    max_retry_buffer_size: 2000 # Buffer up to 2000 events on failure
 ```
 
 ---
