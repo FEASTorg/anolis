@@ -496,6 +496,221 @@ python tests/integration/test_signal_handling.py --runtime=build/core/anolis-run
 
 ---
 
+## Concurrency and Threading
+
+The Anolis runtime is multithreaded and uses mutex-based synchronization to protect shared state.
+To prevent deadlocks, **all code must follow the documented lock hierarchy**.
+
+### Lock Hierarchy
+
+Locks must be acquired in this order (never acquire a lock "earlier" in the list while holding a lock "later" in the list):
+
+1. **ModeManager** (`automation/mode_manager.hpp`)
+2. **StateCache** (`state/state_cache.hpp`)
+3. **CallRouter** (`control/call_router.hpp`)
+4. **EventEmitter** (`events/event_emitter.hpp`)
+5. **SubscriberQueue** (`events/subscriber_queue.hpp`)
+
+**Examples:**
+
+✅ **Safe**: Lock ModeManager, then StateCache
+
+```cpp
+std::lock_guard<std::mutex> mode_lock(mode_manager_->get_mutex());
+std::lock_guard<std::mutex> cache_lock(state_cache_->get_mutex());
+```
+
+❌ **Deadlock Risk**: Lock StateCache, then ModeManager (reversed order)
+
+```cpp
+std::lock_guard<std::mutex> cache_lock(state_cache_->get_mutex());  // Lock #2
+std::lock_guard<std::mutex> mode_lock(mode_manager_->get_mutex());  // Lock #1 - WRONG!
+```
+
+### Deadlock Prevention Guidelines
+
+1. **Know the hierarchy**: Before adding lock acquisition, check where it fits in the hierarchy
+2. **Never reverse**: Never acquire a "higher" lock while holding a "lower" lock
+3. **Minimize lock scope**: Release locks as soon as possible
+4. **Avoid nested locking**: Prefer the snapshot-and-release pattern (see below)
+5. **Use read-write locks**: For read-heavy workloads, use `std::shared_mutex` with `std::shared_lock` for reads
+
+### Snapshot-and-Release Pattern
+
+When you need to perform work while holding a lock, collect the necessary data and release the lock before doing expensive operations:
+
+```cpp
+// ❌ BAD: Long operation under lock
+void update_state() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    // ... update state ...
+    event_emitter_->emit(event);  // Nested lock + expensive operation!
+}
+
+// ✅ GOOD: Snapshot data, release lock, then emit
+void update_state() {
+    std::vector<PendingEvent> pending;
+
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        // ... update state ...
+        pending.push_back(event);  // Just collect data
+    }  // Lock released
+
+    for (const auto& evt : pending) {
+        event_emitter_->emit(evt);  // Emit outside lock
+    }
+}
+```
+
+**Rationale**: This pattern:
+
+- Minimizes lock hold time (better concurrency)
+- Prevents nested locking (safer)
+- Avoids holding locks during I/O or expensive operations
+
+### Testing for Concurrency Issues
+
+The project uses **ThreadSanitizer (TSAN)** to detect data races and lock inversions:
+
+```bash
+# Build with TSAN
+cmake -B build -DENABLE_TSAN=ON
+cmake --build build
+
+# Run tests
+ctest --test-dir build
+
+# Or run specific test
+./build/tests/unit/state_cache_test
+```
+
+TSAN runs automatically in CI (`.github/workflows/tsan.yml`) and will fail PRs with data races or deadlock risks.
+
+**When adding new synchronization**:
+
+1. Add unit tests for concurrent access (see `tests/unit/*_concurrency_test.cpp`)
+2. Run with TSAN locally before pushing
+3. Ensure CI TSAN tests pass
+
+---
+
+## Test Patterns
+
+### Integration Test Best Practices
+
+#### ✅ DO: Use HTTP API for Assertions
+
+Tests should verify runtime behavior through the HTTP API, not by parsing log output.
+
+```python
+# ✅ GOOD: Assert using HTTP API
+from test_helpers import assert_provider_available, assert_device_count
+
+runtime = RuntimeFixture(
+    runtime_path="build/core/anolis-runtime",
+    provider_path="build/anolis-provider-sim"
+)
+runtime.start()
+
+assert_provider_available("sim", timeout=5)
+assert_device_count(4, timeout=5)
+
+# ❌ BAD: Parse logs for assertions
+runtime.wait_for_log("Provider started")  # Fragile! Breaks if log message changes
+```
+
+**Why?** API-based assertions:
+
+- Test behavior, not implementation details
+- Don't break when log messages are refactored
+- Verify the contract users actually depend on
+
+**When to use logs**: For debugging context (e.g., print last 10 ERROR lines on failure), not for pass/fail decisions.
+
+#### ✅ DO: Use Process Group Cleanup
+
+Tests must clean up only their own processes, not globally by name.
+
+```python
+# ✅ GOOD: Use RuntimeFixture (process-group scoped cleanup)
+from test_fixtures import RuntimeFixture
+
+runtime = RuntimeFixture(runtime_path="...", provider_path="...")
+try:
+    runtime.start()
+    # ... test logic ...
+finally:
+    runtime.cleanup()  # Kills only this test's process group
+
+# ❌ BAD: Global process killing
+import subprocess
+subprocess.run(["pkill", "-x", "anolis-runtime"])  # Kills ALL anolis-runtime processes!
+```
+
+**Why?** Process-group cleanup:
+
+- Prevents tests from interfering with each other
+- Prevents killing developer's manual runtime instances
+- Works correctly with parallel test execution
+
+**How it works**:
+
+- Linux: `os.setsid()` creates new session, `os.killpg()` kills group
+- Windows: `CREATE_NEW_PROCESS_GROUP` + `CTRL_BREAK_EVENT`
+
+#### Test Structure Template
+
+```python
+from test_fixtures import RuntimeFixture
+from test_helpers import assert_http_available, assert_provider_available
+
+def test_my_feature():
+    """Test description here."""
+    runtime = RuntimeFixture(
+        runtime_path="build/core/anolis-runtime",
+        provider_path="build/anolis-provider-sim",
+        config_dict={  # Optional: override default config
+            "runtime": {"mode": "AUTO"}
+        }
+    )
+
+    try:
+        runtime.start()
+
+        # Wait for runtime ready
+        assert_http_available(timeout=5)
+        assert_provider_available("sim", timeout=5)
+
+        # Your test logic here
+        resp = requests.get("http://localhost:8080/v0/devices")
+        assert resp.status_code == 200
+
+    finally:
+        runtime.cleanup()  # Always cleanup, even on exception
+
+if __name__ == "__main__":
+    test_my_feature()
+    print("✓ test_my_feature")
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+python tests/integration/test_all.py
+
+# Run specific test file
+python tests/integration/test_core.py
+
+# Run with custom paths
+python tests/integration/test_core.py \
+  --runtime=build/core/anolis-runtime \
+  --provider=build/anolis-provider-sim
+```
+
+---
+
 ## Getting Help
 
 - Check the [documentation](docs/README.md)

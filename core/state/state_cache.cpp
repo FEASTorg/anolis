@@ -249,51 +249,66 @@ bool StateCache::poll_device(const std::string &provider_id, const std::string &
 void StateCache::update_device_state(const std::string &device_handle, const std::string &provider_id,
                                      const std::string &device_id,
                                      const anolis::deviceprovider::v0::ReadSignalsResponse &response) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = device_states_.find(device_handle);
-    if (it == device_states_.end()) {
-        LOG_WARN("[StateCache] Device state not found: " << device_handle);
-        return;
-    }
+    // Collect events to emit outside lock
+    struct PendingEvent {
+        std::string signal_id;
+        anolis::deviceprovider::v0::Value value;
+        anolis::deviceprovider::v0::SignalValue_Quality quality;
+    };
+    std::vector<PendingEvent> pending_events;
 
-    auto &state = it->second;
-    state.last_poll_time = std::chrono::system_clock::now();
-    state.provider_available = true;
-
-    // Update signal values with change detection
-    for (const auto &signal_value : response.values()) {
-        const std::string &signal_id = signal_value.signal_id();
-        const auto &new_value = signal_value.value();
-        auto new_quality = signal_value.quality();
-
-        // Check for existing value
-        auto sig_it = state.signals.find(signal_id);
-        bool is_new = (sig_it == state.signals.end());
-
-        // Detect changes
-        bool val_changed = is_new || value_changed(sig_it->second.value, new_value);
-        bool qual_changed = is_new || quality_changed(sig_it->second.quality, new_quality);
-
-        // Update cached value
-        CachedSignalValue cached;
-        cached.value = new_value;
-        cached.quality = new_quality;
-
-        if (signal_value.has_timestamp()) {
-            const auto &proto_ts = signal_value.timestamp();
-            auto duration = std::chrono::duration_cast<std::chrono::system_clock::duration>(
-                std::chrono::seconds(proto_ts.seconds()) + std::chrono::nanoseconds(proto_ts.nanos()));
-            cached.timestamp = std::chrono::system_clock::time_point(duration);
-        } else {
-            cached.timestamp = std::chrono::system_clock::now();
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto it = device_states_.find(device_handle);
+        if (it == device_states_.end()) {
+            LOG_WARN("[StateCache] Device state not found: " << device_handle);
+            return;
         }
 
-        state.signals[signal_id] = cached;
+        auto &state = it->second;
+        state.last_poll_time = std::chrono::system_clock::now();
+        state.provider_available = true;
 
-        // Emit event if value or quality changed
-        if (val_changed || qual_changed) {
-            emit_state_update(provider_id, device_id, signal_id, new_value, new_quality);
+        // Update signal values with change detection
+        for (const auto &signal_value : response.values()) {
+            const std::string &signal_id = signal_value.signal_id();
+            const auto &new_value = signal_value.value();
+            auto new_quality = signal_value.quality();
+
+            // Check for existing value
+            auto sig_it = state.signals.find(signal_id);
+            bool is_new = (sig_it == state.signals.end());
+
+            // Detect changes
+            bool val_changed = is_new || value_changed(sig_it->second.value, new_value);
+            bool qual_changed = is_new || quality_changed(sig_it->second.quality, new_quality);
+
+            // Update cached value
+            CachedSignalValue cached;
+            cached.value = new_value;
+            cached.quality = new_quality;
+
+            if (signal_value.has_timestamp()) {
+                const auto &proto_ts = signal_value.timestamp();
+                auto duration = std::chrono::duration_cast<std::chrono::system_clock::duration>(
+                    std::chrono::seconds(proto_ts.seconds()) + std::chrono::nanoseconds(proto_ts.nanos()));
+                cached.timestamp = std::chrono::system_clock::time_point(duration);
+            } else {
+                cached.timestamp = std::chrono::system_clock::now();
+            }
+
+            state.signals[signal_id] = cached;
+
+            // Queue event if value or quality changed
+            if (val_changed || qual_changed) {
+                pending_events.push_back({signal_id, new_value, new_quality});
+            }
         }
+    }  // Release mutex before emitting events
+
+    // Emit events outside critical section
+    for (const auto &pending : pending_events) {
+        emit_state_update(provider_id, device_id, pending.signal_id, pending.value, pending.quality);
     }
 }
 
