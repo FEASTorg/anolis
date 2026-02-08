@@ -33,6 +33,7 @@ class TestSuiteResult:
     passed: bool
     duration: float
     message: str = ""
+    skipped: bool = False
 
 
 def get_script_dir() -> Path:
@@ -67,18 +68,35 @@ def find_runtime_path() -> Optional[Path]:
     return None
 
 
-def find_bt_nodes_sanity_path() -> Optional[Path]:
+def find_bt_nodes_sanity_path(runtime_path: Optional[Path] = None) -> Optional[Path]:
     """Find the bt_nodes_sanity executable if it exists."""
     repo_root = get_repo_root()
 
-    candidates = [
-        repo_root / "build" / "core" / "Release" / "bt_nodes_sanity.exe",
-        repo_root / "build" / "core" / "Release" / "bt_nodes_sanity",
-        repo_root / "build" / "core" / "Debug" / "bt_nodes_sanity.exe",
-        repo_root / "build" / "core" / "Debug" / "bt_nodes_sanity",
-        repo_root / "build" / "core" / "bt_nodes_sanity.exe",
-        repo_root / "build" / "core" / "bt_nodes_sanity",
-    ]
+    # If runtime path provided, derive build directory from it
+    build_dirs = []
+    if runtime_path:
+        # runtime is typically in build*/core/[Config]/anolis-runtime
+        # or build*/core/anolis-runtime
+        build_dir = runtime_path.parent
+        if build_dir.name in ["Release", "Debug", "RelWithDebInfo", "MinSizeRel"]:
+            build_dir = build_dir.parent.parent  # up to build directory
+        elif build_dir.name == "core":
+            build_dir = build_dir.parent  # up to build directory
+        build_dirs.append(build_dir)
+
+    # Fallback to common build directories
+    build_dirs.extend([repo_root / "build-tsan", repo_root / "build"])
+
+    candidates = []
+    for build_dir in build_dirs:
+        candidates.extend([
+            build_dir / "core" / "Release" / "bt_nodes_sanity.exe",
+            build_dir / "core" / "Release" / "bt_nodes_sanity",
+            build_dir / "core" / "Debug" / "bt_nodes_sanity.exe",
+            build_dir / "core" / "Debug" / "bt_nodes_sanity",
+            build_dir / "core" / "bt_nodes_sanity.exe",
+            build_dir / "core" / "bt_nodes_sanity",
+        ])
 
     for candidate in candidates:
         if candidate.exists():
@@ -263,6 +281,56 @@ def run_test_script(
         duration = time.time() - start_time
 
         if result_code == 0:
+            # Check if test was skipped by looking for skip marker in log
+            # This allows any test to signal skip by printing "SKIPPING:" to stdout
+            try:
+                with open(log_file_path, "r", encoding="utf-8", errors="replace") as f:
+                    log_content = f.read()
+                    
+                    # Look for skip markers (case-insensitive, supports multiple patterns)
+                    skip_markers = ["SKIPPING:", "SKIP:", "TEST SKIPPED"]
+                    found_skip = any(marker in log_content.upper() for marker in skip_markers)
+                    
+                    if found_skip:
+                        # Extract skip reason - look for lines with skip info
+                        lines = log_content.split("\n")
+                        skip_info = []
+                        
+                        # Find the skip section and extract relevant lines
+                        in_skip_section = False
+                        for line in lines:
+                            line_upper = line.upper()
+                            # Start of skip section
+                            if any(marker in line_upper for marker in skip_markers):
+                                in_skip_section = True
+                                # Extract the test name if present
+                                for marker in skip_markers:
+                                    if marker in line_upper:
+                                        skip_info.append(line.split(marker)[1].strip() if marker in line else line.strip())
+                                        break
+                            # In skip section - collect reason lines
+                            elif in_skip_section:
+                                if line.startswith("Reason:") or line.startswith("  "):
+                                    skip_info.append(line.strip())
+                                elif line.strip() and not line.strip().startswith("="):
+                                    skip_info.append(line.strip())
+                                # End of skip section when hitting another border or empty lines
+                                elif line.strip().startswith("=") or (not line.strip() and skip_info):
+                                    break
+                        
+                        # Build skip message
+                        skip_msg = " - ".join(skip_info[:3]) if skip_info else "Test skipped"
+                        
+                        return TestSuiteResult(
+                            name=script_name,
+                            passed=True,
+                            duration=duration,
+                            message=skip_msg,
+                            skipped=True,
+                        )
+            except Exception:
+                pass  # If we can't read log, treat as regular pass
+            
             return TestSuiteResult(
                 name=script_name,
                 passed=True,
@@ -363,7 +431,7 @@ def main() -> int:
         print("Note: Skipping stress tests (SKIP_STRESS_TESTS=1)")
         print()
 
-    bt_nodes_sanity = find_bt_nodes_sanity_path()
+    bt_nodes_sanity = find_bt_nodes_sanity_path(runtime_path)
 
     results: List[TestSuiteResult] = []
 
@@ -385,10 +453,19 @@ def main() -> int:
 
         results.append(result)
 
-        status = "[PASS]" if result.passed else "[FAIL]"
-        print(f"{status} {script_name} ({result.duration:.1f}s)")
-        if not result.passed:
-            print(f"  Error: {result.message}")
+        if result.skipped:
+            status = "[SKIP]"
+            print(f"{status} {script_name} ({result.duration:.1f}s)")
+            if result.message:
+                print(f"  {result.message}")
+        elif result.passed:
+            status = "[PASS]"
+            print(f"{status} {script_name} ({result.duration:.1f}s)")
+        else:
+            status = "[FAIL]"
+            print(f"{status} {script_name} ({result.duration:.1f}s)")
+            if result.message:
+                print(f"  Error: {result.message}")
 
         # Initial cleanup
         cleanup_between_tests()
@@ -428,16 +505,29 @@ def main() -> int:
     print("Summary")
     print("=" * 60)
 
-    passed = sum(1 for r in results if r.passed)
-    failed = len(results) - passed
+    passed = sum(1 for r in results if r.passed and not r.skipped)
+    skipped = sum(1 for r in results if r.skipped)
+    failed = sum(1 for r in results if not r.passed)
     total_duration = sum(r.duration for r in results)
 
     for result in results:
-        status = "[PASS]" if result.passed else "[FAIL]"
-        print(f"  {status} {result.name}")
+        if result.skipped:
+            status = "[SKIP]"
+            print(f"  {status} {result.name}")
+            if result.message:
+                print(f"         {result.message}")
+        elif result.passed:
+            status = "[PASS]"
+            print(f"  {status} {result.name}")
+        else:
+            status = "[FAIL]"
+            print(f"  {status} {result.name}")
 
     print()
-    print(f"Passed: {passed}/{len(results)}")
+    if skipped > 0:
+        print(f"Passed: {passed}/{len(results)}, Skipped: {skipped}")
+    else:
+        print(f"Passed: {passed}/{len(results)}")
     print(f"Duration: {total_duration:.1f}s")
 
     if failed == 0:
