@@ -3,6 +3,7 @@
 [![CI](https://github.com/FEASTorg/anolis/actions/workflows/ci.yml/badge.svg)](https://github.com/FEASTorg/anolis/actions/workflows/ci.yml)
 [![Docs](https://github.com/FEASTorg/anolis/actions/workflows/docs.yml/badge.svg)](https://github.com/FEASTorg/anolis/actions/workflows/docs.yml)
 [![Metrics](https://github.com/FEASTorg/anolis/actions/workflows/metrics.yml/badge.svg)](https://github.com/FEASTorg/anolis/actions/workflows/metrics.yml)
+
 [![Static Analysis](https://github.com/FEASTorg/anolis/actions/workflows/static-analysis.yml/badge.svg)](https://github.com/FEASTorg/anolis/actions/workflows/static-analysis.yml)
 [![Sanitizers](https://github.com/FEASTorg/anolis/actions/workflows/sanitizers.yml/badge.svg)](https://github.com/FEASTorg/anolis/actions/workflows/sanitizers.yml)
 [![TSAN](https://github.com/FEASTorg/anolis/actions/workflows/tsan.yml/badge.svg)](https://github.com/FEASTorg/anolis/actions/workflows/tsan.yml)
