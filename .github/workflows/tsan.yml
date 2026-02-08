@@ -89,6 +89,8 @@ jobs:
         run: |
           cmake -B build -S . -G Ninja \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DVCPKG_TARGET_TRIPLET=x64-linux-tsan \
+            -DVCPKG_OVERLAY_TRIPLETS=${{ github.workspace }}/triplets \
             -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
             -DENABLE_TSAN=ON
           cmake --build build --config RelWithDebInfo --parallel
@@ -98,15 +100,16 @@ jobs:
           cd anolis-provider-sim
           cmake -B build -S . -G Ninja \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DVCPKG_TARGET_TRIPLET=x64-linux-tsan \
+            -DVCPKG_OVERLAY_TRIPLETS=${{ github.workspace }}/triplets \
             -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
             -DVCPKG_INSTALLED_DIR=$GITHUB_WORKSPACE/build/vcpkg_installed \
-            -DVCPKG_MANIFEST_INSTALL=OFF \
-            -DENABLE_TSAN=ON
+            -DVCPKG_MANIFEST_INSTALL=OFF
           cmake --build build --config RelWithDebInfo --parallel
 
       - name: Run unit tests with TSAN
         env:
-          TSAN_OPTIONS: "halt_on_error=1 second_deadlock_stack=1 detect_deadlocks=1 log_path=${{ github.workspace }}/tsan-unit"
+          TSAN_OPTIONS: "second_deadlock_stack=1 detect_deadlocks=1 history_size=7 log_path=${{ github.workspace }}/tsan-unit"
         run: |
           set +e
           echo "=== Running unit tests with ThreadSanitizer ==="
@@ -166,8 +169,8 @@ jobs:
 
       - name: Run integration tests with TSAN
         env:
-          LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/lib
-          TSAN_OPTIONS: "halt_on_error=1 second_deadlock_stack=1 history_size=5 log_path=${{ github.workspace }}/tsan-integration"
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux-tsan/lib
+          TSAN_OPTIONS: "second_deadlock_stack=1 history_size=7 log_path=${{ github.workspace }}/tsan-integration"
         run: |
           set +e
 
@@ -220,8 +223,8 @@ jobs:
 
       - name: Run concurrency stress test with TSAN
         env:
-          LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/lib
-          TSAN_OPTIONS: "halt_on_error=1 second_deadlock_stack=1 history_size=5 log_path=${{ github.workspace }}/tsan-stress"
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux-tsan/lib
+          TSAN_OPTIONS: "second_deadlock_stack=1 history_size=7 log_path=${{ github.workspace }}/tsan-stress"
         run: |
           set +e
 

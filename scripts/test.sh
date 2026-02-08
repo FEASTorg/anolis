@@ -44,6 +44,10 @@ if grep -q "fsanitize=thread" "$REPO_ROOT/build/CMakeCache.txt" 2>/dev/null || \
     TSAN_ENABLED=true
     echo "[INFO] ThreadSanitizer build detected"
     
+    # Set LD_LIBRARY_PATH to use TSAN-instrumented libraries
+    export LD_LIBRARY_PATH="$REPO_ROOT/build/vcpkg_installed/x64-linux-tsan/lib:${LD_LIBRARY_PATH:-}"
+    echo "[INFO] LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+    
     # Configure TSAN to capture ALL races, not halt on first error
     # This lets us see the actual race before any crash
     export TSAN_OPTIONS="second_deadlock_stack=1 detect_deadlocks=1 history_size=7 log_path=$REPO_ROOT/tsan-report"
