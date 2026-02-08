@@ -14,12 +14,12 @@ PROVIDER_DIR="$(dirname "$REPO_ROOT")/anolis-provider-sim"
 VERBOSE_FLAG=""
 
 while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --verbose|-v)
-            VERBOSE_FLAG="-VV"
-            ;;
-    esac
-    shift
+	case "$1" in
+	--verbose | -v)
+		VERBOSE_FLAG="-VV"
+		;;
+	esac
+	shift
 done
 
 echo "[INFO] Running Anolis test suite..."
@@ -30,9 +30,9 @@ cd "$REPO_ROOT"
 # ------------------------------------------------------------------------------
 
 if [[ ! -f "$BUILD_DIR/CTestTestfile.cmake" ]]; then
-    echo "[ERROR] Build directory missing or not configured: $BUILD_DIR"
-    echo "        Run ./scripts/build.sh first."
-    exit 2
+	echo "[ERROR] Build directory missing or not configured: $BUILD_DIR"
+	echo "        Run ./scripts/build.sh first."
+	exit 2
 fi
 
 # ------------------------------------------------------------------------------
@@ -41,33 +41,33 @@ fi
 
 TSAN_ENABLED=false
 if grep -q "ENABLE_TSAN:BOOL=ON" "$BUILD_DIR/CMakeCache.txt" 2>/dev/null; then
-    TSAN_ENABLED=true
-    echo "[INFO] ThreadSanitizer build detected"
+	TSAN_ENABLED=true
+	echo "[INFO] ThreadSanitizer build detected"
 
-    # Extract triplet dynamically
-    VCPKG_TRIPLET=$(grep "VCPKG_TARGET_TRIPLET:STRING=" "$BUILD_DIR/CMakeCache.txt" | cut -d= -f2 || true)
+	# Extract triplet dynamically
+	VCPKG_TRIPLET=$(grep "VCPKG_TARGET_TRIPLET:STRING=" "$BUILD_DIR/CMakeCache.txt" | cut -d= -f2 || true)
 
-    if [[ -z "${VCPKG_TRIPLET:-}" ]]; then
-        echo "[ERROR] Could not determine VCPKG_TARGET_TRIPLET from CMakeCache.txt"
-        exit 3
-    fi
+	if [[ -z "${VCPKG_TRIPLET:-}" ]]; then
+		echo "[ERROR] Could not determine VCPKG_TARGET_TRIPLET from CMakeCache.txt"
+		exit 3
+	fi
 
-    export LD_LIBRARY_PATH="$BUILD_DIR/vcpkg_installed/$VCPKG_TRIPLET/lib:${LD_LIBRARY_PATH:-}"
-    echo "[INFO] Using VCPKG triplet: $VCPKG_TRIPLET"
-    echo "[INFO] LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+	export LD_LIBRARY_PATH="$BUILD_DIR/vcpkg_installed/$VCPKG_TRIPLET/lib:${LD_LIBRARY_PATH:-}"
+	echo "[INFO] Using VCPKG triplet: $VCPKG_TRIPLET"
+	echo "[INFO] LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
 
-    export TSAN_OPTIONS="second_deadlock_stack=1 detect_deadlocks=1 history_size=7 log_path=$REPO_ROOT/tsan-report"
-    echo "[INFO] TSAN_OPTIONS=$TSAN_OPTIONS"
-    echo "[INFO] Race reports will be written to: $REPO_ROOT/tsan-report.*"
+	export TSAN_OPTIONS="second_deadlock_stack=1 detect_deadlocks=1 history_size=7 log_path=$REPO_ROOT/tsan-report"
+	echo "[INFO] TSAN_OPTIONS=$TSAN_OPTIONS"
+	echo "[INFO] Race reports will be written to: $REPO_ROOT/tsan-report.*"
 
-    # Ensure provider built with TSAN as well
-    if [[ -f "$PROVIDER_DIR/build/CMakeCache.txt" ]]; then
-        if ! grep -q "ENABLE_TSAN:BOOL=ON" "$PROVIDER_DIR/build/CMakeCache.txt"; then
-            echo "[ERROR] Provider built without TSAN while runtime uses TSAN."
-            echo "        Rebuild provider with --tsan to avoid mixed instrumentation."
-            exit 4
-        fi
-    fi
+	# Ensure provider built with TSAN as well
+	if [[ -f "$PROVIDER_DIR/build/CMakeCache.txt" ]]; then
+		if ! grep -q "ENABLE_TSAN:BOOL=ON" "$PROVIDER_DIR/build/CMakeCache.txt"; then
+			echo "[ERROR] Provider built without TSAN while runtime uses TSAN."
+			echo "        Rebuild provider with --tsan to avoid mixed instrumentation."
+			exit 4
+		fi
+	fi
 fi
 
 # ------------------------------------------------------------------------------
@@ -78,9 +78,9 @@ echo "[INFO] Discovering unit tests..."
 TEST_COUNT=$(ctest --test-dir "$BUILD_DIR" -N | awk '/Total Tests:/ {print $3}')
 
 if [[ -z "${TEST_COUNT:-}" || "$TEST_COUNT" == "0" ]]; then
-    echo "[ERROR] No unit tests found."
-    echo "        Ensure BUILD_TESTING=ON during configuration."
-    exit 2
+	echo "[ERROR] No unit tests found."
+	echo "        Ensure BUILD_TESTING=ON during configuration."
+	exit 2
 fi
 
 echo "[INFO] Found $TEST_COUNT unit tests"
@@ -95,10 +95,10 @@ echo "[INFO] Unit tests passed"
 # ------------------------------------------------------------------------------
 
 if [[ "$TSAN_ENABLED" == true ]] && ls "$REPO_ROOT"/tsan-report.* >/dev/null 2>&1; then
-    RACE_COUNT=$(ls "$REPO_ROOT"/tsan-report.* | wc -l)
-    echo "[WARN] ThreadSanitizer detected $RACE_COUNT issue(s)"
-    echo "[WARN] First report preview:"
-    head -50 "$REPO_ROOT"/tsan-report.* | head -50 || true
+	RACE_COUNT=$(ls "$REPO_ROOT"/tsan-report.* | wc -l)
+	echo "[WARN] ThreadSanitizer detected $RACE_COUNT issue(s)"
+	echo "[WARN] First report preview:"
+	head -50 "$REPO_ROOT"/tsan-report.* | head -50 || true
 fi
 
 echo ""
@@ -109,12 +109,12 @@ echo ""
 
 INTEGRATION_SCRIPT="$REPO_ROOT/tests/integration/test_all.py"
 if [[ ! -f "$INTEGRATION_SCRIPT" ]]; then
-    echo "[WARN] Integration test script not found: $INTEGRATION_SCRIPT"
-    echo "[WARN] Skipping integration tests"
+	echo "[WARN] Integration test script not found: $INTEGRATION_SCRIPT"
+	echo "[WARN] Skipping integration tests"
 else
-    echo "[INFO] Running integration tests..."
-    python3 "$INTEGRATION_SCRIPT"
-    echo "[INFO] Integration tests passed"
+	echo "[INFO] Running integration tests..."
+	python3 "$INTEGRATION_SCRIPT"
+	echo "[INFO] Integration tests passed"
 fi
 
 # ------------------------------------------------------------------------------
@@ -123,11 +123,11 @@ fi
 
 SCENARIO_SCRIPT="$REPO_ROOT/tests/scenarios/run_scenarios.py"
 if [[ ! -f "$SCENARIO_SCRIPT" ]]; then
-    echo "[WARN] Validation scenario script not found: $SCENARIO_SCRIPT"
-    echo "[WARN] Skipping validation scenarios"
+	echo "[WARN] Validation scenario script not found: $SCENARIO_SCRIPT"
+	echo "[WARN] Skipping validation scenarios"
 else
-    echo "[INFO] Running validation scenarios..."
-    python3 "$SCENARIO_SCRIPT"
+	echo "[INFO] Running validation scenarios..."
+	python3 "$SCENARIO_SCRIPT"
 fi
 
 echo "[INFO] All tests passed"
