@@ -44,18 +44,9 @@ jobs:
           submodules: recursive
 
       - name: Checkout anolis-provider-sim
-        uses: actions/checkout@v4
+        uses: ./.github/actions/checkout-provider-sim
         with:
-          repository: FEASTorg/anolis-provider-sim
-          path: anolis-provider-sim
-          submodules: recursive
-
-      - name: Override anolis submodule with current commit
-        run: |
-          cd anolis-provider-sim/external/anolis
-          git fetch origin ${{ github.sha }}
-          git checkout ${{ github.sha }}
-          cd ../../..
+          commit-sha: ${{ github.sha }}
 
       - name: Install system dependencies
         run: |
@@ -68,22 +59,16 @@ jobs:
           gcc --version
           g++ --version
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-          cache: "pip"
-          cache-dependency-path: requirements-lock.txt
+      - name: Validate requirements-lock.txt encoding
+        uses: ./.github/actions/validate-lockfile
 
-      - name: Install Python packages
-        run: |
-          python -m pip install -r requirements-lock.txt
+      - name: Setup Python and dependencies
+        uses: ./.github/actions/setup-python-deps
 
       - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v11
+        uses: ./.github/actions/setup-vcpkg
         with:
-          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
-          doNotCache: true
+          vcpkg-commit: ${{ env.VCPKG_COMMIT }}
 
       - name: Build anolis with ThreadSanitizer
         run: |

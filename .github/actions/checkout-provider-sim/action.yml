@@ -1,0 +1,26 @@
+name: "Checkout anolis-provider-sim"
+description: "Checkout anolis-provider-sim repository and override anolis submodule"
+inputs:
+  path:
+    description: "Path to checkout anolis-provider-sim"
+    required: false
+    default: "anolis-provider-sim"
+  commit-sha:
+    description: "Anolis commit SHA to use for submodule override"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout anolis-provider-sim
+      uses: actions/checkout@v4
+      with:
+        repository: FEASTorg/anolis-provider-sim
+        path: ${{ inputs.path }}
+        submodules: recursive
+
+    - name: Override anolis submodule with current commit
+      shell: bash
+      run: |
+        cd ${{ inputs.path }}/external/anolis
+        git fetch origin ${{ inputs.commit-sha }}
+        git checkout ${{ inputs.commit-sha }}

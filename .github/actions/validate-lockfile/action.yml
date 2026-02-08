@@ -1,0 +1,33 @@
+name: "Validate Lockfile"
+description: "Validates requirements-lock.txt encoding and integrity"
+inputs:
+  lockfile-path:
+    description: "Path to requirements-lock.txt"
+    required: false
+    default: "requirements-lock.txt"
+runs:
+  using: "composite"
+  steps:
+    - name: Validate lockfile encoding
+      shell: bash
+      run: |
+        LOCKFILE="${{ inputs.lockfile-path }}"
+
+        if [ ! -f "$LOCKFILE" ]; then
+          echo "ERROR: $LOCKFILE not found" >&2
+          exit 1
+        fi
+
+        # Check for NUL bytes (binary corruption)
+        if grep -q $'\x00' "$LOCKFILE" 2>/dev/null; then
+          echo "ERROR: $LOCKFILE contains NUL bytes (binary corruption)" >&2
+          exit 1
+        fi
+
+        # Check UTF-8 encoding validity
+        if ! iconv -f UTF-8 -t UTF-8 "$LOCKFILE" > /dev/null 2>&1; then
+          echo "ERROR: $LOCKFILE is not valid UTF-8" >&2
+          exit 1
+        fi
+
+        echo "OK: $LOCKFILE is valid UTF-8 and contains no NUL bytes"

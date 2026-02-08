@@ -20,80 +20,107 @@ $BuildType = if ($Debug) { "Debug" } else { "Release" }
 $BuildTests = -not $NoTests
 $BuildTestingValue = if ($BuildTests) { "ON" } else { "OFF" }
 
-# Set sanitizer flags if enabled
-$SanitizerFlags = ""
+# ---- ThreadSanitizer (not supported on MSVC) ----
 if ($TSan) {
-    $SanitizerFlags = "-fsanitize=thread -g -fno-omit-frame-pointer"
+    Write-Host "[ERROR] ThreadSanitizer is not supported on Windows/MSVC." -ForegroundColor Red
+    Write-Host "        Use WSL or Linux for TSAN builds." -ForegroundColor Yellow
+    exit 1
 }
 
-# Choose generator (prefer VS 2022 Build Tools if present, fall back to Ninja)
+# ---- Build directories (match Linux structure philosophy) ----
+$BuildDir = Join-Path $RepoRoot "build"
+$ProviderBuildDir = Join-Path $ProviderSimDir "build"
+
+# ---- Generator selection ----
 $CMakeGeneratorArgs = @()
 $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio/Installer/vswhere.exe"
 $vsInstance = $null
+
 if (Test-Path $vswhere) {
-    $vsInstance = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationPath
+    $vsInstance = & $vswhere -latest -products * `
+        -requires Microsoft.Component.MSBuild `
+        -property installationPath
 }
 
 if ($vsInstance) {
     Write-Host "[INFO] Using Visual Studio 17 2022 at $vsInstance" -ForegroundColor Green
-    $CMakeGeneratorArgs += @("-G", "Visual Studio 17 2022", "-A", "x64", "-DCMAKE_GENERATOR_INSTANCE=$vsInstance")
-} elseif (Get-Command ninja -ErrorAction SilentlyContinue) {
+    $CMakeGeneratorArgs += @(
+        "-G", "Visual Studio 17 2022",
+        "-A", "x64",
+        "-DCMAKE_GENERATOR_INSTANCE=$vsInstance"
+    )
+}
+elseif (Get-Command ninja -ErrorAction SilentlyContinue) {
     Write-Host "[INFO] Using Ninja generator" -ForegroundColor Green
     $CMakeGeneratorArgs += @("-G", "Ninja")
-} else {
+}
+else {
     Write-Host "[ERROR] No suitable CMake generator found. Install VS 2022 Build Tools or Ninja." -ForegroundColor Red
     exit 1
 }
 
 Write-Host "[INFO] Build type: $BuildType" -ForegroundColor Green
 Write-Host "[INFO] Build tests: $BuildTests" -ForegroundColor Green
-Write-Host "[INFO] ThreadSanitizer: $TSan" -ForegroundColor Green
 
-# Check vcpkg
+# ---- vcpkg detection ----
 if (-not $env:VCPKG_ROOT) {
-    $vcpkgPaths = @("$env:USERPROFILE\vcpkg", "C:\vcpkg", "C:\src\vcpkg")
+    $vcpkgPaths = @(
+        "$env:USERPROFILE\vcpkg",
+        "C:\vcpkg",
+        "C:\src\vcpkg"
+    )
+
     foreach ($path in $vcpkgPaths) {
         if (Test-Path "$path\vcpkg.exe") {
             $env:VCPKG_ROOT = $path
             break
         }
     }
+
     if (-not $env:VCPKG_ROOT) {
         Write-Host "[ERROR] VCPKG_ROOT not set. Run setup.ps1 first." -ForegroundColor Red
         exit 1
     }
 }
 
-# Clean if requested
+$ToolchainFile = Join-Path $env:VCPKG_ROOT "scripts\buildsystems\vcpkg.cmake"
+
+# ---- Clean ----
 if ($Clean) {
     Write-Host "[INFO] Cleaning build directories..." -ForegroundColor Green
-    if (Test-Path "$RepoRoot\build") { Remove-Item -Recurse -Force "$RepoRoot\build" }
-    if (Test-Path "$ProviderSimDir\build") { Remove-Item -Recurse -Force "$ProviderSimDir\build" }
+    if (Test-Path $BuildDir) { Remove-Item -Recurse -Force $BuildDir }
+    if (Test-Path $ProviderBuildDir) { Remove-Item -Recurse -Force $ProviderBuildDir }
 }
 
-# Build provider-sim
+# ---- Common CMake arguments ----
+$CommonArgs = @(
+    "-DCMAKE_BUILD_TYPE=$BuildType",
+    "-DCMAKE_TOOLCHAIN_FILE=$ToolchainFile",
+    "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+)
+
+$AnolisArgs = @(
+    $CommonArgs
+    "-DBUILD_TESTING=$BuildTestingValue"
+)
+
+# ---- Build provider-sim ----
 if (Test-Path $ProviderSimDir) {
     Write-Host "[INFO] Building anolis-provider-sim..." -ForegroundColor Green
-    Push-Location $ProviderSimDir
-    cmake @CMakeGeneratorArgs -B build -S . `
-        -DCMAKE_BUILD_TYPE="$BuildType" `
-        -DCMAKE_CXX_FLAGS="$SanitizerFlags" `
-        -DCMAKE_C_FLAGS="$SanitizerFlags" `
-        -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
-    cmake --build build --config $BuildType
-    Pop-Location
+    cmake @CMakeGeneratorArgs -B $ProviderBuildDir -S $ProviderSimDir @CommonArgs
+    cmake --build $ProviderBuildDir --config $BuildType
+}
+else {
+    Write-Host "[INFO] anolis-provider-sim not found (skipping)" -ForegroundColor Yellow
 }
 
-# Build anolis
+# ---- Build anolis ----
 Write-Host "[INFO] Building anolis..." -ForegroundColor Green
-Push-Location $RepoRoot
-cmake @CMakeGeneratorArgs -B build -S . `
-    -DCMAKE_BUILD_TYPE="$BuildType" `
-    -DBUILD_TESTING=$BuildTestingValue `
-    -DCMAKE_CXX_FLAGS="$SanitizerFlags" `
-    -DCMAKE_C_FLAGS="$SanitizerFlags" `
-    -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
-cmake --build build --config $BuildType
-Pop-Location
+cmake @CMakeGeneratorArgs -B $BuildDir -S $RepoRoot @AnolisArgs
+cmake --build $BuildDir --config $BuildType
 
 Write-Host "[INFO] Build complete" -ForegroundColor Green
+Write-Host "[INFO] Build directory: $BuildDir" -ForegroundColor Green
+if (Test-Path $ProviderSimDir) {
+    Write-Host "[INFO] Provider build directory: $ProviderBuildDir" -ForegroundColor Green
+}

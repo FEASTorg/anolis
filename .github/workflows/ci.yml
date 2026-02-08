@@ -44,21 +44,12 @@ jobs:
           submodules: recursive
 
       - name: Checkout anolis-provider-sim
-        uses: actions/checkout@v4
+        uses: ./.github/actions/checkout-provider-sim
         with:
-          repository: FEASTorg/anolis-provider-sim
-          path: anolis-provider-sim
-          submodules: recursive
-
-      - name: Override anolis submodule with current commit
-        run: |
-          cd anolis-provider-sim/external/anolis
-          git fetch origin ${{ github.sha }}
-          git checkout ${{ github.sha }}
-          cd ../../..
+          commit-sha: ${{ github.sha }}
 
       - name: Validate requirements-lock.txt encoding
-        run: python3 scripts/validate_lockfile.py
+        uses: ./.github/actions/validate-lockfile
 
       - name: Install system dependencies
         run: |
@@ -87,22 +78,13 @@ jobs:
             ccache-linux-${{ env.SAFE_REF_NAME }}-
             ccache-linux-
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-          cache: "pip"
-          cache-dependency-path: requirements-lock.txt
-
-      - name: Install Python packages
-        run: |
-          python -m pip install -r requirements-lock.txt
+      - name: Setup Python and dependencies
+        uses: ./.github/actions/setup-python-deps
 
       - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v11
+        uses: ./.github/actions/setup-vcpkg
         with:
-          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
-          doNotCache: true
+          vcpkg-commit: ${{ env.VCPKG_COMMIT }}
 
       - name: Build anolis
         run: |
@@ -129,12 +111,12 @@ jobs:
           echo "=== Running CTest ==="
           ctest --test-dir build --output-on-failure -C Release 2>&1 | tee ctest-output.log
           CTEST_EXIT=$?
-          
+
           # Parse test results
           TOTAL_TESTS=$(grep -oP '\d+(?= tests)' ctest-output.log | tail -1 || echo "0")
           PASSED_TESTS=$(grep -oP '\d+(?= tests passed)' ctest-output.log | tail -1 || echo "0")
           FAILED_TESTS=$(grep -oP '\d+(?= tests failed)' ctest-output.log | tail -1 || echo "0")
-          
+
           {
             echo "## Unit Tests (Linux)"
             echo ""
@@ -152,7 +134,7 @@ jobs:
               echo "See logs in artifact: \`test-logs-linux-${{ github.run_number }}\`"
             fi
           } >> $GITHUB_STEP_SUMMARY
-          
+
           exit $CTEST_EXIT
 
       - name: Run integration tests
@@ -181,7 +163,7 @@ jobs:
 
           # Count test results from pytest output
           TEST_COUNT=$(grep -oP '\d+(?= passed|failed|error)' integration-test.log | head -1 || echo "N/A")
-          
+
           {
             echo "## Integration Tests (Linux)"
             echo ""
@@ -230,7 +212,7 @@ jobs:
             --runtime=build/core/anolis-runtime \
             --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim 2>&1 | tee scenarios.log
           SCENARIO_EXIT=$?
-          
+
           {
             echo "## Validation Scenarios (Linux)"
             echo ""
@@ -244,7 +226,7 @@ jobs:
               echo "Artifact: \`test-logs-linux-${{ github.run_number }}\`"
             fi
           } >> $GITHUB_STEP_SUMMARY
-          
+
           exit $SCENARIO_EXIT
 
       - name: Upload Test Logs
@@ -272,38 +254,22 @@ jobs:
           submodules: recursive
 
       - name: Checkout anolis-provider-sim
-        uses: actions/checkout@v4
+        uses: ./.github/actions/checkout-provider-sim
         with:
-          repository: FEASTorg/anolis-provider-sim
-          path: anolis-provider-sim
-          submodules: recursive
-
-      - name: Override anolis submodule with current commit
-        run: |
-          cd anolis-provider-sim/external/anolis
-          git fetch origin ${{ github.sha }}
-          git checkout ${{ github.sha }}
+          commit-sha: ${{ github.sha }}
 
       - name: Validate requirements-lock.txt encoding
-        run: python scripts/validate_lockfile.py
+        uses: ./.github/actions/validate-lockfile
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Setup Python and dependencies
+        uses: ./.github/actions/setup-python-deps
         with:
-          python-version: "3.x"
-          cache: "pip"
-          cache-dependency-path: requirements-lock.txt
-
-      - name: Install Python packages
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements-lock.txt
+          upgrade-pip: "true"
 
       - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v11
+        uses: ./.github/actions/setup-vcpkg
         with:
-          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
-          doNotCache: true
+          vcpkg-commit: ${{ env.VCPKG_COMMIT }}
 
       - name: Build anolis
         run: |
@@ -323,13 +289,13 @@ jobs:
         run: |
           ctest --test-dir build --output-on-failure -C Release 2>&1 | Tee-Object -FilePath ctest-output.log
           $CTEST_EXIT = $LASTEXITCODE
-          
+
           # Parse test results
           $TestOutput = Get-Content ctest-output.log -Raw
           $TotalTests = if ($TestOutput -match '(\d+) tests') { $Matches[1] } else { "0" }
           $PassedTests = if ($TestOutput -match '(\d+) tests passed') { $Matches[1] } else { "0" }
           $FailedTests = if ($TestOutput -match '(\d+) tests failed') { $Matches[1] } else { "0" }
-          
+
           $Summary = "## Unit Tests (Windows)`n`n"
           if ($CTEST_EXIT -eq 0) {
             $Summary += "**PASS:** All unit tests passed`n"
@@ -342,9 +308,9 @@ jobs:
           if ($CTEST_EXIT -ne 0) {
             $Summary += "Artifact: ``test-logs-windows-${{ github.run_number }}``n"
           }
-          
+
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $Summary
-          
+
           if ($CTEST_EXIT -ne 0) { exit $CTEST_EXIT }
 
       - name: Run integration tests
@@ -354,10 +320,10 @@ jobs:
           $TEST_EXIT = $LASTEXITCODE
           $EndTime = Get-Date
           $Duration = [int](($EndTime - $StartTime).TotalSeconds)
-          
+
           $TestOutput = Get-Content integration-test.log -Raw
           $TestCount = if ($TestOutput -match '(\d+) (passed|failed|error)') { $Matches[1] } else { "N/A" }
-          
+
           $Summary = "## Integration Tests (Windows)`n`n"
           if ($TEST_EXIT -eq 0) {
             $Summary += "**PASS:** All integration tests passed`n"
@@ -370,9 +336,9 @@ jobs:
           if ($TEST_EXIT -ne 0) {
             $Summary += "Artifact: ``test-logs-windows-${{ github.run_number }}``n"
           }
-          
+
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $Summary
-          
+
           if ($TEST_EXIT -ne 0) { exit $TEST_EXIT }
 
       - name: Run validation scenarios
@@ -382,7 +348,7 @@ jobs:
             "--runtime=build/core/Release/anolis-runtime.exe" `
             "--provider=$env:GITHUB_WORKSPACE/anolis-provider-sim/build/Release/anolis-provider-sim.exe" 2>&1 | Tee-Object -FilePath scenarios.log
           $SCENARIO_EXIT = $LASTEXITCODE
-          
+
           $Summary = "## Validation Scenarios (Windows)`n`n"
           if ($SCENARIO_EXIT -eq 0) {
             $Summary += "**PASS:** All scenarios passed`n"
@@ -391,9 +357,9 @@ jobs:
             $Summary += "Exit code: $SCENARIO_EXIT`n`n"
             $Summary += "Artifact: ``test-logs-windows-${{ github.run_number }}``n"
           }
-          
+
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $Summary
-          
+
           if ($SCENARIO_EXIT -ne 0) { exit $SCENARIO_EXIT }
 
       - name: Upload Test Logs

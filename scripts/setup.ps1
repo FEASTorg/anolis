@@ -1,15 +1,15 @@
 # Anolis Development Setup Script (Windows)
 #
-# This script bootstraps a development environment:
-# - Checks prerequisites
-# - Sets up vcpkg
-# - Builds anolis and anolis-provider-sim
+# Bootstraps development environment:
+# - Verifies prerequisites
+# - Ensures vcpkg baseline
+# - Installs Python dependencies
+# - Initializes submodules
+# - Optionally cleans
+# - Delegates build to build.ps1
 #
 # Usage:
 #   .\scripts\setup.ps1 [-Clean]
-#
-# Options:
-#   -Clean    Remove build directories before building
 
 param(
     [switch]$Clean
@@ -21,38 +21,22 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = Split-Path -Parent $ScriptDir
 $ProviderSimDir = Join-Path (Split-Path -Parent $RepoRoot) "anolis-provider-sim"
 
-function Write-Info {
-    param([string]$Message)
-    Write-Host "[INFO] $Message" -ForegroundColor Green
-}
+function Write-Info { param($m) Write-Host "[INFO]  $m" -ForegroundColor Green }
+function Write-Warn { param($m) Write-Host "[WARN]  $m" -ForegroundColor Yellow }
+function Write-Fail { param($m) Write-Host "[ERROR] $m" -ForegroundColor Red; exit 1 }
 
-function Write-Warn {
-    param([string]$Message)
-    Write-Host "[WARN] $Message" -ForegroundColor Yellow
-}
-
-function Write-Error-Exit {
-    param([string]$Message)
-    Write-Host "[ERROR] $Message" -ForegroundColor Red
-    exit 1
-}
-
-# Extract vcpkg baseline from vcpkg.json
 function Get-VcpkgBaseline {
-    $vcpkgJsonPath = Join-Path $RepoRoot "vcpkg.json"
-    if (Test-Path $vcpkgJsonPath) {
+    $vcpkgJson = Join-Path $RepoRoot "vcpkg.json"
+    if (Test-Path $vcpkgJson) {
         try {
-            $vcpkgConfig = Get-Content $vcpkgJsonPath | ConvertFrom-Json
-            if ($vcpkgConfig.'builtin-baseline') {
-                return $vcpkgConfig.'builtin-baseline'
+            $json = Get-Content $vcpkgJson | ConvertFrom-Json
+            if ($json.'builtin-baseline') {
+                return $json.'builtin-baseline'
             }
         }
-        catch {
-            Write-Warn "Failed to parse vcpkg.json: $_"
-        }
+        catch {}
     }
-    # Fallback to hardcoded value if extraction fails
-    return "66c0373dc7fca549e5803087b9487edfe3aca0a1"
+    Write-Fail "Unable to determine vcpkg builtin-baseline from vcpkg.json"
 }
 
 $VcpkgBaseline = Get-VcpkgBaseline
@@ -62,221 +46,140 @@ Write-Host "Anolis Development Setup"
 Write-Host "=============================================="
 Write-Host ""
 
-# Check prerequisites
+# -------------------------------------------------
+# Prerequisites
+# -------------------------------------------------
 Write-Info "Checking prerequisites..."
 
-# Check cmake
-$cmake = Get-Command cmake -ErrorAction SilentlyContinue
-if (-not $cmake) {
-    Write-Error-Exit "cmake not found. Install from https://cmake.org/download/ or via Visual Studio Installer"
+if (-not (Get-Command cmake -ErrorAction SilentlyContinue)) {
+    Write-Fail "cmake not found"
 }
-$cmakeVersion = (cmake --version | Select-Object -First 1)
-Write-Info "  cmake: $cmakeVersion"
+Write-Info "  cmake: $(cmake --version | Select-Object -First 1)"
 
-# Check C++ compiler (cl.exe from Visual Studio)
-$cl = Get-Command cl -ErrorAction SilentlyContinue
-if (-not $cl) {
-    Write-Warn "cl.exe not in PATH. Make sure to run from Developer Command Prompt or VS Code with C++ tools."
-    Write-Info "  Checking if Visual Studio is installed..."
-    $vsWhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-    if (Test-Path $vsWhere) {
-        $vsPath = & $vsWhere -latest -property installationPath
-        Write-Info "  Visual Studio: $vsPath"
-    }
-    else {
-        Write-Error-Exit "Visual Studio not found. Install Visual Studio 2022 with C++ desktop development workload."
-    }
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+    Write-Fail "git not found"
 }
-else {
-    Write-Info "  cl.exe: found"
-}
+Write-Info "  git: $(git --version)"
 
-# Check python
 $python = Get-Command python -ErrorAction SilentlyContinue
 if (-not $python) {
-    $python = Get-Command python3 -ErrorAction SilentlyContinue
+    Write-Fail "python not found"
 }
-if (-not $python) {
-    Write-Error-Exit "python not found. Install from https://python.org or Microsoft Store"
-}
-$pythonVersion = (python --version 2>&1)
-Write-Info "  python: $pythonVersion"
+Write-Info "  python: $(python --version)"
 
-# Check git
-$git = Get-Command git -ErrorAction SilentlyContinue
-if (-not $git) {
-    Write-Error-Exit "git not found. Install from https://git-scm.com/download/win"
+# Check for Visual Studio toolchain
+$cl = Get-Command cl -ErrorAction SilentlyContinue
+if (-not $cl) {
+    Write-Warn "cl.exe not found in PATH. Use Developer PowerShell or VS Code C++ environment."
 }
-$gitVersion = (git --version)
-Write-Info "  git: $gitVersion"
+else {
+    Write-Info "  MSVC compiler detected"
+}
 
-# Check/setup vcpkg
+Write-Host ""
+
+# -------------------------------------------------
+# vcpkg Setup
+# -------------------------------------------------
 if (-not $env:VCPKG_ROOT) {
-    # Check common locations
-    $vcpkgPaths = @(
-        "$env:USERPROFILE\vcpkg",
-        "C:\vcpkg",
-        "C:\src\vcpkg"
-    )
-    
-    foreach ($path in $vcpkgPaths) {
-        if (Test-Path "$path\vcpkg.exe") {
-            $env:VCPKG_ROOT = $path
-            break
-        }
+    $candidate = "$env:USERPROFILE\vcpkg"
+    if (Test-Path "$candidate\vcpkg.exe") {
+        $env:VCPKG_ROOT = $candidate
     }
-    
-    if (-not $env:VCPKG_ROOT) {
-        Write-Warn "VCPKG_ROOT not set and vcpkg not found in common locations."
-        Write-Info "Installing vcpkg to $env:USERPROFILE\vcpkg (baseline: $VcpkgBaseline)..."
-        git clone https://github.com/Microsoft/vcpkg.git "$env:USERPROFILE\vcpkg"
-        
-        Push-Location "$env:USERPROFILE\vcpkg"
-        Write-Info "Checking out baseline commit: $VcpkgBaseline"
-        git checkout $VcpkgBaseline
-        
-        Write-Info "Bootstrapping vcpkg..."
-        .\bootstrap-vcpkg.bat
-        
-        Pop-Location
-        $env:VCPKG_ROOT = "$env:USERPROFILE\vcpkg"
+    else {
+        Write-Info "Cloning vcpkg (baseline: $VcpkgBaseline)"
+        git clone https://github.com/microsoft/vcpkg.git $candidate
+        $env:VCPKG_ROOT = $candidate
     }
 }
 
 if (-not (Test-Path "$env:VCPKG_ROOT\vcpkg.exe")) {
-    Write-Error-Exit "vcpkg.exe not found at $env:VCPKG_ROOT\vcpkg.exe"
-}
-
-# Validate vcpkg baseline
-if (Test-Path "$env:VCPKG_ROOT\.git") {
+    Write-Info "Bootstrapping vcpkg..."
     Push-Location $env:VCPKG_ROOT
-    try {
-        $CurrentCommit = (git rev-parse HEAD 2>$null).Trim()
-        if ($CurrentCommit -and $CurrentCommit -ne $VcpkgBaseline) {
-            Write-Warn "vcpkg commit ($CurrentCommit) doesn't match expected baseline ($VcpkgBaseline)"
-            Write-Warn "Consider running: cd $env:VCPKG_ROOT; git checkout $VcpkgBaseline"
-        }
-        elseif ($CurrentCommit -eq $VcpkgBaseline) {
-            Write-Info "  vcpkg baseline: $VcpkgBaseline (verified)"
-        }
-        else {
-            Write-Info "  vcpkg: $env:VCPKG_ROOT"
-        }
-    }
-    catch {
-        Write-Info "  vcpkg: $env:VCPKG_ROOT"
-    }
-    finally {
-        Pop-Location
-    }
-}
-else {
-    Write-Info "  vcpkg: $env:VCPKG_ROOT"
+    .\bootstrap-vcpkg.bat
+    Pop-Location
 }
 
-# Check pip packages
-Write-Info "Checking Python packages..."
-python -m pip install --quiet --upgrade pip
-$lock = Join-Path $RepoRoot "requirements-lock.txt"
-if (Test-Path $lock) {
-    python -m pip install --quiet -r $lock
-    Write-Info "  Python packages: installed from requirements-lock.txt"
+Push-Location $env:VCPKG_ROOT
+$currentCommit = (git rev-parse HEAD).Trim()
+if ($currentCommit -ne $VcpkgBaseline) {
+    Write-Warn "vcpkg baseline mismatch"
+    Write-Warn "  current:  $currentCommit"
+    Write-Warn "  expected: $VcpkgBaseline"
+    Write-Info "Checking out correct baseline..."
+    git fetch
+    git checkout $VcpkgBaseline
+}
+Write-Info "  vcpkg baseline verified"
+Pop-Location
+
+Write-Host ""
+
+# -------------------------------------------------
+# Python Dependencies
+# -------------------------------------------------
+Write-Info "Installing Python dependencies..."
+python -m pip install --upgrade pip | Out-Null
+
+$lockFile = Join-Path $RepoRoot "requirements-lock.txt"
+if (Test-Path $lockFile) {
+    python -m pip install -r $lockFile
 }
 else {
-    python -m pip install --quiet requests
-    Write-Info "  requests: installed (fallback)"
+    Write-Warn "requirements-lock.txt not found"
 }
 
 Write-Host ""
 
-# Initialize submodules
-Write-Info "Initializing git submodules..."
+# -------------------------------------------------
+# Git Submodules
+# -------------------------------------------------
+Write-Info "Initializing submodules..."
 Push-Location $RepoRoot
 git submodule update --init --recursive
 Pop-Location
-Write-Info "  Submodules initialized"
+Write-Info "  Submodules ready"
 
 Write-Host ""
 
-# Check for provider-sim repo
+# -------------------------------------------------
+# Provider Repository
+# -------------------------------------------------
 if (-not (Test-Path $ProviderSimDir)) {
-    Write-Warn "anolis-provider-sim not found at $ProviderSimDir"
     Write-Info "Cloning anolis-provider-sim..."
     git clone https://github.com/FEASTorg/anolis-provider-sim.git $ProviderSimDir
 }
 
-# Clean if requested
+# -------------------------------------------------
+# Clean
+# -------------------------------------------------
 if ($Clean) {
     Write-Info "Cleaning build directories..."
-    if (Test-Path "$RepoRoot\build") {
-        Remove-Item -Recurse -Force "$RepoRoot\build"
-    }
-    if (Test-Path "$ProviderSimDir\build") {
-        Remove-Item -Recurse -Force "$ProviderSimDir\build"
-    }
-    Write-Info "  Cleaned"
+    Remove-Item -Recurse -Force "$RepoRoot\build" -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force "$RepoRoot\build-tsan" -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force "$ProviderSimDir\build" -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force "$ProviderSimDir\build-tsan" -ErrorAction SilentlyContinue
 }
 
 Write-Host ""
 
-# Build anolis-provider-sim
-Write-Info "Building anolis-provider-sim..."
-Push-Location $ProviderSimDir
+# -------------------------------------------------
+# Delegate Build
+# -------------------------------------------------
+Write-Info "Building project (Release)..."
+& "$ScriptDir\build.ps1"
 
-if (-not (Test-Path "build")) {
-    Write-Info "  Configuring..."
-    cmake -B build -S . `
-        -DCMAKE_BUILD_TYPE=Release `
-        -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
+if ($LASTEXITCODE -ne 0) {
+    Write-Fail "Build failed"
 }
-
-Write-Info "  Compiling..."
-cmake --build build --config Release
-
-$providerExe = "build\Release\anolis-provider-sim.exe"
-if (Test-Path $providerExe) {
-    Write-Info "  anolis-provider-sim built successfully"
-}
-else {
-    Pop-Location
-    Write-Error-Exit "Failed to build anolis-provider-sim"
-}
-
-Pop-Location
-
-Write-Host ""
-
-# Build anolis
-Write-Info "Building anolis..."
-Push-Location $RepoRoot
-
-if (-not (Test-Path "build")) {
-    Write-Info "  Configuring..."
-    cmake -B build -S . `
-        -DCMAKE_BUILD_TYPE=Release `
-        -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
-}
-
-Write-Info "  Compiling..."
-cmake --build build --config Release
-
-$runtimeExe = "build\core\Release\anolis-runtime.exe"
-if (Test-Path $runtimeExe) {
-    Write-Info "  anolis-runtime built successfully"
-}
-else {
-    Pop-Location
-    Write-Error-Exit "Failed to build anolis-runtime"
-}
-
-Pop-Location
 
 Write-Host ""
 Write-Host "=============================================="
-Write-Host "Setup Complete!"
+Write-Host "Setup Complete"
 Write-Host "=============================================="
 Write-Host ""
 Write-Host "Next steps:"
-Write-Host "  1. Run tests:     .\scripts\test.ps1"
-Write-Host "  2. Start runtime: .\scripts\run.ps1"
+Write-Host "  Run tests:     .\scripts\test.ps1"
+Write-Host "  TSAN build:    .\scripts\build.ps1 -TSan -Debug"
+Write-Host "  Run runtime:   .\scripts\run.ps1"
 Write-Host ""
