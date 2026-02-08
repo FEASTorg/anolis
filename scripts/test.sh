@@ -148,7 +148,42 @@ if [[ ! -f "$INTEGRATION_SCRIPT" ]]; then
 	echo "[WARN] Skipping integration tests"
 else
 	echo "[INFO] Running integration tests..."
-	if ! python3 "$INTEGRATION_SCRIPT"; then
+	
+	# Find runtime executable in the build directory
+	RUNTIME_PATH=""
+	for candidate in "$BUILD_DIR/core/Release/anolis-runtime" "$BUILD_DIR/core/Debug/anolis-runtime" "$BUILD_DIR/core/anolis-runtime"; do
+		if [[ -f "$candidate" && -x "$candidate" ]]; then
+			RUNTIME_PATH="$candidate"
+			break
+		fi
+	done
+	
+	if [[ -z "$RUNTIME_PATH" ]]; then
+		echo "[ERROR] Runtime executable not found in $BUILD_DIR/core/"
+		echo "[ERROR] Expected: anolis-runtime"
+		exit 5
+	fi
+	
+	# Find provider executable (optional)
+	PROVIDER_ARGS=()
+	PROVIDER_PATH=""
+	for candidate in "$PROVIDER_DIR/$PROVIDER_BUILD_DIR/Release/anolis-provider-sim" "$PROVIDER_DIR/$PROVIDER_BUILD_DIR/Debug/anolis-provider-sim" "$PROVIDER_DIR/$PROVIDER_BUILD_DIR/anolis-provider-sim"; do
+		if [[ -f "$candidate" && -x "$candidate" ]]; then
+			PROVIDER_PATH="$candidate"
+			break
+		fi
+	done
+	
+	if [[ -n "$PROVIDER_PATH" ]]; then
+		PROVIDER_ARGS=(--provider "$PROVIDER_PATH")
+	fi
+	
+	echo "[INFO] Runtime: $RUNTIME_PATH"
+	if [[ -n "$PROVIDER_PATH" ]]; then
+		echo "[INFO] Provider: $PROVIDER_PATH"
+	fi
+	
+	if ! python3 "$INTEGRATION_SCRIPT" --runtime "$RUNTIME_PATH" "${PROVIDER_ARGS[@]}"; then
 		echo "[ERROR] Integration tests failed"
 		exit 5
 	fi
@@ -165,10 +200,21 @@ if [[ ! -f "$SCENARIO_SCRIPT" ]]; then
 	echo "[WARN] Skipping validation scenarios"
 else
 	echo "[INFO] Running validation scenarios..."
-	if ! python3 "$SCENARIO_SCRIPT"; then
+	
+	# Reuse runtime and provider paths from integration tests
+	SCENARIO_ARGS=()
+	if [[ -n "${RUNTIME_PATH:-}" ]]; then
+		SCENARIO_ARGS+=(--runtime "$RUNTIME_PATH")
+	fi
+	if [[ -n "${PROVIDER_PATH:-}" ]]; then
+		SCENARIO_ARGS+=(--provider "$PROVIDER_PATH")
+	fi
+	
+	if ! python3 "$SCENARIO_SCRIPT" "${SCENARIO_ARGS[@]}"; then
 		echo "[ERROR] Validation scenarios failed"
 		exit 6
 	fi
+	echo "[INFO] Validation scenarios passed"
 fi
 
 echo "[INFO] All tests passed"

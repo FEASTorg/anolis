@@ -155,7 +155,52 @@ if (-not (Test-Path $integrationScript)) {
     $integrationExit = 0
 }
 else {
-    python $integrationScript
+    # Find runtime executable in the build directory
+    $runtimeCandidates = @(
+        (Join-Path $BuildDir "core\$Configuration\anolis-runtime.exe"),
+        (Join-Path $BuildDir "core\anolis-runtime.exe"),
+        (Join-Path $BuildDir "core\$Configuration\anolis-runtime"),
+        (Join-Path $BuildDir "core\anolis-runtime")
+    )
+    
+    $runtimePath = $null
+    foreach ($candidate in $runtimeCandidates) {
+        if (Test-Path $candidate) {
+            $runtimePath = $candidate
+            break
+        }
+    }
+    
+    if (-not $runtimePath) {
+        Write-Host "[ERROR] Runtime executable not found in $BuildDir\core\" -ForegroundColor Red
+        Write-Host "[ERROR] Expected: anolis-runtime.exe or anolis-runtime" -ForegroundColor Red
+        exit 5
+    }
+    
+    # Find provider executable (optional)
+    $providerArgs = @()
+    $providerCandidates = @(
+        (Join-Path $ProviderDir "$ProviderBuildDir\$Configuration\anolis-provider-sim.exe"),
+        (Join-Path $ProviderDir "$ProviderBuildDir\anolis-provider-sim.exe"),
+        (Join-Path $ProviderDir "$ProviderBuildDir\$Configuration\anolis-provider-sim"),
+        (Join-Path $ProviderDir "$ProviderBuildDir\anolis-provider-sim")
+    )
+    
+    $providerPath = $null
+    foreach ($candidate in $providerCandidates) {
+        if (Test-Path $candidate) {
+            $providerPath = $candidate
+            break
+        }
+    }
+    
+    Write-Host "[INFO] Runtime: $runtimePath" -ForegroundColor Green
+    if ($providerPath) {
+        Write-Host "[INFO] Provider: $providerPath" -ForegroundColor Green
+        $providerArgs = @("--provider", $providerPath)
+    }
+    
+    python $integrationScript --runtime $runtimePath @providerArgs
     $integrationExit = $LASTEXITCODE
 }
 
@@ -180,7 +225,16 @@ if (-not (Test-Path $scenarioScript)) {
     $scenarioExit = 0
 }
 else {
-    python $scenarioScript
+    # Reuse runtime and provider paths from integration tests
+    $scenarioArgs = @()
+    if ($runtimePath) {
+        $scenarioArgs += @("--runtime", $runtimePath)
+    }
+    if ($providerPath) {
+        $scenarioArgs += @("--provider", $providerPath)
+    }
+    
+    python $scenarioScript @scenarioArgs
     $scenarioExit = $LASTEXITCODE
 }
 
