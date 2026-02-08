@@ -1,10 +1,12 @@
 name: "Validate Lockfile"
 description: "Validates requirements-lock.txt encoding and integrity"
+
 inputs:
   lockfile-path:
     description: "Path to requirements-lock.txt"
     required: false
     default: "requirements-lock.txt"
+
 runs:
   using: "composite"
   steps:
@@ -12,6 +14,7 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
+
         LOCKFILE="${{ inputs.lockfile-path }}"
 
         if [ ! -f "$LOCKFILE" ]; then
@@ -19,13 +22,16 @@ runs:
           exit 1
         fi
 
-        # Check for literal NUL bytes (0x00) correctly (no false positives)
-        if LC_ALL=C grep -q $'\x00' "$LOCKFILE"; then
+        echo "Validating: $LOCKFILE"
+        echo "File size: $(wc -c < "$LOCKFILE") bytes"
+
+        # Deterministic NUL byte detection using od (portable and exact)
+        if od -An -tx1 "$LOCKFILE" | tr -s ' ' '\n' | grep -qx '00'; then
           echo "ERROR: $LOCKFILE contains NUL bytes (binary corruption)" >&2
           exit 1
         fi
 
-        # Check UTF-8 encoding validity
+        # Validate UTF-8 encoding strictly
         if ! iconv -f UTF-8 -t UTF-8 "$LOCKFILE" > /dev/null 2>&1; then
           echo "ERROR: $LOCKFILE is not valid UTF-8" >&2
           exit 1
