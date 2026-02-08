@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <optional>
+#include <unordered_set>
 
 #include "../logging/logger.hpp"
 
@@ -57,11 +58,19 @@ bool validate_config(const RuntimeConfig &config, std::string &error) {
         return false;
     }
 
+    // Check for duplicate provider IDs
+    std::unordered_set<std::string> seen_provider_ids;
     for (const auto &provider : config.providers) {
         if (provider.id.empty()) {
             error = "Provider missing 'id' field";
             return false;
         }
+        if (seen_provider_ids.count(provider.id)) {
+            error = "Duplicate provider ID: '" + provider.id + "'";
+            return false;
+        }
+        seen_provider_ids.insert(provider.id);
+
         if (provider.command.empty()) {
             error = "Provider '" + provider.id + "' missing 'command' field";
             return false;

@@ -31,6 +31,7 @@ from typing import List, Optional
 
 import requests
 from test_fixtures import RuntimeFixture
+from test_helpers import wait_for_condition
 
 
 @dataclass
@@ -49,7 +50,7 @@ class StressTestResult:
 class ConcurrentHTTPClient:
     """Thread that continuously makes HTTP requests during stress test."""
 
-    def __init__(self, client_id: int, base_url: str = "http://localhost:8080"):
+    def __init__(self, client_id: int, base_url: str):
         self.client_id = client_id
         self.base_url = base_url
         self.request_count = 0
@@ -111,8 +112,10 @@ class ConcurrentHTTPClient:
 class StressTestRunner:
     """Orchestrates the stress test scenario."""
 
-    def __init__(self, runtime_path: Path, provider_path: Path, num_clients: int = 10):
+    def __init__(self, runtime_path: Path, provider_path: Path, num_clients: int = 10, http_port: int = 8080):
         self.num_clients = num_clients
+        self.http_port = http_port
+        self.base_url = f"http://localhost:{http_port}"
         self.http_clients: List[ConcurrentHTTPClient] = []
         self.config_dict: Optional[dict] = None
         self.fixture: Optional[RuntimeFixture] = None
@@ -145,14 +148,14 @@ class StressTestRunner:
                     "restart_policy": {
                         "enabled": True,
                         "max_attempts": 10,
-                        "backoff_ms": [50, 100, 200],
+                        "backoff_ms": [50, 100, 200, 400, 800, 1000, 1000, 1000, 1000, 1000],
                         "timeout_ms": 60000,
                     },
                 }
             ],
-            "http": {"enabled": True, "bind": "127.0.0.1", "port": 8080},
+            "http": {"enabled": True, "bind": "127.0.0.1", "port": self.http_port},
             "polling": {"interval_ms": 100},
-            "logging": {"level": "warning"},
+            "logging": {"level": "warn"},
         }
 
         return config
@@ -171,7 +174,7 @@ class StressTestRunner:
             self.fixture = RuntimeFixture(
                 self.runtime_path,
                 self.provider_path,
-                http_port=8080,
+                http_port=self.http_port,
                 config_dict=config_dict,
             )
 
@@ -183,27 +186,30 @@ class StressTestRunner:
             print(f"ERROR: Failed to start runtime: {e}")
             return False
 
-        # Wait for runtime to become ready
+        # Wait for runtime to become ready (poll with 15s timeout)
         print("  Waiting for runtime to initialize...")
-        time.sleep(2.0)
 
-        # Check if runtime is responsive
-        try:
-            response = requests.get("http://localhost:8080/v0/runtime/status", timeout=2.0)
-            if response.status_code >= 500:
-                print(f"  Runtime responded but reported an error (status {response.status_code})")
+        def check_runtime_ready():
+            try:
+                response = requests.get(f"{self.base_url}/v0/runtime/status", timeout=2.0)
+                return response.status_code == 200
+            except Exception:
                 return False
-            print("  Runtime is ready")
-            return True
-        except Exception as e:
-            print(f"ERROR: Runtime not responsive: {e}")
+
+        if not wait_for_condition(check_runtime_ready, timeout=15.0, interval=0.5, description="runtime ready"):
+            print("ERROR: Runtime not responsive after 15 seconds")
+            if not self.fixture.is_running():
+                print("  Runtime process crashed during startup")
             return False
+
+        print("  Runtime is ready")
+        return True
 
     def start_http_clients(self):
         """Start concurrent HTTP client threads."""
         print(f"  Starting {self.num_clients} concurrent HTTP clients...")
         for i in range(self.num_clients):
-            client = ConcurrentHTTPClient(client_id=i)
+            client = ConcurrentHTTPClient(client_id=i, base_url=self.base_url)
             client.start()
             self.http_clients.append(client)
         time.sleep(0.5)  # Let clients warm up
@@ -217,7 +223,7 @@ class StressTestRunner:
         """Trigger provider restart via HTTP API."""
         try:
             response = requests.post(
-                "http://localhost:8080/v0/runtime/restart",
+                f"{self.base_url}/v0/runtime/restart",
                 json={"provider_id": "stress-provider"},
                 timeout=3.0,
             )
@@ -291,7 +297,7 @@ class StressTestRunner:
 
             # Check if runtime is still responsive
             try:
-                response = requests.get("http://localhost:8080/v0/runtime/status", timeout=2.0)
+                response = requests.get(f"{self.base_url}/v0/runtime/status", timeout=2.0)
                 if response.status_code >= 500:
                     return StressTestResult(
                         success=False,
@@ -324,10 +330,31 @@ def main():
     parser = argparse.ArgumentParser(description="Concurrency stress test with ThreadSanitizer")
     parser.add_argument("--runtime", type=Path, help="Path to anolis-runtime binary")
     parser.add_argument("--provider", type=Path, help="Path to provider binary")
-    parser.add_argument("--restarts", type=int, default=100, help="Number of restart cycles (default: 100)")
-    parser.add_argument("--clients", type=int, default=10, help="Number of concurrent HTTP clients (default: 10)")
+    parser.add_argument("--restarts", type=int, help="Number of restart cycles (overrides --stress-level)")
+    parser.add_argument("--clients", type=int, help="Number of concurrent HTTP clients (overrides --stress-level)")
+    parser.add_argument(
+        "--stress-level",
+        type=str,
+        default="moderate",
+        choices=["light", "moderate", "heavy"],
+        help="Stress test intensity level (default: moderate)",
+    )
+    parser.add_argument("--timeout", type=float, default=60.0, help="Test timeout in seconds")
+    parser.add_argument("--port", type=int, default=8080, help="HTTP port (default: 8080)")
 
     args = parser.parse_args()
+
+    # Define stress levels
+    STRESS_LEVELS = {
+        "light": {"restarts": 10, "clients": 2},
+        "moderate": {"restarts": 50, "clients": 5},
+        "heavy": {"restarts": 100, "clients": 10},
+    }
+
+    # Use explicit values if provided, otherwise use stress level
+    level_config = STRESS_LEVELS[args.stress_level]
+    num_restarts = args.restarts if args.restarts is not None else level_config["restarts"]
+    num_clients = args.clients if args.clients is not None else level_config["clients"]
 
     # Determine paths
     if args.runtime:
@@ -347,20 +374,22 @@ def main():
     print("=" * 80)
     print("CONCURRENCY STRESS TEST FOR THREADSANITIZER")
     print("=" * 80)
-    print(f"Runtime:  {runtime_path}")
-    print(f"Provider: {provider_path}")
-    print(f"Restarts: {args.restarts}")
-    print(f"Clients:  {args.clients}")
+    print(f"Runtime:       {runtime_path}")
+    print(f"Provider:      {provider_path}")
+    print(f"Stress Level:  {args.stress_level}")
+    print(f"Restarts:      {num_restarts}")
+    print(f"Clients:       {num_clients}")
+    print(f"HTTP Port:     {args.port}")
     print("=" * 80)
 
     # Run test
-    runner = StressTestRunner(runtime_path, provider_path, num_clients=args.clients)
+    runner = StressTestRunner(runtime_path, provider_path, num_clients=num_clients, http_port=args.port)
 
     if not runner.setup():
         print("\n[ERROR] Setup failed")
         return 1
 
-    result = runner.run_stress_test(num_restarts=args.restarts)
+    result = runner.run_stress_test(num_restarts=num_restarts)
 
     print("\n" + "=" * 80)
     if result.success:

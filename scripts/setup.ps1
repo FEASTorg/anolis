@@ -37,6 +37,26 @@ function Write-Error-Exit {
     exit 1
 }
 
+# Extract vcpkg baseline from vcpkg.json
+function Get-VcpkgBaseline {
+    $vcpkgJsonPath = Join-Path $RepoRoot "vcpkg.json"
+    if (Test-Path $vcpkgJsonPath) {
+        try {
+            $vcpkgConfig = Get-Content $vcpkgJsonPath | ConvertFrom-Json
+            if ($vcpkgConfig.'builtin-baseline') {
+                return $vcpkgConfig.'builtin-baseline'
+            }
+        }
+        catch {
+            Write-Warn "Failed to parse vcpkg.json: $_"
+        }
+    }
+    # Fallback to hardcoded value if extraction fails
+    return "66c0373dc7fca549e5803087b9487edfe3aca0a1"
+}
+
+$VcpkgBaseline = Get-VcpkgBaseline
+
 Write-Host "=============================================="
 Write-Host "Anolis Development Setup"
 Write-Host "=============================================="
@@ -108,9 +128,17 @@ if (-not $env:VCPKG_ROOT) {
     
     if (-not $env:VCPKG_ROOT) {
         Write-Warn "VCPKG_ROOT not set and vcpkg not found in common locations."
-        Write-Info "Installing vcpkg to $env:USERPROFILE\vcpkg..."
+        Write-Info "Installing vcpkg to $env:USERPROFILE\vcpkg (baseline: $VcpkgBaseline)..."
         git clone https://github.com/Microsoft/vcpkg.git "$env:USERPROFILE\vcpkg"
-        & "$env:USERPROFILE\vcpkg\bootstrap-vcpkg.bat"
+        
+        Push-Location "$env:USERPROFILE\vcpkg"
+        Write-Info "Checking out baseline commit: $VcpkgBaseline"
+        git checkout $VcpkgBaseline
+        
+        Write-Info "Bootstrapping vcpkg..."
+        .\bootstrap-vcpkg.bat
+        
+        Pop-Location
         $env:VCPKG_ROOT = "$env:USERPROFILE\vcpkg"
     }
 }
@@ -118,7 +146,33 @@ if (-not $env:VCPKG_ROOT) {
 if (-not (Test-Path "$env:VCPKG_ROOT\vcpkg.exe")) {
     Write-Error-Exit "vcpkg.exe not found at $env:VCPKG_ROOT\vcpkg.exe"
 }
-Write-Info "  vcpkg: $env:VCPKG_ROOT"
+
+# Validate vcpkg baseline
+if (Test-Path "$env:VCPKG_ROOT\.git") {
+    Push-Location $env:VCPKG_ROOT
+    try {
+        $CurrentCommit = (git rev-parse HEAD 2>$null).Trim()
+        if ($CurrentCommit -and $CurrentCommit -ne $VcpkgBaseline) {
+            Write-Warn "vcpkg commit ($CurrentCommit) doesn't match expected baseline ($VcpkgBaseline)"
+            Write-Warn "Consider running: cd $env:VCPKG_ROOT; git checkout $VcpkgBaseline"
+        }
+        elseif ($CurrentCommit -eq $VcpkgBaseline) {
+            Write-Info "  vcpkg baseline: $VcpkgBaseline (verified)"
+        }
+        else {
+            Write-Info "  vcpkg: $env:VCPKG_ROOT"
+        }
+    }
+    catch {
+        Write-Info "  vcpkg: $env:VCPKG_ROOT"
+    }
+    finally {
+        Pop-Location
+    }
+}
+else {
+    Write-Info "  vcpkg: $env:VCPKG_ROOT"
+}
 
 # Check pip packages
 Write-Info "Checking Python packages..."

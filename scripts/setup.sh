@@ -37,6 +37,25 @@ error() {
     exit 1
 }
 
+# Extract vcpkg baseline from vcpkg.json
+get_vcpkg_baseline() {
+    if [ -f "$REPO_ROOT/vcpkg.json" ]; then
+        # Use grep + sed to extract baseline (works without jq)
+        BASELINE=$(grep -o '"builtin-baseline"[[:space:]]*:[[:space:]]*"[^"]*"' \
+                   "$REPO_ROOT/vcpkg.json" | \
+                   sed 's/.*"\([^"]*\)".*/\1/')
+        if [ -n "$BASELINE" ]; then
+            echo "$BASELINE"
+            return 0
+        fi
+    fi
+    # Fallback to hardcoded value if extraction fails
+    echo "66c0373dc7fca549e5803087b9487edfe3aca0a1"
+    return 0
+}
+
+VCPKG_BASELINE=$(get_vcpkg_baseline)
+
 # Parse arguments
 CLEAN=false
 for arg in "$@"; do
@@ -99,9 +118,17 @@ if [ -z "$VCPKG_ROOT" ]; then
         export VCPKG_ROOT="/opt/vcpkg"
     else
         warn "VCPKG_ROOT not set and vcpkg not found in common locations."
-        info "Installing vcpkg to ~/vcpkg..."
+        info "Installing vcpkg to ~/vcpkg (baseline: $VCPKG_BASELINE)..."
         git clone https://github.com/Microsoft/vcpkg.git "$HOME/vcpkg"
-        "$HOME/vcpkg/bootstrap-vcpkg.sh"
+        
+        cd "$HOME/vcpkg"
+        info "Checking out baseline commit: $VCPKG_BASELINE"
+        git checkout "$VCPKG_BASELINE"
+        
+        info "Bootstrapping vcpkg..."
+        ./bootstrap-vcpkg.sh
+        
+        cd "$REPO_ROOT"
         export VCPKG_ROOT="$HOME/vcpkg"
     fi
 fi
@@ -109,7 +136,19 @@ fi
 if [ ! -f "$VCPKG_ROOT/vcpkg" ]; then
     error "vcpkg executable not found at $VCPKG_ROOT/vcpkg"
 fi
-info "  vcpkg: $VCPKG_ROOT"
+
+# Validate vcpkg baseline
+if [ -d "$VCPKG_ROOT/.git" ]; then
+    CURRENT_COMMIT=$(cd "$VCPKG_ROOT" && git rev-parse HEAD 2>/dev/null || echo "unknown")
+    if [ "$CURRENT_COMMIT" != "$VCPKG_BASELINE" ] && [ "$CURRENT_COMMIT" != "unknown" ]; then
+        warn "vcpkg commit ($CURRENT_COMMIT) doesn't match expected baseline ($VCPKG_BASELINE)"
+        warn "Consider running: cd $VCPKG_ROOT && git checkout $VCPKG_BASELINE"
+    else
+        info "  vcpkg baseline: $VCPKG_BASELINE (verified)"
+    fi
+else
+    info "  vcpkg: $VCPKG_ROOT"
+fi
 
 # Check pip packages
 info "Checking Python packages..."

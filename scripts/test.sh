@@ -37,7 +37,29 @@ if [ ! -f "$REPO_ROOT/build/CTestTestfile.cmake" ]; then
   exit 2
 fi
 
-ctest --output-on-failure -C "$CONFIG" -R anolis_unit_tests ${VERBOSE:+-VV}
+echo "[INFO] Running C++ unit tests..."
+
+# First, check how many tests exist
+TEST_COUNT=$(ctest --test-dir "$REPO_ROOT/build" -N -C "$CONFIG" 2>/dev/null | grep "Total Tests:" | awk '{print $3}')
+
+if [ -z "$TEST_COUNT" ] || [ "$TEST_COUNT" = "0" ]; then
+    echo "[ERROR] No unit tests found. Build may have failed or tests not configured." >&2
+    exit 2
+fi
+
+echo "[INFO] Found $TEST_COUNT unit tests"
+
+# Run all tests
+ctest --test-dir "$REPO_ROOT/build" --output-on-failure -C "$CONFIG" ${VERBOSE:+-VV}
+TEST_RESULT=$?
+
+if [ $TEST_RESULT -ne 0 ]; then
+    echo "[ERROR] Unit tests failed" >&2
+    exit $TEST_RESULT
+fi
+
+echo "[INFO] Unit tests passed"
+echo ""
 
 python3 "tests/integration/test_all.py" $VERBOSE
 exit $?

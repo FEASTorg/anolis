@@ -254,20 +254,21 @@ def get_devices(base_url: str, timeout: float = 2.0) -> Optional[List[Dict[str, 
     return None
 
 
-def get_device_state(base_url: str, device_id: str, timeout: float = 2.0) -> Optional[Dict[str, Any]]:
+def get_device_state(base_url: str, provider_id: str, device_id: str, timeout: float = 2.0) -> Optional[Dict[str, Any]]:
     """
     Get state for a specific device.
 
     Args:
         base_url: Base URL of runtime HTTP server
-        device_id: Device ID
+        provider_id: Provider ID (e.g., "sim0")
+        device_id: Device ID (e.g., "tempctl0")
         timeout: Request timeout in seconds
 
     Returns:
         Device state dict or None if request fails
     """
     try:
-        resp = requests.get(f"{base_url}/v0/state/{device_id}", timeout=timeout)
+        resp = requests.get(f"{base_url}/v0/state/{provider_id}/{device_id}", timeout=timeout)
         if resp.status_code == 200:
             return resp.json()
     except (requests.exceptions.RequestException, ValueError):

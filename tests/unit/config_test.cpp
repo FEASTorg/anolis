@@ -543,7 +543,32 @@ logging:
     EXPECT_FALSE(error.empty());
     EXPECT_NE(error.find("Invalid runtime mode"), std::string::npos);
 }
+TEST_F(ConfigTest, DuplicateProviderIDs) {
+    std::string config_content = R"(
+runtime:
+  mode: MANUAL
 
+http:
+  enabled: false
+
+providers:
+  - id: duplicate_id
+    command: /path/to/provider1
+  - id: duplicate_id
+    command: /path/to/provider2
+
+logging:
+  level: info
+)";
+
+    std::string config_path = create_config_file("duplicate_provider_ids.yaml", config_content);
+    RuntimeConfig config;
+    std::string error;
+
+    EXPECT_FALSE(load_config(config_path, config, error));
+    EXPECT_FALSE(error.empty());
+    EXPECT_NE(error.find("Duplicate provider ID"), std::string::npos);
+}
 TEST_F(ConfigTest, IdempotentParsing) {
     std::string config_content = R"(
 runtime:

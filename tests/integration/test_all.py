@@ -15,12 +15,16 @@ Exit Codes:
 """
 
 import argparse
+import os
 import subprocess
 import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
+
+# Allow skipping stress tests via environment variable
+SKIP_STRESS_TESTS = os.environ.get("SKIP_STRESS_TESTS", "").lower() in ("1", "true", "yes")
 
 
 @dataclass
@@ -348,6 +352,16 @@ def main() -> int:
         ("test_signal_handling.py", []),
         ("test_provider_supervision.py", []),
     ]
+
+    # Add stress test unless explicitly skipped
+    if not SKIP_STRESS_TESTS:
+        test_suites.append(("test_concurrency_stress.py", ["--stress-level=light", f"--port={args.port + 2}"]))
+        print("Note: Concurrency stress test uses 'light' mode for CI speed")
+        print("      Run manually with --stress-level=moderate or =heavy for deeper testing")
+        print()
+    else:
+        print("Note: Skipping stress tests (SKIP_STRESS_TESTS=1)")
+        print()
 
     bt_nodes_sanity = find_bt_nodes_sanity_path()
 
