@@ -61,5 +61,28 @@ fi
 echo "[INFO] Unit tests passed"
 echo ""
 
+# Run integration tests
+echo "[INFO] Running integration tests..."
 python3 "tests/integration/test_all.py" $VERBOSE
-exit $?
+INTEGRATION_RESULT=$?
+
+if [ $INTEGRATION_RESULT -ne 0 ]; then
+    echo "[ERROR] Integration tests failed" >&2
+    exit $INTEGRATION_RESULT
+fi
+
+echo "[INFO] Integration tests passed"
+echo ""
+
+# Run validation scenarios
+echo "[INFO] Running validation scenarios..."
+python3 "tests/scenarios/run_scenarios.py" $VERBOSE
+SCENARIO_RESULT=$?
+
+if [ $SCENARIO_RESULT -ne 0 ]; then
+    echo "[ERROR] Validation scenarios failed" >&2
+    exit $SCENARIO_RESULT
+fi
+
+echo "[INFO] All tests passed"
+exit 0

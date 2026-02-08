@@ -37,14 +37,43 @@ if ($unitExit -ne 0) {
     exit $unitExit
 }
 
+Write-Host "[INFO] Unit tests passed" -ForegroundColor Green
+Write-Host ""
+
 # Run Python integration suite
-$args = @("$RepoRoot\tests\integration\test_all.py")
+Write-Host "[INFO] Running integration tests..." -ForegroundColor Green
+$integrationArgs = @("$RepoRoot\tests\integration\test_all.py")
 if ($Verbose) {
-    $args += "--verbose"
+    $integrationArgs += "--verbose"
 }
 
-python @args
+python @integrationArgs
+$integrationExit = $LASTEXITCODE
+
+if ($integrationExit -ne 0) {
+    Write-Host "[ERROR] Integration tests failed." -ForegroundColor Red
+    Pop-Location
+    exit $integrationExit
+}
+
+Write-Host "[INFO] Integration tests passed" -ForegroundColor Green
+Write-Host ""
+
+# Run validation scenarios
+Write-Host "[INFO] Running validation scenarios..." -ForegroundColor Green
+$scenarioArgs = @("$RepoRoot\tests\scenarios\run_scenarios.py")
+if ($Verbose) {
+    $scenarioArgs += "--verbose"
+}
+
+python @scenarioArgs
 $exitCode = $LASTEXITCODE
+
+if ($exitCode -ne 0) {
+    Write-Host "[ERROR] Validation scenarios failed." -ForegroundColor Red
+} else {
+    Write-Host "[INFO] All tests passed" -ForegroundColor Green
+}
 
 Pop-Location
 exit $exitCode
