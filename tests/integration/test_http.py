@@ -22,29 +22,14 @@ Prerequisites:
 
 import argparse
 import json
-import os
-import subprocess
 import sys
-import tempfile
-import threading
-import time
 from dataclasses import dataclass
 from pathlib import Path
-from queue import Empty, Queue
 from typing import Any, Dict, List, Optional
 
 import requests
-
-
-def wait_for_condition(condition_func, timeout=5.0, interval=0.1, description="condition"):
-    """Poll a condition function until it returns True or timeout expires."""
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        if condition_func():
-            return True
-        time.sleep(interval)
-    print(f"Warning: Timed out waiting for {description}")
-    return False
+from test_fixtures import RuntimeFixture
+from test_helpers import assert_http_available, wait_for_condition
 
 
 @dataclass
@@ -52,79 +37,6 @@ class TestResult:
     name: str
     passed: bool
     message: str = ""
-
-
-class OutputCapture:
-    """Thread-safe output capture with timeout support."""
-
-    def __init__(self, process: subprocess.Popen):
-        self.process = process
-        self.lines: List[str] = []
-        self.lock = threading.Lock()
-        self.queue: Queue = Queue()
-        self.stop_event = threading.Event()
-        self._thread: Optional[threading.Thread] = None
-
-    def start(self):
-        """Start capturing output in background thread."""
-        self._thread = threading.Thread(target=self._capture_loop, daemon=True)
-        self._thread.start()
-
-    def _capture_loop(self):
-        """Background thread that reads stderr."""
-        try:
-            while not self.stop_event.is_set():
-                if self.process.poll() is not None:
-                    remaining = self.process.stderr.read()
-                    if remaining:
-                        for line in remaining.splitlines():
-                            self._add_line(line)
-                    break
-
-                line = self.process.stderr.readline()
-                if line:
-                    self._add_line(line.rstrip("\n\r"))
-        except Exception as e:
-            self._add_line(f"[CAPTURE ERROR] {e}")
-
-    def _add_line(self, line: str):
-        """Add line to buffer and queue."""
-        with self.lock:
-            self.lines.append(line)
-        self.queue.put(line)
-
-    def wait_for_marker(self, marker: str, timeout: float = 10.0) -> bool:
-        """Wait for a specific marker to appear in output."""
-        deadline = time.time() + timeout
-
-        with self.lock:
-            for line in self.lines:
-                if marker in line:
-                    return True
-
-        while time.time() < deadline:
-            try:
-                remaining = deadline - time.time()
-                if remaining <= 0:
-                    break
-                line = self.queue.get(timeout=min(remaining, 0.5))
-                if marker in line:
-                    return True
-            except Empty:
-                continue
-
-        return False
-
-    def get_all_output(self) -> str:
-        """Get all captured output as a single string."""
-        with self.lock:
-            return "\n".join(self.lines)
-
-    def stop(self):
-        """Stop the capture thread."""
-        self.stop_event.set()
-        if self._thread:
-            self._thread.join(timeout=2.0)
 
 
 class HttpGatewayTester:
@@ -137,95 +49,19 @@ class HttpGatewayTester:
         port: int = 8080,
         timeout: float = 30.0,
     ):
-        self.runtime_path = runtime_path
-        self.provider_path = provider_path
         self.port = port
         self.base_url = f"http://127.0.0.1:{port}"
         self.timeout = timeout
-        self.process: Optional[subprocess.Popen] = None
-        self.capture: Optional[OutputCapture] = None
         self.results: List[TestResult] = []
-        self.config_path: Optional[Path] = None
-
-    def setup(self) -> bool:
-        """Create test config and validate paths."""
-        if not self.runtime_path.exists():
-            print(f"ERROR: Runtime not found: {self.runtime_path}")
-            return False
-
-        if not self.provider_path.exists():
-            print(f"ERROR: Provider not found: {self.provider_path}")
-            return False
-
-        config_content = f"""# HTTP Gateway Test Config
-runtime:
-  mode: MANUAL
-
-http:
-  enabled: true
-  bind: 127.0.0.1
-  port: {self.port}
-
-providers:
-  - id: sim0
-    command: "{self.provider_path.as_posix()}"
-    args: []
-    timeout_ms: 5000
-
-polling:
-  interval_ms: 200
-
-telemetry:
-  enabled: false
-
-logging:
-  level: debug
-"""
-
-        fd, path = tempfile.mkstemp(suffix=".yaml", prefix="anolis_http_test_")
-        os.write(fd, config_content.encode("utf-8"))
-        os.close(fd)
-        self.config_path = Path(path)
-
-        return True
+        self.fixture = RuntimeFixture(runtime_path, provider_path, http_port=port)
 
     def cleanup(self):
         """Clean up resources."""
-        if self.process:
-            try:
-                self.process.terminate()
-                self.process.wait(timeout=5)
-            except Exception:
-                self.process.kill()
-
-        if self.capture:
-            self.capture.stop()
-
-        if self.config_path and self.config_path.exists():
-            try:
-                self.config_path.unlink()
-            except OSError:
-                pass
+        self.fixture.cleanup()
 
     def start_runtime(self) -> bool:
         """Start the runtime process."""
-        try:
-            self.process = subprocess.Popen(
-                [str(self.runtime_path), f"--config={self.config_path}"],
-                stderr=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                text=True,
-                bufsize=1,
-                creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0),
-            )
-
-            self.capture = OutputCapture(self.process)
-            self.capture.start()
-            return True
-
-        except Exception as e:
-            print(f"ERROR: Failed to start runtime: {e}")
-            return False
+        return self.fixture.start()
 
     def record(self, name: str, passed: bool, message: str = ""):
         """Record a test result."""
@@ -413,21 +249,13 @@ logging:
         # ========================================
         print("\n1. Runtime Startup & HTTP Ready")
 
-        if not self.capture.wait_for_marker("HTTP server started", timeout=15):
-            self.record("HTTP server started", False, "HTTP startup message not seen")
-            return False
-        self.record("HTTP server started", True)
-
-        if not self.wait_for_http_ready(timeout=10):
+        # Use API-based readiness check instead of log markers
+        if not assert_http_available(self.base_url, timeout=15):
             self.record("HTTP responsive", False, "Could not connect to HTTP server")
             return False
         self.record("HTTP responsive", True)
 
-        # ========================================
-        # 2. GET /v0/runtime/status
-        # ========================================
-        print("\n2. GET /v0/runtime/status")
-
+        # Verify status endpoint
         result = self.http_get("/v0/runtime/status")
         if result["status_code"] != 200:
             self.record("Status endpoint", False, f"Expected 200, got {result['status_code']}")
@@ -817,9 +645,6 @@ def main():
     tester = HttpGatewayTester(runtime_path, provider_path, args.port, args.timeout)
 
     try:
-        if not tester.setup():
-            sys.exit(1)
-
         if not tester.start_runtime():
             sys.exit(1)
 

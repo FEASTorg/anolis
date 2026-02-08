@@ -20,25 +20,18 @@ Prerequisites:
 
 import argparse
 import os
-import subprocess
 import sys
-import tempfile
 import time
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 import requests
-import yaml
 
+# Import RuntimeFixture for process management
+from test_fixtures import RuntimeFixture
 
-def wait_for_condition(condition_func, timeout: float = 5.0, interval: float = 0.1, description: str = "condition"):
-    """Poll a condition until it returns True or timeout expires."""
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        if condition_func():
-            return True
-        time.sleep(interval)
-    log_info(f"Timed out waiting for {description}")
-    return False
+# Import shared test helpers (API-based assertions)
+from test_helpers import wait_for_condition
 
 
 class Colors:
@@ -67,27 +60,29 @@ def log_info(message: str):
 
 
 class AutomationTester:
-    def __init__(self, runtime_path: str, provider_path: str, port: int):
-        self.runtime_path = runtime_path
-        self.provider_path = provider_path
+    def __init__(
+        self,
+        runtime_path: str,
+        provider_path: str,
+        port: int,
+        automation_enabled: bool = True,
+        manual_gating_policy: str = "BLOCK",
+    ):
         self.port = port
         self.base_url = f"http://127.0.0.1:{port}"
         # script (integration) -> tests -> root
         self.repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-        self.runtime_process: Optional[subprocess.Popen] = None
-        self.config_file: Optional[str] = None
         self.tests_passed = 0
         self.tests_failed = 0
 
-    def create_config(self, automation_enabled: bool = True, manual_gating_policy: str = "BLOCK") -> str:
-        """Create temporary runtime config with automation enabled"""
+        # Create config dict for RuntimeFixture
         config = {
             "runtime": {"mode": "MANUAL"},
-            "http": {"enabled": True, "bind": "127.0.0.1", "port": self.port},
+            "http": {"enabled": True, "bind": "127.0.0.1", "port": port},
             "providers": [
                 {
                     "id": "sim0",
-                    "command": self.provider_path,
+                    "command": provider_path,
                     "args": [],
                     "timeout_ms": 5000,
                 }
@@ -126,28 +121,25 @@ class AutomationTester:
             "logging": {"level": "info"},
         }
 
-        fd, path = tempfile.mkstemp(suffix=".yaml", text=True)
-        with os.fdopen(fd, "w") as f:
-            yaml.dump(config, f)
-
-        return path
+        # Create RuntimeFixture with custom config
+        self.fixture = RuntimeFixture(
+            Path(runtime_path),
+            Path(provider_path),
+            http_port=port,
+            config_dict=config,
+        )
 
     def start_runtime(self):
         """Start runtime process"""
-        log_info(f"Starting runtime: {self.runtime_path}")
-        # Don't redirect stdout/stderr - let runtime output go to console
-        # This avoids handle inheritance issues with provider subprocesses
-        self.runtime_process = subprocess.Popen(
-            [self.runtime_path, "--config", self.config_file],
-            stdin=subprocess.DEVNULL,
-            cwd=self.repo_root,  # Set working directory so relative paths work
-        )
+        log_info(f"Starting runtime: {self.fixture.runtime_path}")
+        if not self.fixture.start():
+            raise RuntimeError("Failed to start runtime")
 
         # Wait for HTTP endpoint to be up
         deadline = time.time() + 10.0
         while time.time() < deadline:
-            if self.runtime_process.poll() is not None:
-                raise RuntimeError(f"Runtime process terminated with exit code {self.runtime_process.returncode}")
+            if not self.fixture.is_running():
+                raise RuntimeError("Runtime process terminated")
 
             try:
                 requests.get(f"{self.base_url}/v0/devices", timeout=1)
@@ -158,21 +150,9 @@ class AutomationTester:
 
         raise RuntimeError("Runtime HTTP endpoint did not become available")
 
-    def stop_runtime(self):
-        """Stop runtime process"""
-        if self.runtime_process:
-            self.runtime_process.terminate()
-            try:
-                self.runtime_process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                self.runtime_process.kill()
-            self.runtime_process = None
-
     def cleanup(self):
         """Clean up resources"""
-        self.stop_runtime()
-        if self.config_file and os.path.exists(self.config_file):
-            os.unlink(self.config_file)
+        self.fixture.cleanup()
 
     def get_mode(self) -> Optional[Dict[str, Any]]:
         """Get current mode via HTTP API"""
@@ -427,29 +407,61 @@ class AutomationTester:
         log_test("Mode API when automation disabled")
 
         # Stop current runtime
-        self.stop_runtime()
-        wait_for_condition(lambda: self.runtime_process is None, timeout=2.0, description="runtime stop")
+        self.fixture.cleanup()
+        wait_for_condition(
+            lambda: not self.fixture.is_running(),
+            timeout=2.0,
+            description="runtime stop",
+        )
 
-        # Create config with automation disabled
-        if self.config_file and os.path.exists(self.config_file):
-            os.unlink(self.config_file)
-        self.config_file = self.create_config(automation_enabled=False)
+        # Create new fixture with automation disabled
+        import copy
 
-        # Start runtime
-        self.start_runtime()
-
-        # Try to get mode
-        result = self.get_mode()
-        if not result:
-            log_fail("Request failed completely")
+        if not self.fixture.config_dict:
+            log_fail("No config_dict available")
             return False
 
-        if "status" in result and result["status"].get("code") == "UNAVAILABLE":
-            log_pass("Correctly returned UNAVAILABLE")
-            return True
+        disabled_config = copy.deepcopy(self.fixture.config_dict)
+        disabled_config["automation"]["enabled"] = False
 
-        log_fail(f"Expected UNAVAILABLE error, got: {result}")
-        return False
+        temp_fixture = RuntimeFixture(
+            self.fixture.runtime_path,
+            self.fixture.provider_path,
+            http_port=self.port,
+            config_dict=disabled_config,
+        )
+
+        try:
+            if not temp_fixture.start():
+                log_fail("Failed to start runtime with automation disabled")
+                return False
+
+            # Wait for HTTP to be up
+            deadline = time.time() + 10.0
+            while time.time() < deadline:
+                try:
+                    requests.get(f"{self.base_url}/v0/devices", timeout=1)
+                    break
+                except requests.RequestException:
+                    time.sleep(0.1)
+
+            # Try to get mode
+            result = self.get_mode()
+            if not result:
+                log_fail("Request failed completely")
+                return False
+
+            if "status" in result and result["status"].get("code") == "UNAVAILABLE":
+                log_pass("Correctly returned UNAVAILABLE")
+                return True
+
+            log_fail(f"Expected UNAVAILABLE error, got: {result}")
+            return False
+
+        finally:
+            temp_fixture.cleanup()
+            # Restart main fixture for remaining tests
+            self.start_runtime()
 
     def run_all_tests(self) -> bool:
         """Run all automation tests"""
@@ -529,8 +541,7 @@ def main():
     )
 
     try:
-        # Create config and start runtime
-        tester.config_file = tester.create_config()
+        # Start runtime
         tester.start_runtime()
 
         # Run tests

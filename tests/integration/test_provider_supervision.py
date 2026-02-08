@@ -17,17 +17,13 @@ Usage:
 """
 
 import argparse
-import os
-import re
-import subprocess
 import sys
-import tempfile
-import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from queue import Empty, Queue
 from typing import List, Optional
+
+from test_fixtures import RuntimeFixture
 
 
 @dataclass
@@ -37,109 +33,6 @@ class TestResult:
     message: str = ""
 
 
-class OutputCapture:
-    """Thread-safe output capture with timeout support."""
-
-    def __init__(self, process: subprocess.Popen):
-        self.process = process
-        self.lines: List[str] = []
-        self.lock = threading.Lock()
-        self.queue: Queue = Queue()
-        self.stop_event = threading.Event()
-        self._thread: Optional[threading.Thread] = None
-
-    def start(self):
-        """Start capturing output in background thread."""
-        self._thread = threading.Thread(target=self._capture_loop, daemon=True)
-        self._thread.start()
-
-    def _capture_loop(self):
-        """Background thread that reads stderr."""
-        try:
-            while not self.stop_event.is_set():
-                if self.process.poll() is not None:
-                    # Process ended, read remaining output
-                    remaining = self.process.stderr.read()
-                    if remaining:
-                        for line in remaining.splitlines():
-                            self._add_line(line)
-                    break
-
-                line = self.process.stderr.readline()
-                if line:
-                    self._add_line(line.rstrip("\n\r"))
-        except Exception as e:
-            self._add_line(f"[CAPTURE ERROR] {e}")
-
-    def _add_line(self, line: str):
-        """Add line to buffer and queue."""
-        with self.lock:
-            self.lines.append(line)
-        self.queue.put(line)
-
-    def wait_for_marker(self, marker: str, timeout: float = 10.0) -> bool:
-        """Wait for a specific marker to appear in output."""
-        deadline = time.time() + timeout
-
-        # First check existing lines
-        with self.lock:
-            for line in self.lines:
-                if marker in line:
-                    return True
-
-        # Wait for new lines
-        while time.time() < deadline:
-            try:
-                remaining = deadline - time.time()
-                if remaining <= 0:
-                    break
-                line = self.queue.get(timeout=min(remaining, 0.5))
-                if marker in line:
-                    return True
-            except Empty:
-                continue
-
-        return False
-
-    def wait_for_pattern(self, pattern: str, timeout: float = 10.0) -> Optional[re.Match]:
-        """Wait for a regex pattern to appear in output."""
-        deadline = time.time() + timeout
-        regex = re.compile(pattern)
-
-        # First check existing lines
-        with self.lock:
-            for line in self.lines:
-                match = regex.search(line)
-                if match:
-                    return match
-
-        # Wait for new lines
-        while time.time() < deadline:
-            try:
-                remaining = deadline - time.time()
-                if remaining <= 0:
-                    break
-                line = self.queue.get(timeout=min(remaining, 0.5))
-                match = regex.search(line)
-                if match:
-                    return match
-            except Empty:
-                continue
-
-        return None
-
-    def get_all_output(self) -> str:
-        """Get all captured output as a single string."""
-        with self.lock:
-            return "\n".join(self.lines)
-
-    def stop(self):
-        """Stop the capture thread."""
-        self.stop_event.set()
-        if self._thread:
-            self._thread.join(timeout=2.0)
-
-
 class SupervisionTester:
     """Test harness for provider supervision integration tests."""
 
@@ -147,10 +40,8 @@ class SupervisionTester:
         self.runtime_path = runtime_path
         self.provider_sim_path = provider_sim_path
         self.timeout = timeout
-        self.process: Optional[subprocess.Popen] = None
-        self.capture: Optional[OutputCapture] = None
         self.results: List[TestResult] = []
-        self.config_path: Optional[Path] = None
+        self.fixture: Optional[RuntimeFixture] = None
 
     def setup(self) -> bool:
         """Create test config and validate paths."""
@@ -166,93 +57,88 @@ class SupervisionTester:
 
         return True
 
-    def create_config(self, crash_after: float, max_attempts: int = 3, backoff_ms: List[int] = None) -> Path:
-        """Create temporary config with supervision settings."""
+    @property
+    def capture(self):
+        """Get OutputCapture from fixture for convenience."""
+        if self.fixture:
+            return self.fixture.get_output_capture()
+        return None
+
+    def create_config(self, crash_after: float, max_attempts: int = 3, backoff_ms: List[int] = None) -> dict:
+        """Create config dict with supervision settings."""
         if backoff_ms is None:
             backoff_ms = [100, 1000, 5000]
 
-        # Use provider-sim with --crash-after flag (convert to forward slashes for YAML)
         provider_cmd = str(self.provider_sim_path).replace("\\", "/")
 
-        config_content = f"""# Provider Supervision Test Config
-providers:
-  - id: provider-sim
-    command: "{provider_cmd}"
-    args: ["--crash-after", "{crash_after}"]
-    timeout_ms: 5000
-    restart_policy:
-      enabled: true
-      max_attempts: {max_attempts}
-      backoff_ms: [{", ".join(map(str, backoff_ms))}]
-      timeout_ms: 30000
+        config = {
+            "providers": [
+                {
+                    "id": "provider-sim",
+                    "command": provider_cmd,
+                    "args": ["--crash-after", str(crash_after)],
+                    "timeout_ms": 5000,
+                    "restart_policy": {
+                        "enabled": True,
+                        "max_attempts": max_attempts,
+                        "backoff_ms": backoff_ms,
+                        "timeout_ms": 30000,
+                    },
+                }
+            ],
+            "polling": {"interval_ms": 200},
+            "logging": {"level": "info"},
+        }
 
-polling:
-  interval_ms: 200
+        return config
 
-logging:
-  level: info
-"""
-
-        # Create temp file
-        fd, path = tempfile.mkstemp(suffix=".yaml", text=True)
-        with os.fdopen(fd, "w") as f:
-            f.write(config_content)
-
-        return Path(path)
-
-    def start_runtime(self, config_path: Path) -> bool:
+    def start_runtime(self, config_dict: dict) -> bool:
         """Start runtime with given config."""
-        # Debug: print config content
-        print(f"  Config file: {config_path}")
-        with open(config_path) as f:
-            print(f"  Config content:\n{f.read()}")
-
-        cmd = [str(self.runtime_path), "--config", str(config_path)]
-        print(f"  Command: {' '.join(cmd)}")
+        print("  Starting runtime with RuntimeFixture")
 
         try:
-            self.process = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL, text=True, bufsize=1
+            self.fixture = RuntimeFixture(
+                self.runtime_path,
+                self.provider_sim_path,
+                config_dict=config_dict,
             )
+
+            if not self.fixture.start():
+                print("ERROR: Failed to start runtime")
+                return False
+
         except Exception as e:
             print(f"ERROR: Failed to start runtime: {e}")
             return False
 
-        self.capture = OutputCapture(self.process)
-        self.capture.start()
-
         # Wait for runtime to start
-        if not self.capture.wait_for_marker("Initialization complete", timeout=10.0):
+        capture = self.fixture.get_output_capture()
+        if not capture or not capture.wait_for_marker("Initialization complete", timeout=10.0):
             print("ERROR: Runtime failed to initialize")
-            print(f"  Output:\n{self.capture.get_all_output()}")
+            if capture:
+                print(f"  Output:\n{capture.get_all_output()}")
             return False
 
         return True
 
     def stop_runtime(self):
         """Stop runtime gracefully."""
-        if self.process:
+        if self.fixture:
             try:
-                # On Windows, CTRL_C_EVENT doesn't work reliably for subprocesses
-                # Just kill directly
-                self.process.kill()
-                self.process.wait(timeout=2.0)
+                self.fixture.cleanup()
             except Exception:
-                pass  # Process already dead or cleanup error, ignore
-
-        if self.capture:
-            self.capture.stop()
+                pass  # Cleanup error, ignore
 
     def test_automatic_restart(self) -> TestResult:
         """Test that provider restarts automatically after crash."""
         print("\n[TEST] Automatic Restart")
 
         # Create config with 2s crash, 3 attempts, short backoffs
-        config_path = self.create_config(crash_after=2.0, max_attempts=3, backoff_ms=[200, 500, 1000])
+        config_dict = self.create_config(crash_after=2.0, max_attempts=3, backoff_ms=[200, 500, 1000])
 
         try:
             # Start runtime
-            if not self.start_runtime(config_path):
+            if not self.start_runtime(config_dict):
                 return TestResult("automatic_restart", False, "Failed to start runtime")
 
             # Wait for initial provider start
@@ -280,7 +166,6 @@ logging:
 
         finally:
             self.stop_runtime()
-            config_path.unlink()
 
     def test_backoff_timing(self) -> TestResult:
         """Test that exponential backoff delays are correct.
@@ -290,10 +175,10 @@ logging:
         print("\n[TEST] Backoff Timing")
 
         # Create config with 1s crash, backoffs: 500ms, 1000ms, 2000ms
-        config_path = self.create_config(crash_after=1.0, max_attempts=3, backoff_ms=[500, 1000, 2000])
+        config_dict = self.create_config(crash_after=1.0, max_attempts=3, backoff_ms=[500, 1000, 2000])
 
         try:
-            if not self.start_runtime(config_path):
+            if not self.start_runtime(config_dict):
                 return TestResult("backoff_timing", False, "Failed to start runtime")
 
             # Wait for registration
@@ -324,7 +209,6 @@ logging:
 
         finally:
             self.stop_runtime()
-            config_path.unlink()
 
     def test_circuit_breaker(self) -> TestResult:
         """Test that circuit breaker opens after max attempts.
@@ -335,10 +219,10 @@ logging:
         print("\n[TEST] Circuit Breaker")
 
         # Create config with 1s crash, only 2 attempts, short backoffs
-        config_path = self.create_config(crash_after=1.0, max_attempts=2, backoff_ms=[200, 500])
+        config_dict = self.create_config(crash_after=1.0, max_attempts=2, backoff_ms=[200, 500])
 
         try:
-            if not self.start_runtime(config_path):
+            if not self.start_runtime(config_dict):
                 return TestResult("circuit_breaker", False, "Failed to start runtime")
 
             # Wait for provider to start
@@ -361,17 +245,16 @@ logging:
 
         finally:
             self.stop_runtime()
-            config_path.unlink()
 
     def test_device_rediscovery(self) -> TestResult:
         """Test that devices are rediscovered after provider restart."""
         print("\n[TEST] Device Rediscovery")
 
         # Create config with 2s crash
-        config_path = self.create_config(crash_after=2.0, max_attempts=3, backoff_ms=[200, 500, 1000])
+        config_dict = self.create_config(crash_after=2.0, max_attempts=3, backoff_ms=[200, 500, 1000])
 
         try:
-            if not self.start_runtime(config_path):
+            if not self.start_runtime(config_dict):
                 return TestResult("device_rediscovery", False, "Failed to start runtime")
 
             # Wait for initial device discovery
@@ -398,7 +281,6 @@ logging:
 
         finally:
             self.stop_runtime()
-            config_path.unlink()
 
     def run_tests(self) -> int:
         """Run all supervision tests."""

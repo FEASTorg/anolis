@@ -20,18 +20,9 @@ import sys
 import time
 
 import requests
+from test_helpers import wait_for_condition
 
 BASE_URL = "http://localhost:8080"
-
-
-def wait_for_condition(condition_func, timeout=5.0, interval=0.1, description="condition"):
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        if condition_func():
-            return True
-        time.sleep(interval)
-    print(f"Warning: Timed out waiting for {description}")
-    return False
 
 
 def test_device_discovery():

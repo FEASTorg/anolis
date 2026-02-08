@@ -22,16 +22,15 @@ Usage:
 
 import argparse
 import os
-import subprocess
 import sys
-import tempfile
 import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
+
 import requests
-import signal
+from test_fixtures import RuntimeFixture
 
 
 @dataclass
@@ -113,11 +112,12 @@ class StressTestRunner:
     """Orchestrates the stress test scenario."""
 
     def __init__(self, runtime_path: Path, provider_path: Path, num_clients: int = 10):
+        self.num_clients = num_clients
+        self.http_clients: List[ConcurrentHTTPClient] = []
+        self.config_dict: Optional[dict] = None
+        self.fixture: Optional[RuntimeFixture] = None
         self.runtime_path = runtime_path
         self.provider_path = provider_path
-        self.num_clients = num_clients
-        self.runtime_process: Optional[subprocess.Popen] = None
-        self.http_clients: List[ConcurrentHTTPClient] = []
 
     def setup(self) -> bool:
         """Validate paths and prepare test environment."""
@@ -131,60 +131,54 @@ class StressTestRunner:
 
         return True
 
-    def create_config(self) -> Path:
-        """Create test configuration."""
+    def create_config(self) -> dict:
+        """Create test configuration as dict for RuntimeFixture."""
         provider_cmd = str(self.provider_path).replace("\\", "/")
 
-        config_content = f"""# Concurrency Stress Test Config
-providers:
-  - id: stress-provider
-    command: "{provider_cmd}"
-    args: []
-    timeout_ms: 5000
-    restart_policy:
-      enabled: true
-      max_attempts: 10
-      backoff_ms: [50, 100, 200]
-      timeout_ms: 60000
+        config = {
+            "providers": [
+                {
+                    "id": "stress-provider",
+                    "command": provider_cmd,
+                    "args": [],
+                    "timeout_ms": 5000,
+                    "restart_policy": {
+                        "enabled": True,
+                        "max_attempts": 10,
+                        "backoff_ms": [50, 100, 200],
+                        "timeout_ms": 60000,
+                    },
+                }
+            ],
+            "http": {"enabled": True, "bind": "127.0.0.1", "port": 8080},
+            "polling": {"interval_ms": 100},
+            "logging": {"level": "warning"},
+        }
 
-http:
-  enabled: true
-  bind: "127.0.0.1"
-  port: 8080
+        return config
 
-polling:
-  interval_ms: 100  # Fast polling for stress test
-
-logging:
-  level: warning  # Reduce log volume during stress test
-"""
-
-        fd, path = tempfile.mkstemp(suffix=".yaml", text=True)
-        with os.fdopen(fd, "w") as f:
-            f.write(config_content)
-
-        return Path(path)
-
-    def start_runtime(self, config_path: Path) -> bool:
+    def start_runtime(self, config_dict: dict) -> bool:
         """Start runtime process."""
-        cmd = [str(self.runtime_path), "--config", str(config_path)]
-        print(f"  Starting runtime: {' '.join(cmd)}")
+        print("  Starting runtime with RuntimeFixture")
 
         try:
             # Set environment for better TSAN output
             env = os.environ.copy()
             if "TSAN_OPTIONS" not in env:
                 env["TSAN_OPTIONS"] = "halt_on_error=1"
+                os.environ["TSAN_OPTIONS"] = "halt_on_error=1"
 
-            self.runtime_process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                stdin=subprocess.DEVNULL,
-                text=True,
-                bufsize=1,
-                env=env,
+            self.fixture = RuntimeFixture(
+                self.runtime_path,
+                self.provider_path,
+                http_port=8080,
+                config_dict=config_dict,
             )
+
+            if not self.fixture.start():
+                print("ERROR: Failed to start runtime via RuntimeFixture")
+                return False
+
         except Exception as e:
             print(f"ERROR: Failed to start runtime: {e}")
             return False
@@ -234,22 +228,9 @@ logging:
 
     def stop_runtime(self):
         """Stop runtime process."""
-        if self.runtime_process:
+        if self.fixture:
             try:
-                # Send SIGTERM for graceful shutdown
-                if sys.platform != "win32":
-                    self.runtime_process.send_signal(signal.SIGTERM)
-                else:
-                    self.runtime_process.terminate()
-
-                # Wait for process to exit
-                try:
-                    self.runtime_process.wait(timeout=5.0)
-                except subprocess.TimeoutExpired:
-                    # Force kill if it doesn't exit
-                    self.runtime_process.kill()
-                    self.runtime_process.wait()
-
+                self.fixture.cleanup()
             except Exception as e:
                 print(f"  Warning during runtime shutdown: {e}")
 
@@ -258,11 +239,11 @@ logging:
         print(f"\n[STRESS TEST] {num_restarts} restarts with {self.num_clients} concurrent HTTP clients")
 
         # Setup
-        config_path = self.create_config()
+        config_dict = self.create_config()
 
         try:
             # Start runtime
-            if not self.start_runtime(config_path):
+            if not self.start_runtime(config_dict):
                 return StressTestResult(success=False, message="Failed to start runtime")
 
             # Start HTTP clients
@@ -287,7 +268,7 @@ logging:
                 time.sleep(0.1)
 
                 # Check if runtime is still alive
-                if self.runtime_process and self.runtime_process.poll() is not None:
+                if self.fixture and not self.fixture.is_running():
                     return StressTestResult(
                         success=False,
                         message=f"Runtime crashed during stress test at restart {i}",
@@ -295,7 +276,7 @@ logging:
                     )
 
             elapsed = time.time() - start_time
-            print(f"  Completed {num_restarts} restarts in {elapsed:.1f}s ({num_restarts/elapsed:.1f} restarts/sec)")
+            print(f"  Completed {num_restarts} restarts in {elapsed:.1f}s ({num_restarts / elapsed:.1f} restarts/sec)")
 
             # Let clients finish pending requests
             time.sleep(1.0)
@@ -337,8 +318,6 @@ logging:
             # Cleanup
             self.stop_http_clients()
             self.stop_runtime()
-            if config_path.exists():
-                config_path.unlink()
 
 
 def main():
@@ -378,21 +357,21 @@ def main():
     runner = StressTestRunner(runtime_path, provider_path, num_clients=args.clients)
 
     if not runner.setup():
-        print("\n❌ Setup failed")
+        print("\n[ERROR] Setup failed")
         return 1
 
     result = runner.run_stress_test(num_restarts=args.restarts)
 
     print("\n" + "=" * 80)
     if result.success:
-        print("✅ STRESS TEST PASSED")
+        print("[PASS] STRESS TEST PASSED")
         print(f"   - Completed {result.restart_count} restarts")
         print(f"   - HTTP clients made {result.http_requests} requests")
-        print(f"   - No crashes, no data races, no deadlocks")
+        print("   - No crashes, no data races, no deadlocks")
         print("=" * 80)
         return 0
     else:
-        print("❌ STRESS TEST FAILED")
+        print("[FAIL] STRESS TEST FAILED")
         print(f"   - {result.message}")
         print(f"   - Restarts completed: {result.restart_count}")
         print(f"   - HTTP requests: {result.http_requests}")

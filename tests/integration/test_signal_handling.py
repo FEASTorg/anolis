@@ -18,15 +18,13 @@ Usage:
 import argparse
 import os
 import signal
-import subprocess
 import sys
-import tempfile
-import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from queue import Empty, Queue
-from typing import List, Optional
+from typing import Optional
+
+from test_fixtures import RuntimeFixture
 
 
 @dataclass
@@ -34,82 +32,6 @@ class TestResult:
     name: str
     passed: bool
     message: str = ""
-
-
-class OutputCapture:
-    """Thread-safe output capture with timeout support."""
-
-    def __init__(self, process: subprocess.Popen):
-        self.process = process
-        self.lines: List[str] = []
-        self.lock = threading.Lock()
-        self.queue: Queue = Queue()
-        self.stop_event = threading.Event()
-        self._thread: Optional[threading.Thread] = None
-
-    def start(self):
-        """Start capturing output in background thread."""
-        self._thread = threading.Thread(target=self._capture_loop, daemon=True)
-        self._thread.start()
-
-    def _capture_loop(self):
-        """Background thread that reads stderr."""
-        try:
-            while not self.stop_event.is_set():
-                if self.process.poll() is not None:
-                    # Process ended, read remaining output
-                    remaining = self.process.stderr.read()
-                    if remaining:
-                        for line in remaining.splitlines():
-                            self._add_line(line)
-                    break
-
-                line = self.process.stderr.readline()
-                if line:
-                    self._add_line(line.rstrip("\n\r"))
-        except Exception as e:
-            self._add_line(f"[CAPTURE ERROR] {e}")
-
-    def _add_line(self, line: str):
-        """Add line to buffer and queue."""
-        with self.lock:
-            self.lines.append(line)
-        self.queue.put(line)
-
-    def wait_for_marker(self, marker: str, timeout: float = 10.0) -> bool:
-        """Wait for a specific marker to appear in output."""
-        deadline = time.time() + timeout
-
-        # First check existing lines
-        with self.lock:
-            for line in self.lines:
-                if marker in line:
-                    return True
-
-        # Wait for new lines
-        while time.time() < deadline:
-            try:
-                remaining = deadline - time.time()
-                if remaining <= 0:
-                    break
-                line = self.queue.get(timeout=min(remaining, 0.5))
-                if marker in line:
-                    return True
-            except Empty:
-                continue
-
-        return False
-
-    def get_all_output(self) -> str:
-        """Get all captured output as a single string."""
-        with self.lock:
-            return "\n".join(self.lines)
-
-    def stop(self):
-        """Stop the capture thread."""
-        self.stop_event.set()
-        if self._thread:
-            self._thread.join(timeout=2.0)
 
 
 def find_executable(name: str, hints: list[str]) -> Optional[str]:
@@ -140,112 +62,102 @@ def test_signal_handling(
     Returns:
         TestResult with success/failure and message
     """
-    # Create minimal config
-    fd, config_path = tempfile.mkstemp(suffix=".yaml", prefix="anolis_signal_test_")
+    # Create config dict
+    config = {
+        "runtime": {"mode": "MANUAL"},
+        "http": {"enabled": True, "bind": "127.0.0.1", "port": 8765},
+        "providers": [
+            {
+                "id": "sim",
+                "command": str(provider_path).replace("\\", "/"),
+                "args": [],
+            }
+        ],
+        "polling": {"interval_ms": 1000},
+        "logging": {"level": "info"},
+        "automation": {"enabled": False},
+        "telemetry": {"enabled": False},
+    }
+
+    # Create fixture
+    fixture = RuntimeFixture(
+        Path(runtime_path),
+        Path(provider_path),
+        http_port=8765,
+        config_dict=config,
+    )
+
     try:
-        config_content = f"""runtime:
-  mode: MANUAL
-
-http:
-  enabled: true
-  bind: "127.0.0.1"
-  port: 8765
-
-providers:
-  - id: sim
-    command: {provider_path}
-    args: []
-
-polling:
-  interval_ms: 1000
-
-logging:
-  level: info
-
-automation:
-  enabled: false
-
-telemetry:
-  enabled: false
-"""
-        os.write(fd, config_content.encode("utf-8"))
-        os.close(fd)
-
         # Start runtime
-        proc = subprocess.Popen(
-            [runtime_path, f"--config={config_path}"],
-            stderr=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            text=True,
-            bufsize=1,
-            creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0),
-        )
+        if not fixture.start():
+            return TestResult(signal_name, False, "Failed to start runtime")
 
-        capture = OutputCapture(proc)
-        capture.start()
+        capture = fixture.get_output_capture()
+        if not capture:
+            fixture.cleanup()
+            return TestResult(signal_name, False, "No output capture available")
 
-        try:
-            # Wait for runtime to become ready
-            if not capture.wait_for_marker("Runtime Ready", timeout=15):
-                proc.kill()
-                proc.wait(timeout=2)
-                return TestResult(signal_name, False, "Runtime did not become ready within 15s")
+        # Wait for runtime to become ready
+        if not capture.wait_for_marker("Runtime Ready", timeout=15):
+            fixture.cleanup()
+            return TestResult(signal_name, False, "Runtime did not become ready within 15s")
 
-            # Wait a bit for stability
-            time.sleep(0.5)
+        # Wait a bit for stability
+        time.sleep(0.5)
 
-            # Send signal
-            if sys.platform == "win32":
-                # Windows: use CTRL_BREAK_EVENT which our handler can catch
-                # CTRL_C_EVENT is problematic in subprocesses
-                if test_signal == signal.SIGINT:
-                    # SIGINT -> use CTRL_BREAK as proxy (closest to Unix SIGINT)
-                    proc.send_signal(signal.CTRL_BREAK_EVENT)
-                else:
-                    # SIGTERM -> use CTRL_BREAK (Windows doesn't have real SIGTERM for processes)
-                    proc.send_signal(signal.CTRL_BREAK_EVENT)
+        # Get process to send signal
+        proc_info = fixture.process_info
+        if not proc_info or not proc_info.process:
+            fixture.cleanup()
+            return TestResult(signal_name, False, "No process info available")
+
+        proc = proc_info.process
+
+        # Send signal
+        if sys.platform == "win32":
+            # Windows: use CTRL_BREAK_EVENT which our handler can catch
+            if test_signal == signal.SIGINT:
+                proc.send_signal(signal.CTRL_BREAK_EVENT)
             else:
-                # Unix: send actual signal
-                proc.send_signal(test_signal)
+                proc.send_signal(signal.CTRL_BREAK_EVENT)
+        else:
+            # Unix: send actual signal
+            proc.send_signal(test_signal)
 
-            # Wait for clean shutdown
-            try:
-                exit_code = proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-                proc.wait(timeout=2)
-                capture.stop()
-                return TestResult(signal_name, False, "Runtime hung after signal (timeout after 5s)")
+        # Wait for clean shutdown
+        start_time = time.time()
+        timeout = 5.0
+        while time.time() - start_time < timeout:
+            if not fixture.is_running():
+                break
+            time.sleep(0.1)
 
-            capture.stop()
+        if fixture.is_running():
+            fixture.cleanup()
+            return TestResult(signal_name, False, "Runtime hung after signal (timeout after 5s)")
 
-            # Verify graceful shutdown
-            output = capture.get_all_output()
+        # Get exit code and output
+        exit_code = proc.returncode if proc.returncode is not None else -1
+        output = capture.get_all_output()
 
-            # Check for shutdown message
-            has_shutdown_msg = "Signal received" in output or "stopping" in output.lower() or "Shutting down" in output
+        # Verify graceful shutdown
+        has_shutdown_msg = "Signal received" in output or "stopping" in output.lower() or "Shutting down" in output
 
-            # On Windows, CTRL_BREAK might cause exit code 0 or non-zero
-            # What matters is that it shut down without hanging
-            if has_shutdown_msg or exit_code == 0:
-                return TestResult(signal_name, True, f"Clean shutdown (exit: {exit_code})")
-            else:
-                # Even without explicit message, if it exited cleanly, that's okay
-                if exit_code in [0, 255]:  # 255 can be -1 in unsigned
-                    return TestResult(signal_name, True, f"Shutdown completed (exit: {exit_code})")
-                return TestResult(signal_name, False, f"Unexpected exit code: {exit_code}")
+        # On Windows, CTRL_BREAK might cause exit code 0 or non-zero
+        # What matters is that it shut down without hanging
+        if has_shutdown_msg or exit_code == 0:
+            return TestResult(signal_name, True, f"Clean shutdown (exit: {exit_code})")
+        else:
+            # Even without explicit message, if it exited cleanly, that's okay
+            if exit_code in [0, 255]:  # 255 can be -1 in unsigned
+                return TestResult(signal_name, True, f"Shutdown completed (exit: {exit_code})")
+            return TestResult(signal_name, False, f"Unexpected exit code: {exit_code}")
 
-        except Exception as e:
-            proc.kill()
-            proc.wait(timeout=2)
-            capture.stop()
-            return TestResult(signal_name, False, f"Exception: {e}")
-
+    except Exception as e:
+        fixture.cleanup()
+        return TestResult(signal_name, False, f"Exception: {e}")
     finally:
-        try:
-            os.unlink(config_path)
-        except OSError:
-            pass
+        fixture.cleanup()
 
 
 def main():

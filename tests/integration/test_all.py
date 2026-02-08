@@ -113,7 +113,17 @@ def find_provider_path() -> Optional[Path]:
 
 
 def kill_processes(names: List[str]) -> None:
-    """Kill any running processes by name. Uses graceful shutdown first on Linux."""
+    """
+    Emergency cleanup for leaked processes (safety net only).
+
+    NOTE: As of Sprint 3.2, all tests use RuntimeFixture with process-group
+    scoped cleanup. This function is kept as a safety net for:
+    - Test failures that prevent normal cleanup
+    - Manual interruption (Ctrl+C)
+    - Unexpected crashes
+
+    Normal test execution should NOT rely on this function.
+    """
     if sys.platform == "win32":
         for name in names:
             try:
@@ -151,7 +161,12 @@ def get_log_dir() -> Path:
 
 
 def cleanup_between_tests() -> None:
-    """Clean up any lingering processes between tests."""
+    """
+    Emergency cleanup between tests (safety net only).
+
+    NOTE: Individual tests now use RuntimeFixture with proper cleanup.
+    This function is kept as a failsafe for interrupted or crashed tests.
+    """
     print("  Cleaning up processes...")
     kill_processes(["anolis-runtime", "anolis-provider-sim"])
     # Give OS time to release resources

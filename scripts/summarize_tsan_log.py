@@ -29,12 +29,10 @@ class TestLogParser:
             content = f.read()
 
         # Extract summary information
-        summary_match = re.search(
-            r"(\d+)% tests passed, (\d+) tests failed out of (\d+)", content
-        )
+        summary_match = re.search(r"(\d+)% tests passed, (\d+) tests failed out of (\d+)", content)
         if summary_match:
             self.pass_rate = float(summary_match.group(1))
-            failed_count = int(summary_match.group(2))
+            int(summary_match.group(2))
             self.test_count = int(summary_match.group(3))
 
         # Extract individual test results
@@ -119,9 +117,7 @@ class TestLogParser:
         lines.append("TEST EXECUTION SUMMARY")
         lines.append("=" * 70)
         lines.append(f"Total Tests:        {self.test_count}")
-        lines.append(
-            f"Passed:             {len(self.passed_tests)} ({self.pass_rate:.1f}%)"
-        )
+        lines.append(f"Passed:             {len(self.passed_tests)} ({self.pass_rate:.1f}%)")
         lines.append(f"Failed:             {len(self.failed_tests)}")
         lines.append(f"  - Segfaults:      {len(self.segfault_tests)}")
         lines.append("=" * 70)
@@ -138,9 +134,7 @@ class TestLogParser:
         lines.append("\nTOP 10 SLOWEST TESTS:")
         lines.append("-" * 70)
         for test in slowest:
-            lines.append(
-                f"  {test['duration']:6.2f}s - Test #{test['number']:3d}: {test['name']}"
-            )
+            lines.append(f"  {test['duration']:6.2f}s - Test #{test['number']:3d}: {test['name']}")
 
         lines.append("\n" + "=" * 70)
 
@@ -160,9 +154,9 @@ class TestLogParser:
                 f.write("=" * 70 + "\n\n")
 
                 for test in self.failed_tests:
-                    f.write(f"\n{'─' * 70}\n")
+                    f.write(f"\n{'-' * 70}\n")
                     f.write(f"Test #{test['number']}: {test['name']}\n")
-                    f.write(f"{'─' * 70}\n")
+                    f.write(f"{'-' * 70}\n")
 
                     output = self.extract_test_output(test["number"])
                     if output:
