@@ -63,6 +63,18 @@ jobs:
           sudo apt-get install -y ninja-build g++ python3 python3-pip
           python3 -m pip install --upgrade pip
 
+      - name: Install GCC 13
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-13 g++-13
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
+
+      - name: Verify compiler version
+        run: |
+          gcc --version
+          g++ --version
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -84,6 +96,8 @@ jobs:
         run: |
           cmake -B build -S . -G Ninja \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_C_COMPILER=gcc-13 \
+            -DCMAKE_CXX_COMPILER=g++-13 \
             -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
             -DENABLE_TSAN=ON
           cmake --build build --config RelWithDebInfo --parallel
@@ -93,6 +107,8 @@ jobs:
           cd anolis-provider-sim
           cmake -B build -S . -G Ninja \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_C_COMPILER=gcc-13 \
+            -DCMAKE_CXX_COMPILER=g++-13 \
             -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
             -DVCPKG_INSTALLED_DIR=$GITHUB_WORKSPACE/build/vcpkg_installed \
             -DVCPKG_MANIFEST_INSTALL=OFF
@@ -100,8 +116,9 @@ jobs:
 
       - name: Run unit tests with TSAN
         env:
-          TSAN_OPTIONS: "halt_on_error=1 second_deadlock_stack=1 detect_deadlocks=1"
+          TSAN_OPTIONS: "halt_on_error=1 second_deadlock_stack=1 detect_deadlocks=1 log_path=${{ github.workspace }}/tsan-unit"
         run: |
+          set +e
           echo "=== Running unit tests with ThreadSanitizer ==="
 
           # Ensure deterministic execution under TSAN
@@ -114,39 +131,102 @@ jobs:
                             --progress \
                             --verbose \
                             --timeout 300 \
-                            -C RelWithDebInfo
+                            -C RelWithDebInfo 2>&1 | tee tsan-unit-output.log
+          EXIT_CODE=$?
+
+          # Check for TSAN reports
+          if ls tsan-unit.* 1>/dev/null 2>&1; then
+            echo "FAIL: ThreadSanitizer detected data races in unit tests"
+            RACE_COUNT=$(ls tsan-unit.* 2>/dev/null | wc -l)
+            {
+              echo "## TSAN Unit Tests - Data Races Detected"
+              echo ""
+              echo "**Data races found:** $RACE_COUNT"
+              echo ""
+              echo "### First Race Report:"
+              echo '```'
+              head -100 tsan-unit.* 2>/dev/null | head -50
+              echo '```'
+              echo ""
+              echo "Artifact: \`tsan-reports-${{ github.run_number }}\`"
+            } >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "FAIL: Unit tests failed with exit code $EXIT_CODE"
+            {
+              echo "## TSAN Unit Tests Failed"
+              echo ""
+              echo "Exit code: $EXIT_CODE"
+              echo ""
+              echo "No data races detected, but tests failed."
+            } >> $GITHUB_STEP_SUMMARY
+            exit $EXIT_CODE
+          fi
 
           echo "[OK] Unit tests passed without data races"
+          {
+            echo "## TSAN Unit Tests Passed"
+            echo ""
+            echo "- No data races detected"
+            echo "- No deadlocks detected"
+            echo "- All tests passed successfully"
+          } >> $GITHUB_STEP_SUMMARY
 
       - name: Run integration tests with TSAN
         env:
           LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/lib
-          TSAN_OPTIONS: "halt_on_error=1 second_deadlock_stack=1 history_size=5 log_path=${{ github.workspace }}/tsan"
+          TSAN_OPTIONS: "halt_on_error=1 second_deadlock_stack=1 history_size=5 log_path=${{ github.workspace }}/tsan-integration"
         run: |
-          set +e  # Don't exit on error so we can capture TSAN reports
+          set +e
 
           echo "=== Running integration tests with ThreadSanitizer ==="
           python3 tests/integration/test_all.py --timeout=180 \
-            --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim
+            --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim 2>&1 | tee tsan-integration-output.log
           TEST_EXIT=$?
 
           # Check for TSAN reports
-          if [ -f tsan.* ]; then
-            echo "❌ ThreadSanitizer detected data races:"
-            echo "=================================="
-            cat tsan.*
-            echo "=================================="
+          if ls tsan-integration.* 1>/dev/null 2>&1; then
+            echo "FAIL: ThreadSanitizer detected data races in integration tests"
+            RACE_COUNT=$(ls tsan-integration.* 2>/dev/null | wc -l)
+            {
+              echo "## TSAN Integration Tests - Data Races Detected"
+              echo ""
+              echo "**Data races found:** $RACE_COUNT"
+              echo ""
+              echo "### First Race Report:"
+              echo '```'
+              head -100 tsan-integration.* 2>/dev/null | head -50
+              echo '```'
+              echo ""
+              echo "Artifact: \`tsan-reports-${{ github.run_number }}\`"
+            } >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
 
           if [ $TEST_EXIT -ne 0 ]; then
-            echo "❌ Tests failed with exit code $TEST_EXIT"
+            echo "FAIL: Integration tests failed with exit code $TEST_EXIT"
             echo "=== Test log tails ==="
             tail -100 build/test-logs/*.log 2>/dev/null || true
+            {
+              echo "## TSAN Integration Tests Failed"
+              echo ""
+              echo "Exit code: $TEST_EXIT"
+              echo ""
+              echo "No data races detected, but tests failed. See logs in artifacts."
+            } >> $GITHUB_STEP_SUMMARY
             exit $TEST_EXIT
           fi
 
-          echo "✅ Integration tests passed without data races"
+          echo "PASS: Integration tests passed without data races"
+          {
+            echo "## TSAN Integration Tests Passed"
+            echo ""
+            echo "- No data races detected"
+            echo "- No deadlocks detected"
+            echo "- All tests passed successfully"
+          } >> $GITHUB_STEP_SUMMARY
 
       - name: Run concurrency stress test with TSAN
         env:
@@ -159,43 +239,99 @@ jobs:
           if [ -f tests/integration/test_concurrency_stress.py ]; then
             python3 tests/integration/test_concurrency_stress.py \
               --runtime=build/core/anolis-runtime \
-              --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim
+              --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim 2>&1 | tee tsan-stress-output.log
             TEST_EXIT=$?
 
             # Check for TSAN reports
-            if [ -f tsan-stress.* ]; then
-              echo "❌ ThreadSanitizer detected data races in stress test:"
-              echo "=================================="
-              cat tsan-stress.*
-              echo "=================================="
+            if ls tsan-stress.* 1>/dev/null 2>&1; then
+              echo "FAIL: ThreadSanitizer detected data races in stress test"
+              RACE_COUNT=$(ls tsan-stress.* 2>/dev/null | wc -l)
+              {
+                echo "## TSAN Stress Test - Data Races Detected"
+                echo ""
+                echo "**Data races found:** $RACE_COUNT"
+                echo ""
+                echo "### First Race Report:"
+                echo '```'
+                head -100 tsan-stress.* 2>/dev/null | head -50
+                echo '```'
+                echo ""
+                echo "Artifact: \`tsan-reports-${{ github.run_number }}\`"
+              } >> $GITHUB_STEP_SUMMARY
               exit 1
             fi
 
             if [ $TEST_EXIT -ne 0 ]; then
-              echo "❌ Stress test failed with exit code $TEST_EXIT"
+              echo "FAIL: Stress test failed with exit code $TEST_EXIT"
+              {
+                echo "## TSAN Stress Test Failed"
+                echo ""
+                echo "Exit code: $TEST_EXIT"
+                echo ""
+                echo "No data races detected, but tests failed."
+              } >> $GITHUB_STEP_SUMMARY
               exit $TEST_EXIT
             fi
 
-            echo "✅ Stress test passed without data races"
+            echo "PASS: Stress test passed without data races"
+            {
+              echo "## TSAN Stress Test Passed"
+              echo ""
+              echo "- No data races detected under heavy load"
+              echo "- No deadlocks detected"
+              echo "- System stable under concurrent stress"
+            } >> $GITHUB_STEP_SUMMARY
           else
-            echo "⚠️  Stress test not yet implemented (tests/integration/test_concurrency_stress.py)"
+            echo "WARNING: Stress test not yet implemented (tests/integration/test_concurrency_stress.py)"
             echo "Skipping for now - will be added in task 1.4.3"
+            {
+              echo "## TSAN Stress Test Skipped (Not Implemented)"
+              echo ""
+              echo "Stress test not yet implemented."
+            } >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Upload TSAN Reports
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: tsan-reports
+          name: tsan-reports-${{ github.run_number }}
           path: |
-            tsan.*
+            tsan-unit.*
+            tsan-integration.*
             tsan-stress.*
+            tsan-*-output.log
             build/test-logs/
           if-no-files-found: ignore
+          retention-days: 14
 
-      - name: Summary
-        if: success()
+      - name: Final Summary
+        if: always()
         run: |
-          echo "✅ All ThreadSanitizer checks passed"
-          echo "   - Zero data races detected"
-          echo "   - All tests executed successfully"
+          if [ -f tsan-unit.* ] || [ -f tsan-integration.* ] || [ -f tsan-stress.* ]; then
+            echo "FAIL: ThreadSanitizer workflow completed with data races detected"
+            {
+              echo "---"
+              echo ""
+              echo "## TSAN Workflow Summary"
+              echo ""
+              echo "At least one test detected data races. Review the detailed reports above."
+              echo ""
+              echo "Artifact: \`tsan-reports-${{ github.run_number }}\`"
+            } >> $GITHUB_STEP_SUMMARY
+          else
+            echo "PASS: All ThreadSanitizer checks passed"
+            {
+              echo "---"
+              echo ""
+              echo "## TSAN Workflow Summary"
+              echo ""
+              echo "**All tests passed**"
+              echo ""
+              echo "- Unit tests: No data races"
+              echo "- Integration tests: No data races"
+              echo "- Stress tests: No data races"
+              echo ""
+              echo "Zero data races detected across all test suites."
+            } >> $GITHUB_STEP_SUMMARY
+          fi

@@ -133,21 +133,14 @@ jobs:
             echo '```'
             echo ""
 
-            echo "## 2. Tokei JSON"
+            echo "## 2. Top Languages by Lines of Code"
             echo ""
-            echo '```json'
-            jq . metrics/tokei.json 2>/dev/null || cat metrics/tokei.json
-            echo '```'
+            jq -r 'to_entries | sort_by(-.value.code) | .[:10] | .[] | "- **\(.key)**: \(.value.code) lines (\(.value.comments) comments)"' metrics/tokei.json 2>/dev/null || echo "Parse error"
             echo ""
-
-            echo "## 3. CLOC JSON"
-            echo ""
-            echo '```json'
-            jq . metrics/cloc.json 2>/dev/null || cat metrics/cloc.json
-            echo '```'
+            echo "_Full tokei.json and cloc.json available in artifact download_"
             echo ""
 
-            echo "## 4. Disk Usage"
+            echo "## 3. Disk Usage"
             echo ""
             echo '```'
             cat metrics/disk-usage.txt
@@ -181,15 +174,25 @@ jobs:
           {
             echo "## Repository Metrics Summary"
             echo ""
-            echo "**Commit:** $GITHUB_SHA"
-            echo "**Branch:** $GITHUB_REF_NAME"
+            echo "**Commit:** \`$GITHUB_SHA\`"
+            echo "**Branch:** \`$GITHUB_REF_NAME\`"
             echo ""
-            echo "### Tokei Totals"
-            echo '```'
-            head -40 metrics/tokei.txt
-            echo '```'
+            echo "### Quick Stats"
+            TOTAL_FILES=$(find . -type f -not -path './.git/*' | wc -l)
+            TOTAL_COMMITS=$(git rev-list --count HEAD 2>/dev/null || echo "N/A")
+            echo "- Total files: $TOTAL_FILES"
+            echo "- Git commits: $TOTAL_COMMITS"
             echo ""
-            echo "Full report available in uploaded artifacts."
+            echo "### Top Languages"
+            if [ -f metrics/tokei.json ]; then
+              jq -r 'to_entries | sort_by(-.value.code) | .[:5] | .[] | "- **\(.key)**: \(.value.code) lines"' metrics/tokei.json 2>/dev/null || echo "- Parse error"
+            else
+              echo "- No data available"
+            fi
+            echo ""
+            echo "**Download archive:** \`repository-metrics-${{ github.run_number }}\`"
+            echo ""
+            echo "_Archive contains: tokei.json, tokei.txt, cloc.json, disk-usage.txt, repo-tree.txt, metrics-report.md_"
           } >> $GITHUB_STEP_SUMMARY
 
       # ------------------------------------------------------------------

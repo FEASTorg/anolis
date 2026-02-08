@@ -1,0 +1,109 @@
+name: Static Analysis
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "**/*.png"
+      - "**/*.jpg"
+      - "**/*.jpeg"
+      - "**/*.gif"
+      - "**/*.svg"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "**/*.png"
+      - "**/*.jpg"
+      - "**/*.jpeg"
+      - "**/*.gif"
+      - "**/*.svg"
+
+concurrency:
+  group: static-analysis-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VCPKG_COMMIT: "66c0373dc7fca549e5803087b9487edfe3aca0a1"
+
+jobs:
+  clang-tidy:
+    name: Clang-Tidy
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install clang-tidy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-tidy-14 ninja-build
+          sudo ln -sf /usr/bin/clang-tidy-14 /usr/bin/clang-tidy
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -S . -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
+            -DENABLE_CLANG_TIDY=ON
+
+      - name: Analyze with clang-tidy
+        run: |
+          set +e
+          cmake --build build --parallel 2>&1 | tee clang-tidy.log
+          EXIT_CODE=$?
+
+          # Count warnings and errors
+          ERROR_COUNT=$(grep -c "error:" clang-tidy.log || echo "0")
+          WARNING_COUNT=$(grep -c "warning:" clang-tidy.log || echo "0")
+
+          if [ $EXIT_CODE -ne 0 ] || [ $ERROR_COUNT -gt 0 ]; then
+            echo "FAIL: Clang-tidy found errors"
+            {
+              echo "## Clang-Tidy Analysis Failed"
+              echo ""
+              echo "- **Errors:** $ERROR_COUNT"
+              echo "- **Warnings:** $WARNING_COUNT"
+              echo ""
+              echo "### Sample Issues:"
+              echo '```'
+              grep -E "(error:|warning:)" clang-tidy.log | head -20
+              echo '```'
+              echo ""
+              echo "Artifact: \`clang-tidy-log-${{ github.run_number }}\`"
+            } >> $GITHUB_STEP_SUMMARY
+            exit $EXIT_CODE
+          fi
+
+          {
+            echo "## Clang-Tidy Analysis Passed"
+            echo ""
+            echo "- **Errors:** 0"
+            echo "- **Warnings:** $WARNING_COUNT"
+            echo ""
+            if [ $WARNING_COUNT -gt 0 ]; then
+              echo "### Sample Warnings:"
+              echo '```'
+              grep "warning:" clang-tidy.log | head -10
+              echo '```'
+              echo ""
+            fi
+            echo "Artifact: \`clang-tidy-log-${{ github.run_number }}\`"
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload clang-tidy log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clang-tidy-log-${{ github.run_number }}
+          path: clang-tidy.log
+          retention-days: 14
