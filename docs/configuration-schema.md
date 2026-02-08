@@ -345,7 +345,9 @@ Nested configuration for InfluxDB connection.
 - **Required:** No
 - **Default:** `1000`
 - **Constraints:** Must be at least 0
-- **Description:** Maximum number of telemetry events to buffer when InfluxDB writes fail. Failed batches are prepended to the next flush attempt. When the buffer is full, oldest events are dropped. Set to 0 to disable retry buffering (failed batches are immediately discarded).
+- **Description:** Maximum number of telemetry events to buffer when InfluxDB writes fail.
+- Failed batches are prepended to the next flush attempt.
+- When the buffer is full, oldest events are dropped. Set to 0 to disable retry buffering (failed batches are immediately discarded).
 
 **Retry Behavior:**
 
