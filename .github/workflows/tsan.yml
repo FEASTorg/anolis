@@ -93,14 +93,15 @@ jobs:
             -DENABLE_TSAN=ON
           cmake --build build --config RelWithDebInfo --parallel
 
-      - name: Build anolis-provider-sim
+      - name: Build anolis-provider-sim (TSAN)
         run: |
           cd anolis-provider-sim
           cmake -B build -S . -G Ninja \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
             -DVCPKG_INSTALLED_DIR=$GITHUB_WORKSPACE/build/vcpkg_installed \
-            -DVCPKG_MANIFEST_INSTALL=OFF
+            -DVCPKG_MANIFEST_INSTALL=OFF \
+            -DENABLE_TSAN=ON
           cmake --build build --config RelWithDebInfo --parallel
 
       - name: Run unit tests with TSAN
