@@ -122,7 +122,7 @@ python tests/scenarios/run_scenarios.py
 
 Both `anolis` and `anolis-provider-sim` use GitHub Actions for CI. Tests run on:
 
-- Ubuntu 22.04 (GCC)
+- Ubuntu 24.04 (GCC)
 - Windows Server 2022 (MSVC 2022)
 
 ### Test Requirements

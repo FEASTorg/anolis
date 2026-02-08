@@ -33,8 +33,8 @@ env:
 
 jobs:
   build-linux:
-    name: Linux (Ubuntu 22.04)
-    runs-on: ubuntu-22.04
+    name: Linux (Ubuntu 24.04)
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
 
     steps:
@@ -330,24 +330,17 @@ jobs:
           $PassedTests = if ($TestOutput -match '(\d+) tests passed') { $Matches[1] } else { "0" }
           $FailedTests = if ($TestOutput -match '(\d+) tests failed') { $Matches[1] } else { "0" }
           
-          $Summary = @"
-## Unit Tests (Windows)
-
-"@
+          $Summary = "## Unit Tests (Windows)`n`n"
           if ($CTEST_EXIT -eq 0) {
             $Summary += "**PASS:** All unit tests passed`n"
           } else {
             $Summary += "**FAIL:** Unit tests failed`n"
           }
-          $Summary += @"
-
-- Total: $TotalTests
-- Passed: $PassedTests
-- Failed: $FailedTests
-
-"@
+          $Summary += "`n- Total: $TotalTests`n"
+          $Summary += "- Passed: $PassedTests`n"
+          $Summary += "- Failed: $FailedTests`n`n"
           if ($CTEST_EXIT -ne 0) {
-            $Summary += "Artifact: ``test-logs-windows-${{ github.run_number }}```n"
+            $Summary += "Artifact: ``test-logs-windows-${{ github.run_number }}``n"
           }
           
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $Summary
@@ -365,24 +358,17 @@ jobs:
           $TestOutput = Get-Content integration-test.log -Raw
           $TestCount = if ($TestOutput -match '(\d+) (passed|failed|error)') { $Matches[1] } else { "N/A" }
           
-          $Summary = @"
-## Integration Tests (Windows)
-
-"@
+          $Summary = "## Integration Tests (Windows)`n`n"
           if ($TEST_EXIT -eq 0) {
             $Summary += "**PASS:** All integration tests passed`n"
           } else {
             $Summary += "**FAIL:** Integration tests failed`n"
           }
-          $Summary += @"
-
-- Duration: ${Duration}s
-- Tests: $TestCount
-- Exit code: $TEST_EXIT
-
-"@
+          $Summary += "`n- Duration: ${Duration}s`n"
+          $Summary += "- Tests: $TestCount`n"
+          $Summary += "- Exit code: $TEST_EXIT`n`n"
           if ($TEST_EXIT -ne 0) {
-            $Summary += "Artifact: ``test-logs-windows-${{ github.run_number }}```n"
+            $Summary += "Artifact: ``test-logs-windows-${{ github.run_number }}``n"
           }
           
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $Summary
@@ -397,16 +383,13 @@ jobs:
             "--provider=$env:GITHUB_WORKSPACE/anolis-provider-sim/build/Release/anolis-provider-sim.exe" 2>&1 | Tee-Object -FilePath scenarios.log
           $SCENARIO_EXIT = $LASTEXITCODE
           
-          $Summary = @"
-## Validation Scenarios (Windows)
-
-"@
+          $Summary = "## Validation Scenarios (Windows)`n`n"
           if ($SCENARIO_EXIT -eq 0) {
             $Summary += "**PASS:** All scenarios passed`n"
           } else {
             $Summary += "**FAIL:** Scenarios failed`n`n"
             $Summary += "Exit code: $SCENARIO_EXIT`n`n"
-            $Summary += "Artifact: ``test-logs-windows-${{ github.run_number }}```n"
+            $Summary += "Artifact: ``test-logs-windows-${{ github.run_number }}``n"
           }
           
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $Summary
