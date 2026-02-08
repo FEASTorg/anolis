@@ -69,7 +69,7 @@ if (-not $Configuration) {
 $cacheContent = Get-Content (Join-Path $BuildDir "CMakeCache.txt")
 
 if ($cacheContent -match "ENABLE_TSAN:BOOL=ON") {
-    Write-Host "[INFO] ThreadSanitizer build detected"
+    Write-Host "[INFO] ThreadSanitizer build detected" -ForegroundColor Green
 
     $tripletLine = $cacheContent | Where-Object { $_ -match "^VCPKG_TARGET_TRIPLET:STRING=" }
     if (-not $tripletLine) {
@@ -78,11 +78,16 @@ if ($cacheContent -match "ENABLE_TSAN:BOOL=ON") {
     }
 
     $Triplet = ($tripletLine -split "=")[1]
-    Write-Host "[INFO] Using VCPKG triplet: $Triplet"
+    Write-Host "[INFO] Using VCPKG triplet: $Triplet" -ForegroundColor Green
 
-    $VcpkgLib = Join-Path $BuildDir "vcpkg_installed\$Triplet\bin"
-    $env:PATH = "$VcpkgLib;$env:PATH"
-    Write-Host "[INFO] PATH updated with: $VcpkgLib"
+    # NOTE: On Windows, CMake should copy required DLLs to the output directory.
+    # If tests fail to find TSAN DLLs, check CMake's RUNTIME_OUTPUT_DIRECTORY
+    # and vcpkg's automatic DLL copying. Modifying PATH here can cause ctest.exe
+    # itself to load TSAN libraries, potentially causing issues.
+    
+    # Configure TSAN runtime behavior (for test processes)
+    $env:TSAN_OPTIONS = "second_deadlock_stack=1 detect_deadlocks=1 history_size=7"
+    Write-Host "[INFO] TSAN_OPTIONS=$env:TSAN_OPTIONS" -ForegroundColor Green
 
     # Ensure provider also built with TSAN
     $providerCache = Join-Path $ProviderDir "$ProviderBuildDir\CMakeCache.txt"
@@ -90,7 +95,7 @@ if ($cacheContent -match "ENABLE_TSAN:BOOL=ON") {
         $providerCacheContent = Get-Content $providerCache
         if (-not ($providerCacheContent -match "ENABLE_TSAN:BOOL=ON")) {
             Write-Host "[ERROR] Provider built without TSAN while runtime uses TSAN." -ForegroundColor Red
-            Write-Host "        Rebuild provider with -TSan to avoid mixed instrumentation."
+            Write-Host "        Rebuild provider with -TSan to avoid mixed instrumentation." -ForegroundColor Red
             exit 4
         }
     }
@@ -103,7 +108,11 @@ if ($cacheContent -match "ENABLE_TSAN:BOOL=ON") {
 Write-Host "[INFO] Discovering unit tests..."
 
 Push-Location $BuildDir
-$testList = & ctest -N -C $Configuration 2>$null
+$testList = & ctest -N -C $Configuration
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] ctest discovery failed." -ForegroundColor Red
+    exit $LASTEXITCODE
+}
 Pop-Location
 
 $match = $testList | Select-String "Total Tests:"
@@ -112,7 +121,7 @@ if (-not $match) {
     exit 2
 }
 
-$TestCount = ($match -split "\s+")[-1]
+$TestCount = ($match.Line -replace "Total Tests:\s*", "")
 Write-Host "[INFO] Found $TestCount unit tests"
 
 Write-Host "[INFO] Running unit tests..."

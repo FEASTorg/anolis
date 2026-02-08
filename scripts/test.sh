@@ -60,7 +60,7 @@ if grep -q "ENABLE_TSAN:BOOL=ON" "$BUILD_DIR/CMakeCache.txt" 2>/dev/null; then
 	TSAN_ENABLED=true
 	echo "[INFO] ThreadSanitizer build detected"
 
-	# Extract triplet dynamically
+	# Extract triplet dynamically (for verification only)
 	VCPKG_TRIPLET=$(grep "VCPKG_TARGET_TRIPLET:STRING=" "$BUILD_DIR/CMakeCache.txt" | cut -d= -f2 || true)
 
 	if [[ -z "${VCPKG_TRIPLET:-}" ]]; then
@@ -68,14 +68,14 @@ if grep -q "ENABLE_TSAN:BOOL=ON" "$BUILD_DIR/CMakeCache.txt" 2>/dev/null; then
 		exit 3
 	fi
 
-	VCPKG_LIB="$BUILD_DIR/vcpkg_installed/$VCPKG_TRIPLET/lib"
-	VCPKG_DEBUG_LIB="$BUILD_DIR/vcpkg_installed/$VCPKG_TRIPLET/debug/lib"
-
-	export LD_LIBRARY_PATH="$VCPKG_DEBUG_LIB:$VCPKG_LIB:${LD_LIBRARY_PATH:-}"
-
 	echo "[INFO] Using VCPKG triplet: $VCPKG_TRIPLET"
-	echo "[INFO] LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
 
+	# IMPORTANT: Do NOT set LD_LIBRARY_PATH here!
+	# Test binaries have RPATH configured by CMake to find TSAN-instrumented libraries.
+	# Setting LD_LIBRARY_PATH causes ctest itself to load TSAN libraries, which
+	# triggers segfaults during fork(). Only the test executables should load TSAN.
+
+	# Configure TSAN runtime behavior for test processes
 	export TSAN_OPTIONS="second_deadlock_stack=1 detect_deadlocks=1 history_size=7 log_path=$REPO_ROOT/tsan-report"
 	echo "[INFO] TSAN_OPTIONS=$TSAN_OPTIONS"
 	echo "[INFO] Race reports will be written to: $REPO_ROOT/tsan-report.*"
@@ -96,33 +96,30 @@ fi
 
 echo "[INFO] Discovering unit tests..."
 
-# Change to build directory for ctest
 cd "$BUILD_DIR"
 
-echo "[INFO] Running: ctest -N (test discovery)"
+echo "[INFO] Found build dir: $BUILD_DIR"
+echo "[INFO] Discovering unit tests..."
 
-CTEST_TMP="$(mktemp)"
-trap 'rm -f "$CTEST_TMP"' EXIT
+CTEST_OUT="$(mktemp)"
+trap 'rm -f "$CTEST_OUT"' EXIT
 
-if ! timeout 30s ctest -N >"$CTEST_TMP" 2>&1; then
-	echo "[ERROR] Test discovery failed or timed out"
-	cat "$CTEST_TMP"
+if ! ctest -N --test-dir "$BUILD_DIR" >"$CTEST_OUT" 2>&1; then
+	echo "[ERROR] ctest discovery failed"
+	cat "$CTEST_OUT"
 	exit 2
 fi
 
-TEST_COUNT=$(grep -E "Total Tests: *[0-9]+" "$CTEST_TMP" | awk '{print $3}' || true)
-
+TEST_COUNT="$(grep -E "Total Tests: *[0-9]+" "$CTEST_OUT" | awk '{print $3}' || true)"
 if [[ -z "${TEST_COUNT:-}" || "$TEST_COUNT" == "0" ]]; then
 	echo "[ERROR] No unit tests found."
-	echo "        Ensure BUILD_TESTING=ON during configuration."
-	cat "$CTEST_TMP"
+	cat "$CTEST_OUT"
 	exit 2
 fi
 
 echo "[INFO] Found $TEST_COUNT unit tests"
 echo "[INFO] Running unit tests..."
-
-timeout 30m ctest --output-on-failure $VERBOSE_FLAG
+ctest --test-dir "$BUILD_DIR" --output-on-failure $VERBOSE_FLAG
 
 cd "$REPO_ROOT"
 
