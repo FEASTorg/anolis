@@ -574,18 +574,20 @@ void update_state() {
 The project uses **ThreadSanitizer (TSAN)** to detect data races and lock inversions:
 
 ```bash
-# Build with TSAN
-cmake -B build -DENABLE_TSAN=ON
-cmake --build build
+# Build with TSAN (uses custom vcpkg triplet for consistent instrumentation)
+./scripts/build.sh --clean --tsan --debug
 
-# Run tests
-ctest --test-dir build
+# Run tests (auto-detects TSAN and sets LD_LIBRARY_PATH)
+./scripts/test.sh
 
 # Or run specific test
-./build/tests/unit/state_cache_test
+LD_LIBRARY_PATH=build/vcpkg_installed/x64-linux-tsan/lib ./build/tests/unit/state_cache_test
 ```
 
 TSAN runs automatically in CI (`.github/workflows/tsan.yml`) and will fail PRs with data races or deadlock risks.
+
+**Important**: TSAN builds use a custom vcpkg triplet (`x64-linux-tsan`) that ensures **all dependencies** (protobuf, abseil, etc.) are instrumented.
+Always use `--clean` when switching between TSAN and non-TSAN builds to avoid ABI mismatches.
 
 **When adding new synchronization**:
 
