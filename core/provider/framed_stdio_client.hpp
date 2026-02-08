@@ -33,7 +33,7 @@ public:
 
     // Write a length-prefixed frame to provider's stdin
     // Returns true on success, false on error (sets error_)
-    bool write_frame(const uint8_t *data, size_t len);
+    bool write_frame(const uint8_t *data, size_t len, int timeout_ms = -1);
 
     // Read a length-prefixed frame from provider's stdout
     // Returns true on success, false on EOF or error (sets error_)
@@ -56,6 +56,9 @@ private:
 
     // Low-level read exactly n bytes
     bool read_exact(uint8_t *buf, size_t n, int timeout_ms = -1);
+
+    // Low-level write exactly n bytes (handles partial writes, EINTR, etc.)
+    bool write_exact(const uint8_t *buf, size_t n, int timeout_ms = -1);
 };
 
 }  // namespace provider

@@ -330,6 +330,95 @@ TEST_F(ConfigTest, FileNotFound) {
     EXPECT_FALSE(load_config("/nonexistent/path/config.yaml", config, error));
     EXPECT_FALSE(error.empty());
 }
+
+// ===== CORS Configuration Tests =====
+
+TEST_F(ConfigTest, CorsWildcardWithCredentialsRejected) {
+    std::string config_content = R"(
+runtime:
+  mode: MANUAL
+
+http:
+  enabled: true
+  port: 8080
+  cors_allowed_origins: ["*"]
+  cors_allow_credentials: true
+
+providers:
+  - id: test
+    command: /path/to/provider
+
+logging:
+  level: info
+)";
+
+    std::string config_path = create_config_file("cors_wildcard_credentials.yaml", config_content);
+    RuntimeConfig config;
+    std::string error;
+
+    // load_config calls validate_config internally
+    EXPECT_FALSE(load_config(config_path, config, error));
+    EXPECT_NE(error.find("wildcard"), std::string::npos) << "Error: " << error;
+    EXPECT_NE(error.find("credentials"), std::string::npos) << "Error: " << error;
+}
+
+TEST_F(ConfigTest, CorsWildcardWithoutCredentialsAllowed) {
+    std::string config_content = R"(
+runtime:
+  mode: MANUAL
+
+http:
+  enabled: true
+  port: 8080
+  cors_allowed_origins: ["*"]
+  cors_allow_credentials: false
+
+providers:
+  - id: test
+    command: /path/to/provider
+
+logging:
+  level: info
+)";
+
+    std::string config_path = create_config_file("cors_wildcard_no_credentials.yaml", config_content);
+    RuntimeConfig config;
+    std::string error;
+
+    ASSERT_TRUE(load_config(config_path, config, error)) << "Error: " << error;
+    EXPECT_EQ(config.http.cors_allowed_origins.size(), 1);
+    EXPECT_EQ(config.http.cors_allowed_origins[0], "*");
+    EXPECT_FALSE(config.http.cors_allow_credentials);
+}
+
+TEST_F(ConfigTest, CorsSpecificOriginWithCredentialsAllowed) {
+    std::string config_content = R"(
+runtime:
+  mode: MANUAL
+
+http:
+  enabled: true
+  port: 8080
+  cors_allowed_origins: ["https://example.com", "https://app.example.com"]
+  cors_allow_credentials: true
+
+providers:
+  - id: test
+    command: /path/to/provider
+
+logging:
+  level: info
+)";
+
+    std::string config_path = create_config_file("cors_specific_credentials.yaml", config_content);
+    RuntimeConfig config;
+    std::string error;
+
+    ASSERT_TRUE(load_config(config_path, config, error)) << "Error: " << error;
+    EXPECT_EQ(config.http.cors_allowed_origins.size(), 2);
+    EXPECT_TRUE(config.http.cors_allow_credentials);
+}
+
 // ===== Restart Policy Tests =====
 
 TEST_F(ConfigTest, RestartPolicyEnabled) {

@@ -16,15 +16,28 @@ namespace anolis {
 namespace telemetry {
 
 void InfluxSink::flush_batch() {
-    // Move batch out under lock (minimize lock time)
+    // Move batch out under lock and prepend retry buffer (minimize lock time)
     std::vector<std::string> lines_to_write;
     {
         std::lock_guard<std::mutex> lock(batch_mutex_);
-        if (batch_.empty()) {
+        
+        // Prepend any failed events from retry buffer
+        if (!retry_buffer_.empty()) {
+            lines_to_write = std::move(retry_buffer_);
+            retry_buffer_.clear();
+        }
+        
+        // Append current batch
+        if (!batch_.empty()) {
+            lines_to_write.insert(lines_to_write.end(), 
+                                  std::make_move_iterator(batch_.begin()),
+                                  std::make_move_iterator(batch_.end()));
+            batch_.clear();
+        }
+        
+        if (lines_to_write.empty()) {
             return;
         }
-        lines_to_write = std::move(batch_);
-        batch_.clear();
     }
 
     // Build line protocol body (newline separated)
@@ -60,7 +73,7 @@ void InfluxSink::flush_batch() {
 
     if (result) {
         if (result->status >= 200 && result->status < 300) {
-            // Success
+            // Success - retry buffer was already cleared above
             connected_.store(true);
             total_written_.fetch_add(lines_to_write.size());
 
@@ -69,23 +82,72 @@ void InfluxSink::flush_batch() {
                 LOG_INFO("[InfluxSink] Written " << total_written_.load() << " events to InfluxDB");
             }
         } else {
-            // HTTP error
+            // HTTP error - save to retry buffer up to max size
             connected_.store(false);
-            total_failed_.fetch_add(lines_to_write.size());
+            size_t failed_count = lines_to_write.size();
+            
+            {
+                std::lock_guard<std::mutex> lock(batch_mutex_);
+                // Add failed events to retry buffer, respecting max size
+                size_t space_available = (config_.max_retry_buffer_size > retry_buffer_.size()) 
+                    ? (config_.max_retry_buffer_size - retry_buffer_.size()) 
+                    : 0;
+                
+                if (space_available > 0) {
+                    size_t to_keep = std::min(space_available, lines_to_write.size());
+                    retry_buffer_.insert(retry_buffer_.end(),
+                                         std::make_move_iterator(lines_to_write.begin()),
+                                         std::make_move_iterator(lines_to_write.begin() + to_keep));
+                    
+                    // Count dropped events
+                    size_t dropped = lines_to_write.size() - to_keep;
+                    if (dropped > 0) {
+                        total_failed_.fetch_add(dropped);
+                    }
+                } else {
+                    // Retry buffer full, drop all events
+                    total_failed_.fetch_add(failed_count);
+                }
+            }
 
             // Rate-limit error logging
             auto now = std::chrono::steady_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - last_error_log_).count();
 
             if (elapsed >= 10) {  // Log at most every 10 seconds
-                LOG_WARN("[InfluxSink] HTTP error " << result->status << ": " << result->body);
+                LOG_WARN("[InfluxSink] HTTP error " << result->status << ": " << result->body 
+                         << " (" << retry_buffer_.size() << " events in retry buffer)");
                 last_error_log_ = now;
             }
         }
     } else {
-        // Connection error
+        // Connection error - save to retry buffer up to max size
         connected_.store(false);
-        total_failed_.fetch_add(lines_to_write.size());
+        size_t failed_count = lines_to_write.size();
+        
+        {
+            std::lock_guard<std::mutex> lock(batch_mutex_);
+            // Add failed events to retry buffer, respecting max size
+            size_t space_available = (config_.max_retry_buffer_size > retry_buffer_.size()) 
+                ? (config_.max_retry_buffer_size - retry_buffer_.size()) 
+                : 0;
+            
+            if (space_available > 0) {
+                size_t to_keep = std::min(space_available, lines_to_write.size());
+                retry_buffer_.insert(retry_buffer_.end(),
+                                     std::make_move_iterator(lines_to_write.begin()),
+                                     std::make_move_iterator(lines_to_write.begin() + to_keep));
+                
+                // Count dropped events
+                size_t dropped = lines_to_write.size() - to_keep;
+                if (dropped > 0) {
+                    total_failed_.fetch_add(dropped);
+                }
+            } else {
+                // Retry buffer full, drop all events
+                total_failed_.fetch_add(failed_count);
+            }
+        }
 
         // Rate-limit error logging
         auto now = std::chrono::steady_clock::now();
@@ -93,7 +155,9 @@ void InfluxSink::flush_batch() {
 
         if (elapsed >= 10) {
             auto err = result.error();
-            LOG_ERROR("[InfluxSink] Connection error: " << httplib::to_string(err));
+            LOG_ERROR("[InfluxSink] Connection error: " << httplib::to_string(err)
+                      << " (" << retry_buffer_.size() << " events in retry buffer)");
+            last_error_log_ = now;
         }
     }
 }

@@ -50,6 +50,15 @@ bool validate_config(const RuntimeConfig &config, std::string &error) {
             error = "http.cors_allowed_origins must not be empty";
             return false;
         }
+        // CORS spec violation: wildcard origin cannot be used with credentials
+        if (config.http.cors_allow_credentials) {
+            for (const auto &origin : config.http.cors_allowed_origins) {
+                if (origin == "*") {
+                    error = "CORS wildcard origin '*' cannot be used with cors_allow_credentials=true";
+                    return false;
+                }
+            }
+        }
     }
 
     // Validate Provider settings
@@ -328,6 +337,9 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
                 }
                 if (influx["flush_interval_ms"]) {
                     config.telemetry.flush_interval_ms = influx["flush_interval_ms"].as<int>();
+                }
+                if (influx["max_retry_buffer_size"]) {
+                    config.telemetry.max_retry_buffer_size = influx["max_retry_buffer_size"].as<size_t>();
                 }
             }
 

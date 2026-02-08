@@ -503,6 +503,17 @@ TEST(InfluxConfigTest, CustomValues) {
     EXPECT_EQ(config.flush_interval_ms, 5000);
 }
 
+TEST(InfluxConfigTest, RetryBufferDefaultValue) {
+    InfluxConfig config;
+    EXPECT_EQ(config.max_retry_buffer_size, 1000);
+}
+
+TEST(InfluxConfigTest, RetryBufferCustomValue) {
+    InfluxConfig config;
+    config.max_retry_buffer_size = 5000;
+    EXPECT_EQ(config.max_retry_buffer_size, 5000);
+}
+
 // ============================================================================
 // Line Protocol Format Validation Tests
 // ============================================================================

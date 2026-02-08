@@ -167,7 +167,8 @@ bool ProviderHandle::send_request(const anolis::deviceprovider::v0::Request &req
     }
 
     // Send frame
-    if (!process_.client().write_frame(reinterpret_cast<const uint8_t *>(serialized.data()), serialized.size())) {
+    if (!process_.client().write_frame(reinterpret_cast<const uint8_t *>(serialized.data()), serialized.size(),
+                                       timeout_ms_)) {
         error_ = "Failed to write request: " + process_.client().last_error();
         return false;
     }

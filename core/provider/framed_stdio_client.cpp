@@ -37,7 +37,7 @@ void FramedStdioClient::set_handles(PipeHandle stdin_write, PipeHandle stdout_re
     stdout_read_ = stdout_read;
 }
 
-bool FramedStdioClient::write_frame(const uint8_t *data, size_t len) {
+bool FramedStdioClient::write_frame(const uint8_t *data, size_t len, int timeout_ms) {
     if (len > kMaxFrameSize) {
         error_ = "Frame too large: " + std::to_string(len) + " bytes";
         return false;
@@ -51,30 +51,17 @@ bool FramedStdioClient::write_frame(const uint8_t *data, size_t len) {
     len_buf[2] = (len32 >> 16) & 0xFF;
     len_buf[3] = (len32 >> 24) & 0xFF;
 
-#ifdef _WIN32
-    DWORD written;
-    if (!WriteFile(stdin_write_, len_buf, 4, &written, NULL) || written != 4) {
-        error_ = "Failed to write frame length";
+    // Write length prefix using write_exact
+    if (!write_exact(len_buf, 4, timeout_ms)) {
         return false;
     }
+
+    // Write payload using write_exact
     if (len > 0) {
-        if (!WriteFile(stdin_write_, data, static_cast<DWORD>(len), &written, NULL) || written != len) {
-            error_ = "Failed to write frame payload";
+        if (!write_exact(data, len, timeout_ms)) {
             return false;
         }
     }
-#else
-    if (write(stdin_write_, len_buf, 4) != 4) {
-        error_ = "Failed to write frame length: " + std::string(strerror(errno));
-        return false;
-    }
-    if (len > 0) {
-        if (write(stdin_write_, data, len) != static_cast<ssize_t>(len)) {
-            error_ = "Failed to write frame payload: " + std::string(strerror(errno));
-            return false;
-        }
-    }
-#endif
 
     return true;
 }
@@ -163,6 +150,64 @@ bool FramedStdioClient::wait_for_data(int timeout_ms) {
     }
     return false;
 #endif
+}
+
+bool FramedStdioClient::write_exact(const uint8_t *buf, size_t n, int timeout_ms) {
+    size_t total = 0;
+    auto start_time = std::chrono::steady_clock::now();
+
+    while (total < n) {
+        // Check timeout if specified
+        if (timeout_ms >= 0) {
+            auto elapsed = std::chrono::steady_clock::now() - start_time;
+            auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
+            if (elapsed_ms >= timeout_ms) {
+                error_ = "Timeout writing frame";
+                return false;
+            }
+        }
+
+#ifdef _WIN32
+        DWORD written = 0;
+        if (!WriteFile(stdin_write_, buf + total, static_cast<DWORD>(n - total), &written, NULL)) {
+            error_ = "Write failed: " + std::to_string(GetLastError());
+            return false;
+        }
+        if (written == 0) {
+            // Unexpected: pipe closed?
+            error_ = "Write returned 0 bytes";
+            return false;
+        }
+        total += written;
+#else
+        ssize_t w = write(stdin_write_, buf + total, n - total);
+        if (w < 0) {
+            if (errno == EINTR) {
+                // Interrupted by signal, retry
+                continue;
+            }
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                // Would block (shouldn't happen on blocking pipes, but handle defensively)
+                // Sleep briefly and retry
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                continue;
+            }
+            if (errno == EPIPE) {
+                error_ = "Broken pipe (provider terminated)";
+            } else {
+                error_ = "Write failed: " + std::string(strerror(errno));
+            }
+            return false;
+        }
+        if (w == 0) {
+            // Unexpected: pipe closed?
+            error_ = "Write returned 0 bytes";
+            return false;
+        }
+        total += w;
+#endif
+    }
+    return true;
 }
 
 bool FramedStdioClient::read_exact(uint8_t *buf, size_t n, int timeout_ms) {

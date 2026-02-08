@@ -278,6 +278,7 @@ bool Runtime::init_telemetry(std::string &error) {
         influx_config.batch_size = config_.telemetry.batch_size;
         influx_config.flush_interval_ms = config_.telemetry.flush_interval_ms;
         influx_config.queue_size = config_.telemetry.queue_size;
+        influx_config.max_retry_buffer_size = config_.telemetry.max_retry_buffer_size;
 
         telemetry_sink_ = std::make_unique<telemetry::InfluxSink>(influx_config);
 
@@ -408,6 +409,10 @@ void Runtime::shutdown() {
 }
 
 bool Runtime::restart_provider(const std::string &provider_id, const ProviderConfig &provider_config) {
+    // Start timeout clock (timeout starts after backoff completes, when restart attempt begins)
+    auto restart_start_time = std::chrono::steady_clock::now();
+    int timeout_ms = provider_config.restart_policy.timeout_ms;
+
     // Remove old provider instance
     provider_registry_.remove_provider(provider_id);
 
@@ -426,11 +431,29 @@ bool Runtime::restart_provider(const std::string &provider_id, const ProviderCon
         return false;
     }
 
+    // Check timeout after start()
+    auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - restart_start_time).count();
+    if (elapsed_ms >= timeout_ms) {
+        LOG_ERROR("[Runtime] Restart timeout exceeded for provider '" << provider_id 
+                  << "' after start() (" << elapsed_ms << "ms >= " << timeout_ms << "ms)");
+        return false;
+    }
+
     LOG_INFO("[Runtime] Provider " << provider_id << " process started");
 
     // Rediscover devices
     if (!registry_->discover_provider(provider_id, *provider)) {
         LOG_ERROR("[Runtime] Discovery failed for provider '" << provider_id << "': " << registry_->last_error());
+        return false;
+    }
+
+    // Check timeout after discover_provider()
+    elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - restart_start_time).count();
+    if (elapsed_ms >= timeout_ms) {
+        LOG_ERROR("[Runtime] Restart timeout exceeded for provider '" << provider_id 
+                  << "' after discovery (" << elapsed_ms << "ms >= " << timeout_ms << "ms)");
         return false;
     }
 

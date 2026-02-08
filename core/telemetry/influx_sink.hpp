@@ -62,7 +62,8 @@ struct InfluxConfig {
     int retry_interval_ms = 10000;  // Retry interval on connection failure
 
     // Queue settings (larger than SSE since persistence is important)
-    size_t queue_size = 10000;  // Event queue size
+    size_t queue_size = 10000;            // Event queue size
+    size_t max_retry_buffer_size = 1000;  // Max events to buffer on write failure
 };
 
 /**
@@ -385,7 +386,8 @@ private:
     std::thread flush_thread_;
 
     mutable std::mutex batch_mutex_;
-    std::vector<std::string> batch_;  // Line protocol strings
+    std::vector<std::string> batch_;         // Line protocol strings
+    std::vector<std::string> retry_buffer_;  // Failed batches awaiting retry
 
     std::atomic<size_t> total_written_;
     std::atomic<size_t> total_failed_;

@@ -227,9 +227,13 @@ bool ProviderProcess::is_running() const {
     return exit_code == STILL_ACTIVE;
 #else
     if (pid_ <= 0) return false;
-    int status;
-    pid_t result = waitpid(pid_, &status, WNOHANG);
-    return result == 0;  // 0 means still running
+    // Use kill(0) to test process existence without reaping
+    // Returns 0 if process exists, -1 with errno ESRCH if process doesn't exist
+    int result = kill(pid_, 0);
+    if (result == 0) {
+        return true;  // Process exists
+    }
+    return false;  // Process doesn't exist (ESRCH) or other error
 #endif
 }
 
@@ -281,6 +285,20 @@ bool ProviderProcess::wait_for_exit(int timeout_ms) {
             // Process exited
             pid_ = -1;
             return true;
+        }
+        if (result == -1) {
+            // Error occurred
+            if (errno == ECHILD) {
+                // Process already reaped (shouldn't happen with our fixed is_running, but handle defensively)
+                pid_ = -1;
+                return true;
+            }
+            if (errno == EINTR) {
+                // Interrupted by signal, retry
+                continue;
+            }
+            // Other error
+            return false;
         }
 
         auto elapsed = std::chrono::steady_clock::now() - start;

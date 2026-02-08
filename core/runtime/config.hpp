@@ -61,7 +61,8 @@ struct TelemetryConfig {
     int flush_interval_ms = 1000;  // Flush every N milliseconds
 
     // Queue settings
-    size_t queue_size = 10000;  // Event queue size
+    size_t queue_size = 10000;            // Event queue size
+    size_t max_retry_buffer_size = 1000;  // Max events to buffer on write failure
 };
 
 // Parameter definition

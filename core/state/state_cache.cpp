@@ -76,10 +76,13 @@ void StateCache::rebuild_poll_configs(const std::string &provider_id) {
     LOG_INFO("[StateCache] Rebuilding poll configs for provider: " << provider_id);
 
     // Remove old poll configs for this provider
-    poll_configs_.erase(
-        std::remove_if(poll_configs_.begin(), poll_configs_.end(),
-                       [&provider_id](const PollConfig &config) { return config.provider_id == provider_id; }),
-        poll_configs_.end());
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        poll_configs_.erase(
+            std::remove_if(poll_configs_.begin(), poll_configs_.end(),
+                           [&provider_id](const PollConfig &config) { return config.provider_id == provider_id; }),
+            poll_configs_.end());
+    }
 
     // Remove old device states for this provider
     {
@@ -116,7 +119,10 @@ void StateCache::rebuild_poll_configs(const std::string &provider_id) {
         }
 
         if (!config.signal_ids.empty()) {
-            poll_configs_.push_back(config);
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                poll_configs_.push_back(config);
+            }
             new_device_count++;
 
             // Initialize empty device state
@@ -173,7 +179,14 @@ void StateCache::stop_polling() {
 }
 
 void StateCache::poll_once(provider::ProviderRegistry &provider_registry) {
-    for (const auto &config : poll_configs_) {
+    // Copy poll configs to minimize lock duration
+    std::vector<PollConfig> configs_copy;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        configs_copy = poll_configs_;
+    }
+
+    for (const auto &config : configs_copy) {
         // Get provider handle
         auto provider = provider_registry.get_provider(config.provider_id);
         if (!provider) {
@@ -202,8 +215,15 @@ void StateCache::poll_once(provider::ProviderRegistry &provider_registry) {
 }
 
 void StateCache::poll_device_now(const std::string &device_handle, provider::ProviderRegistry &provider_registry) {
+    // Copy poll configs to minimize lock duration
+    std::vector<PollConfig> configs_copy;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        configs_copy = poll_configs_;
+    }
+
     // Find poll config for this device
-    for (const auto &config : poll_configs_) {
+    for (const auto &config : configs_copy) {
         std::string handle = config.provider_id + "/" + config.device_id;
         if (handle == device_handle) {
             auto provider = provider_registry.get_provider(config.provider_id);
