@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
 VERBOSE=""
-CONFIG="Release"
+CONFIG=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -35,6 +35,18 @@ cd "$REPO_ROOT"
 if [ ! -f "$REPO_ROOT/build/CTestTestfile.cmake" ]; then
   echo "[ERROR] Build directory missing (expected $REPO_ROOT/build). Please configure & build before running tests." >&2
   exit 2
+fi
+
+# Auto-detect build configuration if not specified
+if [ -z "$CONFIG" ]; then
+    DETECTED_CONFIG=$(grep "CMAKE_BUILD_TYPE:" "$REPO_ROOT/build/CMakeCache.txt" 2>/dev/null | cut -d'=' -f2)
+    if [ -n "$DETECTED_CONFIG" ]; then
+        CONFIG="$DETECTED_CONFIG"
+        echo "[INFO] Auto-detected build configuration: $CONFIG"
+    else
+        CONFIG="Release"
+        echo "[INFO] Defaulting to Release configuration"
+    fi
 fi
 
 # Detect if TSAN is enabled in build
