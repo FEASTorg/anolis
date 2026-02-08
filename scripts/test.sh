@@ -68,7 +68,11 @@ if grep -q "ENABLE_TSAN:BOOL=ON" "$BUILD_DIR/CMakeCache.txt" 2>/dev/null; then
 		exit 3
 	fi
 
-	export LD_LIBRARY_PATH="$BUILD_DIR/vcpkg_installed/$VCPKG_TRIPLET/lib:${LD_LIBRARY_PATH:-}"
+	VCPKG_LIB="$BUILD_DIR/vcpkg_installed/$VCPKG_TRIPLET/lib"
+	VCPKG_DEBUG_LIB="$BUILD_DIR/vcpkg_installed/$VCPKG_TRIPLET/debug/lib"
+
+	export LD_LIBRARY_PATH="$VCPKG_DEBUG_LIB:$VCPKG_LIB:${LD_LIBRARY_PATH:-}"
+
 	echo "[INFO] Using VCPKG triplet: $VCPKG_TRIPLET"
 	echo "[INFO] LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
 
@@ -91,18 +95,36 @@ fi
 # ------------------------------------------------------------------------------
 
 echo "[INFO] Discovering unit tests..."
-TEST_COUNT=$(ctest --test-dir "$BUILD_DIR" -N | awk '/Total Tests:/ {print $3}')
+
+# Change to build directory for ctest
+cd "$BUILD_DIR"
+
+echo "[INFO] Running: ctest -N (test discovery)"
+
+CTEST_TMP="$(mktemp)"
+trap 'rm -f "$CTEST_TMP"' EXIT
+
+if ! timeout 30s ctest -N >"$CTEST_TMP" 2>&1; then
+	echo "[ERROR] Test discovery failed or timed out"
+	cat "$CTEST_TMP"
+	exit 2
+fi
+
+TEST_COUNT=$(grep -E "Total Tests: *[0-9]+" "$CTEST_TMP" | awk '{print $3}' || true)
 
 if [[ -z "${TEST_COUNT:-}" || "$TEST_COUNT" == "0" ]]; then
 	echo "[ERROR] No unit tests found."
 	echo "        Ensure BUILD_TESTING=ON during configuration."
+	cat "$CTEST_TMP"
 	exit 2
 fi
 
 echo "[INFO] Found $TEST_COUNT unit tests"
 echo "[INFO] Running unit tests..."
 
-ctest --test-dir "$BUILD_DIR" --output-on-failure $VERBOSE_FLAG
+timeout 30m ctest --output-on-failure $VERBOSE_FLAG
+
+cd "$REPO_ROOT"
 
 echo "[INFO] Unit tests passed"
 
@@ -129,7 +151,10 @@ if [[ ! -f "$INTEGRATION_SCRIPT" ]]; then
 	echo "[WARN] Skipping integration tests"
 else
 	echo "[INFO] Running integration tests..."
-	python3 "$INTEGRATION_SCRIPT"
+	if ! python3 "$INTEGRATION_SCRIPT"; then
+		echo "[ERROR] Integration tests failed"
+		exit 5
+	fi
 	echo "[INFO] Integration tests passed"
 fi
 
@@ -143,7 +168,10 @@ if [[ ! -f "$SCENARIO_SCRIPT" ]]; then
 	echo "[WARN] Skipping validation scenarios"
 else
 	echo "[INFO] Running validation scenarios..."
-	python3 "$SCENARIO_SCRIPT"
+	if ! python3 "$SCENARIO_SCRIPT"; then
+		echo "[ERROR] Validation scenarios failed"
+		exit 6
+	fi
 fi
 
 echo "[INFO] All tests passed"
