@@ -406,17 +406,26 @@ public:
      * @param event Event to emit (event_id will be assigned)
      */
     void emit(Event event) {
-        std::lock_guard<std::mutex> lock(mutex_);
+        std::vector<std::shared_ptr<SubscriberQueue>> targets;
 
-        // Assign monotonic event ID
-        uint64_t id = next_event_id_++;
-        std::visit([id](auto &&e) { e.event_id = id; }, event);
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
 
-        // Fan out to all matching subscribers
-        for (auto &[sub_id, info] : subscribers_) {
-            if (info.filter.matches(event)) {
-                info.queue->push(event);
+            // Assign monotonic event ID
+            uint64_t id = next_event_id_++;
+            std::visit([id](auto &&e) { e.event_id = id; }, event);
+
+            // Snapshot matching subscriber queues
+            for (auto &[sub_id, info] : subscribers_) {
+                if (info.filter.matches(event)) {
+                    targets.push_back(info.queue);
+                }
             }
+        }  // Release emitter mutex before calling into queues
+
+        // Fan out to all matching subscribers outside lock
+        for (auto &queue : targets) {
+            queue->push(event);
         }
     }
 
