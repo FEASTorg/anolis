@@ -63,19 +63,20 @@ jobs:
           ccache --set-config=max_size=1G
 
       - name: Compute safe cache key fragment
+        id: safe-ref
         shell: bash
         run: |
           SAFE_REF_NAME="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
           SAFE_REF_NAME="${SAFE_REF_NAME//\//-}"
-          echo "SAFE_REF_NAME=$SAFE_REF_NAME" >> "$GITHUB_ENV"
+          echo "value=$SAFE_REF_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Cache ccache
         uses: actions/cache@v4
         with:
           path: ~/.ccache
-          key: ccache-linux-${{ env.SAFE_REF_NAME }}-${{ github.sha }}
+          key: ccache-linux-${{ steps.safe-ref.outputs.value }}-${{ github.sha }}
           restore-keys: |
-            ccache-linux-${{ env.SAFE_REF_NAME }}-
+            ccache-linux-${{ steps.safe-ref.outputs.value }}-
             ccache-linux-
 
       - name: Setup Python and dependencies
