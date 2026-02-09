@@ -141,4 +141,4 @@ The demo behavior tree reads `temp_setpoint` via:
 - **Validation scenarios**: See [../scenarios/README.md](../scenarios/README.md) regarding system validation
 - **For users**: See [http-api.md](http-api.md) for API usage
 - **For developers**: See [providers.md](providers.md) to create a provider
-- **For contributors**: Check `working/PLANNING_README.md` for master plan and `CONTRIBUTING.md` for workflow
+- **For contributors**: Check `CONTRIBUTING.md` for workflow

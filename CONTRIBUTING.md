@@ -292,9 +292,8 @@ anolis/
 ├── scripts/            # Build and test scripts
 ├── sdk/                # Language SDKs
 ├── spec/               # Protocol specifications
-├── tools/              # Developer tools
-│   └── operator-ui/    # Web-based operator interface
-└── working/            # Planning documents
+└── tools/              # Developer tools
+    └── operator-ui/    # Web-based operator interface
 ```
 
 ---
