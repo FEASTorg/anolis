@@ -12,26 +12,95 @@ All scenarios run against a live anolis runtime connected to provider-sim.
 ### Run all scenarios
 
 ```bash
-python scripts/run_scenarios.py
+python tests/scenarios/run_scenarios.py
+```
+
+### Run all scenarios with JSON report
+
+```bash
+python tests/scenarios/run_scenarios.py --report acceptance-report.json
+```
+
+**JSON report format:**
+```json
+{
+  "start_time": "2026-02-08T10:30:00Z",
+  "end_time": "2026-02-08T10:31:27Z",
+  "duration_seconds": 87.5,
+  "scenarios": [
+    {"name": "HappyPathEndToEnd", "status": "PASS", "duration_seconds": 5.2},
+    ...
+  ],
+  "summary": {"total": 11, "passed": 11, "failed": 0, "pass_rate": 1.0}
+}
 ```
 
 ### Run specific scenario
 
 ```bash
-python scripts/run_scenarios.py --scenario HappyPathEndToEnd
+python tests/scenarios/run_scenarios.py --scenario HappyPathEndToEnd
 ```
 
 ### List available scenarios
 
 ```bash
-python scripts/run_scenarios.py --list
+python tests/scenarios/run_scenarios.py --list
 ```
 
 ### Verbose output
 
 ```bash
-python scripts/run_scenarios.py --verbose
+python tests/scenarios/run_scenarios.py --verbose
 ```
+
+### Soak Test (Extended Stability Testing)
+
+Run runtime for extended duration with continuous operations and monitoring:
+
+```bash
+# 30-minute soak test (default)
+python tests/scenarios/run_scenarios.py --soak
+
+# Custom duration (1 hour)
+python tests/scenarios/run_scenarios.py --soak --duration 3600
+
+# With JSON report
+python tests/scenarios/run_scenarios.py --soak --duration 1800 --report soak-report.json
+```
+
+**Soak test behavior:**
+- Starts runtime in AUTO mode
+- Continuously updates parameters (random values within valid ranges)
+- Periodically injects faults (device unavailable, signal fault, call latency)
+- Monitors memory, thread count every 5 minutes
+- Reports peak memory, memory growth percentage
+- Pass criteria: <10% memory growth, thread count stable
+
+**Requirements:** Install `psutil` for memory monitoring:
+```bash
+pip install psutil
+```
+
+### Manual Runtime Control
+
+Start runtime and leave it running for manual testing:
+
+```bash
+# Start runtime (writes PID file)
+python tests/scenarios/run_scenarios.py --start-only
+
+# Runtime stays running - access at http://localhost:8080
+# Open Operator UI, use curl, etc.
+
+# Stop runtime when done
+python tests/scenarios/run_scenarios.py --stop
+```
+
+**Use cases:**
+- Manual validation via Operator UI
+- Interactive debugging
+- Long-running experiments
+- See `OPERATOR_WORKFLOW.md` for step-by-step validation guide
 
 ## Scenario Catalog
 
@@ -181,10 +250,17 @@ Scenarios run automatically in CI via:
 
 ```yaml
 - name: Run Validation Scenarios
-  run: python scripts/run_scenarios.py
+  run: |
+    python tests/scenarios/run_scenarios.py --report acceptance-report.json
+
+- name: Upload acceptance report
+  uses: actions/upload-artifact@v3
+  with:
+    name: acceptance-report
+    path: acceptance-report.json
 ```
 
-All scenarios must pass before merging.
+All scenarios must pass before merging. JSON reports are stored as CI artifacts for historical tracking.
 
 ## Troubleshooting
 

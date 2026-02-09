@@ -31,14 +31,23 @@ import importlib
 import inspect
 import json
 import os
+import random
 import subprocess
 import sys
 import tempfile
 import threading
 import time
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
+
+try:
+    import psutil
+
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
 
 # NOTE: On Windows, use PYTHONIOENCODING=utf-8 environment variable if Unicode output issues occur.
 # Monkey-patching sys.stdout/stderr here causes "I/O operation on closed file" errors in some environments.
@@ -462,6 +471,231 @@ class ScenarioRunner:
 
         print()
 
+    def generate_json_report(self, results: List[ScenarioResult], start_time: float, end_time: float, output_path: str):
+        """Generate JSON report from scenario results."""
+        report = {
+            "start_time": datetime.fromtimestamp(start_time).isoformat() + "Z",
+            "end_time": datetime.fromtimestamp(end_time).isoformat() + "Z",
+            "duration_seconds": round(end_time - start_time, 2),
+            "runtime_path": self.runtime_path,
+            "provider_path": self.provider_path,
+            "port": self.port,
+            "scenarios": [
+                {
+                    "name": r.name,
+                    "status": "PASS" if r.passed else "FAIL",
+                    "duration_seconds": round(r.duration_seconds, 2),
+                    "message": r.message or "",
+                    "details": r.details or "",
+                }
+                for r in results
+            ],
+            "summary": {
+                "total": len(results),
+                "passed": sum(1 for r in results if r.passed),
+                "failed": sum(1 for r in results if not r.passed),
+                "skipped": 0,
+                "pass_rate": round(sum(1 for r in results if r.passed) / len(results), 2) if results else 0.0,
+            },
+        }
+
+        try:
+            with open(output_path, "w") as f:
+                json.dump(report, f, indent=2)
+            print(f"JSON report written to: {output_path}")
+        except Exception as e:
+            print(f"ERROR: Failed to write JSON report: {e}")
+
+    def run_soak_test(self, duration_seconds: int, report_path: Optional[str] = None):
+        """Run soak test with continuous operation and monitoring."""
+        if not PSUTIL_AVAILABLE:
+            print("WARNING: psutil not available, memory/thread monitoring disabled")
+            print("Install with: pip install psutil")
+
+        print("\n" + "=" * 60)
+        print(f"Starting Soak Test ({duration_seconds}s / {duration_seconds // 60}min)")
+        print("=" * 60)
+
+        # Start runtime in AUTO mode
+        print("\n[SOAK] Starting runtime in AUTO mode...")
+        try:
+            runtime = self.start_runtime(policy="BLOCK")
+        except Exception as e:
+            print(f"[SOAK] Failed to start runtime: {e}")
+            return 1
+
+        # Get process object for monitoring
+        runtime_proc = psutil.Process(runtime.runtime_proc.pid) if PSUTIL_AVAILABLE else None
+
+        # Switch to AUTO mode
+        try:
+            import requests
+
+            resp = requests.post(f"{runtime.base_url}/v0/mode", json={"mode": "AUTO"}, timeout=5)
+            if resp.status_code == 200:
+                print("[SOAK] Runtime in AUTO mode")
+            else:
+                print(f"[SOAK] WARNING: Failed to set AUTO mode: {resp.status_code}")
+        except Exception as e:
+            print(f"[SOAK] WARNING: Failed to set AUTO mode: {e}")
+
+        # Monitoring state
+        start_time = time.time()
+        next_report_time = start_time + 300  # Report every 5 minutes
+        initial_rss = runtime_proc.memory_info().rss if runtime_proc else 0
+        initial_threads = runtime_proc.num_threads() if runtime_proc else 0
+        peak_rss = initial_rss
+        fault_injections = 0
+        parameter_updates = 0
+
+        print(f"[SOAK] Initial memory: {initial_rss / 1024 / 1024:.2f} MB")
+        print(f"[SOAK] Initial threads: {initial_threads}")
+        print("[SOAK] Running continuous operations...\n")
+
+        try:
+            while time.time() - start_time < duration_seconds:
+                elapsed = time.time() - start_time
+
+                # Every 10s: Update a random parameter
+                if int(elapsed) % 10 == 0 and int(elapsed) > 0:
+                    try:
+                        import requests
+
+                        # Try to update temp_setpoint to random value
+                        value = random.uniform(20.0, 30.0)
+                        resp = requests.post(
+                            f"{runtime.base_url}/v0/parameters",
+                            json={"name": "temp_setpoint", "value": value},
+                            timeout=2,
+                        )
+                        if resp.status_code == 200:
+                            parameter_updates += 1
+                    except Exception:
+                        pass
+
+                # Every 30s: Inject a random fault
+                if int(elapsed) % 30 == 0 and int(elapsed) > 0:
+                    try:
+                        import requests
+
+                        fault_type = random.choice(["UNAVAILABLE", "SIGNAL_FAULT", "CALL_LATENCY"])
+                        args = {"fault_type": fault_type}
+                        if fault_type == "CALL_LATENCY":
+                            args["latency_ms"] = random.randint(100, 500)
+                        resp = requests.post(
+                            f"{runtime.base_url}/v0/call",
+                            json={
+                                "provider": "sim0",
+                                "device": "sim_control",
+                                "function": "inject_fault",
+                                "args": args,
+                            },
+                            timeout=2,
+                        )
+                        if resp.status_code == 200:
+                            fault_injections += 1
+                            # Clear fault after 5 seconds
+                            time.sleep(5)
+                            requests.post(
+                                f"{runtime.base_url}/v0/call",
+                                json={
+                                    "provider": "sim0",
+                                    "device": "sim_control",
+                                    "function": "clear_fault",
+                                    "args": {},
+                                },
+                                timeout=2,
+                            )
+                    except Exception:
+                        pass
+
+                # Monitor and report every 5 minutes
+                if time.time() >= next_report_time:
+                    if runtime_proc:
+                        current_rss = runtime_proc.memory_info().rss
+                        current_threads = runtime_proc.num_threads()
+                        peak_rss = max(peak_rss, current_rss)
+                        memory_growth = ((current_rss - initial_rss) / initial_rss * 100) if initial_rss > 0 else 0
+
+                        print(f"[SOAK] {int(elapsed)}s elapsed:")
+                        print(f"       Memory: {current_rss / 1024 / 1024:.2f} MB (growth: {memory_growth:+.1f}%)")
+                        print(f"       Threads: {current_threads}")
+                        print(f"       Faults injected: {fault_injections}")
+                        print(f"       Parameters updated: {parameter_updates}")
+                    next_report_time += 300
+
+                time.sleep(1)
+
+        finally:
+            # Final report
+            end_time = time.time()
+            duration = end_time - start_time
+            exit_code = 0  # Default exit code
+
+            if runtime_proc:
+                final_rss = runtime_proc.memory_info().rss
+                final_threads = runtime_proc.num_threads()
+                memory_growth = ((final_rss - initial_rss) / initial_rss * 100) if initial_rss > 0 else 0
+
+                print("\n" + "=" * 60)
+                print(f"Soak Test Complete ({duration:.1f}s)")
+                print("=" * 60)
+                print(f"Initial memory: {initial_rss / 1024 / 1024:.2f} MB")
+                print(f"Final memory:   {final_rss / 1024 / 1024:.2f} MB")
+                print(f"Peak memory:    {peak_rss / 1024 / 1024:.2f} MB")
+                print(f"Memory growth:  {memory_growth:+.1f}%")
+                print(f"Initial threads: {initial_threads}")
+                print(f"Final threads:   {final_threads}")
+                print(f"Fault injections: {fault_injections}")
+                print(f"Parameter updates: {parameter_updates}")
+
+                # Determine pass/fail
+                passed = memory_growth < 10.0 and abs(final_threads - initial_threads) <= 2
+                status = "PASS" if passed else "FAIL"
+                print(f"\n{status}: Memory growth {'<' if passed else '>='} 10%, threads stable")
+
+                # Generate JSON report if requested
+                if report_path:
+                    report = {
+                        "test_type": "soak",
+                        "start_time": datetime.fromtimestamp(start_time).isoformat() + "Z",
+                        "end_time": datetime.fromtimestamp(end_time).isoformat() + "Z",
+                        "duration_seconds": round(duration, 2),
+                        "runtime_path": self.runtime_path,
+                        "provider_path": self.provider_path,
+                        "memory": {
+                            "initial_bytes": initial_rss,
+                            "final_bytes": final_rss,
+                            "peak_bytes": peak_rss,
+                            "growth_percent": round(memory_growth, 2),
+                        },
+                        "threads": {
+                            "initial": initial_threads,
+                            "final": final_threads,
+                        },
+                        "operations": {
+                            "fault_injections": fault_injections,
+                            "parameter_updates": parameter_updates,
+                        },
+                        "status": status,
+                        "passed": passed,
+                    }
+                    try:
+                        with open(report_path, "w") as f:
+                            json.dump(report, f, indent=2)
+                        print(f"JSON report written to: {report_path}")
+                    except Exception as e:
+                        print(f"ERROR: Failed to write JSON report: {e}")
+
+                self.stop_runtime(runtime)
+                exit_code = 0 if passed else 1
+            else:
+                print("\n[SOAK] Monitoring unavailable (psutil not installed)")
+                self.stop_runtime(runtime)
+                exit_code = 0
+
+        return exit_code
+
 
 def find_executable(name: str, build_dir: str = "build") -> Optional[str]:
     """
@@ -520,6 +754,11 @@ def main():
     parser.add_argument("--scenario", help="Run only specific scenario (default: all)")
     parser.add_argument("--list", action="store_true", help="List available scenarios and exit")
     parser.add_argument("--verbose", action="store_true", help="Show detailed output")
+    parser.add_argument("--report", help="Output JSON report to specified file")
+    parser.add_argument("--soak", action="store_true", help="Run soak test (extended stability test)")
+    parser.add_argument("--duration", type=int, default=1800, help="Soak test duration in seconds (default: 1800)")
+    parser.add_argument("--start-only", action="store_true", help="Start runtime and exit (leave running)")
+    parser.add_argument("--stop", action="store_true", help="Stop running runtime and exit")
 
     args = parser.parse_args()
 
@@ -549,6 +788,38 @@ def main():
         print(f"Runtime: {runtime_path}")
         print(f"Provider: {provider_path}")
 
+    # Handle --stop flag (stop running runtime)
+    if args.stop:
+        pid_file = Path(tempfile.gettempdir()) / "anolis-runtime.pid"
+        if not pid_file.exists():
+            print("No running runtime found (PID file not found)")
+            return 1
+
+        try:
+            with open(pid_file, "r") as f:
+                pid = int(f.read().strip())
+
+            if PSUTIL_AVAILABLE:
+                proc = psutil.Process(pid)
+                proc.terminate()
+                proc.wait(timeout=10)
+                print(f"Runtime stopped (PID {pid})")
+            else:
+                import signal
+
+                os.kill(pid, signal.SIGTERM)
+                print(f"Sent SIGTERM to runtime (PID {pid})")
+
+            pid_file.unlink()
+            return 0
+        except (ProcessLookupError, psutil.NoSuchProcess):
+            print("Runtime process not found (already stopped?)")
+            pid_file.unlink()
+            return 1
+        except Exception as e:
+            print(f"Failed to stop runtime: {e}")
+            return 1
+
     # Create runner
     runner = ScenarioRunner(
         runtime_path=runtime_path,
@@ -556,6 +827,29 @@ def main():
         port=args.port,
         verbose=args.verbose,
     )
+
+    # Handle --start-only flag (start runtime and exit, leave running)
+    if args.start_only:
+        print("Starting runtime (will leave running)...")
+        try:
+            runtime = runner.start_runtime(policy="BLOCK")
+
+            # Write PID file for --stop
+            pid_file = Path(tempfile.gettempdir()) / "anolis-runtime.pid"
+            with open(pid_file, "w") as f:
+                f.write(str(runtime.runtime_proc.pid))
+
+            print(f"Runtime started successfully (PID {runtime.runtime_proc.pid})")
+            print(f"Base URL: {runtime.base_url}")
+            print(f"\nTo stop: python {Path(__file__).name} --stop")
+            return 0
+        except Exception as e:
+            print(f"Failed to start runtime: {e}")
+            return 1
+
+    # Handle --soak flag (run soak test)
+    if args.soak:
+        return runner.run_soak_test(args.duration, args.report)
 
     # List scenarios if requested
     if args.list:
@@ -569,10 +863,16 @@ def main():
         return 0
 
     # Run scenarios
+    start_time = time.time()
     results = runner.run_all_scenarios(scenario_filter=args.scenario)
+    end_time = time.time()
 
     # Print summary
     runner.print_summary(results)
+
+    # Generate JSON report if requested
+    if args.report:
+        runner.generate_json_report(results, start_time, end_time, args.report)
 
     # Exit with appropriate code
     if not results:

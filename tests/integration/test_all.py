@@ -89,14 +89,16 @@ def find_bt_nodes_sanity_path(runtime_path: Optional[Path] = None) -> Optional[P
 
     candidates = []
     for build_dir in build_dirs:
-        candidates.extend([
-            build_dir / "core" / "Release" / "bt_nodes_sanity.exe",
-            build_dir / "core" / "Release" / "bt_nodes_sanity",
-            build_dir / "core" / "Debug" / "bt_nodes_sanity.exe",
-            build_dir / "core" / "Debug" / "bt_nodes_sanity",
-            build_dir / "core" / "bt_nodes_sanity.exe",
-            build_dir / "core" / "bt_nodes_sanity",
-        ])
+        candidates.extend(
+            [
+                build_dir / "core" / "Release" / "bt_nodes_sanity.exe",
+                build_dir / "core" / "Release" / "bt_nodes_sanity",
+                build_dir / "core" / "Debug" / "bt_nodes_sanity.exe",
+                build_dir / "core" / "Debug" / "bt_nodes_sanity",
+                build_dir / "core" / "bt_nodes_sanity.exe",
+                build_dir / "core" / "bt_nodes_sanity",
+            ]
+        )
 
     for candidate in candidates:
         if candidate.exists():
@@ -286,16 +288,16 @@ def run_test_script(
             try:
                 with open(log_file_path, "r", encoding="utf-8", errors="replace") as f:
                     log_content = f.read()
-                    
+
                     # Look for skip markers (case-insensitive, supports multiple patterns)
                     skip_markers = ["SKIPPING:", "SKIP:", "TEST SKIPPED"]
                     found_skip = any(marker in log_content.upper() for marker in skip_markers)
-                    
+
                     if found_skip:
                         # Extract skip reason - look for lines with skip info
                         lines = log_content.split("\n")
                         skip_info = []
-                        
+
                         # Find the skip section and extract relevant lines
                         in_skip_section = False
                         for line in lines:
@@ -306,7 +308,9 @@ def run_test_script(
                                 # Extract the test name if present
                                 for marker in skip_markers:
                                     if marker in line_upper:
-                                        skip_info.append(line.split(marker)[1].strip() if marker in line else line.strip())
+                                        skip_info.append(
+                                            line.split(marker)[1].strip() if marker in line else line.strip()
+                                        )
                                         break
                             # In skip section - collect reason lines
                             elif in_skip_section:
@@ -317,10 +321,10 @@ def run_test_script(
                                 # End of skip section when hitting another border or empty lines
                                 elif line.strip().startswith("=") or (not line.strip() and skip_info):
                                     break
-                        
+
                         # Build skip message
                         skip_msg = " - ".join(skip_info[:3]) if skip_info else "Test skipped"
-                        
+
                         return TestSuiteResult(
                             name=script_name,
                             passed=True,
@@ -330,7 +334,7 @@ def run_test_script(
                         )
             except Exception:
                 pass  # If we can't read log, treat as regular pass
-            
+
             return TestSuiteResult(
                 name=script_name,
                 passed=True,
