@@ -188,7 +188,19 @@ pip install -r requirements.txt
 On Windows PowerShell, redirection (`>`) defaults to UTF-16; regenerate the lock file with UTF-8 to avoid CI decode errors.
 
 ```sh
-# PowerShell (Windows PowerShell 5.x and PowerShell 7+ — safe & explicit)
+# Create fresh virtual environment
+python -m venv .venv
+
+# Activate virtual environment
+# PowerShell
+.\.venv\Scripts\Activate.ps1
+# Bash
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# PowerShell (Windows PowerShell 5.x and Windows PowerShell 7+ — safe & explicit)
 python -m pip freeze | Out-File -Encoding utf8 requirements-lock.txt
 
 # PowerShell 7+ (set UTF-8 as default redirection encoding, then normal > works)

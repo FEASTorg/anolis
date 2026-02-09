@@ -167,6 +167,41 @@ cd anolis
 .\scripts\test.ps1      # Windows
 ```
 
+### Validation & Acceptance Testing
+
+Run full acceptance test suite (11 scenarios):
+
+```bash
+python tests/scenarios/run_scenarios.py
+```
+
+Generate JSON report:
+
+```bash
+python tests/scenarios/run_scenarios.py --report acceptance-report.json
+```
+
+Run extended stability test (30 minutes):
+
+```bash
+python tests/scenarios/run_scenarios.py --soak --duration 1800
+```
+
+Manual validation workflow:
+
+```bash
+# Start runtime (leave running)
+python tests/scenarios/run_scenarios.py --start-only
+
+# Open browser to http://localhost:8080
+# Follow validation steps in tests/scenarios/OPERATOR_WORKFLOW.md
+
+# Stop runtime when done
+python tests/scenarios/run_scenarios.py --stop
+```
+
+See [tests/scenarios/README.md](tests/scenarios/README.md) for full scenario documentation and [tests/scenarios/OPERATOR_WORKFLOW.md](tests/scenarios/OPERATOR_WORKFLOW.md) for step-by-step manual validation guide.
+
 ---
 
 ## HTTP API Examples
