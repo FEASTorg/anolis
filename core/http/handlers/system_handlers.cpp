@@ -331,5 +331,151 @@ void HttpServer::handle_get_automation_tree(const httplib::Request &req, httplib
     send_json(res, StatusCode::OK, response);
 }
 
+//=============================================================================
+// GET /v0/automation/status
+//=============================================================================
+void HttpServer::handle_get_automation_status(const httplib::Request &req, httplib::Response &res) {
+    // If automation not enabled or bt_runtime not available
+    if (bt_runtime_ == nullptr) {
+        nlohmann::json response = make_error_response(StatusCode::UNAVAILABLE, "Automation layer not enabled");
+        send_json(res, StatusCode::UNAVAILABLE, response);
+        return;
+    }
+
+    // Check if mode_manager is available (should be if bt_runtime exists)
+    if (mode_manager_ == nullptr) {
+        nlohmann::json response = make_error_response(StatusCode::UNAVAILABLE, "Mode manager not available");
+        send_json(res, StatusCode::UNAVAILABLE, response);
+        return;
+    }
+
+    // Get health status from BT runtime
+    auto health = bt_runtime_->get_health();
+
+    // Convert BTStatus enum to string
+    std::string bt_status_str;
+    switch (health.bt_status) {
+        case automation::BTStatus::BT_IDLE:
+            bt_status_str = "IDLE";
+            break;
+        case automation::BTStatus::BT_RUNNING:
+            bt_status_str = "RUNNING";
+            break;
+        case automation::BTStatus::BT_STALLED:
+            bt_status_str = "STALLED";
+            break;
+        case automation::BTStatus::BT_ERROR:
+            bt_status_str = "ERROR";
+            break;
+        default:
+            bt_status_str = "UNKNOWN";
+            break;
+    }
+
+    // Get current mode
+    bool enabled = (mode_manager_->current_mode() == automation::RuntimeMode::AUTO);
+    bool active = bt_runtime_->is_running();
+
+    // Extract tree name from path (just filename without extension)
+    std::string tree_name;
+    if (!health.current_tree.empty()) {
+        size_t last_slash = health.current_tree.find_last_of("/\\");
+        size_t last_dot = health.current_tree.find_last_of('.');
+        if (last_slash != std::string::npos && last_dot != std::string::npos && last_dot > last_slash) {
+            tree_name = health.current_tree.substr(last_slash + 1, last_dot - last_slash - 1);
+        } else if (last_slash != std::string::npos) {
+            tree_name = health.current_tree.substr(last_slash + 1);
+        } else {
+            tree_name = health.current_tree;
+        }
+    }
+
+    nlohmann::json response = {
+        {"status", make_status(StatusCode::OK)},
+        {"enabled", enabled},
+        {"active", active},
+        {"bt_status", bt_status_str},
+        {"last_tick_ms", health.last_tick_ms},
+        {"ticks_since_progress", health.ticks_since_progress},
+        {"total_ticks", health.total_ticks},
+        {"last_error", health.last_error.empty() ? nlohmann::json() : nlohmann::json(health.last_error)},
+        {"error_count", health.error_count},
+        {"current_tree", tree_name}};
+
+    send_json(res, StatusCode::OK, response);
+}
+
+//=============================================================================
+// GET /v0/providers/health
+//=============================================================================
+void HttpServer::handle_get_providers_health(const httplib::Request &req, httplib::Response &res) {
+    using namespace std::chrono;
+
+    nlohmann::json providers_json = nlohmann::json::array();
+
+    // Iterate through all providers
+    for (const auto &[provider_id, provider] : provider_registry_.get_all_providers()) {
+        // Get provider availability
+        bool is_available = provider->is_available();
+        std::string state = is_available ? "AVAILABLE" : "UNAVAILABLE";
+
+        // Get devices for this provider
+        auto devices = registry_.get_devices_for_provider(provider_id);
+
+        nlohmann::json devices_json = nlohmann::json::array();
+
+        // Check health of each device
+        for (const auto &device : devices) {
+            std::string device_handle = provider_id + "/" + device.device_id;
+            auto device_state = state_cache_.get_device_state(device_handle);
+
+            std::string health_status = "UNKNOWN";
+            uint64_t last_poll_ms = 0;
+            uint64_t staleness_ms = 0;
+
+            if (device_state) {
+                last_poll_ms = duration_cast<milliseconds>(device_state->last_poll_time.time_since_epoch()).count();
+
+                auto now = system_clock::now();
+                auto age_ms = duration_cast<milliseconds>(now - device_state->last_poll_time).count();
+
+                staleness_ms = age_ms;
+
+                // Determine health based on staleness
+                // OK: < 2 seconds, WARNING: 2-5 seconds, STALE: > 5 seconds
+                if (!is_available) {
+                    health_status = "UNAVAILABLE";
+                } else if (age_ms < 2000) {
+                    health_status = "OK";
+                } else if (age_ms < 5000) {
+                    health_status = "WARNING";
+                } else {
+                    health_status = "STALE";
+                }
+            } else {
+                health_status = "UNKNOWN";
+            }
+
+            devices_json.push_back({{"device_id", device.device_id},
+                                    {"health", health_status},
+                                    {"last_poll_ms", last_poll_ms},
+                                    {"staleness_ms", staleness_ms}});
+        }
+
+        // Note: We don't track provider uptime or last_seen currently
+        // These would require additional infrastructure
+        providers_json.push_back({{"provider_id", provider_id},
+                                  {"state", state},
+                                  {"last_seen_ms", 0},    // Not implemented yet
+                                  {"uptime_seconds", 0},  // Not implemented yet
+                                  {"device_count", devices.size()},
+                                  {"devices", devices_json}});
+    }
+
+    nlohmann::json response = {{"status", make_status(StatusCode::OK)}, {"providers", providers_json}};
+
+    send_json(res, StatusCode::OK, response);
+}
+
 }  // namespace http
 }  // namespace anolis

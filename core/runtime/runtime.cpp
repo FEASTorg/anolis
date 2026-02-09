@@ -228,6 +228,11 @@ bool Runtime::init_automation(std::string &error) {
                                                     parameter_manager_.get()  // Pass parameter manager
             );
 
+        // Set event emitter for error notifications
+        if (event_emitter_) {
+            bt_runtime_->set_event_emitter(event_emitter_);
+        }
+
         if (!bt_runtime_->load_tree(config_.automation.behavior_tree)) {
             error = "Failed to load behavior tree: " + config_.automation.behavior_tree;
             return false;

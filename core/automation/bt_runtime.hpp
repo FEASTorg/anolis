@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -28,11 +29,37 @@ namespace provider {
 class IProviderHandle;
 class ProviderRegistry;
 }  // namespace provider
+namespace events {
+class EventEmitter;
+}  // namespace events
 
 namespace automation {
 
 class ModeManager;
 class ParameterManager;
+
+/**
+ * Automation Health Status
+ */
+enum class BTStatus {
+    BT_IDLE,     // No tree loaded or not running
+    BT_RUNNING,  // Tree executing normally
+    BT_STALLED,  // Tree returning FAILURE for multiple ticks
+    BT_ERROR     // Critical error (e.g., exception during tick)
+};
+
+/**
+ * Automation Health Information
+ */
+struct AutomationHealth {
+    BTStatus bt_status = BTStatus::BT_IDLE;
+    uint64_t last_tick_ms = 0;
+    uint64_t ticks_since_progress = 0;
+    uint64_t total_ticks = 0;
+    std::string last_error;
+    uint64_t error_count = 0;
+    std::string current_tree;
+};
 
 /**
  * BT Runtime
@@ -114,6 +141,23 @@ public:
      */
     const std::string& get_tree_path() const { return tree_path_; }
 
+    /**
+     * Get current automation health status.
+     *
+     * @return AutomationHealth struct with current health metrics
+     */
+    AutomationHealth get_health() const;
+
+    /**
+     * @brief Set event emitter for error notifications
+     *
+     * When set, BTRuntime will emit BTErrorEvent on failures.
+     * Must be called before start().
+     *
+     * @param emitter Shared pointer to EventEmitter (can be nullptr to disable)
+     */
+    void set_event_emitter(const std::shared_ptr<events::EventEmitter>& emitter);
+
 private:
     /**
      * Tick loop thread function.
@@ -144,6 +188,19 @@ private:
     std::atomic<bool> running_{false};
     std::unique_ptr<std::thread> tick_thread_;
     int tick_rate_hz_ = 10;
+
+    // Health tracking
+    mutable std::mutex health_mutex_;
+    uint64_t last_tick_ms_ = 0;
+    BT::NodeStatus last_tick_status_ = BT::NodeStatus::IDLE;
+    uint64_t ticks_since_progress_ = 0;
+    uint64_t total_ticks_ = 0;
+    std::string last_error_;
+    uint64_t error_count_ = 0;
+
+    // Event emitter (optional, for error notifications)
+    std::shared_ptr<events::EventEmitter> event_emitter_;
+    std::atomic<uint64_t> next_event_id_{1};
 };
 
 }  // namespace automation

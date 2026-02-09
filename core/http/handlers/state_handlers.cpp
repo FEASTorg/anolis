@@ -286,6 +286,22 @@ std::string HttpServer::format_sse_event(const events::Event &event) {
                 data["old_value"] = e.old_value_str;
                 data["new_value"] = e.new_value_str;
                 data["timestamp_ms"] = e.timestamp_ms;
+
+            } else if constexpr (std::is_same_v<T, events::BTErrorEvent>) {
+                result = "event: bt_error\n";
+                result += "id: " + std::to_string(e.event_id) + "\n";
+
+                data["node"] = e.node;
+                data["error"] = e.error;
+                data["timestamp_ms"] = e.timestamp_ms;
+
+            } else if constexpr (std::is_same_v<T, events::ProviderHealthChangeEvent>) {
+                result = "event: provider_health_change\n";
+                result += "id: " + std::to_string(e.event_id) + "\n";
+
+                data["provider_id"] = e.provider_id;
+                data["state"] = e.state;
+                data["timestamp_ms"] = e.timestamp_ms;
             }
 
             result += "data: " + data.dump() + "\n\n";

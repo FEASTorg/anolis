@@ -321,9 +321,237 @@ function renderFunctions(capabilities) {
   const container = document.getElementById("device-functions-container");
   if (!container) return;
 
-  // TODO: Parse capabilities and render function execution forms
-  // For now, just show raw capabilities
-  container.innerHTML = `<pre class="capabilities-json">${JSON.stringify(capabilities, null, 2)}</pre>`;
+  // Extract functions from capabilities
+  const functions = capabilities.functions || [];
+
+  if (functions.length === 0) {
+    container.innerHTML = '<p class="placeholder">No functions available</p>';
+    return;
+  }
+
+  let html = '<div class="functions-list">';
+
+  for (const func of functions) {
+    html += renderFunctionForm(func);
+  }
+
+  html += "</div>";
+  container.innerHTML = html;
+
+  // Attach event listeners to all forms
+  container.querySelectorAll(".function-form").forEach((form) => {
+    form.addEventListener("submit", handleFunctionSubmit);
+  });
+}
+
+/**
+ * Render a single function as an executable form
+ */
+function renderFunctionForm(func) {
+  const formId = `func-${func.function_id}`;
+
+  let html = `
+    <div class="function-card">
+      <form class="function-form" id="${formId}" data-function-id="${func.function_id}" data-function-name="${UI.escapeHtml(func.function_name || `Function ${func.function_id}`)}">
+        <h4>${UI.escapeHtml(func.function_name || `Function ${func.function_id}`)}</h4>
+  `;
+
+  if (func.description) {
+    html += `<p class="function-description">${UI.escapeHtml(func.description)}</p>`;
+  }
+
+  // Render arguments
+  if (func.args && func.args.length > 0) {
+    html += '<div class="function-args">';
+
+    for (const arg of func.args) {
+      html += renderArgInput(arg);
+    }
+
+    html += "</div>";
+  }
+
+  html += `
+        <div class="function-actions">
+          <button type="submit" class="btn-primary">Execute</button>
+          <span class="function-feedback"></span>
+        </div>
+      </form>
+    </div>
+  `;
+
+  return html;
+}
+
+/**
+ * Render an input field for a function argument
+ */
+function renderArgInput(arg) {
+  const argId = `arg-${arg.name}`;
+  const required = arg.required !== false; // Default to required
+  const requiredAttr = required ? "required" : "";
+  const requiredLabel = required ? ' <span class="required">*</span>' : "";
+
+  let input = "";
+  const type = arg.type || "string";
+
+  switch (type) {
+    case "double":
+      input = `<input type="number" id="${argId}" name="${arg.name}" step="any" ${requiredAttr}`;
+      if (arg.min !== undefined) input += ` min="${arg.min}"`;
+      if (arg.max !== undefined) input += ` max="${arg.max}"`;
+      input += ">";
+      break;
+
+    case "int64":
+    case "uint64":
+      input = `<input type="number" id="${argId}" name="${arg.name}" step="1" ${requiredAttr}`;
+      if (arg.min !== undefined) input += ` min="${arg.min}"`;
+      if (arg.max !== undefined) input += ` max="${arg.max}"`;
+      input += ">";
+      break;
+
+    case "bool":
+      input = `<input type="checkbox" id="${argId}" name="${arg.name}" ${requiredAttr}>`;
+      break;
+
+    case "bytes":
+      input = `<input type="text" id="${argId}" name="${arg.name}" placeholder="Base64 encoded" ${requiredAttr}>`;
+      break;
+
+    case "string":
+    default:
+      input = `<input type="text" id="${argId}" name="${arg.name}" ${requiredAttr}>`;
+      break;
+  }
+
+  // Add constraint hints
+  let hint = "";
+  if (arg.min !== undefined && arg.max !== undefined) {
+    hint = ` <span class="constraint-hint">[${arg.min} - ${arg.max}]</span>`;
+  } else if (arg.min !== undefined) {
+    hint = ` <span class="constraint-hint">[min: ${arg.min}]</span>`;
+  } else if (arg.max !== undefined) {
+    hint = ` <span class="constraint-hint">[max: ${arg.max}]</span>`;
+  }
+
+  return `
+    <div class="arg-row">
+      <label for="${argId}">
+        ${UI.escapeHtml(arg.name)}${requiredLabel}${hint}
+      </label>
+      ${input}
+    </div>
+  `;
+}
+
+/**
+ * Handle function form submission
+ */
+async function handleFunctionSubmit(event) {
+  event.preventDefault();
+
+  if (!selectedDevice) {
+    console.error("No device selected");
+    return;
+  }
+
+  const form = event.target;
+  const functionId = parseInt(form.dataset.functionId);
+  const functionName = form.dataset.functionName;
+  const feedback = form.querySelector(".function-feedback");
+  const submitBtn = form.querySelector('button[type="submit"]');
+
+  // Disable button during execution
+  submitBtn.disabled = true;
+  feedback.textContent = "Executing...";
+  feedback.className = "function-feedback executing";
+
+  try {
+    // Build args object from form data
+    const formData = new FormData(form);
+    const args = {};
+
+    // Get function definition to properly type arguments
+    const capabilities = await API.fetchDeviceCapabilities(
+      selectedDevice.provider_id,
+      selectedDevice.device_id,
+    );
+    const funcDef = capabilities.functions.find(
+      (f) => f.function_id === functionId,
+    );
+
+    if (!funcDef) {
+      throw new Error("Function definition not found");
+    }
+
+    // Parse each argument according to its type
+    for (const argDef of funcDef.args || []) {
+      const value = formData.get(argDef.name);
+
+      if (value === null || value === "") {
+        if (argDef.required !== false) {
+          throw new Error(`Missing required argument: ${argDef.name}`);
+        }
+        continue;
+      }
+
+      // Type conversion
+      switch (argDef.type) {
+        case "double":
+          args[argDef.name] = { type: "double", double: parseFloat(value) };
+          break;
+        case "int64":
+          args[argDef.name] = { type: "int64", int64: parseInt(value) };
+          break;
+        case "uint64":
+          args[argDef.name] = { type: "uint64", uint64: parseInt(value) };
+          break;
+        case "bool":
+          args[argDef.name] = {
+            type: "bool",
+            bool: form.elements[argDef.name].checked,
+          };
+          break;
+        case "bytes":
+          args[argDef.name] = { type: "bytes", bytes: value };
+          break;
+        case "string":
+        default:
+          args[argDef.name] = { type: "string", string: value };
+          break;
+      }
+    }
+
+    // Execute function
+    const result = await API.executeFunction(
+      selectedDevice.provider_id,
+      selectedDevice.device_id,
+      functionId,
+      args,
+    );
+
+    // Show success
+    feedback.textContent = "✓ Success";
+    feedback.className = "function-feedback success";
+
+    console.log(
+      `[DeviceDetail] Function ${functionName} executed successfully:`,
+      result,
+    );
+
+    // Auto-clear success message after 3 seconds
+    setTimeout(() => {
+      feedback.textContent = "";
+      feedback.className = "function-feedback";
+    }, 3000);
+  } catch (err) {
+    console.error(`[DeviceDetail] Function execution failed:`, err);
+    feedback.textContent = `✗ Error: ${err.message || "Unknown error"}`;
+    feedback.className = "function-feedback error";
+  } finally {
+    submitBtn.disabled = false;
+  }
 }
 
 /**

@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <title>Anolis Control Dashboard</title>
     <link rel="icon" href="anolis_logo_1024.ico" type="image/x-icon">
     <link rel="shortcut icon" href="anolis_logo_1024.ico" type="image/x-icon">
@@ -11,6 +14,12 @@
   </head>
   <body>
     <header>
+      <div id="error-banner" class="error-banner hidden">
+        <span class="error-icon">⚠</span>
+        <span id="error-banner-message"></span>
+        <button id="error-banner-dismiss" class="btn-dismiss">×</button>
+      </div>
+      
       <div class="header-main">
         <h1>Anolis Control Dashboard</h1>
         <span class="header-subtitle">Runtime Automation &amp; Device Monitoring</span>
@@ -58,8 +67,34 @@
           </div>
         </div>
 
-        <div class="section-grid">
-          <!-- Parameters -->
+        <!-- Automation Health -->
+        <div class="automation-health">
+          <h3>Behavior Tree Status</h3>
+          <div class="health-grid">
+            <div class="health-item">
+              <label>BT Status:</label>
+              <span id="bt-status" class="badge bt-unknown">--</span>
+            </div>
+            <div class="health-item">
+              <label>Total Ticks:</label>
+              <span id="bt-total-ticks">--</span>
+            </div>
+            <div class="health-item">
+              <label>Stalled Ticks:</label>
+              <span id="bt-ticks-since-progress">--</span>
+            </div>
+            <div class="health-item">
+              <label>Errors:</label>
+              <span id="bt-error-count">--</span>
+            </div>
+            <div class="health-item full-width">
+              <label>Last Error:</label>
+              <span id="bt-last-error" class="error-text">--</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-grid">\n          <!-- Parameters -->
           <div class="subsection">
             <h3>Runtime Parameters</h3>
             <div id="parameters-container" class="content-box">
@@ -137,6 +172,6 @@
       <div id="last-error" class="error-banner hidden"></div>
     </footer>
 
-    <script type="module" src="js/app.js"></script>
+    <script type="module" src="js/app.js?v=20260209"></script>
   </body>
 </html>

@@ -2,7 +2,7 @@
  * API module - HTTP requests to Anolis runtime
  */
 
-import { CONFIG } from './config.js';
+import { CONFIG } from "./config.js";
 
 /**
  * Generic API fetch wrapper with error handling
@@ -12,7 +12,7 @@ async function fetchApi(endpoint, options = {}) {
     const response = await fetch(`${CONFIG.API_BASE}${endpoint}`, {
       ...options,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         ...options.headers,
       },
     });
@@ -32,17 +32,19 @@ async function fetchApi(endpoint, options = {}) {
 
 // Runtime Status
 export async function fetchRuntimeStatus() {
-  return fetchApi('/v0/runtime/status');
+  return fetchApi("/v0/runtime/status");
 }
 
 // Devices
 export async function fetchDevices() {
-  const data = await fetchApi('/v0/devices');
+  const data = await fetchApi("/v0/devices");
   return data.devices || [];
 }
 
 export async function fetchDeviceCapabilities(providerId, deviceId) {
-  const data = await fetchApi(`/v0/devices/${providerId}/${deviceId}/capabilities`);
+  const data = await fetchApi(
+    `/v0/devices/${providerId}/${deviceId}/capabilities`,
+  );
   return data.capabilities || {};
 }
 
@@ -53,8 +55,8 @@ export async function fetchDeviceState(providerId, deviceId) {
 
 // Function Execution
 export async function executeFunction(providerId, deviceId, functionId, args) {
-  return fetchApi('/v0/call', {
-    method: 'POST',
+  return fetchApi("/v0/call", {
+    method: "POST",
     body: JSON.stringify({
       provider_id: providerId,
       device_id: deviceId,
@@ -66,29 +68,37 @@ export async function executeFunction(providerId, deviceId, functionId, args) {
 
 // Automation
 export async function fetchMode() {
-  return fetchApi('/v0/mode');
+  return fetchApi("/v0/mode");
 }
 
 export async function setMode(mode) {
-  return fetchApi('/v0/mode', {
-    method: 'POST',
+  return fetchApi("/v0/mode", {
+    method: "POST",
     body: JSON.stringify({ mode }),
   });
 }
 
 export async function fetchParameters() {
-  const data = await fetchApi('/v0/parameters');
+  const data = await fetchApi("/v0/parameters");
   return data.parameters || [];
 }
 
 export async function updateParameter(name, value) {
-  return fetchApi('/v0/parameters', {
-    method: 'POST',
+  return fetchApi("/v0/parameters", {
+    method: "POST",
     body: JSON.stringify({ name, value }),
   });
 }
 
 export async function fetchBehaviorTree() {
-  const data = await fetchApi('/v0/automation/tree');
-  return data.tree || '';
+  const data = await fetchApi("/v0/automation/tree");
+  return data.tree || "";
+}
+
+export async function fetchAutomationStatus() {
+  return fetchApi("/v0/automation/status");
+}
+
+export async function fetchProvidersHealth() {
+  return fetchApi("/v0/providers/health");
 }

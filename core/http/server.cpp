@@ -251,6 +251,16 @@ void HttpServer::setup_routes() {
     server_->Get("/v0/automation/tree",
                  [this](const httplib::Request &req, httplib::Response &res) { handle_get_automation_tree(req, res); });
 
+    // GET /v0/automation/status - Get automation health status
+    server_->Get("/v0/automation/status", [this](const httplib::Request &req, httplib::Response &res) {
+        handle_get_automation_status(req, res);
+    });
+
+    // GET /v0/providers/health - Get provider health status
+    server_->Get("/v0/providers/health", [this](const httplib::Request &req, httplib::Response &res) {
+        handle_get_providers_health(req, res);
+    });
+
     // GET /v0/events - SSE event stream
     server_->Get("/v0/events",
                  [this](const httplib::Request &req, httplib::Response &res) { handle_get_events(req, res); });
@@ -267,6 +277,8 @@ void HttpServer::setup_routes() {
     LOG_INFO("[HTTP]   GET  /v0/parameters");
     LOG_INFO("[HTTP]   POST /v0/parameters");
     LOG_INFO("[HTTP]   GET  /v0/automation/tree");
+    LOG_INFO("[HTTP]   GET  /v0/automation/status");
+    LOG_INFO("[HTTP]   GET  /v0/providers/health");
     LOG_INFO("[HTTP]   GET  /v0/events (SSE)");
 }
 

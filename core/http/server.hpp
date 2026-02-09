@@ -157,6 +157,8 @@ private:
     void handle_get_parameters(const httplib::Request &req, httplib::Response &res);
     void handle_post_parameters(const httplib::Request &req, httplib::Response &res);
     void handle_get_automation_tree(const httplib::Request &req, httplib::Response &res);
+    void handle_get_automation_status(const httplib::Request &req, httplib::Response &res);
+    void handle_get_providers_health(const httplib::Request &req, httplib::Response &res);
 
     // SSE handler
     void handle_get_events(const httplib::Request &req, httplib::Response &res);

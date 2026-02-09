@@ -3,7 +3,7 @@
  * Shows first 5 signals per device with click-to-navigate
  */
 
-import * as UI from './ui.js';
+import * as UI from "./ui.js";
 
 let elements = {};
 let deviceStates = {}; // Map of device_id -> state
@@ -15,8 +15,8 @@ export function init(elementIds) {
   elements = {
     container: document.getElementById(elementIds.container),
   };
-  
-  console.log('[DeviceOverview] Module initialized');
+
+  console.log("[DeviceOverview] Module initialized");
 }
 
 /**
@@ -36,23 +36,51 @@ export function updateDevice(providerDevice, signals) {
 }
 
 /**
+ * Calculate device health based on provider availability and signal staleness
+ */
+function getDeviceHealth(signals) {
+  if (!signals || signals.length === 0) {
+    return { status: "unknown", staleness_ms: 0 };
+  }
+
+  // Check worst quality among all signals
+  const hasUnavailable = signals.some(
+    (s) => s.quality.toUpperCase() === "UNAVAILABLE",
+  );
+  const hasFault = signals.some((s) => s.quality.toUpperCase() === "FAULT");
+  const hasStale = signals.some((s) => s.quality.toUpperCase() === "STALE");
+
+  if (hasUnavailable) return { status: "unavailable", staleness_ms: 0 };
+  if (hasFault) return { status: "fault", staleness_ms: 0 };
+  if (hasStale) return { status: "stale", staleness_ms: 0 };
+
+  // Calculate staleness from last_poll_time if available
+  // For overview, we just check quality, detailed staleness shown in detail view
+  return { status: "ok", staleness_ms: 0 };
+}
+
+/**
  * Render compact device cards grid
  */
 function renderGrid() {
   const deviceEntries = Object.entries(deviceStates);
-  
+
   if (deviceEntries.length === 0) {
-    elements.container.innerHTML = '<p class="placeholder">No devices available</p>';
+    elements.container.innerHTML =
+      '<p class="placeholder">No devices available</p>';
     return;
   }
 
   let html = '<div class="devices-grid">';
-  
+
   for (const [key, { device, signals }] of deviceEntries) {
     // Get first 5 signals for overview
     const keySignals = signals.slice(0, 5);
-    const [provider, deviceId] = key.split('/');
-    
+    const [provider, deviceId] = key.split("/");
+
+    // Calculate health
+    const health = getDeviceHealth(signals);
+
     html += `
       <div class="device-card clickable" 
            data-provider="${UI.escapeHtml(provider)}" 
@@ -60,6 +88,7 @@ function renderGrid() {
            title="Click to view full details">
         <div class="device-card-header">
           <h3>${UI.escapeHtml(device.device_id)}</h3>
+          <span class="badge ${health.status}">${health.status.toUpperCase()}</span>
           <span class="device-provider">${UI.escapeHtml(device.provider_id)}</span>
         </div>
         <div class="device-signals">
@@ -91,9 +120,9 @@ function renderGrid() {
     `;
   }
 
-  html += '</div>';
+  html += "</div>";
   elements.container.innerHTML = html;
-  
+
   // Attach click handlers for navigation
   attachCardHandlers();
 }
@@ -102,9 +131,9 @@ function renderGrid() {
  * Attach click handlers to device cards
  */
 function attachCardHandlers() {
-  const cards = elements.container.querySelectorAll('.device-card.clickable');
-  cards.forEach(card => {
-    card.addEventListener('click', () => {
+  const cards = elements.container.querySelectorAll(".device-card.clickable");
+  cards.forEach((card) => {
+    card.addEventListener("click", () => {
       const provider = card.dataset.provider;
       const device = card.dataset.device;
       window.location.hash = `#devices/${provider}/${device}`;

@@ -20,12 +20,79 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+/* Error Banner (Top of Header) */
+.error-banner {
+  width: 100%;
+  padding: 0.75rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.error-banner.error {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--error);
+  border-bottom: 2px solid var(--error);
+}
+
+.error-banner.warning {
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--warning);
+  border-bottom: 2px solid var(--warning);
+}
+
+.error-banner.info {
+  background: rgba(74, 222, 128, 0.15);
+  color: var(--success);
+  border-bottom: 2px solid var(--success);
+}
+
+.error-banner .error-icon {
+  font-size: 1.2rem;
+}
+
+.error-banner .btn-dismiss {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.error-banner .btn-dismiss:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* Header */
@@ -112,13 +179,38 @@ header {
   white-space: nowrap;
 }
 
-.badge.ok, .badge.connected { background: var(--success); color: #000; }
-.badge.stale, .badge.connecting { background: var(--warning); color: #000; }
-.badge.unavailable, .badge.fault { background: var(--error); color: #fff; }
-.badge.disconnected, .badge.unknown { background: var(--text-secondary); color: #000; }
-.badge.manual { background: #6366f1; color: #fff; }
-.badge.auto { background: var(--success); color: #000; }
-.badge.idle { background: var(--text-secondary); color: #000; }
+.badge.ok,
+.badge.connected {
+  background: var(--success);
+  color: #000;
+}
+.badge.stale,
+.badge.connecting {
+  background: var(--warning);
+  color: #000;
+}
+.badge.unavailable,
+.badge.fault {
+  background: var(--error);
+  color: #fff;
+}
+.badge.disconnected,
+.badge.unknown {
+  background: var(--text-secondary);
+  color: #000;
+}
+.badge.manual {
+  background: #6366f1;
+  color: #fff;
+}
+.badge.auto {
+  background: var(--success);
+  color: #000;
+}
+.badge.idle {
+  background: var(--text-secondary);
+  color: #000;
+}
 
 /* View Management */
 .view-active {
@@ -274,7 +366,7 @@ header {
 
 /* Behavior Tree Viewer */
 .bt-viewer {
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   font-size: 0.875rem;
   line-height: 1.5;
   color: var(--text-primary);
@@ -382,7 +474,7 @@ header {
 }
 
 .signal-value {
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   font-weight: 500;
 }
 
@@ -501,8 +593,9 @@ header {
   color: var(--text-secondary);
 }
 
-.device-id, .device-provider {
-  font-family: 'Courier New', monospace;
+.device-id,
+.device-provider {
+  font-family: "Courier New", monospace;
 }
 
 /* Device Detail Sections */
@@ -562,7 +655,7 @@ header {
 }
 
 .state-table-full .signal-value {
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   color: var(--accent);
 }
 
@@ -582,7 +675,8 @@ header {
 }
 
 /* Buttons */
-button, .btn-primary {
+button,
+.btn-primary {
   padding: 0.5rem 1rem;
   background: var(--accent);
   color: #fff;
@@ -594,7 +688,8 @@ button, .btn-primary {
   transition: opacity 0.2s;
 }
 
-button:hover, .btn-primary:hover {
+button:hover,
+.btn-primary:hover {
   opacity: 0.9;
 }
 
@@ -662,7 +757,7 @@ select {
   background: var(--bg-tertiary);
   padding: 0.25rem 0.5rem;
   border-radius: 3px;
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   color: var(--accent);
 }
 
@@ -670,7 +765,7 @@ select {
   color: var(--error);
   font-size: 0.875rem;
   margin: 1rem 0;
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
 }
 
 .error-message .btn-primary {
@@ -757,8 +852,195 @@ footer {
   .section-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .devices-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Function Execution Forms */
+.functions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.function-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.function-card h4 {
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.function-description {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  font-style: italic;
+}
+
+.function-args {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.arg-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.arg-row label {
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.arg-row .required {
+  color: var(--error);
+}
+
+.arg-row .constraint-hint {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-style: italic;
+  margin-left: 0.5rem;
+}
+
+.arg-row input[type="text"],
+.arg-row input[type="number"] {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.5rem;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.arg-row input[type="text"]:focus,
+.arg-row input[type="number"]:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.arg-row input[type="checkbox"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  cursor: pointer;
+}
+
+.function-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.function-actions button {
+  min-width: 100px;
+}
+
+.function-feedback {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.function-feedback.executing {
+  color: var(--warning);
+}
+
+.function-feedback.success {
+  color: var(--success);
+}
+
+.function-feedback.error {
+  color: var(--error);
+}
+
+/* Automation Health Display */
+.automation-health {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 1rem 0;
+}
+
+.automation-health h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.health-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.health-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.health-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.health-item label {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.health-item span {
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.error-text {
+  color: var(--text-secondary);
+  font-family: monospace;
+  font-size: 0.875rem;
+}
+
+.error-text.warning {
+  color: var(--error);
+  font-weight: 600;
+}
+
+/* BT Status Badges */
+.badge.bt-idle {
+  background: rgba(160, 160, 160, 0.2);
+  color: var(--text-secondary);
+}
+
+.badge.bt-running {
+  background: rgba(74, 222, 128, 0.2);
+  color: var(--success);
+}
+
+.badge.bt-stalled {
+  background: rgba(251, 191, 36, 0.2);
+  color: var(--warning);
+}
+
+.badge.bt-error {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--error);
+}
+
+.badge.bt-unknown {
+  background: rgba(160, 160, 160, 0.2);
+  color: var(--text-secondary);
 }
