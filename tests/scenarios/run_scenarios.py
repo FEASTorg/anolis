@@ -123,6 +123,11 @@ class ScenarioRunner:
         if not bt_path.exists():
             raise RuntimeError(f"Test behavior tree not found: {bt_path}")
 
+        # Find provider config fixture
+        provider_config_path = PROJECT_ROOT / "tests" / "integration" / "fixtures" / "provider-sim-default.yaml"
+        if not provider_config_path.exists():
+            raise RuntimeError(f"Provider config fixture not found: {provider_config_path}")
+
         # Create temporary config file
         config = {
             "runtime": {"mode": "MANUAL"},
@@ -131,7 +136,7 @@ class ScenarioRunner:
                 {
                     "id": "sim0",
                     "command": self.provider_path,
-                    "args": [],
+                    "args": ["--config", str(provider_config_path).replace("\\", "/")],
                 }
             ],
             "polling": {"interval_ms": 500},
