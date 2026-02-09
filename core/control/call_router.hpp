@@ -26,6 +26,7 @@ struct CallRequest {
     std::string device_handle;  // "provider_id/device_id"
     std::string function_name;
     std::map<std::string, anolis::deviceprovider::v0::Value> args;
+    bool is_automated = false;  // true if called from BT automation, false if manual (HTTP/UI)
 };
 
 // Call result - Status and optional return values

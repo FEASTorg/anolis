@@ -163,14 +163,37 @@ TEST_F(CallRouterTest, PolicyBlockInAuto) {
     control::CallRequest req;
     req.device_handle = "sim0/dev1";
     req.function_name = "reset";
+    req.is_automated = false;  // Explicitly mark as manual call
 
-    // Expect NO CALL to provider
+    // Expect NO CALL to provider (manual calls blocked in AUTO mode)
     EXPECT_CALL(*mock_provider, call(_, _, _, _, _)).Times(0);
 
     auto result = router->execute_call(req, *provider_registry);
     EXPECT_FALSE(result.success);
     EXPECT_EQ(result.status_code, anolis::deviceprovider::v0::Status_Code_CODE_FAILED_PRECONDITION);
     EXPECT_THAT(result.error_message, HasSubstr("blocked in AUTO"));
+}
+
+TEST_F(CallRouterTest, AutomatedCallsBypassBlock) {
+    RegisterMockDevice();
+
+    // 1. Set policy to BLOCK
+    router->set_mode_manager(mode_manager.get(), "BLOCK");
+
+    std::string err;
+    ASSERT_TRUE(mode_manager->set_mode(automation::RuntimeMode::AUTO, err));
+
+    control::CallRequest req;
+    req.device_handle = "sim0/dev1";
+    req.function_name = "reset";
+    req.is_automated = true;  // Mark as automated (BT) call
+
+    // Expect CALL to provider (automated calls bypass blocking)
+    EXPECT_CALL(*mock_provider, call("dev1", _, "reset", _, _)).WillOnce(Return(true));
+
+    auto result = router->execute_call(req, *provider_registry);
+    EXPECT_TRUE(result.success);
+    EXPECT_EQ(result.status_code, anolis::deviceprovider::v0::Status_Code_CODE_OK);
 }
 
 TEST_F(CallRouterTest, PolicyOverrideInAuto) {
@@ -186,8 +209,9 @@ TEST_F(CallRouterTest, PolicyOverrideInAuto) {
     control::CallRequest req;
     req.device_handle = "sim0/dev1";
     req.function_name = "reset";
+    req.is_automated = false;  // Manual call, but with OVERRIDE policy
 
-    // Expect CALL to provider
+    // Expect CALL to provider (OVERRIDE policy allows manual calls)
     EXPECT_CALL(*mock_provider, call("dev1", _, "reset", _, _)).WillOnce(Return(true));
 
     auto result = router->execute_call(req, *provider_registry);

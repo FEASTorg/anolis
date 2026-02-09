@@ -10,6 +10,7 @@ import { CONFIG, AUTOMATION_MODES } from "./config.js";
 let elements = {};
 let currentMode = null;
 let eventBuffer = [];
+let modeSelectorDirty = false; // Track if user has manually changed dropdown
 
 /**
  * Initialize automation module
@@ -36,6 +37,11 @@ export function init(elementIds) {
 
   // Event listeners
   elements.setModeButton.addEventListener("click", handleSetMode);
+  
+  // Track when user manually changes dropdown (dirty state)
+  elements.modeSelector.addEventListener("change", () => {
+    modeSelectorDirty = true;
+  });
 
   // SSE event handlers
   SSE.on("mode_change", handleModeChange);
@@ -71,7 +77,12 @@ async function refreshMode() {
       currentMode = data.mode;
       elements.modeDisplay.textContent = currentMode;
       elements.modeDisplay.className = `badge ${currentMode.toLowerCase()}`;
-      elements.modeSelector.value = currentMode;
+      
+      // Only update dropdown if user hasn't manually changed it
+      if (!modeSelectorDirty) {
+        elements.modeSelector.value = currentMode;
+      }
+      
       UI.show(elements.automationSection);
     }
   } catch (err) {
@@ -86,7 +97,11 @@ function handleModeChange(data) {
   currentMode = data.new_mode;
   elements.modeDisplay.textContent = currentMode;
   elements.modeDisplay.className = `badge ${currentMode.toLowerCase()}`;
-  elements.modeSelector.value = currentMode;
+  
+  // Only update dropdown if user hasn't manually changed it
+  if (!modeSelectorDirty) {
+    elements.modeSelector.value = currentMode;
+  }
 
   addEvent(
     "mode_change",
@@ -164,6 +179,10 @@ async function handleSetMode() {
     if (result.status?.code === "OK") {
       elements.modeFeedback.textContent = "✓ Mode set";
       elements.modeFeedback.className = "success";
+      
+      // Reset dirty flag - mode change successful
+      modeSelectorDirty = false;
+      
       setTimeout(() => {
         elements.modeFeedback.textContent = "";
       }, 2000);

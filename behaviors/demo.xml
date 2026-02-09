@@ -9,8 +9,8 @@
     3. If STALE/FAULT, log and halt
     
     Device: tempctl0 (simulated temperature controller)
-    Signals: temperature (current temp reading)
-    Functions: set_target_temp(target: double)
+    Signals: tc1_temp, tc2_temp (thermocouple readings)
+    Functions: set_setpoint(value: double)
     
     Args format: JSON object string, e.g., '{"target":30.0}'
     Validation: Handled by CallRouter using ArgSpec metadata
@@ -22,7 +22,7 @@
             <!-- Check if temperature signal is available and OK quality -->
             <CheckQuality
                 device_handle="sim0/tempctl0"
-                signal_id="temperature"
+                signal_id="tc1_temp"
                 expected_quality="OK"
                 name="VerifyTempSensorQuality" />
 
@@ -30,15 +30,15 @@
             <Sequence>
                 <CallDevice
                     device_handle="sim0/tempctl0"
-                    function_name="set_target_temp"
-                    args='{"target":25.0}'
+                    function_name="set_setpoint"
+                    args='{"value":25.0}'
                     success="{call_success}"
                     error="{call_error}"
                     name="SetTargetTemp25C" />
 
                 <ReadSignal
                     device_handle="sim0/tempctl0"
-                    signal_id="temperature"
+                    signal_id="tc1_temp"
                     value="{current_temp}"
                     quality="{temp_quality}"
                     name="ReadCurrentTemp25" />
@@ -48,15 +48,15 @@
             <Sequence>
                 <CallDevice
                     device_handle="sim0/tempctl0"
-                    function_name="set_target_temp"
-                    args='{"target":30.0}'
+                    function_name="set_setpoint"
+                    args='{"value":30.0}'
                     success="{call_success}"
                     error="{call_error}"
                     name="SetTargetTemp30C" />
 
                 <ReadSignal
                     device_handle="sim0/tempctl0"
-                    signal_id="temperature"
+                    signal_id="tc1_temp"
                     value="{current_temp}"
                     quality="{temp_quality}"
                     name="ReadCurrentTemp30" />
