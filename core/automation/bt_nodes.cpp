@@ -222,9 +222,16 @@ BT::NodeStatus CallDeviceNode::tick() {
 
     // Parse args JSON and convert to protobuf Value map
     auto args_str = getInput<std::string>("args").value_or("{}");
+
+    // Strip "json:" prefix if present (BT.CPP convention for JSON literals)
+    if (args_str.size() >= 5 && args_str.substr(0, 5) == "json:") {
+        args_str = args_str.substr(5);  // Remove "json:" prefix
+    }
+
     if (!args_str.empty() && args_str != "{}") {
         try {
             auto json_args = nlohmann::json::parse(args_str);
+
             if (!json_args.is_object()) {
                 LOG_ERROR("[CallDeviceNode] args must be a JSON object, got: " << args_str);
                 setOutput("success", false);

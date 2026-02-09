@@ -22,7 +22,8 @@ CallResult CallRouter::execute_call(const CallRequest &request, provider::Provid
     result.success = false;
 
     // Check manual/auto contention (only for manual calls)
-    if (!request.is_automated && mode_manager_ != nullptr && mode_manager_->current_mode() == automation::RuntimeMode::AUTO) {
+    if (!request.is_automated && mode_manager_ != nullptr &&
+        mode_manager_->current_mode() == automation::RuntimeMode::AUTO) {
         if (manual_gating_policy_ == "BLOCK") {
             result.error_message = "Manual call blocked in AUTO mode (policy: BLOCK)";
             result.status_code = anolis::deviceprovider::v0::Status_Code_CODE_FAILED_PRECONDITION;
