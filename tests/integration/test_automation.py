@@ -75,6 +75,9 @@ class AutomationTester:
         self.tests_passed = 0
         self.tests_failed = 0
 
+        # Get provider config path
+        fixture_config = Path(__file__).parent / "fixtures" / "provider-sim-default.yaml"
+
         # Create config dict for RuntimeFixture
         config = {
             "runtime": {"mode": "MANUAL"},
@@ -83,7 +86,7 @@ class AutomationTester:
                 {
                     "id": "sim0",
                     "command": provider_path,
-                    "args": [],
+                    "args": ["--config", str(fixture_config).replace("\\", "/")],
                     "timeout_ms": 5000,
                 }
             ],

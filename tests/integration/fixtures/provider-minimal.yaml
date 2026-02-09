@@ -1,0 +1,12 @@
+# Minimal provider configuration for lightweight tests
+# Single temperature controller device
+
+devices:
+  - id: tempctl0
+    type: tempctl
+    config:
+      initial_temp: 25.0
+
+simulation:
+  noise_enabled: false
+  update_rate_hz: 10

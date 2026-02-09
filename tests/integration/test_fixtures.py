@@ -346,6 +346,10 @@ class RuntimeFixture:
                 return False
 
         # Default config
+        # Get path to default provider config fixture
+        fixture_config = Path(__file__).parent / "fixtures" / "provider-sim-default.yaml"
+        fixture_config_str = str(fixture_config).replace("\\", "/")
+
         config_content = f"""
 runtime:
   mode: MANUAL
@@ -358,7 +362,7 @@ http:
 providers:
   - id: sim0
     command: {str(self.provider_path)}
-    args: []
+    args: ["--config", "{fixture_config_str}"]
     timeout_ms: 5000
 
 polling:

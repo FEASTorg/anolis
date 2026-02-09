@@ -1,0 +1,26 @@
+# Multi-device configuration demonstrating multiple instances of same type
+# Two temperature controllers + one motor controller
+
+devices:
+  - id: tempctl0
+    type: tempctl
+    config:
+      initial_temp: 20.0
+      min_temp: -40.0
+      max_temp: 125.0
+
+  - id: tempctl1
+    type: tempctl
+    config:
+      initial_temp: 30.0
+      min_temp: -40.0
+      max_temp: 125.0
+
+  - id: motorctl0
+    type: motorctl
+    config:
+      max_speed: 100.0
+
+simulation:
+  noise_enabled: false
+  update_rate_hz: 10

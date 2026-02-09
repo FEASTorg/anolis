@@ -62,22 +62,13 @@ jobs:
           export PATH="/usr/lib/ccache:$PATH"
           ccache --set-config=max_size=1G
 
-      - name: Compute safe cache key fragment
-        id: safe-ref
-        shell: bash
-        run: |
-          SAFE_REF_NAME="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
-          SAFE_REF_NAME="${SAFE_REF_NAME//\//-}"
-          echo "value=$SAFE_REF_NAME" >> "$GITHUB_OUTPUT"
-
       - name: Cache ccache
         uses: actions/cache@v4
         with:
           path: ~/.ccache
-          key: ccache-linux-${{ steps.safe-ref.outputs.value }}-${{ github.sha }}
+          key: ccache-linux-${{ runner.os }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
           restore-keys: |
-            ccache-linux-${{ steps.safe-ref.outputs.value }}-
-            ccache-linux-
+            ccache-linux-${{ runner.os }}-
 
       - name: Setup Python and dependencies
         uses: ./.github/actions/setup-python-deps
@@ -102,7 +93,6 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
             -DVCPKG_INSTALLED_DIR=$GITHUB_WORKSPACE/build/vcpkg_installed \
-            -DVCPKG_MANIFEST_INSTALL=OFF \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           cmake --build build --config Release --parallel
 
@@ -246,7 +236,7 @@ jobs:
   build-windows:
     name: Windows (MSVC 2022)
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 60 # Windows builds and tests can be slower
 
     steps:
       - name: Checkout anolis
@@ -282,8 +272,8 @@ jobs:
           cd anolis-provider-sim
           cmake -B build -S . -DCMAKE_BUILD_TYPE=Release `
             "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
-            "-DVCPKG_INSTALLED_DIR=$env:GITHUB_WORKSPACE/build/vcpkg_installed" `
-            "-DVCPKG_MANIFEST_INSTALL=OFF"
+            "-DVCPKG_INSTALLED_DIR=$env:GITHUB_WORKSPACE/build/vcpkg_installed"
+
           cmake --build build --config Release --parallel
 
       - name: Run unit tests

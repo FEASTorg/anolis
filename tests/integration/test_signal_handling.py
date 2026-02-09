@@ -62,6 +62,9 @@ def test_signal_handling(
     Returns:
         TestResult with success/failure and message
     """
+    # Get provider config path
+    fixture_config = Path(__file__).parent / "fixtures" / "provider-sim-default.yaml"
+
     # Create config dict
     config = {
         "runtime": {"mode": "MANUAL"},
@@ -70,7 +73,7 @@ def test_signal_handling(
             {
                 "id": "sim",
                 "command": str(provider_path).replace("\\", "/"),
-                "args": [],
+                "args": ["--config", str(fixture_config).replace("\\", "/")],
             }
         ],
         "polling": {"interval_ms": 1000},

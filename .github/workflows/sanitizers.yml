@@ -47,7 +47,6 @@ jobs:
         uses: ./.github/actions/setup-vcpkg
         with:
           vcpkg-commit: ${{ env.VCPKG_COMMIT }}
-          do-not-cache: "false"
 
       - name: Configure CMake (ASAN)
         run: |
@@ -140,7 +139,6 @@ jobs:
         uses: ./.github/actions/setup-vcpkg
         with:
           vcpkg-commit: ${{ env.VCPKG_COMMIT }}
-          do-not-cache: "false"
 
       - name: Configure CMake (UBSAN)
         run: |

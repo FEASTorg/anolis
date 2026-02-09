@@ -71,13 +71,14 @@ class SupervisionTester:
             backoff_ms = [100, 1000, 5000]
 
         provider_cmd = str(self.provider_sim_path).replace("\\", "/")
+        fixture_config = Path(__file__).parent / "fixtures" / "provider-sim-default.yaml"
 
         config = {
             "providers": [
                 {
                     "id": "provider-sim",
                     "command": provider_cmd,
-                    "args": ["--crash-after", str(crash_after)],
+                    "args": ["--config", str(fixture_config).replace("\\", "/"), "--crash-after", str(crash_after)],
                     "timeout_ms": 5000,
                     "restart_policy": {
                         "enabled": True,

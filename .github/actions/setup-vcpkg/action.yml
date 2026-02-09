@@ -4,10 +4,7 @@ inputs:
   vcpkg-commit:
     description: "vcpkg git commit hash to use"
     required: true
-  do-not-cache:
-    description: "Skip vcpkg caching (default: true)"
-    required: false
-    default: "true"
+
 runs:
   using: "composite"
   steps:
@@ -15,4 +12,4 @@ runs:
       uses: lukka/run-vcpkg@v11
       with:
         vcpkgGitCommitId: ${{ inputs.vcpkg-commit }}
-        doNotCache: ${{ inputs.do-not-cache }}
+        doNotCache: false

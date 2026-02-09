@@ -137,13 +137,14 @@ class StressTestRunner:
     def create_config(self) -> dict:
         """Create test configuration as dict for RuntimeFixture."""
         provider_cmd = str(self.provider_path).replace("\\", "/")
+        fixture_config = Path(__file__).parent / "fixtures" / "provider-sim-default.yaml"
 
         config = {
             "providers": [
                 {
                     "id": "stress-provider",
                     "command": provider_cmd,
-                    "args": [],
+                    "args": ["--config", str(fixture_config).replace("\\", "/")],
                     "timeout_ms": 5000,
                     "restart_policy": {
                         "enabled": True,
