@@ -25,7 +25,7 @@ docker compose -f docker-compose.observability.yml ps
 | Service  | URL                     | Credentials       |
 | -------- | ----------------------- | ----------------- |
 | InfluxDB | <http://localhost:8086> | admin / anolis123 |
-| Grafana  | <http://localhost:3000> | admin / anolis123 |
+| Grafana  | <http://localhost:3001> | admin / anolis123 |
 
 ### 3. Run Anolis with Telemetry
 
@@ -36,7 +36,7 @@ docker compose -f docker-compose.observability.yml ps
 
 ### 4. View Dashboards
 
-1. Open <http://localhost:3000> (Grafana)
+1. Open <http://localhost:3001> (Grafana)
 2. Login with admin / anolis123
 3. Navigate to **Dashboards** → **Anolis**
 4. Select **Signal History** or **Device Health**

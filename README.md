@@ -19,6 +19,8 @@ Anolis is designed to sit **between low-level device interfaces and high-level b
 >
 > Anolis adapts to diverse hardware ecosystems.
 
+<img src="docs/assets/anolis_logo_1024.png" alt="Anolis Logo" width="300"/>
+
 ---
 
 ## What Anolis Is

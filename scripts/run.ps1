@@ -36,13 +36,26 @@ if (-not (Test-Path $BuildDir)) {
 }
 
 # ------------------------------------------------------------
-# Detect Runtime Executable (single-config friendly)
+# Detect Runtime Executable (multi-config and single-config)
 # ------------------------------------------------------------
-$Runtime = Join-Path $BuildDir "core\anolis-runtime.exe"
+# Try Release first (Visual Studio multi-config)
+$Runtime = Join-Path $BuildDir "core\Release\anolis-runtime.exe"
 
 if (-not (Test-Path $Runtime)) {
-    Write-Host "[ERROR] Runtime executable not found at:" -ForegroundColor Red
-    Write-Host "  $Runtime" -ForegroundColor Red
+    # Try Debug
+    $Runtime = Join-Path $BuildDir "core\Debug\anolis-runtime.exe"
+}
+
+if (-not (Test-Path $Runtime)) {
+    # Try single-config (Ninja, Unix Makefiles)
+    $Runtime = Join-Path $BuildDir "core\anolis-runtime.exe"
+}
+
+if (-not (Test-Path $Runtime)) {
+    Write-Host "[ERROR] Runtime executable not found. Tried:" -ForegroundColor Red
+    Write-Host "  $BuildDir\core\Release\anolis-runtime.exe" -ForegroundColor Red
+    Write-Host "  $BuildDir\core\Debug\anolis-runtime.exe" -ForegroundColor Red
+    Write-Host "  $BuildDir\core\anolis-runtime.exe" -ForegroundColor Red
     Write-Host "Run: .\scripts\build.ps1" -ForegroundColor Yellow
     exit 1
 }

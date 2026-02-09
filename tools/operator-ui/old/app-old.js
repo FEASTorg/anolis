@@ -26,6 +26,12 @@ let sseConnected = false;
 let lastEventId = null;
 let cachedState = {}; // signal_id -> signal data (for delta updates)
 
+// Automation State
+let automationEnabled = false;
+let currentMode = null;
+let eventBuffer = []; // Ring buffer for event trace (max 100)
+const MAX_EVENTS = 100;
+
 // DOM Elements
 const elements = {
   runtimeBadge: document.getElementById("runtime-badge"),
@@ -41,6 +47,24 @@ const elements = {
   togglePolling: document.getElementById("toggle-polling"),
   lastUpdate: document.getElementById("last-update"),
   lastError: document.getElementById("last-error"),
+  // Automation elements
+  automationStatus: document.getElementById("automation-status"),
+  automationMode: document.getElementById("automation-mode"),
+  automationPolicy: document.getElementById("automation-policy"),
+  automationBtFile: document.getElementById("automation-bt-file"),
+  automationLastTick: document.getElementById("automation-last-tick"),
+  modeSelector: document.getElementById("mode-selector"),
+  setModeButton: document.getElementById("set-mode-button"),
+  modeFeedback: document.getElementById("mode-feedback"),
+  // Parameters elements
+  parametersSection: document.getElementById("parameters-section"),
+  parametersContainer: document.getElementById("parameters-container"),
+  // BT visualization elements
+  btVisualization: document.getElementById("bt-visualization"),
+  btTreeView: document.getElementById("bt-tree-view"),
+  // Event trace elements
+  eventTrace: document.getElementById("event-trace"),
+  eventList: document.getElementById("event-list"),
 };
 
 // ============================================================================
@@ -119,6 +143,58 @@ async function executeCall(providerId, deviceId, functionId, args) {
   return data;
 }
 
+async function fetchMode() {
+  try {
+    const data = await fetchApi("/v0/mode");
+    if (data.status?.code === "OK") {
+      return data;
+    }
+  } catch (err) {
+    // Automation not enabled
+  }
+  return null;
+}
+
+async function setMode(mode) {
+  const data = await fetchApi("/v0/mode", {
+    method: "POST",
+    body: JSON.stringify({ mode: mode }),
+  });
+  return data;
+}
+
+async function fetchParameters() {
+  try {
+    const data = await fetchApi("/v0/parameters");
+    if (data.status?.code === "OK") {
+      return data.parameters || [];
+    }
+  } catch (err) {
+    // Automation not enabled
+  }
+  return [];
+}
+
+async function updateParameter(name, value) {
+  const data = await fetchApi("/v0/parameters", {
+    method: "POST",
+    body: JSON.stringify({ name: name, value: value }),
+  });
+  return data;
+}
+
+async function fetchBehaviorTree() {
+  try {
+    const data = await fetchApi("/v0/automation/tree");
+    if (data.status?.code === "OK") {
+      return data.tree || "";
+    }
+  } catch (err) {
+    // Endpoint not available
+  }
+  return "";
+}
+
 // ============================================================================
 // SSE (Server-Sent Events) Functions
 // ============================================================================
@@ -130,37 +206,47 @@ function updateConnectionBadge(status) {
 
 /**
  * Connect to SSE stream for real-time updates
- * Pattern: Seed state first with GET, then open SSE for deltas
+ * Now connects globally to receive all events (device state + automation)
+ * Device-specific events are filtered client-side
  */
 async function connectSSE() {
-  if (!selectedDevice) return;
+  if (isPaused) return; // Don't connect if paused
+
+  // Guard: Reuse existing healthy connection
+  if (eventSource && eventSource.readyState === EventSource.OPEN) {
+    console.log("[SSE] Already connected, reusing existing connection");
+    return;
+  }
 
   // Close any existing connection
   disconnectSSE();
 
-  const { provider_id, device_id } = selectedDevice;
-
-  // Step 1: Seed initial state via REST (race-proof pattern)
-  updateConnectionBadge("connecting");
-  try {
-    const state = await fetchState(provider_id, device_id);
-    if (state && state.values) {
-      // Cache the seeded state
-      cachedState = {};
-      for (const signal of state.values) {
-        cachedState[signal.signal_id] = signal;
+  // If we have a selected device, seed its state first
+  if (selectedDevice) {
+    const { provider_id, device_id } = selectedDevice;
+    
+    // Seed initial state via REST (race-proof pattern)
+    updateConnectionBadge("connecting");
+    try {
+      const state = await fetchState(provider_id, device_id);
+      if (state && state.values) {
+        // Cache the seeded state
+        cachedState = {};
+        for (const signal of state.values) {
+          cachedState[signal.signal_id] = signal;
+        }
+        renderStateFromCache();
       }
-      renderStateFromCache();
+    } catch (err) {
+      console.error("Failed to seed state:", err);
+      // Continue anyway to get automation events
     }
-  } catch (err) {
-    console.error("Failed to seed state:", err);
-    // Fall back to polling
-    fallbackToPolling("Seed failed");
-    return;
+  } else {
+    updateConnectionBadge("connecting");
   }
 
-  // Step 2: Open SSE connection for deltas
-  const sseUrl = `${API_BASE}/v0/events?provider_id=${encodeURIComponent(provider_id)}&device_id=${encodeURIComponent(device_id)}`;
+  // Open SSE connection for all events (device state + automation)
+  const sseUrl = `${API_BASE}/v0/events`;
 
   try {
     eventSource = new EventSource(sseUrl);
@@ -179,6 +265,14 @@ async function connectSSE() {
 
     eventSource.addEventListener("quality_change", (event) => {
       handleQualityChangeEvent(event);
+    });
+
+    eventSource.addEventListener("mode_change", (event) => {
+      handleModeChangeEvent(event);
+    });
+
+    eventSource.addEventListener("parameter_change", (event) => {
+      handleParameterChangeEvent(event);
     });
 
     eventSource.onerror = (err) => {
@@ -266,6 +360,51 @@ function handleQualityChangeEvent(event) {
 }
 
 /**
+ * Handle mode_change event from SSE
+ */
+function handleModeChangeEvent(event) {
+  try {
+    const data = JSON.parse(event.data);
+    lastEventId = event.lastEventId;
+
+    // Update automation status display
+    currentMode = data.new_mode;
+    updateAutomationDisplay();
+
+    // Add to event trace
+    addEventToTrace(
+      "mode_change",
+      `${data.previous_mode} → ${data.new_mode}`,
+      data.timestamp_ms,
+    );
+  } catch (err) {
+    console.error("[SSE] Failed to parse mode_change:", err);
+  }
+}
+
+/**
+ * Handle parameter_change event from SSE
+ */
+function handleParameterChangeEvent(event) {
+  try {
+    const data = JSON.parse(event.data);
+    lastEventId = event.lastEventId;
+
+    // Refresh parameters display
+    refreshParameters();
+
+    // Add to event trace
+    addEventToTrace(
+      "parameter_change",
+      `${data.parameter_name}: ${data.old_value} → ${data.new_value}`,
+      data.timestamp_ms,
+    );
+  } catch (err) {
+    console.error("[SSE] Failed to parse parameter_change:", err);
+  }
+}
+
+/**
  * Fall back to polling when SSE is unavailable
  */
 function fallbackToPolling(reason) {
@@ -286,22 +425,44 @@ function updateRuntimeBadge(status) {
 }
 
 function renderDeviceList(devices) {
-  // Group devices by provider
+  // Separate sim_control from other devices
+  const simControl = devices.find(d => d.device_id === 'sim_control');
+  const otherDevices = devices.filter(d => d.device_id !== 'sim_control');
+  
+  // Group other devices by provider
   const providers = {};
-  for (const device of devices) {
+  for (const device of otherDevices) {
     if (!providers[device.provider_id]) {
       providers[device.provider_id] = [];
     }
     providers[device.provider_id].push(device);
   }
 
-  if (Object.keys(providers).length === 0) {
+  if (devices.length === 0) {
     elements.deviceList.innerHTML =
       '<p class="placeholder">No devices found</p>';
     return;
   }
 
   let html = "";
+  
+  // Render sim_control at root level if it exists
+  if (simControl) {
+    const isSelected =
+      selectedDevice &&
+      selectedDevice.provider_id === simControl.provider_id &&
+      selectedDevice.device_id === simControl.device_id;
+    html += `
+      <div class="device-item root-device ${isSelected ? "selected" : ""}" 
+           data-provider="${escapeHtml(simControl.provider_id)}" 
+           data-device="${escapeHtml(simControl.device_id)}">
+        ${escapeHtml(simControl.device_id)}
+        <span class="device-type">${escapeHtml(simControl.type || "")}</span>
+      </div>
+    `;
+  }
+  
+  // Render other devices grouped by provider
   for (const [providerId, providerDevices] of Object.entries(providers)) {
     html += `<div class="provider-group">`;
     html += `<div class="provider-name">&gt; ${escapeHtml(providerId)}</div>`;
@@ -542,18 +703,273 @@ function renderCapabilities(capabilities) {
 }
 
 // ============================================================================
+// Automation UI Functions
+// ============================================================================
+
+async function updateAutomationDisplay() {
+  try {
+    const statusData = await fetchRuntimeStatus();
+    const modeData = await fetchMode();
+
+    if (!modeData) {
+      // Automation not enabled
+      automationEnabled = false;
+      elements.automationStatus.classList.add("hidden");
+      elements.parametersSection.classList.add("hidden");
+      elements.btVisualization.classList.add("hidden");
+      elements.eventTrace.classList.add("hidden");
+      return;
+    }
+
+    // Show automation sections
+    automationEnabled = true;
+    elements.automationStatus.classList.remove("hidden");
+    elements.parametersSection.classList.remove("hidden");
+    elements.btVisualization.classList.remove("hidden");
+    elements.eventTrace.classList.remove("hidden");
+
+    // Update mode display
+    currentMode = modeData.mode;
+    elements.automationMode.textContent = currentMode;
+    elements.automationMode.className = `badge ${currentMode.toLowerCase()}`;
+
+    // Update policy display (if available)
+    if (modeData.policy) {
+      elements.automationPolicy.textContent = modeData.policy;
+    }
+
+    // Update BT file (if available in status)
+    if (statusData.automation && statusData.automation.bt_file) {
+      elements.automationBtFile.textContent = statusData.automation.bt_file;
+    }
+
+    // Update last tick (if available)
+    if (statusData.automation && statusData.automation.last_tick_ms) {
+      const ageMs = Date.now() - statusData.automation.last_tick_ms;
+      elements.automationLastTick.textContent = `${Math.round(ageMs)}ms ago`;
+    }
+
+    // Set mode selector to current mode
+    elements.modeSelector.value = currentMode;
+  } catch (err) {
+    console.error("Failed to update automation display:", err);
+  }
+}
+
+async function refreshParameters() {
+  try {
+    const parameters = await fetchParameters();
+
+    if (parameters.length === 0) {
+      elements.parametersContainer.innerHTML =
+        '<p class="placeholder">No parameters available</p>';
+      return;
+    }
+
+    let html = '<div class="parameters-list">';
+    for (const param of parameters) {
+      html += `
+        <div class="parameter-item">
+          <div class="parameter-header">
+            <span class="parameter-name">${escapeHtml(param.name)}</span>
+            <span class="parameter-type">${escapeHtml(param.type)}</span>
+          </div>
+          <div class="parameter-value">
+            <span>Current: <strong>${escapeHtml(String(param.value))}</strong></span>
+          </div>
+          <div class="parameter-controls">
+            <input type="text" 
+                   id="param-${escapeHtml(param.name)}" 
+                   value="${escapeHtml(String(param.value))}"
+                   placeholder="New value">
+            <button onclick="updateParameterValue('${escapeHtml(param.name)}', '${escapeHtml(param.type)}')">Update</button>
+            <span id="param-feedback-${escapeHtml(param.name)}" class="param-feedback"></span>
+          </div>
+          ${param.min !== undefined || param.max !== undefined ? `<div class="parameter-constraints">Range: [${param.min}, ${param.max}]</div>` : ""}
+        </div>
+      `;
+    }
+    html += "</div>";
+    elements.parametersContainer.innerHTML = html;
+  } catch (err) {
+    console.error("Failed to refresh parameters:", err);
+  }
+}
+
+async function updateParameterValue(name, type) {
+  const inputElement = document.getElementById(`param-${name}`);
+  const feedbackElement = document.getElementById(`param-feedback-${name}`);
+  const rawValue = inputElement.value;
+
+  try {
+    // Parse value based on type
+    let value;
+    if (type === "int64" || type === "uint64") {
+      value = parseInt(rawValue, 10);
+      if (isNaN(value)) {
+        throw new Error("Invalid integer");
+      }
+    } else if (type === "double") {
+      value = parseFloat(rawValue);
+      if (isNaN(value)) {
+        throw new Error("Invalid number");
+      }
+    } else if (type === "bool") {
+      value = rawValue.toLowerCase() === "true";
+    } else {
+      value = rawValue;
+    }
+
+    // Send update request
+    const result = await updateParameter(name, value);
+
+    if (result.status?.code === "OK") {
+      feedbackElement.textContent = "✓ Updated";
+      feedbackElement.className = "param-feedback success";
+      setTimeout(() => {
+        feedbackElement.textContent = "";
+      }, 2000);
+      // Refresh parameters to show new value
+      await refreshParameters();
+    } else {
+      throw new Error(result.status?.message || "Update failed");
+    }
+  } catch (err) {
+    feedbackElement.textContent = `✗ ${err.message}`;
+    feedbackElement.className = "param-feedback error";
+  }
+}
+
+async function loadBehaviorTree() {
+  try {
+    const treeXml = await fetchBehaviorTree();
+    if (!treeXml) {
+      elements.btTreeView.textContent = "No behavior tree loaded";
+      return;
+    }
+
+    // Parse XML and render as text outline
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(treeXml, "text/xml");
+    const outline = renderBTTextOutline(xmlDoc);
+    elements.btTreeView.textContent = outline;
+  } catch (err) {
+    elements.btTreeView.textContent = `Error loading BT: ${err.message}`;
+    console.error("Failed to load behavior tree:", err);
+  }
+}
+
+function renderBTTextOutline(xmlDoc, node = null, indent = 0, isLast = true) {
+  if (!node) {
+    const root = xmlDoc.querySelector("BehaviorTree");
+    if (!root) return "No BehaviorTree found in XML";
+    return renderBTTextOutline(xmlDoc, root, 0, true);
+  }
+
+  let output = "";
+  const prefix =
+    indent === 0 ? "" : " ".repeat((indent - 1) * 2) + (isLast ? "└─ " : "├─ ");
+
+  // Node type and name
+  const nodeName = node.getAttribute("name") || "";
+  output += `${prefix}${node.tagName}${nodeName ? ` "${nodeName}"` : ""}\n`;
+
+  // Render children
+  const children = Array.from(node.children);
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    const childIsLast = i === children.length - 1;
+    output += renderBTTextOutline(xmlDoc, child, indent + 1, childIsLast);
+  }
+
+  return output;
+}
+
+function addEventToTrace(eventType, details, timestampMs) {
+  const timestamp = new Date(timestampMs).toLocaleTimeString();
+  const event = { type: eventType, details, timestamp };
+
+  // Add to ring buffer
+  eventBuffer.push(event);
+  if (eventBuffer.length > MAX_EVENTS) {
+    eventBuffer.shift();
+  }
+
+  // Render event trace
+  renderEventTrace();
+}
+
+function renderEventTrace() {
+  if (eventBuffer.length === 0) {
+    elements.eventList.innerHTML = '<p class="placeholder">No events yet</p>';
+    return;
+  }
+
+  let html = '<div class="event-items">';
+  // Show most recent first
+  for (let i = eventBuffer.length - 1; i >= 0; i--) {
+    const event = eventBuffer[i];
+    const typeClass = event.type.replace("_", "-");
+    html += `
+      <div class="event-item ${typeClass}">
+        <span class="event-timestamp">${event.timestamp}</span>
+        <span class="event-type">${event.type.toUpperCase()}</span>
+        <span class="event-details">${escapeHtml(event.details)}</span>
+      </div>
+    `;
+  }
+  html += "</div>";
+  elements.eventList.innerHTML = html;
+
+  // Auto-scroll to top (since most recent is first)
+  elements.eventList.scrollTop = 0;
+}
+
+async function handleSetMode() {
+  const selectedMode = elements.modeSelector.value;
+  if (!selectedMode) {
+    elements.modeFeedback.textContent = "Please select a mode";
+    elements.modeFeedback.className = "error";
+    return;
+  }
+
+  try {
+    const result = await setMode(selectedMode);
+    if (result.status?.code === "OK") {
+      elements.modeFeedback.textContent = `✓ Mode set to ${selectedMode}`;
+      elements.modeFeedback.className = "success";
+      setTimeout(() => {
+        elements.modeFeedback.textContent = "";
+      }, 2000);
+      // Update display to reflect new mode
+      await updateAutomationDisplay();
+    } else {
+      throw new Error(result.status?.message || "Failed to set mode");
+    }
+  } catch (err) {
+    elements.modeFeedback.textContent = `✗ ${err.message}`;
+    elements.modeFeedback.className = "error";
+    console.error("Failed to set mode:", err);
+  }
+}
+
+// ============================================================================
 // Event Handlers
 // ============================================================================
 
 async function selectDevice(providerId, deviceId) {
-  // Stop any existing polling and SSE
+  // Stop polling (SSE stays connected globally)
   stopPolling();
-  disconnectSSE();
-  cachedState = {}; // Clear cached state for new device
+  // Note: Don't disconnect SSE - keep one connection for all devices
+  
+  selectedDevice = { provider_id: providerId, device_id: deviceId };
+  
+  // Clear state for new device
+  cachedState = {};
+  renderStateFromCache(); // Immediately clear state table UI
+  
   isPaused = false;
   elements.togglePolling.textContent = "Pause";
-
-  selectedDevice = { provider_id: providerId, device_id: deviceId };
 
   // Update UI
   elements.noSelection.classList.add("hidden");
@@ -580,8 +996,36 @@ async function selectDevice(providerId, deviceId) {
     console.error("Failed to fetch capabilities:", err);
   }
 
-  // Try SSE first, fall back to polling
-  connectSSE();
+  // Fetch initial state for new device
+  try {
+    const state = await fetchState(providerId, deviceId);
+    if (state && state.values) {
+      for (const signal of state.values) {
+        cachedState[signal.signal_id] = signal;
+      }
+      renderStateFromCache();
+      updateLastUpdateTime();
+    }
+  } catch (err) {
+    console.error("Failed to fetch initial state:", err);
+  }
+
+  // Kick off polling briefly to ensure fresh data after device switch
+  // (SSE only sends events when state changes, so static devices would show stale ages)
+  // After a few cycles, we rely on SSE for real-time updates
+  startPolling();
+  setTimeout(() => {
+    if (selectedDevice && 
+        selectedDevice.provider_id === providerId && 
+        selectedDevice.device_id === deviceId) {
+      stopPolling();
+    }
+  }, 3000); // Poll for 3 seconds, then stop
+
+  // Note: SSE stays connected globally - no need to reconnect on device switch
+  // Device-specific events are filtered client-side based on selectedDevice
+  // Note: Automation panels (mode, parameters, BT, events) are RUNTIME-GLOBAL,
+  // not device-specific. They control/display the entire automation system.
 }
 
 // Make handleExecute globally accessible for onclick handlers
@@ -642,6 +1086,9 @@ window.handleExecute = async function (functionId) {
     button.disabled = false;
   }
 };
+
+// Make updateParameterValue globally accessible for onclick handlers
+window.updateParameterValue = updateParameterValue;
 
 function togglePolling() {
   if (isPaused) {
@@ -792,22 +1239,42 @@ async function init() {
 
   // Set up event listeners
   elements.togglePolling.addEventListener("click", togglePolling);
+  elements.setModeButton.addEventListener("click", handleSetMode);
 
   // Check runtime status
   await fetchRuntimeStatus();
 
   // Load devices
+  let devices = [];
   try {
-    const devices = await fetchDevices();
+    devices = await fetchDevices();
     renderDeviceList(devices);
+    
+    // Auto-select sim_control if available
+    const simControl = devices.find(d => d.device_id === 'sim_control');
+    if (simControl) {
+      await selectDevice(simControl.provider_id, simControl.device_id);
+    }
   } catch (err) {
     console.error("Failed to load devices:", err);
     elements.deviceList.innerHTML =
       '<p class="placeholder">Failed to connect to runtime</p>';
   }
 
-  // Periodically check runtime status
+  // Periodically check runtime status and automation state
   setInterval(fetchRuntimeStatus, 5000);
+  setInterval(updateAutomationDisplay, 5000);
+
+  // Initial automation UI update
+  await updateAutomationDisplay();
+  if (automationEnabled) {
+    await refreshParameters();
+    await loadBehaviorTree();
+  }
+
+  // Start global SSE connection for automation events
+  // (will also handle device events once a device is selected)
+  connectSSE();
 }
 
 // Start the app

@@ -107,6 +107,13 @@ public:
      */
     BT::NodeStatus tick();
 
+    /**
+     * Get the path to the currently loaded BT file.
+     *
+     * @return Path to loaded BT XML file, or empty string if not loaded
+     */
+    const std::string& get_tree_path() const { return tree_path_; }
+
 private:
     /**
      * Tick loop thread function.

@@ -269,6 +269,23 @@ std::string HttpServer::format_sse_event(const events::Event &event) {
                 data["device_id"] = e.device_id;
                 data["available"] = e.available;
                 data["timestamp_ms"] = e.timestamp_ms;
+
+            } else if constexpr (std::is_same_v<T, events::ModeChangeEvent>) {
+                result = "event: mode_change\n";
+                result += "id: " + std::to_string(e.event_id) + "\n";
+
+                data["previous_mode"] = e.previous_mode;
+                data["new_mode"] = e.new_mode;
+                data["timestamp_ms"] = e.timestamp_ms;
+
+            } else if constexpr (std::is_same_v<T, events::ParameterChangeEvent>) {
+                result = "event: parameter_change\n";
+                result += "id: " + std::to_string(e.event_id) + "\n";
+
+                data["parameter_name"] = e.parameter_name;
+                data["old_value"] = e.old_value_str;
+                data["new_value"] = e.new_value_str;
+                data["timestamp_ms"] = e.timestamp_ms;
             }
 
             result += "data: " + data.dump() + "\n\n";

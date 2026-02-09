@@ -168,6 +168,27 @@ Update a runtime parameter (validated against constraints).
 
 ---
 
+### GET /v0/automation/tree
+
+Get the loaded behavior tree XML content.
+
+**Response:**
+
+```json
+{
+  "status": { "code": "OK", "message": "ok" },
+  "tree": "<root main_tree_to_execute=\"MainTree\">\n  <BehaviorTree ID=\"MainTree\">...</BehaviorTree>\n</root>"
+}
+```
+
+**Error Responses:**
+
+- `UNAVAILABLE` - Automation layer not enabled
+- `NOT_FOUND` - No behavior tree loaded
+- `INTERNAL` - Failed to read behavior tree file
+
+---
+
 ### GET /v0/devices
 
 List all discovered devices.

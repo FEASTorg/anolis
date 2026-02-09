@@ -39,6 +39,7 @@ class EventEmitter;
 namespace automation {
 class ModeManager;
 class ParameterManager;
+class BTRuntime;
 }  // namespace automation
 }  // namespace anolis
 
@@ -76,13 +77,15 @@ public:
      * @param event_emitter Event emitter for SSE streaming
      * @param mode_manager Mode manager for automation control (optional)
      * @param parameter_manager Parameter manager for runtime parameters (optional)
+     * @param bt_runtime Behavior tree runtime for automation (optional)
      */
     HttpServer(const runtime::HttpConfig &config, int polling_interval_ms, registry::DeviceRegistry &registry,
                state::StateCache &state_cache, control::CallRouter &call_router,
                provider::ProviderRegistry &provider_registry,
                std::shared_ptr<events::EventEmitter> event_emitter = nullptr,
                automation::ModeManager *mode_manager = nullptr,
-               automation::ParameterManager *parameter_manager = nullptr);
+               automation::ParameterManager *parameter_manager = nullptr,
+               automation::BTRuntime *bt_runtime = nullptr);
 
     ~HttpServer();
 
@@ -129,6 +132,7 @@ private:
     automation::ParameterManager *parameter_manager_;  // optional
     std::shared_ptr<events::EventEmitter> event_emitter_;
     automation::ModeManager *mode_manager_;  // optional
+    automation::BTRuntime *bt_runtime_;      // optional
 
     // SSE client tracking
     std::atomic<int> sse_client_count_{0};
@@ -153,6 +157,7 @@ private:
     void handle_post_mode(const httplib::Request &req, httplib::Response &res);
     void handle_get_parameters(const httplib::Request &req, httplib::Response &res);
     void handle_post_parameters(const httplib::Request &req, httplib::Response &res);
+    void handle_get_automation_tree(const httplib::Request &req, httplib::Response &res);
 
     // SSE handler
     void handle_get_events(const httplib::Request &req, httplib::Response &res);

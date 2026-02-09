@@ -22,7 +22,7 @@ HttpServer::HttpServer(const runtime::HttpConfig &config, int polling_interval_m
                        state::StateCache &state_cache, control::CallRouter &call_router,
                        provider::ProviderRegistry &provider_registry,
                        std::shared_ptr<events::EventEmitter> event_emitter, automation::ModeManager *mode_manager,
-                       automation::ParameterManager *parameter_manager)
+                       automation::ParameterManager *parameter_manager, automation::BTRuntime *bt_runtime)
     : config_(config),
       polling_interval_ms_(polling_interval_ms),
       registry_(registry),
@@ -31,7 +31,8 @@ HttpServer::HttpServer(const runtime::HttpConfig &config, int polling_interval_m
       provider_registry_(provider_registry),
       event_emitter_(std::move(event_emitter)),
       mode_manager_(mode_manager),
-      parameter_manager_(parameter_manager) {}
+      parameter_manager_(parameter_manager),
+      bt_runtime_(bt_runtime) {}
 
 HttpServer::~HttpServer() { stop(); }
 
@@ -246,6 +247,10 @@ void HttpServer::setup_routes() {
     server_->Post("/v0/parameters",
                   [this](const httplib::Request &req, httplib::Response &res) { handle_post_parameters(req, res); });
 
+    // GET /v0/automation/tree - Get loaded behavior tree
+    server_->Get("/v0/automation/tree",
+                 [this](const httplib::Request &req, httplib::Response &res) { handle_get_automation_tree(req, res); });
+
     // GET /v0/events - SSE event stream
     server_->Get("/v0/events",
                  [this](const httplib::Request &req, httplib::Response &res) { handle_get_events(req, res); });
@@ -261,6 +266,7 @@ void HttpServer::setup_routes() {
     LOG_INFO("[HTTP]   POST /v0/mode");
     LOG_INFO("[HTTP]   GET  /v0/parameters");
     LOG_INFO("[HTTP]   POST /v0/parameters");
+    LOG_INFO("[HTTP]   GET  /v0/automation/tree");
     LOG_INFO("[HTTP]   GET  /v0/events (SSE)");
 }
 

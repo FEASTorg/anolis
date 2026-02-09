@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Anolis Operator UI</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Anolis Operator UI</h1>
+      <div id="header-status">
+        <div id="connection-status">
+          <span class="label">Stream:</span>
+          <span id="connection-badge" class="badge unknown">Disconnected</span>
+        </div>
+        <div id="runtime-status">
+          <span class="label">Runtime:</span>
+          <span id="runtime-badge" class="badge unknown">Unknown</span>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <aside id="device-panel">
+        <h2>Devices</h2>
+        <div id="device-list">
+          <p class="placeholder">Loading...</p>
+        </div>
+      </aside>
+
+      <section id="detail-panel">
+        <div id="no-selection">
+          <p>Select a device from the list</p>
+        </div>
+
+        <div id="device-detail" class="hidden">
+          <h2 id="device-title">Device</h2>
+
+          <!-- RUNTIME-GLOBAL: The following automation sections control the entire runtime,
+               not individual devices. Mode, parameters, BT, and events apply system-wide. -->
+          <div id="automation-status" class="section hidden">
+            <h3>Automation Status <span style="font-size: 0.75em; font-weight: normal; color: #888;">(System-wide)</span></h3>
+            <div class="automation-grid">
+              <div class="automation-field">
+                <span class="label">Mode:</span>
+                <span id="automation-mode" class="badge unknown">--</span>
+              </div>
+              <div class="automation-field">
+                <span class="label">Policy:</span>
+                <span id="automation-policy">--</span>
+              </div>
+              <div class="automation-field">
+                <span class="label">BT File:</span>
+                <span id="automation-bt-file">--</span>
+              </div>
+              <div class="automation-field">
+                <span class="label">Last Tick:</span>
+                <span id="automation-last-tick">--</span>
+              </div>
+            </div>
+            <div class="automation-controls">
+              <label for="mode-selector">Set Mode:</label>
+              <select id="mode-selector">
+                <option value="MANUAL">MANUAL</option>
+                <option value="AUTO">AUTO</option>
+                <option value="IDLE">IDLE</option>
+              </select>
+              <button id="set-mode-button">Set Mode</button>
+              <span id="mode-feedback"></span>
+            </div>
+          </div>
+
+          <div id="parameters-section" class="section hidden">
+            <h3>Runtime Parameters <span style="font-size: 0.75em; font-weight: normal; color: #888;">(System-wide, not device-specific)</span></h3>
+            <div id="parameters-container">
+              <p class="placeholder">No parameters available</p>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-header">
+              <h3>State</h3>
+              <div class="polling-controls">
+                <span id="polling-status">Polling: 500ms</span>
+                <button id="toggle-polling">Pause</button>
+              </div>
+            </div>
+            <div id="state-container">
+              <table id="state-table">
+                <thead>
+                  <tr>
+                    <th>Signal</th>
+                    <th>Value</th>
+                    <th>Type</th>
+                    <th>Quality</th>
+                    <th>Age</th>
+                  </tr>
+                </thead>
+                <tbody id="state-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="section">
+            <h3>Functions</h3>
+            <div id="functions-container">
+              <p class="placeholder">No functions available</p>
+            </div>
+          </div>
+
+          <div class="section">
+            <h3>Capabilities</h3>
+            <details>
+              <summary>View raw capabilities</summary>
+              <pre id="capabilities-raw"></pre>
+            </details>
+          </div>
+
+          <div id="bt-visualization" class="section hidden">
+            <h3>Behavior Tree <span style="font-size: 0.75em; font-weight: normal; color: #888;">(System-wide)</span></h3>
+            <div id="bt-container">
+              <pre id="bt-tree-view"></pre>
+            </div>
+          </div>
+
+          <div id="event-trace" class="section hidden">
+            <h3>Event Trace <span style="font-size: 0.75em; font-weight: normal; color: #888;">(System-wide automation events)</span></h3>
+            <div id="event-trace-container">
+              <div id="event-list"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div id="last-error" class="hidden"></div>
+      <div id="status-bar">
+        <span id="last-update">Last update: --</span>
+      </div>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>

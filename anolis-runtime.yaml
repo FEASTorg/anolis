@@ -20,7 +20,7 @@ providers:
     # Windows Release: ../anolis-provider-sim/build/Release/anolis-provider-sim.exe
     # Windows Debug:   ../anolis-provider-sim/build/Debug/anolis-provider-sim.exe
     # Linux/macOS:     ../anolis-provider-sim/build/anolis-provider-sim
-    command: ../anolis-provider-sim/build/Release/anolis-provider-sim
+    command: ../anolis-provider-sim/build/Release/anolis-provider-sim.exe
     args: []
     timeout_ms: 5000
     # restart_policy:

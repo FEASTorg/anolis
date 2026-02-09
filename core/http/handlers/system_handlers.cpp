@@ -1,5 +1,7 @@
 #include <chrono>
+#include <fstream>
 
+#include "../../automation/bt_runtime.hpp"
 #include "../../automation/mode_manager.hpp"
 #include "../../automation/parameter_manager.hpp"
 #include "../../logging/logger.hpp"
@@ -288,6 +290,43 @@ void HttpServer::handle_post_parameters(const httplib::Request &req, httplib::Re
 
     nlohmann::json response = {{"status", make_status(StatusCode::OK)},
                                {"parameter", {{"name", param_name}, {"value", value_json}}}};
+
+    send_json(res, StatusCode::OK, response);
+}
+
+//=============================================================================
+// GET /v0/automation/tree - Get loaded behavior tree XML
+//=============================================================================
+void HttpServer::handle_get_automation_tree(const httplib::Request &req, httplib::Response &res) {
+    // If automation not enabled or bt_runtime not available
+    if (bt_runtime_ == nullptr) {
+        nlohmann::json response = make_error_response(StatusCode::UNAVAILABLE, "Automation layer not enabled");
+        send_json(res, StatusCode::UNAVAILABLE, response);
+        return;
+    }
+
+    // Get the tree path
+    const std::string &tree_path = bt_runtime_->get_tree_path();
+    if (tree_path.empty()) {
+        nlohmann::json response = make_error_response(StatusCode::NOT_FOUND, "No behavior tree loaded");
+        send_json(res, StatusCode::NOT_FOUND, response);
+        return;
+    }
+
+    // Read the file
+    std::ifstream file(tree_path);
+    if (!file.is_open()) {
+        std::string error = "Failed to read behavior tree file: " + tree_path;
+        nlohmann::json response = make_error_response(StatusCode::INTERNAL, error);
+        send_json(res, StatusCode::INTERNAL, response);
+        return;
+    }
+
+    std::string xml_content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    file.close();
+
+    // Return XML content
+    nlohmann::json response = {{"status", make_status(StatusCode::OK)}, {"tree", xml_content}};
 
     send_json(res, StatusCode::OK, response);
 }

@@ -15,7 +15,23 @@ cd /path/to/anolis/build/core/Release
 
 ### 2. Open the UI
 
-#### Option A: Direct file open
+#### Option A: Helper script (recommended)
+
+_Simplest method - uses Python HTTP server._
+
+```bash
+# Windows
+cd tools/operator-ui
+.\serve.ps1
+
+# Linux/macOS
+cd tools/operator-ui
+./serve.sh
+
+# Then open http://localhost:3000
+```
+
+#### Option B: Direct file open
 
 _May have CORS issues with some browsers._
 
@@ -30,9 +46,9 @@ xdg-open tools/operator-ui/index.html
 start tools/operator-ui/index.html
 ```
 
-#### Option B: Simple HTTP server
+#### Option C: Manual HTTP server
 
-_This is the recommended method to avoid CORS issues._
+_Same as Option A but manual._
 
 ```bash
 # Python 3
@@ -41,7 +57,7 @@ python -m http.server 3000 -d tools/operator-ui
 # Then open http://localhost:3000
 ```
 
-#### Option C: VS Code Live Server
+#### Option D: VS Code Live Server
 
 1. Install the "Live Server" extension
 2. Right-click `index.html` → "Open with Live Server"
@@ -68,10 +84,41 @@ python -m http.server 3000 -d tools/operator-ui
 - Executes via `POST /v0/call`
 - Shows success/error feedback
 
+### Automation Panel (when enabled)
+
+**Automation Status:**
+
+- Current mode display (MANUAL, AUTO, IDLE, FAULT)
+- Active policy name
+- Loaded behavior tree file
+- Last tick timestamp
+- Mode selector dropdown to switch modes
+
+**Parameters Panel:**
+
+- Live parameter list with current values
+- Type-aware update controls (int64, double, bool, string)
+- Inline validation and feedback
+- Real-time updates via SSE events
+
+**Behavior Tree Visualization:**
+
+- Text outline view of loaded BT structure
+- Shows node hierarchy with indentation
+- Fetched from `/v0/automation/tree` endpoint
+
+**Event Trace:**
+
+- Real-time event stream (mode changes, parameter updates, provider events)
+- Ring buffer (last 100 events)
+- Color-coded by event type
+- Auto-scrolling to most recent
+
 ### Runtime Status
 
 - Header shows runtime connection status
 - Green = connected, Red = unavailable
+- Real-time updates via Server-Sent Events (SSE)
 
 ## Configuration
 
@@ -93,7 +140,7 @@ This UI follows strict constraints by design:
 | Capability-driven only | No device-type assumptions    |
 | No charts/graphs       | Grafana territory             |
 | No auth                | Future Work                   |
-| No streaming           | Future Work (SSE/WebSocket)   |
+| SSE for events         | Real-time updates             |
 
 The UI is a **mirror** of the HTTP API, not a new abstraction. It must not introduce new semantics.
 
@@ -128,10 +175,16 @@ tools/operator-ui/
 
 ## API Endpoints Used
 
-| Endpoint                               | Purpose                  |
-| -------------------------------------- | ------------------------ |
-| `GET /v0/runtime/status`               | Connection health check  |
-| `GET /v0/devices`                      | Device discovery         |
-| `GET /v0/devices/{p}/{d}/capabilities` | Capability introspection |
-| `GET /v0/state/{p}/{d}`                | Live state polling       |
-| `POST /v0/call`                        | Function invocation      |
+| Endpoint                               | Purpose                      |
+| -------------------------------------- | ---------------------------- |
+| `GET /v0/runtime/status`               | Connection health check      |
+| `GET /v0/devices`                      | Device discovery             |
+| `GET /v0/devices/{p}/{d}/capabilities` | Capability introspection     |
+| `GET /v0/state/{p}/{d}`                | Live state polling           |
+| `POST /v0/call`                        | Function invocation          |
+| `GET /v0/mode`                         | Get current automation mode  |
+| `POST /v0/mode`                        | Set automation mode          |
+| `GET /v0/parameters`                   | Get runtime parameters       |
+| `POST /v0/parameters`                  | Update runtime parameter     |
+| `GET /v0/automation/tree`              | Get behavior tree XML        |
+| `GET /v0/events`                       | SSE event stream (real-time) |

@@ -249,7 +249,8 @@ bool Runtime::init_http(std::string &error) {
             config_.http, config_.polling.interval_ms, *registry_, *state_cache_, *call_router_, provider_registry_,
             event_emitter_,           // Pass event emitter for SSE
             mode_manager_.get(),      // Pass mode manager (nullptr if automation disabled)
-            parameter_manager_.get()  // Pass parameter manager (nullptr if automation disabled)
+            parameter_manager_.get(), // Pass parameter manager (nullptr if automation disabled)
+            bt_runtime_.get()         // Pass bt_runtime (nullptr if automation disabled)
         );
 
         std::string http_error;
