@@ -247,10 +247,10 @@ bool Runtime::init_http(std::string &error) {
         LOG_INFO("[Runtime] Creating HTTP server");
         http_server_ = std::make_unique<http::HttpServer>(
             config_.http, config_.polling.interval_ms, *registry_, *state_cache_, *call_router_, provider_registry_,
-            event_emitter_,           // Pass event emitter for SSE
-            mode_manager_.get(),      // Pass mode manager (nullptr if automation disabled)
-            parameter_manager_.get(), // Pass parameter manager (nullptr if automation disabled)
-            bt_runtime_.get()         // Pass bt_runtime (nullptr if automation disabled)
+            event_emitter_,            // Pass event emitter for SSE
+            mode_manager_.get(),       // Pass mode manager (nullptr if automation disabled)
+            parameter_manager_.get(),  // Pass parameter manager (nullptr if automation disabled)
+            bt_runtime_.get()          // Pass bt_runtime (nullptr if automation disabled)
         );
 
         std::string http_error;
@@ -433,11 +433,12 @@ bool Runtime::restart_provider(const std::string &provider_id, const ProviderCon
     }
 
     // Check timeout after start()
-    auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::now() - restart_start_time).count();
+    auto elapsed_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - restart_start_time)
+            .count();
     if (elapsed_ms >= timeout_ms) {
-        LOG_ERROR("[Runtime] Restart timeout exceeded for provider '" << provider_id 
-                  << "' after start() (" << elapsed_ms << "ms >= " << timeout_ms << "ms)");
+        LOG_ERROR("[Runtime] Restart timeout exceeded for provider '" << provider_id << "' after start() ("
+                                                                      << elapsed_ms << "ms >= " << timeout_ms << "ms)");
         return false;
     }
 
@@ -450,11 +451,12 @@ bool Runtime::restart_provider(const std::string &provider_id, const ProviderCon
     }
 
     // Check timeout after discover_provider()
-    elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::now() - restart_start_time).count();
+    elapsed_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - restart_start_time)
+            .count();
     if (elapsed_ms >= timeout_ms) {
-        LOG_ERROR("[Runtime] Restart timeout exceeded for provider '" << provider_id 
-                  << "' after discovery (" << elapsed_ms << "ms >= " << timeout_ms << "ms)");
+        LOG_ERROR("[Runtime] Restart timeout exceeded for provider '" << provider_id << "' after discovery ("
+                                                                      << elapsed_ms << "ms >= " << timeout_ms << "ms)");
         return false;
     }
 

@@ -84,8 +84,7 @@ public:
                provider::ProviderRegistry &provider_registry,
                std::shared_ptr<events::EventEmitter> event_emitter = nullptr,
                automation::ModeManager *mode_manager = nullptr,
-               automation::ParameterManager *parameter_manager = nullptr,
-               automation::BTRuntime *bt_runtime = nullptr);
+               automation::ParameterManager *parameter_manager = nullptr, automation::BTRuntime *bt_runtime = nullptr);
 
     ~HttpServer();
 
