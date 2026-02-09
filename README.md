@@ -200,7 +200,9 @@ python tests/scenarios/run_scenarios.py --start-only
 python tests/scenarios/run_scenarios.py --stop
 ```
 
-See [tests/scenarios/README.md](tests/scenarios/README.md) for full scenario documentation and [tests/scenarios/OPERATOR_WORKFLOW.md](tests/scenarios/OPERATOR_WORKFLOW.md) for step-by-step manual validation guide.
+See [tests/scenarios/README.md](tests/scenarios/README.md) for full scenario documentation
+
+See [tests/scenarios/OPERATOR_WORKFLOW.md](tests/scenarios/OPERATOR_WORKFLOW.md) for step-by-step manual validation guide.
 
 ---
 
