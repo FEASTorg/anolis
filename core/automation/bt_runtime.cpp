@@ -165,7 +165,7 @@ void BTRuntime::tick_loop() {
                     if (ticks_since_progress_ == 1 && event_emitter_) {
                         events::BTErrorEvent error_event{next_event_id_.fetch_add(1),
                                                          "",  // Node name not available without deep BT introspection
-                                                         "BT returned FAILURE", last_tick_ms_};
+                                                         "BT returned FAILURE", static_cast<int64_t>(last_tick_ms_)};
                         event_emitter_->emit(error_event);
                     }
                 }

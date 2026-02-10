@@ -130,7 +130,7 @@ class ScenarioRunner:
 
         # Create temporary config file
         config = {
-            "runtime": {"mode": "MANUAL"},
+            "runtime": {},
             "http": {"enabled": True, "port": self.port, "bind": "127.0.0.1"},
             "providers": [
                 {

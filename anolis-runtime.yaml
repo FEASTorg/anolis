@@ -2,7 +2,9 @@
 # HTTP Gateway + Basic provider config
 
 runtime:
-  mode: IDLE # IDLE | MANUAL | AUTO | FAULT
+  name: "anolis-main"           # Optional: identify this runtime instance
+  shutdown_timeout_ms: 2000     # Provider graceful shutdown timeout (500-30000ms)
+  startup_timeout_ms: 30000     # Overall startup timeout (5000-300000ms)
 
 http:
   enabled: true

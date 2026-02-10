@@ -59,7 +59,7 @@ def test_missing_config_required(runtime_path: Path, provider_path: Path) -> boo
 
     # Create runtime config WITHOUT --config argument for provider
     config = {
-        "runtime": {"mode": "MANUAL"},
+        "runtime": {},
         "http": {"enabled": True, "bind": "127.0.0.1", "port": 8080},
         "providers": [
             {
@@ -120,7 +120,7 @@ def test_default_config_loads(runtime_path: Path, provider_path: Path) -> bool:
     print(f"  Using config: {config_path.name}")
 
     config = {
-        "runtime": {"mode": "MANUAL"},
+        "runtime": {},
         "http": {"enabled": True, "bind": "127.0.0.1", "port": 8080},
         "providers": [
             {
@@ -195,7 +195,7 @@ def test_multi_device_config(runtime_path: Path, provider_path: Path) -> bool:
     print(f"  Using config: {config_path.name}")
 
     config = {
-        "runtime": {"mode": "MANUAL"},
+        "runtime": {},
         "http": {"enabled": True, "bind": "127.0.0.1", "port": 8080},
         "providers": [
             {
@@ -276,7 +276,7 @@ def test_minimal_config(runtime_path: Path, provider_path: Path) -> bool:
     print(f"  Using config: {config_path.name}")
 
     config = {
-        "runtime": {"mode": "MANUAL"},
+        "runtime": {},
         "http": {"enabled": True, "bind": "127.0.0.1", "port": 8080},
         "providers": [
             {
@@ -343,7 +343,7 @@ def test_invalid_yaml_handling(runtime_path: Path, provider_path: Path) -> bool:
         print(f"  Using invalid config: {config_path.name}")
 
         config = {
-            "runtime": {"mode": "MANUAL"},
+            "runtime": {},
             "http": {"enabled": True, "bind": "127.0.0.1", "port": 8080},
             "providers": [
                 {
@@ -399,7 +399,7 @@ def test_unknown_device_type(runtime_path: Path, provider_path: Path) -> bool:
         print(f"  Using config with unknown type: {config_path.name}")
 
         config = {
-            "runtime": {"mode": "MANUAL"},
+            "runtime": {},
             "http": {"enabled": True, "bind": "127.0.0.1", "port": 8080},
             "providers": [
                 {

@@ -16,7 +16,7 @@ namespace provider {
 class ProviderProcess {
 public:
     ProviderProcess(const std::string &provider_id, const std::string &executable_path,
-                    const std::vector<std::string> &args = {});
+                    const std::vector<std::string> &args = {}, int shutdown_timeout_ms = 2000);
     ~ProviderProcess();
 
     // Delete copy/move
@@ -47,6 +47,7 @@ private:
     std::string executable_path_;
     std::vector<std::string> args_;
     std::string error_;
+    int shutdown_timeout_ms_;
 
     FramedStdioClient client_;
 

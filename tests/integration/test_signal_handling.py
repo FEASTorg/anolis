@@ -67,7 +67,7 @@ def test_signal_handling(
 
     # Create config dict
     config = {
-        "runtime": {"mode": "MANUAL"},
+        "runtime": {},
         "http": {"enabled": True, "bind": "127.0.0.1", "port": 8765},
         "providers": [
             {

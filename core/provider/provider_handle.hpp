@@ -17,7 +17,7 @@ namespace provider {
 class ProviderHandle : public IProviderHandle {
 public:
     ProviderHandle(const std::string &provider_id, const std::string &executable_path,
-                   const std::vector<std::string> &args = {}, int timeout_ms = 5000);
+                   const std::vector<std::string> &args = {}, int timeout_ms = 5000, int shutdown_timeout_ms = 2000);
     ~ProviderHandle() override = default;
 
     // Delete copy/move
@@ -59,7 +59,8 @@ private:
     std::mutex mutex_;
 
     // Timeout for operations
-    int timeout_ms_;
+    int timeout_ms_;           // ADPP operation timeout
+    int shutdown_timeout_ms_;  // Provider shutdown timeout
 
     // Send request and wait for response
     bool send_request(const anolis::deviceprovider::v0::Request &request,

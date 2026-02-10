@@ -38,7 +38,6 @@ protected:
 TEST_F(ConfigTest, ValidMinimalConfig) {
     std::string config_content = R"(
 runtime:
-  mode: MANUAL
 
 http:
   enabled: true
@@ -62,7 +61,7 @@ logging:
     EXPECT_EQ(config.providers[0].id, "test");
 }
 
-TEST_F(ConfigTest, ValidModeMANUAL) {
+TEST_F(ConfigTest, RuntimeModeRejected) {
     std::string config_content = R"(
 runtime:
   mode: MANUAL
@@ -78,41 +77,18 @@ logging:
   level: info
 )";
 
-    std::string config_path = create_config_file("mode_manual.yaml", config_content);
+    std::string config_path = create_config_file("mode_rejected.yaml", config_content);
     RuntimeConfig config;
     std::string error;
 
-    ASSERT_TRUE(load_config(config_path, config, error)) << "Error: " << error;
-    // Mode validation happens in validate_config, not load_config
-}
-
-TEST_F(ConfigTest, ValidModeAUTO) {
-    std::string config_content = R"(
-runtime:
-  mode: AUTO
-
-http:
-  enabled: false
-
-providers:
-  - id: test
-    command: /path/to/provider
-
-logging:
-  level: info
-)";
-
-    std::string config_path = create_config_file("mode_auto.yaml", config_content);
-    RuntimeConfig config;
-    std::string error;
-
-    ASSERT_TRUE(load_config(config_path, config, error)) << "Error: " << error;
+    EXPECT_FALSE(load_config(config_path, config, error));
+    EXPECT_FALSE(error.empty());
+    EXPECT_NE(error.find("no longer configurable"), std::string::npos);
 }
 
 TEST_F(ConfigTest, InvalidLogLevel) {
     std::string config_content = R"(
 runtime:
-  mode: MANUAL
 
 http:
   enabled: false
@@ -137,7 +113,6 @@ logging:
 TEST_F(ConfigTest, NestedTelemetryStructure) {
     std::string config_content = R"(
 runtime:
-  mode: MANUAL
 
 http:
   enabled: false
@@ -177,7 +152,6 @@ TEST_F(ConfigTest, UnknownKeysDoNotFailLoad) {
     // Unknown keys should generate warnings but not prevent loading
     std::string config_content = R"(
 runtime:
-  mode: MANUAL
 
 http:
   enabled: false
@@ -205,7 +179,6 @@ another_unknown: 123
 TEST_F(ConfigTest, MissingProvidersSection) {
     std::string config_content = R"(
 runtime:
-  mode: MANUAL
 
 http:
   enabled: false
@@ -232,7 +205,6 @@ logging:
 TEST_F(ConfigTest, HTTPBindAddressConfiguration) {
     std::string config_content = R"(
 runtime:
-  mode: MANUAL
 
 http:
   enabled: true
@@ -259,7 +231,6 @@ logging:
 TEST_F(ConfigTest, AutomationConfiguration) {
     std::string config_content = R"(
 runtime:
-  mode: MANUAL
 
 http:
   enabled: false
@@ -302,7 +273,6 @@ TEST_F(ConfigTest, ValidLogLevels) {
     for (const auto& level : valid_levels) {
         std::string config_content = R"(
 runtime:
-  mode: MANUAL
 
 http:
   enabled: false
@@ -336,7 +306,6 @@ TEST_F(ConfigTest, FileNotFound) {
 TEST_F(ConfigTest, CorsWildcardWithCredentialsRejected) {
     std::string config_content = R"(
 runtime:
-  mode: MANUAL
 
 http:
   enabled: true
@@ -365,7 +334,6 @@ logging:
 TEST_F(ConfigTest, CorsWildcardWithoutCredentialsAllowed) {
     std::string config_content = R"(
 runtime:
-  mode: MANUAL
 
 http:
   enabled: true
@@ -394,7 +362,6 @@ logging:
 TEST_F(ConfigTest, CorsSpecificOriginWithCredentialsAllowed) {
     std::string config_content = R"(
 runtime:
-  mode: MANUAL
 
 http:
   enabled: true
@@ -424,7 +391,6 @@ logging:
 TEST_F(ConfigTest, RestartPolicyEnabled) {
     std::string config_content = R"(
 runtime:
-  mode: MANUAL
 
 http:
   enabled: false
@@ -462,7 +428,6 @@ logging:
 TEST_F(ConfigTest, RestartPolicyDefaults) {
     std::string config_content = R"(
 runtime:
-  mode: MANUAL
 
 http:
   enabled: false
@@ -492,7 +457,6 @@ logging:
 TEST_F(ConfigTest, RestartPolicyBackoffMismatch) {
     std::string config_content = R"(
 runtime:
-  mode: MANUAL
 
 http:
   enabled: false
@@ -523,7 +487,6 @@ logging:
 TEST_F(ConfigTest, RestartPolicyNegativeBackoff) {
     std::string config_content = R"(
 runtime:
-  mode: MANUAL
 
 http:
   enabled: false
@@ -554,7 +517,6 @@ logging:
 TEST_F(ConfigTest, RestartPolicyInvalidMaxAttempts) {
     std::string config_content = R"(
 runtime:
-  mode: MANUAL
 
 http:
   enabled: false
@@ -585,7 +547,7 @@ logging:
 TEST_F(ConfigTest, InvalidRuntimeMode) {
     std::string config_content = R"(
 runtime:
-  mode: INVALID_MODE
+  mode: MANUAL
 
 http:
   enabled: false
@@ -604,8 +566,7 @@ logging:
 
     EXPECT_FALSE(load_config(config_path, config, error));
     EXPECT_FALSE(error.empty());
-    EXPECT_NE(error.find("Invalid runtime mode"), std::string::npos);
-    EXPECT_NE(error.find("INVALID_MODE"), std::string::npos);
+    EXPECT_NE(error.find("no longer configurable"), std::string::npos);
 }
 
 TEST_F(ConfigTest, InvalidRuntimeModeCaseSensitive) {
@@ -630,12 +591,11 @@ logging:
 
     EXPECT_FALSE(load_config(config_path, config, error));
     EXPECT_FALSE(error.empty());
-    EXPECT_NE(error.find("Invalid runtime mode"), std::string::npos);
+    EXPECT_NE(error.find("no longer configurable"), std::string::npos);
 }
 TEST_F(ConfigTest, DuplicateProviderIDs) {
     std::string config_content = R"(
 runtime:
-  mode: MANUAL
 
 http:
   enabled: false
@@ -661,7 +621,6 @@ logging:
 TEST_F(ConfigTest, IdempotentParsing) {
     std::string config_content = R"(
 runtime:
-  mode: MANUAL
 
 http:
   enabled: false
@@ -704,7 +663,6 @@ logging:
     // Third load with different content
     std::string config_content2 = R"(
 runtime:
-  mode: AUTO
 
 http:
   enabled: false
@@ -736,7 +694,6 @@ logging:
 TEST_F(ConfigTest, MissingProviderCommand) {
     std::string config_content = R"(
 runtime:
-  mode: MANUAL
 
 http:
   enabled: false
@@ -761,7 +718,6 @@ logging:
 TEST_F(ConfigTest, PollingIntervalTooSmall) {
     std::string config_content = R"(
 runtime:
-  mode: MANUAL
 
 http:
   enabled: false
@@ -788,7 +744,6 @@ logging:
 TEST_F(ConfigTest, RestartPolicyShortTimeout) {
     std::string config_content = R"(
 runtime:
-  mode: MANUAL
 
 http:
   enabled: false

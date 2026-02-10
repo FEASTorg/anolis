@@ -18,7 +18,7 @@ This guide establishes safety procedures for operating Anolis-controlled hardwar
 **Goal**: Safely bring system from power-on to automated operation
 
 1. **System Initialization** (IDLE mode)
-   - Runtime process starts in IDLE mode
+   - Runtime process starts in IDLE mode (enforced at startup, not configurable via `anolis-runtime.yaml`)
    - Providers initialize with safe device defaults (relays off, motors stopped, heaters disabled)
    - Device discovery runs (capabilities advertised)
    - **Control operations blocked** (safety interlock active)

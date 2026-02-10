@@ -20,10 +20,11 @@ namespace anolis {
 namespace provider {
 
 ProviderProcess::ProviderProcess(const std::string &provider_id, const std::string &executable_path,
-                                 const std::vector<std::string> &args)
+                                 const std::vector<std::string> &args, int shutdown_timeout_ms)
     : provider_id_(provider_id),
       executable_path_(executable_path),
-      args_(args)
+      args_(args),
+      shutdown_timeout_ms_(shutdown_timeout_ms)
 #ifdef _WIN32
       ,
       process_handle_(nullptr),
@@ -247,8 +248,8 @@ void ProviderProcess::shutdown() {
     // 1. Send EOF
     client_.close_stdin();
 
-    // 2. Wait with timeout (2 seconds)
-    bool exited = wait_for_exit(2000);
+    // 2. Wait with configurable timeout
+    bool exited = wait_for_exit(shutdown_timeout_ms_);
 
     if (exited) {
         LOG_INFO("[" << provider_id_ << "] Clean shutdown");

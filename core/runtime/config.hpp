@@ -34,6 +34,13 @@ struct LoggingConfig {
     std::string level = "info";  // debug, info, warn, error
 };
 
+// Runtime section configuration (runtime: in YAML)
+struct RuntimeModeConfig {
+    std::string name;                // Instance identifier (optional, for multi-runtime deployments)
+    int shutdown_timeout_ms = 2000;  // Provider graceful shutdown timeout (500-30000ms)
+    int startup_timeout_ms = 30000;  // Overall startup timeout for fail-fast (5000-300000ms)
+};
+
 struct HttpConfig {
     bool enabled = true;                                 // HTTP server enabled
     std::string bind = "127.0.0.1";                      // Bind address
@@ -41,10 +48,6 @@ struct HttpConfig {
     std::vector<std::string> cors_allowed_origins{"*"};  // CORS allowlist ("*" = allow all)
     bool cors_allow_credentials = false;                 // Whether to emit Access-Control-Allow-Credentials
     int thread_pool_size = 40;                           // Worker thread pool size
-};
-
-struct RuntimeModeConfig {
-    automation::RuntimeMode mode = automation::RuntimeMode::IDLE;  // Default mode: safe startup
 };
 
 struct TelemetryConfig {
@@ -94,7 +97,7 @@ struct AutomationConfig {
 };
 
 struct RuntimeConfig {
-    RuntimeModeConfig runtime;
+    RuntimeModeConfig runtime;  // Runtime section (IDLE mode hardcoded, not configurable)
     HttpConfig http;
     std::vector<ProviderConfig> providers;
     PollingConfig polling;

@@ -10,8 +10,11 @@ namespace anolis {
 namespace provider {
 
 ProviderHandle::ProviderHandle(const std::string &provider_id, const std::string &executable_path,
-                               const std::vector<std::string> &args, int timeout_ms)
-    : process_(provider_id, executable_path, args), next_request_id_(1), timeout_ms_(timeout_ms) {}
+                               const std::vector<std::string> &args, int timeout_ms, int shutdown_timeout_ms)
+    : process_(provider_id, executable_path, args, shutdown_timeout_ms),
+      next_request_id_(1),
+      timeout_ms_(timeout_ms),
+      shutdown_timeout_ms_(shutdown_timeout_ms) {}
 
 bool ProviderHandle::start() {
     LOG_INFO("[" << process_.provider_id() << "] Starting provider");

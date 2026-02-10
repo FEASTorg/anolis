@@ -11,7 +11,9 @@
 #   - Navigate to Dashboards → Signal History or Device Health
 
 runtime:
-  mode: IDLE
+  name: "anolis-telemetry"      # Instance identifier
+  shutdown_timeout_ms: 2000     # Provider graceful shutdown timeout (500-30000ms)
+  startup_timeout_ms: 30000     # Overall startup timeout (5000-300000ms)
 
 http:
   enabled: true

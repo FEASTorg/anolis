@@ -351,8 +351,7 @@ class RuntimeFixture:
         fixture_config_str = str(fixture_config).replace("\\", "/")
 
         config_content = f"""
-runtime:
-  mode: MANUAL
+runtime: {{}}
 
 http:
   enabled: true

@@ -36,6 +36,16 @@ std::string gating_policy_to_string(GatingPolicy policy) {
 }
 
 bool validate_config(const RuntimeConfig &config, std::string &error) {
+    // Validate runtime parameters
+    if (config.runtime.shutdown_timeout_ms < 500 || config.runtime.shutdown_timeout_ms > 30000) {
+        error = "runtime.shutdown_timeout_ms must be between 500 and 30000 (0.5s - 30s)";
+        return false;
+    }
+    if (config.runtime.startup_timeout_ms < 5000 || config.runtime.startup_timeout_ms > 300000) {
+        error = "runtime.startup_timeout_ms must be between 5000 and 300000 (5s - 5min)";
+        return false;
+    }
+
     // Validate HTTP settings
     if (config.http.enabled) {
         if (config.http.port < 1 || config.http.port > 65535) {
@@ -186,16 +196,24 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
             }
         }
 
-        // Load runtime mode config
+        // Load runtime params
         if (yaml["runtime"]) {
+            if (yaml["runtime"]["name"]) {
+                config.runtime.name = yaml["runtime"]["name"].as<std::string>();
+            }
+            if (yaml["runtime"]["shutdown_timeout_ms"]) {
+                config.runtime.shutdown_timeout_ms = yaml["runtime"]["shutdown_timeout_ms"].as<int>();
+            }
+            if (yaml["runtime"]["startup_timeout_ms"]) {
+                config.runtime.startup_timeout_ms = yaml["runtime"]["startup_timeout_ms"].as<int>();
+            }
+
+            // Reject configs with deprecated 'mode' field
             if (yaml["runtime"]["mode"]) {
-                auto mode_str = yaml["runtime"]["mode"].as<std::string>();
-                auto mode = automation::string_to_mode(mode_str);
-                if (!mode) {
-                    error = "Invalid runtime mode '" + mode_str + "': must be MANUAL, AUTO, IDLE, or FAULT";
-                    return false;
-                }
-                config.runtime.mode = *mode;
+                error =
+                    "runtime.mode is no longer configurable. IDLE mode is enforced at startup. "
+                    "Use HTTP POST /v0/mode to transition: IDLE -> MANUAL -> AUTO";
+                return false;
             }
         }
 
@@ -435,7 +453,10 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
         }
 
         LOG_INFO("[Config] Loaded " << config.providers.size() << " provider(s)");
-        LOG_INFO("[Config] Runtime mode: " << automation::mode_to_string(config.runtime.mode));
+
+        if (!config.runtime.name.empty()) {
+            LOG_INFO("[Config] Runtime name: " << config.runtime.name);
+        }
 
         std::stringstream http_msg;
         http_msg << "[Config] HTTP: " << (config.http.enabled ? "enabled" : "disabled");

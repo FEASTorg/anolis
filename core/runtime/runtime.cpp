@@ -82,7 +82,8 @@ bool Runtime::init_providers(std::string &error) {
         LOG_DEBUG("[Runtime]   Command: " << provider_config.command);
 
         auto provider = std::make_shared<provider::ProviderHandle>(provider_config.id, provider_config.command,
-                                                                   provider_config.args, provider_config.timeout_ms);
+                                                                   provider_config.args, provider_config.timeout_ms,
+                                                                   config_.runtime.shutdown_timeout_ms);
 
         if (!provider->start()) {
             error = "Failed to start provider '" + provider_config.id + "': " + provider->last_error();
@@ -110,8 +111,8 @@ bool Runtime::init_providers(std::string &error) {
 bool Runtime::init_automation(std::string &error) {
     // Create ModeManager and wire to CallRouter if automation enabled
     if (config_.automation.enabled) {
-        auto initial_mode = config_.runtime.mode;
-        mode_manager_ = std::make_unique<automation::ModeManager>(initial_mode);
+        // IDLE mode is enforced at startup (not configurable)
+        mode_manager_ = std::make_unique<automation::ModeManager>(automation::RuntimeMode::IDLE);
 
         std::string policy_str =
             (config_.automation.manual_gating_policy == GatingPolicy::BLOCK) ? "BLOCK" : "OVERRIDE";
@@ -429,8 +430,9 @@ bool Runtime::restart_provider(const std::string &provider_id, const ProviderCon
     LOG_DEBUG("[Runtime]   Command: " << provider_config.command);
 
     // Create new provider instance
-    auto provider = std::make_shared<provider::ProviderHandle>(provider_id, provider_config.command,
-                                                               provider_config.args, provider_config.timeout_ms);
+    auto provider =
+        std::make_shared<provider::ProviderHandle>(provider_id, provider_config.command, provider_config.args,
+                                                   provider_config.timeout_ms, config_.runtime.shutdown_timeout_ms);
 
     if (!provider->start()) {
         LOG_ERROR("[Runtime] Failed to start provider '" << provider_id << "': " << provider->last_error());

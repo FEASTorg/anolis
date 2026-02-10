@@ -11,7 +11,9 @@ This document defines the canonical YAML configuration schema for Anolis Runtime
 
 ```yaml
 runtime:
-  mode: <string>
+  name: <string>
+  shutdown_timeout_ms: <int>
+  startup_timeout_ms: <int>
 
 http:
   enabled: <bool>
@@ -61,21 +63,56 @@ automation:
 
 ## Section: `runtime`
 
-**Required:** Yes
+**Required:** No (all fields optional with defaults)
 
-### `runtime.mode`
+**Note:** Runtime mode is **enforced as IDLE at startup** (not configurable).
+Use HTTP `POST /v0/mode` to transition to MANUAL or AUTO after startup.
+
+### `runtime.name`
 
 - **Type:** `string`
 - **Required:** No
-- **Default:** `IDLE`
-- **Valid Values:** `IDLE`, `MANUAL`, `AUTO`, `FAULT`
-- **Description:** Initial runtime mode. Defaults to IDLE for safe startup (control operations blocked, read-only allowed).
+- **Default:** `""` (empty string)
+- **Description:** Instance identifier for multi-runtime deployments. Used in logs and telemetry to disambiguate runtime instances.
 
 **Example:**
 
 ```yaml
 runtime:
-  mode: IDLE
+  name: "anolis-main"
+```
+
+### `runtime.shutdown_timeout_ms`
+
+- **Type:** `int`
+- **Required:** No
+- **Default:** `2000`
+- **Min:** `500`
+- **Max:** `30000`
+- **Description:** Provider graceful shutdown timeout in milliseconds. Hardware providers with slow power-down sequences may need longer timeout.
+
+**Example:**
+
+```yaml
+runtime:
+  shutdown_timeout_ms: 5000 # 5 seconds for hardware with slow shutdown
+```
+
+### `runtime.startup_timeout_ms`
+
+- **Type:** `int`
+- **Required:** No
+- **Default:** `30000`
+- **Min:** `5000`
+- **Max:** `300000`
+- **Description:** Overall startup timeout in milliseconds for fail-fast behavior. CI/testing needs predictable failures;
+  different hardware has different startup times.
+
+**Example:**
+
+```yaml
+runtime:
+  startup_timeout_ms: 60000 # 60 seconds for slow hardware initialization
 ```
 
 ---

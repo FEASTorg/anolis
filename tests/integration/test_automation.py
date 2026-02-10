@@ -80,7 +80,7 @@ class AutomationTester:
 
         # Create config dict for RuntimeFixture
         config = {
-            "runtime": {"mode": "MANUAL"},
+            "runtime": {},
             "http": {"enabled": True, "bind": "127.0.0.1", "port": port},
             "providers": [
                 {
@@ -188,17 +188,24 @@ class AutomationTester:
             log_fail("Response missing 'mode' field")
             return False
 
-        if result["mode"] != "MANUAL":
-            log_fail(f"Expected mode MANUAL, got {result['mode']}")
+        if result["mode"] != "IDLE":
+            log_fail(f"Expected mode IDLE (safe default), got {result['mode']}")
             return False
 
-        log_pass(f"Current mode: {result['mode']}")
+        log_pass(f"Current mode: {result['mode']} (safe default)")
         return True
 
     def test_mode_transition_manual_to_auto(self) -> bool:
-        """Test valid transition: MANUAL -> AUTO"""
-        log_test("Mode transition: MANUAL -> AUTO")
+        """Test valid transition: IDLE -> MANUAL -> AUTO"""
+        log_test("Mode transition: IDLE -> MANUAL -> AUTO")
 
+        # Runtime starts in IDLE, transition to MANUAL first
+        result = self.set_mode("MANUAL")
+        if not result or result.get("mode") != "MANUAL":
+            log_fail(f"Failed to transition to MANUAL, got {result}")
+            return False
+        
+        # Now transition MANUAL -> AUTO
         result = self.set_mode("AUTO")
         if not result:
             log_fail("Failed to set mode")
@@ -208,7 +215,7 @@ class AutomationTester:
             log_fail(f"Expected AUTO, got {result.get('mode')}")
             return False
 
-        log_pass("Transitioned to AUTO")
+        log_pass("Transitioned: IDLE -> MANUAL -> AUTO")
         return True
 
     def test_mode_transition_auto_to_manual(self) -> bool:
