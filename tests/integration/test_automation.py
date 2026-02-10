@@ -466,6 +466,100 @@ class AutomationTester:
             # Restart main fixture for remaining tests
             self.start_runtime()
 
+    def test_idle_blocks_control_operations(self) -> bool:
+        """Test that control operations (device calls) are blocked in IDLE mode"""
+        log_test("IDLE mode blocks control operations")
+
+        # Transition to IDLE
+        self.set_mode("IDLE")
+        wait_for_condition(lambda: (self.get_mode() or {}).get("mode") == "IDLE", description="mode IDLE")
+
+        # Attempt device call - should be blocked
+        try:
+            resp = requests.post(
+                f"{self.base_url}/v0/call",
+                json={
+                    "provider_id": "sim0",
+                    "device_id": "tempctl0",
+                    "function_id": 3,
+                    "args": {"relay_index": {"type": "int64", "int64": 1}, "state": {"type": "bool", "bool": True}},
+                },
+                timeout=5,
+            )
+
+            body = resp.json()
+
+            # Call should fail with FAILED_PRECONDITION
+            status = body.get("status", {})
+
+            if status.get("code") == "FAILED_PRECONDITION":
+                log_pass("Control operation correctly blocked in IDLE")
+                # Restore MANUAL mode for following tests
+                self.set_mode("MANUAL")
+                return True
+
+            if body.get("result", {}).get("success") is False:
+                # Also acceptable if call failed with appropriate error
+                error_msg = body.get("result", {}).get("error_message", "")
+                if "IDLE" in error_msg or "blocked" in error_msg.lower():
+                    log_pass("Control operation blocked with error message")
+                    self.set_mode("MANUAL")
+                    return True
+
+            log_fail(f"Control operation should be blocked in IDLE, got: {body}")
+            self.set_mode("MANUAL")
+            return False
+
+        except requests.RequestException as e:
+            log_fail(f"Request exception: {e}")
+            self.set_mode("MANUAL")
+            return False
+
+    def test_idle_allows_read_operations(self) -> bool:
+        """Test that read-only operations (status, state queries) work in IDLE mode"""
+        log_test("IDLE mode allows read-only operations")
+
+        # Transition to IDLE
+        self.set_mode("IDLE")
+        wait_for_condition(lambda: (self.get_mode() or {}).get("mode") == "IDLE", description="mode IDLE")
+
+        try:
+            # Test 1: Get runtime status
+            resp = requests.get(f"{self.base_url}/v0/runtime/status", timeout=5)
+            if resp.status_code != 200:
+                log_fail(f"Status query failed in IDLE: {resp.status_code}")
+                self.set_mode("MANUAL")
+                return False
+
+            # Test 2: Get device list
+            resp = requests.get(f"{self.base_url}/v0/devices", timeout=5)
+            if resp.status_code != 200:
+                log_fail(f"Device list query failed in IDLE: {resp.status_code}")
+                self.set_mode("MANUAL")
+                return False
+
+            # Test 3: Get device state
+            resp = requests.get(f"{self.base_url}/v0/state/sim0/tempctl0", timeout=5)
+            if resp.status_code != 200:
+                log_fail(f"State query failed in IDLE: {resp.status_code}")
+                self.set_mode("MANUAL")
+                return False
+
+            body = resp.json()
+            if "values" not in body:
+                log_fail("State query missing values in IDLE")
+                self.set_mode("MANUAL")
+                return False
+
+            log_pass("Read-only operations work in IDLE")
+            self.set_mode("MANUAL")
+            return True
+
+        except requests.RequestException as e:
+            log_fail(f"Request exception: {e}")
+            self.set_mode("MANUAL")
+            return False
+
     def run_all_tests(self) -> bool:
         """Run all automation tests"""
         print(f"\n{Colors.BOLD}=== Anolis Automation Tests ==={Colors.END}\n")
@@ -475,6 +569,8 @@ class AutomationTester:
             self.test_mode_transition_manual_to_auto,
             self.test_mode_transition_auto_to_manual,
             self.test_mode_transition_manual_to_idle,
+            self.test_idle_blocks_control_operations,
+            self.test_idle_allows_read_operations,
             self.test_mode_transition_to_fault,
             self.test_invalid_transition_fault_to_auto,
             self.test_recovery_path_fault_to_manual_to_auto,

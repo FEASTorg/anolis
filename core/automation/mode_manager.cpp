@@ -48,6 +48,11 @@ RuntimeMode ModeManager::current_mode() const {
     return current_mode_;
 }
 
+bool ModeManager::is_idle() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return current_mode_ == RuntimeMode::IDLE;
+}
+
 bool ModeManager::set_mode(RuntimeMode new_mode, std::string &error) {
     RuntimeMode previous_mode;
     std::vector<ModeChangeCallback> callbacks_copy;

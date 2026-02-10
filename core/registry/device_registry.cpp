@@ -31,9 +31,9 @@ bool DeviceRegistry::discover_provider(const std::string &provider_id, anolis::p
 
         anolis::deviceprovider::v0::DescribeDeviceResponse describe_response;
         if (!provider.describe_device(device_id, describe_response)) {
-            error_ = "DescribeDevice(" + device_id + ") failed: " + provider.last_error();
-            LOG_ERROR("[Registry] " << error_);
-            return false;
+            // Device unavailable - log warning and continue with other devices
+            LOG_WARN("[Registry] Device " << device_id << " unavailable: " << provider.last_error());
+            continue;  // Skip this device, don't fail entire provider
         }
 
         // Build capabilities
@@ -43,8 +43,9 @@ bool DeviceRegistry::discover_provider(const std::string &provider_id, anolis::p
 
         if (!build_capabilities(describe_response.device(), describe_response.capabilities(),
                                 reg_device.capabilities)) {
-            LOG_ERROR("[Registry] " << error_);
-            return false;
+            // Capability parsing failed - log error and continue
+            LOG_WARN("[Registry] Device " << device_id << " capability parsing failed: " << error_);
+            continue;  // Skip this device
         }
 
         // Log BEFORE the move
@@ -55,6 +56,17 @@ bool DeviceRegistry::discover_provider(const std::string &provider_id, anolis::p
 
         new_devices.push_back(std::move(reg_device));
     }
+
+    // Check if ANY devices were successfully registered
+    if (new_devices.empty()) {
+        error_ = "No devices could be registered from provider " + provider_id;
+        LOG_ERROR("[Registry] " << error_);
+        return false;
+    }
+
+    // Log summary
+    LOG_INFO("[Registry] Provider " << provider_id << " registered " << new_devices.size() << "/" << device_list.size()
+                                    << " devices");
 
     // Step 3: Insert into registry under lock (fast operation)
     {

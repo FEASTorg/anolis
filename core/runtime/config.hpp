@@ -44,7 +44,7 @@ struct HttpConfig {
 };
 
 struct RuntimeModeConfig {
-    automation::RuntimeMode mode = automation::RuntimeMode::MANUAL;  // Default mode
+    automation::RuntimeMode mode = automation::RuntimeMode::IDLE;  // Default mode: safe startup
 };
 
 struct TelemetryConfig {

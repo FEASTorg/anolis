@@ -9,7 +9,7 @@ Anolis Runtime is configured via a YAML file (default: `anolis-runtime.yaml`).
 
 ```yaml
 runtime:
-  mode: MANUAL # MANUAL | AUTO | IDLE | FAULT
+  mode: IDLE # IDLE | MANUAL | AUTO | FAULT (default: IDLE)
 
 http:
   enabled: true
@@ -45,6 +45,53 @@ automation:
 ```
 
 ## Options
+
+### Runtime Modes
+
+The `runtime.mode` setting controls the operational state of the system on startup. Mode can be changed at runtime via HTTP API (`POST /v0/runtime/mode`).
+
+**Available Modes:**
+
+- **IDLE**: Safe/off state. Control operations blocked, read-only allowed. Use as startup default.
+- **MANUAL**: Manual control allowed, automation stopped. Use for operator-driven testing and manual operations.
+- **AUTO**: Automation running, manual gated by policy. Use for normal production operation.
+- **FAULT**: System-detected fault, automatic transition. All operations blocked until recovery.
+
+**Mode Semantics:**
+
+| Mode   | Control Ops | Read-Only  | Automation | Use Case              |
+| ------ | ----------- | ---------- | ---------- | --------------------- |
+| IDLE   | ❌ Blocked  | ✅ Allowed | ❌ Stopped | Startup, verification |
+| MANUAL | ✅ Allowed  | ✅ Allowed | ❌ Stopped | Testing, manual ops   |
+| AUTO   | Policy      | ✅ Allowed | ✅ Running | Normal operation      |
+| FAULT  | ❌ Blocked  | ✅ Allowed | ❌ Stopped | Error state, recovery |
+
+**Operation Types:**
+
+- **Control Operations**: `CallDevice` (actuates hardware) - modifies device state
+- **Read-Only Operations**: Health checks, status queries, `ReadSignals`, device discovery
+
+**Valid Transitions:**
+
+- ✅ IDLE ↔ MANUAL
+- ✅ MANUAL ↔ AUTO  
+- ✅ Any → FAULT
+- ✅ FAULT → MANUAL (recovery path)
+- ❌ FAULT → AUTO (must recover through MANUAL first)
+- ❌ AUTO → IDLE (must go through MANUAL first)
+
+**Rationale for IDLE Default:**
+
+Starting in IDLE mode enforces a safe startup sequence:
+
+1. Runtime starts in IDLE (control operations blocked)
+2. Providers initialize (devices in safe defaults)
+3. Operator verifies system state (read-only queries work)
+4. Operator transitions to MANUAL (enables control operations)
+5. Operator performs checks/calibration  
+6. Operator transitions to AUTO (enables automation)
+
+This ensures no unsafe actuation occurs during startup, configuration changes, or crash recovery.
 
 ### HTTP
 

@@ -198,6 +198,89 @@ providers:
 
 Run and check logs for discovery, polling, and control operations.
 
+## Safe Initialization Contract
+
+**Critical Safety Principle**: Providers MUST initialize devices in a **safe, inactive state** on startup.
+This ensures physical safety during runtime startup, configuration changes, and recovery scenarios.
+
+### Provider Responsibilities
+
+Providers must guarantee that when the process starts:
+
+1. **No Actuation**: All actuators start in their safe, inactive position
+2. **No Heating/Cooling**: Thermal controls start disabled
+3. **No Motion**: Motors, stages, and moving parts start stationary
+4. **No State Assumptions**: Don't assume hardware is already in a safe state
+5. **Hardware Verification**: Query current hardware state and command it to safe defaults if needed
+
+### Safe Default Definition
+
+A **safe default** is the state a device should be in when:
+
+- System is powered but not operating
+- No automation is running
+- No operator is actively controlling equipment
+- Recovery from an error condition is in progress
+
+### Example Safe States by Device Type
+
+| Device Type              | Safe State                           | Implementation Notes                                 |
+| ------------------------ | ------------------------------------ | ---------------------------------------------------- |
+| **Relay/Switch**         | Open (de-energized)                  | Fail-safe: loss of power = safe                      |
+| **Motor Controller**     | Duty cycle = 0, disabled             | Both PWM and enable signals off                      |
+| **Temperature Control**  | Open-loop mode, heaters off          | Monitor-only until explicitly enabled                |
+| **Linear Actuator**      | Position hold or retract to home     | Depends on mechanical fail-safe design               |
+| **Valve**                | Closed (or safe position for system) | May be normally-open or normally-closed per hardware |
+| **Laser/Light Source**   | Disabled, shutter closed             | Both electronic disable and mechanical safety        |
+| **Vacuum Pump**          | Off                                  | Vent valve open if vacuum retention is unsafe        |
+| **Pressure Regulator**   | Vent position, zero setpoint         | Depressurize system unless hold is explicitly safe   |
+| **High Voltage Supply**  | Output disabled, voltage = 0         | Hardware-level disable, not just software            |
+| **Communication Bridge** | Pass-through disabled                | Don't forward commands until runtime confirms ready  |
+
+### Verification Checklist
+
+Before deploying a provider, verify:
+
+- [ ] **Startup behavior validated**: Provider process starts with no side effects
+- [ ] **Hardware queried**: Current state is read before any commands issued
+- [ ] **Safe state commanded**: Explicit commands sent to hardware to ensure safe defaults
+- [ ] **Power-on-reset tested**: Provider works correctly after hardware power cycle
+- [ ] **Crash recovery tested**: Provider restart doesn't cause unsafe transitions
+- [ ] **Configuration validated**: Invalid config fails gracefully without actuating hardware
+- [ ] **Emergency stop path**: Provider can be terminated safely at any time
+
+### Runtime Integration
+
+The anolis runtime coordinates safe startup:
+
+1. **Runtime starts in IDLE mode** (control operations blocked)
+2. **Providers initialize** (safe defaults applied)
+3. **Device discovery runs** (capabilities advertised)
+4. **Operator transitions to MANUAL** (enables control operations)
+5. **Verification procedures run** (confirm safe operation)
+6. **Operator transitions to AUTO** (enables automation)
+
+This sequence ensures no actuation occurs until:
+
+- Hardware is in a known safe state
+- Operator has verified expected behavior
+- Runtime mode explicitly permits operations
+
+### Common Pitfalls
+
+| Pitfall                                        | Consequence                                           | Mitigation                                                   |
+| ---------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------ |
+| Assuming hardware is already safe              | Startup after crash/reboot may find actuators enabled | Always command safe state explicitly                         |
+| Not querying current state                     | May miss hardware faults or unexpected conditions     | Read before write; log discrepancies                         |
+| Relying on hardware power-on defaults          | PCB redesign or component change breaks assumptions   | Verify safe state in provider code                           |
+| Skipping safe init for "read-only" devices     | Misconfiguration could enable hidden control paths    | Always safe-init; hardware may have undocumented features    |
+| Using config file for safety-critical settings | Config typo or version mismatch → unsafe state        | Hard-code safe defaults; config only for non-critical params |
+
+### Example: anolis-provider-sim Compliance
+
+See [FEASTorg/anolis-provider-sim > README > safe-initialization-in-provider-sim](https://github.com/FEASTorg/anolis-provider-sim?tab=readme-ov-file#safe-initialization-in-provider-sim)
+for reference implementation.
+
 ## Provider Isolation Benefits
 
 - **Crash safety**: Provider crash doesn't kill runtime

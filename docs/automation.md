@@ -31,12 +31,23 @@ The BT engine sits **above** the kernel, not beneath it.
 
 Anolis supports four runtime modes:
 
-| Mode       | Description              | BT State | Manual Calls    |
-| ---------- | ------------------------ | -------- | --------------- |
-| **MANUAL** | Normal operator control  | Stopped  | Allowed         |
-| **AUTO**   | Automated control active | Running  | Gated by policy |
-| **IDLE**   | Standby mode             | Stopped  | Allowed         |
-| **FAULT**  | Error recovery state     | Stopped  | Allowed         |
+| Mode       | Description               | BT State | Manual Calls    | Control Operations |
+| ---------- | ------------------------- | -------- | --------------- | ------------------ |
+| **IDLE**   | Safe startup/standby mode | Stopped  | ❌ Blocked      | Safe default state |
+| **MANUAL** | Operator control active   | Stopped  | ✅ Allowed      | Testing/manual ops |
+| **AUTO**   | Automated control active  | Running  | Gated by policy | Normal operation   |
+| **FAULT**  | Error recovery state      | Stopped  | ❌ Blocked      | Requires recovery  |
+
+**Operation Types:**
+
+- **Control Operations**: `CallDevice` (actuates hardware)
+- **Read-Only Operations**: Health, status, `ReadSignals`, discovery
+
+**IDLE vs MANUAL:**
+
+- **IDLE**: System is safe but inactive (default at startup). Control operations blocked. Read-only queries allowed.
+  Operator must explicitly transition to MANUAL to enable control.
+- **MANUAL**: System ready for operator control. All manual operations allowed. Common mode for testing and calibration.
 
 ### Mode Transitions
 
@@ -50,25 +61,45 @@ Valid transitions:
     ▼           ▼            ▼
 ┌──────┐    ┌──────┐     ┌──────┐
 │ IDLE │    │ AUTO │     │FAULT │
-└──────┘    └──────┘     └───┬──┘
-    │           │            │
-    │           │            │
-    └───────────┴────────────┘
-        (All → FAULT allowed)
+└──┬───┘    └──────┘     └───┬──┘
+   │                          │
+   └──────────────────────────┘
+      (Any → FAULT allowed)
 ```
+
+**Valid transitions:**
+
+- ✅ IDLE ↔ MANUAL
+- ✅ MANUAL ↔ AUTO
+- ✅ Any → FAULT
+- ✅ FAULT → MANUAL (recovery path)
 
 **Invalid transitions:**
 
-- `FAULT → AUTO` — Must recover through MANUAL first
-- `FAULT → IDLE` — Must recover through MANUAL first
+- ❌ FAULT → AUTO — Must recover through MANUAL first
+- ❌ FAULT → IDLE — Must recover through MANUAL first
+- ❌ AUTO → IDLE — Must go through MANUAL first (prevents automation bypass)
 
-**Rationale:** Fault recovery requires explicit operator acknowledgment before resuming automation.
+**Rationale:**
+
+- **Fault recovery requires explicit operator acknowledgment** before resuming automation
+- **IDLE enforces safe startup** by requiring explicit transition through MANUAL to AUTO
+- **No shortcuts from AUTO to IDLE** prevents operators from accidentally killing automation without proper shutdown
 
 ### Default Mode
 
-- **Startup:** MANUAL (safe default)
+- **Startup:** IDLE (safe default, control operations blocked)
 - **After fault:** FAULT (requires explicit recovery)
-- **Config override:** Can set `runtime.mode: IDLE` in YAML
+- **Config override:** Set `runtime.mode: IDLE | MANUAL | AUTO` in YAML
+
+**Safe Startup Sequence:**
+
+1. Runtime starts in IDLE (control blocked)
+2. Providers initialize with safe device defaults
+3. Operator verifies state using read-only queries
+4. Operator transitions to MANUAL (enables control)
+5. Operator performs verification/calibration
+6. Operator transitions to AUTO (enables automation)
 
 ---
 

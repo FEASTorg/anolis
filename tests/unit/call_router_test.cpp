@@ -30,6 +30,10 @@ protected:
         // Default: Connect router to mode manager with NO blocking
         router->set_mode_manager(mode_manager.get(), "OVERRIDE");
 
+        // Set mode to MANUAL for tests (IDLE is the safe default, but tests need to test functionality)
+        std::string err;
+        mode_manager->set_mode(automation::RuntimeMode::MANUAL, err);
+
         mock_provider = std::make_shared<StrictMock<MockProviderHandle>>();
         mock_provider->_id = "sim0";
         EXPECT_CALL(*mock_provider, provider_id()).WillRepeatedly(ReturnRef(mock_provider->_id));
@@ -212,6 +216,66 @@ TEST_F(CallRouterTest, PolicyOverrideInAuto) {
     req.is_automated = false;  // Manual call, but with OVERRIDE policy
 
     // Expect CALL to provider (OVERRIDE policy allows manual calls)
+    EXPECT_CALL(*mock_provider, call("dev1", _, "reset", _, _)).WillOnce(Return(true));
+
+    auto result = router->execute_call(req, *provider_registry);
+    EXPECT_TRUE(result.success);
+}
+
+TEST_F(CallRouterTest, IdleModeBlocksControlOperations) {
+    RegisterMockDevice();
+
+    // Transition to IDLE mode
+    std::string err;
+    ASSERT_TRUE(mode_manager->set_mode(automation::RuntimeMode::IDLE, err));
+
+    control::CallRequest req;
+    req.device_handle = "sim0/dev1";
+    req.function_name = "reset";
+    req.is_automated = false;
+
+    // Expect NO CALL to provider (control operations blocked in IDLE)
+    EXPECT_CALL(*mock_provider, call(_, _, _, _, _)).Times(0);
+
+    auto result = router->execute_call(req, *provider_registry);
+    EXPECT_FALSE(result.success);
+    EXPECT_EQ(result.status_code, anolis::deviceprovider::v0::Status_Code_CODE_FAILED_PRECONDITION);
+    EXPECT_THAT(result.error_message, HasSubstr("blocked in IDLE"));
+}
+
+TEST_F(CallRouterTest, IdleModeBlocksAutomatedCalls) {
+    RegisterMockDevice();
+
+    // Transition to IDLE mode
+    std::string err;
+    ASSERT_TRUE(mode_manager->set_mode(automation::RuntimeMode::IDLE, err));
+
+    control::CallRequest req;
+    req.device_handle = "sim0/dev1";
+    req.function_name = "reset";
+    req.is_automated = true;  // Even automated calls blocked in IDLE
+
+    // Expect NO CALL to provider
+    EXPECT_CALL(*mock_provider, call(_, _, _, _, _)).Times(0);
+
+    auto result = router->execute_call(req, *provider_registry);
+    EXPECT_FALSE(result.success);
+    EXPECT_EQ(result.status_code, anolis::deviceprovider::v0::Status_Code_CODE_FAILED_PRECONDITION);
+    EXPECT_THAT(result.error_message, HasSubstr("blocked in IDLE"));
+}
+
+TEST_F(CallRouterTest, ManualModeAllowsCalls) {
+    RegisterMockDevice();
+
+    // Start in MANUAL mode
+    std::string err;
+    ASSERT_TRUE(mode_manager->set_mode(automation::RuntimeMode::MANUAL, err));
+
+    control::CallRequest req;
+    req.device_handle = "sim0/dev1";
+    req.function_name = "reset";
+
+    // Calls should succeed in MANUAL mode
     EXPECT_CALL(*mock_provider, call("dev1", _, "reset", _, _)).WillOnce(Return(true));
 
     auto result = router->execute_call(req, *provider_registry);

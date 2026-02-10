@@ -11,7 +11,7 @@
 #   - Navigate to Dashboards → Signal History or Device Health
 
 runtime:
-  mode: MANUAL
+  mode: IDLE
 
 http:
   enabled: true

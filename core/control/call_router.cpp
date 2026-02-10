@@ -21,6 +21,14 @@ CallResult CallRouter::execute_call(const CallRequest &request, provider::Provid
     CallResult result;
     result.success = false;
 
+    // Block control operations in IDLE mode
+    if (mode_manager_ != nullptr && mode_manager_->is_idle()) {
+        result.error_message = "Control operations blocked in IDLE mode";
+        result.status_code = anolis::deviceprovider::v0::Status_Code_CODE_FAILED_PRECONDITION;
+        LOG_WARN("[CallRouter] " << result.error_message);
+        return result;
+    }
+
     // Check manual/auto contention (only for manual calls)
     if (!request.is_automated && mode_manager_ != nullptr &&
         mode_manager_->current_mode() == automation::RuntimeMode::AUTO) {

@@ -2,7 +2,7 @@
 # HTTP Gateway + Basic provider config
 
 runtime:
-  mode: MANUAL # MANUAL | AUTO | IDLE | FAULT
+  mode: IDLE # IDLE | MANUAL | AUTO | FAULT
 
 http:
   enabled: true

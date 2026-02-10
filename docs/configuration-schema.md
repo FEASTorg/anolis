@@ -67,15 +67,15 @@ automation:
 
 - **Type:** `string`
 - **Required:** No
-- **Default:** `MANUAL`
-- **Valid Values:** `MANUAL`, `AUTO`, `IDLE`, `FAULT`
-- **Description:** Initial runtime mode. Defaults to MANUAL for safe startup.
+- **Default:** `IDLE`
+- **Valid Values:** `IDLE`, `MANUAL`, `AUTO`, `FAULT`
+- **Description:** Initial runtime mode. Defaults to IDLE for safe startup (control operations blocked, read-only allowed).
 
 **Example:**
 
 ```yaml
 runtime:
-  mode: MANUAL
+  mode: IDLE
 ```
 
 ---

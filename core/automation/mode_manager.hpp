@@ -19,9 +19,9 @@ namespace automation {
  * - FAULT -X-> AUTO (must recover through MANUAL first)
  */
 enum class RuntimeMode {
-    MANUAL,  // BT stopped, manual calls allowed (default)
+    MANUAL,  // BT stopped, manual calls allowed
     AUTO,    // BT running, manual calls gated by policy
-    IDLE,    // BT stopped, manual calls allowed (standby mode)
+    IDLE,    // BT stopped, control calls blocked (default, safe startup)
     FAULT    // BT stopped due to error, manual calls allowed for recovery
 };
 
@@ -57,14 +57,21 @@ public:
     /**
      * Construct mode manager with initial mode.
      *
-     * @param initial_mode Starting mode (default: MANUAL)
+     * @param initial_mode Starting mode (default: IDLE)
      */
-    explicit ModeManager(RuntimeMode initial_mode = RuntimeMode::MANUAL);
+    explicit ModeManager(RuntimeMode initial_mode = RuntimeMode::IDLE);
 
     /**
      * Get current runtime mode (thread-safe).
      */
     RuntimeMode current_mode() const;
+
+    /**
+     * Check if currently in IDLE mode (thread-safe).
+     *
+     * @return true if current mode is IDLE
+     */
+    bool is_idle() const;
 
     /**
      * Request mode transition.

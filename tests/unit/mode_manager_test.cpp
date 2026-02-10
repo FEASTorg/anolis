@@ -30,8 +30,8 @@ using namespace anolis::automation;
 class ModeManagerTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        // ModeManager starts in MANUAL by default
-        mode_manager_ = std::make_unique<ModeManager>();
+        // ModeManager now defaults to IDLE; explicitly create in MANUAL for most tests
+        mode_manager_ = std::make_unique<ModeManager>(RuntimeMode::MANUAL);
     }
 
     void TearDown() override { mode_manager_.reset(); }
@@ -77,7 +77,11 @@ TEST(ModeManagerStringTest, RoundTripConversion) {
  * Initialization Tests
  ******************************************************************************/
 
-TEST_F(ModeManagerTest, InitializesInManualByDefault) { EXPECT_EQ(mode_manager_->current_mode(), RuntimeMode::MANUAL); }
+TEST(ModeManagerInitTest, InitializesInIdleByDefault) {
+    // Test default constructor creates IDLE mode
+    ModeManager manager;
+    EXPECT_EQ(manager.current_mode(), RuntimeMode::IDLE);
+}
 
 TEST(ModeManagerInitTest, InitializesInSpecifiedMode) {
     ModeManager manager_auto(RuntimeMode::AUTO);

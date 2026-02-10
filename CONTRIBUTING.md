@@ -139,6 +139,125 @@ Any bug fixed must include a test that would have caught it.
 - Tests must clean up processes after completion
 - Tests must exit with proper exit codes (0 = pass, non-zero = fail)
 
+### Safety Requirements for New Features
+
+Anolis enforces a **safe-by-default** design. Contributions must maintain safety properties:
+
+#### Test Configuration Defaults
+
+- ✅ **Test configs MUST set explicit mode**: Tests should explicitly set `mode: MANUAL` in YAML configs for predictable behavior
+- ✅ **Production configs use IDLE**: Example configs (anolis-runtime.yaml) must use `mode: IDLE` as safe startup default
+- ❌ **Don't rely on implicit defaults**: Tests should not assume runtime mode without explicit configuration
+
+**Example test config**:
+
+```yaml
+runtime:
+  mode: MANUAL # Explicit for tests
+```
+
+**Example production config**:
+
+```yaml
+runtime:
+  mode: IDLE # Safe default for hardware
+```
+
+#### Safety Test Requirements
+
+New features that affect operational safety MUST include tests covering:
+
+1. **IDLE Mode Behavior**
+   - Control operations blocked in IDLE
+   - Read-only operations allowed in IDLE
+   - Proper error codes returned (FAILED_PRECONDITION)
+
+2. **Mode Transition Enforcement**
+   - Valid transitions succeed
+   - Invalid transitions rejected (e.g., FAULT → AUTO)
+   - Automation stops when exiting AUTO mode
+
+3. **Fault Handling**
+   - Error conditions transition to FAULT mode
+   - FAULT mode blocks control operations
+   - Recovery path requires MANUAL mode
+
+**Test patterns**:
+
+```cpp
+// C++ Unit Test Pattern: IDLE blocking
+TEST_F(FeatureTest, IdleModeBlocks ControlOperations) {
+    mode_manager->set_mode(RuntimeMode::IDLE, err);
+
+    auto result = feature->execute_operation(req);
+
+    EXPECT_FALSE(result.success);
+    EXPECT_EQ(result.status_code, Status_Code_FAILED_PRECONDITION);
+   EXPECT_THAT(result.error_message, HasSubstr("IDLE"));
+}
+```
+
+```python
+# Python Integration Test Pattern: Mode enforcement
+def test_feature_respects_idle_mode(self):
+    set_mode(self.base_url, "IDLE")
+
+    resp = requests.post(f"{self.base_url}/v0/feature/action")
+
+    assert resp.status_code == 400 or resp.status_code == 409
+    # Or check JSON body for FAILED_PRECONDITION status
+```
+
+#### Mode Enforcement Testing Patterns
+
+When adding features that interact with devices:
+
+1. **CallRouter integration**: Use CallRouter for device calls (don't bypass)
+2. **Mode checks**: Verify mode restrictions before operations
+3. **Error propagation**: Return appropriate error codes (FAILED_PRECONDITION for mode blocks)
+
+**Example CallRouter usage**:
+
+```cpp
+// ✅ Correct: Uses CallRouter (mode checks automatic)
+control::CallRequest req;
+req.device_handle = "provider/device";
+req.function_name = "actuate";
+auto result = call_router->execute_call(req, provider_registry);
+
+// ❌ Wrong: Direct provider call (bypasses mode checks)
+provider->call(device_id, function_id, args);
+```
+
+#### Parameter vs Device State Distinction
+
+Maintain clear separation between automation parameters and device state:
+
+| Concept                   | Storage                            | Authority         | Mutability             |
+| ------------------------- | ---------------------------------- | ----------------- | ---------------------- |
+| **Automation Parameters** | Runtime config / BT blackboard     | Anolis core       | Operator-configurable  |
+| **Device State**          | StateCache (polled from providers) | Provider/hardware | Hardware-authoritative |
+
+**Guidelines**:
+
+- ✅ **Parameters**: Automation setpoints, thresholds, timeouts (BT-visible, operator-tunable)
+- ✅ **Device State**: Sensor readings, actuator positions, hardware status (StateCache only)
+- ❌ **Never**: Store device state in automation parameters
+- ❌ **Never**: Use BT blackboard for hardware state
+
+**Example distinction**:
+
+```cpp
+// ✅ Parameter (operator-configurable, automation input)
+automation_params_["target_temperature"] = 60.0;
+
+// ✅ Device state (hardware-authoritative, read from StateCache)
+auto temp_signal = state_cache_.get_signal("provider/device", "temperature");
+
+// ❌ Wrong: Don't store hardware state in parameters
+automation_params_["current_temperature"] = temp_signal.get_value();  // NO!
+```
+
 ## Code Quality
 
 ### C++ Code Quality
