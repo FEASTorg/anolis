@@ -45,12 +45,17 @@ jobs:
 
       - name: Install clang-format
         run: |
+          # Install clang-format 19 from LLVM apt repository
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          sudo add-apt-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-19 main"
           sudo apt-get update
-          sudo apt-get install -y clang-format
+          sudo apt-get install -y clang-format-19
+          sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-19 100
 
       - name: Check C++ formatting
         run: |
           echo "=== Checking C++ formatting with .clang-format ==="
+          clang-format --version
           FILES=$(find core tests -type f \( -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \))
           if [ -z "$FILES" ]; then
             echo "No C++ files found"
@@ -65,8 +70,10 @@ jobs:
           else
             echo "✗ Formatting issues detected"
             echo ""
-            echo "To fix locally, run:"
-            echo "  find core tests -name '*.cpp' -o -name '*.hpp' -o -name '*.h' | xargs clang-format -i"
+            echo "To fix locally:"
+            echo "  1. Install clang-format 19: https://github.com/llvm/llvm-project/releases/tag/llvmorg-19.1.5"
+            echo "  2. Run: clang-format -i core/**/*.{cpp,hpp} tests/**/*.{cpp,hpp}"
+            echo "  3. Or use: Get-ChildItem -Path core,tests -Recurse -Include *.cpp,*.hpp | ForEach-Object { clang-format -i \$_.FullName }"
           fi
 
           exit $FORMAT_EXIT

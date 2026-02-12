@@ -279,7 +279,22 @@ Prefer running analysis from Linux/WSL instead.
 
 #### Formatting (clang-format)
 
-We use `clang-format` to enforce C++ style.
+We use `clang-format` to enforce C++ style. **CI uses clang-format 19** - ensure you use the same version locally to avoid format mismatches.
+
+**Installation:**
+
+- **Linux**: Install from LLVM apt repository:
+
+  ```bash
+  wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+  sudo add-apt-repository "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs)-19 main"
+  sudo apt-get update
+  sudo apt-get install clang-format-19
+  sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-19 100
+  ```
+
+- **Windows**: Download from [LLVM releases](https://github.com/llvm/llvm-project/releases/tag/llvmorg-19.1.5)
+- **Verify**: `clang-format --version` should show version 19.x
 
 ```bash
 # Apply formatting
