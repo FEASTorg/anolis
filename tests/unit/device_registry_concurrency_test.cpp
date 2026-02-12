@@ -55,7 +55,7 @@ protected:
                 // Add one signal
                 auto *signal = caps->add_signals();
                 signal->set_signal_id("temp");
-                signal->set_value_type(deviceprovider::v0::VALUE_TYPE_DOUBLE);
+                signal->set_value_type(deviceprovider::v1::VALUE_TYPE_DOUBLE);
                 signal->set_poll_hint_hz(1.0);
 
                 // Add one function

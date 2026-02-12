@@ -51,7 +51,7 @@ protected:
                 auto *caps = response.mutable_capabilities();
                 auto *sig = caps->add_signals();
                 sig->set_signal_id("temp");
-                sig->set_value_type(anolis::deviceprovider::v0::VALUE_TYPE_DOUBLE);
+                sig->set_value_type(anolis::deviceprovider::v1::VALUE_TYPE_DOUBLE);
                 sig->set_poll_hint_hz(1.0);  // Implies default
                 return true;
             }));
@@ -90,7 +90,7 @@ TEST_F(StateCacheTest, PollAndRead) {
             auto *v = response.add_values();
             v->set_signal_id("temp");
             v->mutable_value()->set_double_value(25.5);
-            v->set_quality(anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_OK);
+            v->set_quality(anolis::deviceprovider::v1::SignalValue_Quality_QUALITY_OK);
             return true;
         }));
 
@@ -113,7 +113,7 @@ TEST_F(StateCacheTest, Staleness) {
             auto *v = response.add_values();
             v->set_signal_id("temp");
             v->mutable_value()->set_double_value(25.5);
-            v->set_quality(anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_STALE);
+            v->set_quality(anolis::deviceprovider::v1::SignalValue_Quality_QUALITY_STALE);
             return true;
         }));
 
@@ -134,7 +134,7 @@ TEST_F(StateCacheTest, TimeBasedStaleness) {
             auto *v = response.add_values();
             v->set_signal_id("temp");
             v->mutable_value()->set_double_value(25.5);
-            v->set_quality(anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_OK);
+            v->set_quality(anolis::deviceprovider::v1::SignalValue_Quality_QUALITY_OK);
             return true;
         }));
 
@@ -185,7 +185,7 @@ TEST_F(StateCacheTest, ConcurrencyStress) {
                     auto *v = response.add_values();
                     v->set_signal_id("temp");
                     v->mutable_value()->set_double_value(rand() % 100);
-                    v->set_quality(anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_OK);
+                    v->set_quality(anolis::deviceprovider::v1::SignalValue_Quality_QUALITY_OK);
                     return true;
                 }));
 

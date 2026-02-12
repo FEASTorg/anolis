@@ -27,9 +27,9 @@ namespace state {
 
 // Cached signal value with metadata
 struct CachedSignalValue {
-    anolis::deviceprovider::v0::Value value;
+    anolis::deviceprovider::v1::Value value;
     std::chrono::system_clock::time_point timestamp;
-    anolis::deviceprovider::v0::SignalValue_Quality quality;
+    anolis::deviceprovider::v1::SignalValue_Quality quality;
 
     // Staleness: true if time-based or quality-based staleness detected
     // Optional 'now' parameter for testing time-based staleness
@@ -127,20 +127,20 @@ private:
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     void update_device_state(const std::string &device_handle, const std::string &provider_id,
                              const std::string &device_id,
-                             const anolis::deviceprovider::v0::ReadSignalsResponse &response);
+                             const anolis::deviceprovider::v1::ReadSignalsResponse &response);
 
     // Helper: Check if value changed (uses bitwise comparison for doubles)
-    bool value_changed(const anolis::deviceprovider::v0::Value &old_val,
-                       const anolis::deviceprovider::v0::Value &new_val) const;
+    bool value_changed(const anolis::deviceprovider::v1::Value &old_val,
+                       const anolis::deviceprovider::v1::Value &new_val) const;
 
     // Helper: Check if quality changed
-    bool quality_changed(anolis::deviceprovider::v0::SignalValue_Quality old_q,
-                         anolis::deviceprovider::v0::SignalValue_Quality new_q) const;
+    bool quality_changed(anolis::deviceprovider::v1::SignalValue_Quality old_q,
+                         anolis::deviceprovider::v1::SignalValue_Quality new_q) const;
 
     // Helper: Emit state update event
     void emit_state_update(const std::string &provider_id, const std::string &device_id, const std::string &signal_id,
-                           const anolis::deviceprovider::v0::Value &value,
-                           anolis::deviceprovider::v0::SignalValue_Quality quality);
+                           const anolis::deviceprovider::v1::Value &value,
+                           anolis::deviceprovider::v1::SignalValue_Quality quality);
 };
 
 }  // namespace state

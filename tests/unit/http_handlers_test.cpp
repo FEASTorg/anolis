@@ -59,9 +59,9 @@ using namespace testing;
 using namespace anolis::tests;
 
 // Protobuf type aliases
-using Device = anolis::deviceprovider::v0::Device;
-using DescribeDeviceResponse = anolis::deviceprovider::v0::DescribeDeviceResponse;
-using ReadSignalsResponse = anolis::deviceprovider::v0::ReadSignalsResponse;
+using Device = anolis::deviceprovider::v1::Device;
+using DescribeDeviceResponse = anolis::deviceprovider::v1::DescribeDeviceResponse;
+using ReadSignalsResponse = anolis::deviceprovider::v1::ReadSignalsResponse;
 
 /**
  * @brief Test fixture for HTTP handler tests
@@ -143,7 +143,7 @@ protected:
                 auto* signal = caps->add_signals();
                 signal->set_signal_id("1");  // Signal ID as string
                 signal->set_name("temperature");
-                signal->set_value_type(anolis::deviceprovider::v0::VALUE_TYPE_DOUBLE);
+                signal->set_value_type(anolis::deviceprovider::v1::VALUE_TYPE_DOUBLE);
 
                 // Add a function
                 auto* fn = caps->add_functions();
@@ -167,7 +167,7 @@ protected:
                 auto* value = response.add_values();
                 value->set_signal_id("1");
                 value->mutable_value()->set_double_value(23.5);
-                value->set_quality(anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_OK);
+                value->set_quality(anolis::deviceprovider::v1::SignalValue_Quality_QUALITY_OK);
                 return true;
             }));
 

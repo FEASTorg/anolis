@@ -14,15 +14,15 @@ namespace anolis {
 namespace automation {
 
 // Helper: Convert protobuf Value to double (for output port)
-static double value_to_double(const anolis::deviceprovider::v0::Value &val) {
+static double value_to_double(const anolis::deviceprovider::v1::Value &val) {
     switch (val.kind_case()) {
-        case anolis::deviceprovider::v0::Value::kDoubleValue:
+        case anolis::deviceprovider::v1::Value::kDoubleValue:
             return val.double_value();
-        case anolis::deviceprovider::v0::Value::kInt64Value:
+        case anolis::deviceprovider::v1::Value::kInt64Value:
             return static_cast<double>(val.int64_value());
-        case anolis::deviceprovider::v0::Value::kUint64Value:
+        case anolis::deviceprovider::v1::Value::kUint64Value:
             return static_cast<double>(val.uint64_value());
-        case anolis::deviceprovider::v0::Value::kBoolValue:
+        case anolis::deviceprovider::v1::Value::kBoolValue:
             return val.bool_value() ? 1.0 : 0.0;
         default:
             return 0.0;  // Default for string/bytes/unspecified
@@ -30,19 +30,19 @@ static double value_to_double(const anolis::deviceprovider::v0::Value &val) {
 }
 
 // Helper: Convert protobuf Value to string (for output port)
-static std::string value_to_string(const anolis::deviceprovider::v0::Value &val) {
+static std::string value_to_string(const anolis::deviceprovider::v1::Value &val) {
     switch (val.kind_case()) {
-        case anolis::deviceprovider::v0::Value::kDoubleValue:
+        case anolis::deviceprovider::v1::Value::kDoubleValue:
             return std::to_string(val.double_value());
-        case anolis::deviceprovider::v0::Value::kInt64Value:
+        case anolis::deviceprovider::v1::Value::kInt64Value:
             return std::to_string(val.int64_value());
-        case anolis::deviceprovider::v0::Value::kUint64Value:
+        case anolis::deviceprovider::v1::Value::kUint64Value:
             return std::to_string(val.uint64_value());
-        case anolis::deviceprovider::v0::Value::kBoolValue:
+        case anolis::deviceprovider::v1::Value::kBoolValue:
             return val.bool_value() ? "true" : "false";
-        case anolis::deviceprovider::v0::Value::kStringValue:
+        case anolis::deviceprovider::v1::Value::kStringValue:
             return val.string_value();
-        case anolis::deviceprovider::v0::Value::kBytesValue:
+        case anolis::deviceprovider::v1::Value::kBytesValue:
             return "<bytes>";
         default:
             return "<empty>";
@@ -50,15 +50,15 @@ static std::string value_to_string(const anolis::deviceprovider::v0::Value &val)
 }
 
 // Helper: Convert quality enum to string
-static std::string quality_to_string(anolis::deviceprovider::v0::SignalValue_Quality q) {
+static std::string quality_to_string(anolis::deviceprovider::v1::SignalValue_Quality q) {
     switch (q) {
-        case anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_OK:
+        case anolis::deviceprovider::v1::SignalValue_Quality_QUALITY_OK:
             return "OK";
-        case anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_STALE:
+        case anolis::deviceprovider::v1::SignalValue_Quality_QUALITY_STALE:
             return "STALE";
-        case anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_FAULT:
+        case anolis::deviceprovider::v1::SignalValue_Quality_QUALITY_FAULT:
             return "FAULT";
-        case anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_UNKNOWN:
+        case anolis::deviceprovider::v1::SignalValue_Quality_QUALITY_UNKNOWN:
             return "UNKNOWN";
         default:
             return "UNSPECIFIED";
@@ -66,50 +66,50 @@ static std::string quality_to_string(anolis::deviceprovider::v0::SignalValue_Qua
 }
 
 // Helper: Convert string to quality enum
-static anolis::deviceprovider::v0::SignalValue_Quality string_to_quality(const std::string &s) {
+static anolis::deviceprovider::v1::SignalValue_Quality string_to_quality(const std::string &s) {
     if (s == "OK") {
-        return anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_OK;
+        return anolis::deviceprovider::v1::SignalValue_Quality_QUALITY_OK;
     }
     if (s == "STALE") {
-        return anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_STALE;
+        return anolis::deviceprovider::v1::SignalValue_Quality_QUALITY_STALE;
     }
     if (s == "FAULT") {
-        return anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_FAULT;
+        return anolis::deviceprovider::v1::SignalValue_Quality_QUALITY_FAULT;
     }
     if (s == "UNKNOWN") {
-        return anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_UNKNOWN;
+        return anolis::deviceprovider::v1::SignalValue_Quality_QUALITY_UNKNOWN;
     }
-    return anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_UNSPECIFIED;
+    return anolis::deviceprovider::v1::SignalValue_Quality_QUALITY_UNSPECIFIED;
 }
 
 // Helper: Create protobuf Value from double
-static anolis::deviceprovider::v0::Value double_to_value(double d) {
-    anolis::deviceprovider::v0::Value val;
-    val.set_type(anolis::deviceprovider::v0::VALUE_TYPE_DOUBLE);
+static anolis::deviceprovider::v1::Value double_to_value(double d) {
+    anolis::deviceprovider::v1::Value val;
+    val.set_type(anolis::deviceprovider::v1::VALUE_TYPE_DOUBLE);
     val.set_double_value(d);
     return val;
 }
 
 // Helper: Create protobuf Value from int64
-static anolis::deviceprovider::v0::Value int64_to_value(int64_t i) {
-    anolis::deviceprovider::v0::Value val;
-    val.set_type(anolis::deviceprovider::v0::VALUE_TYPE_INT64);
+static anolis::deviceprovider::v1::Value int64_to_value(int64_t i) {
+    anolis::deviceprovider::v1::Value val;
+    val.set_type(anolis::deviceprovider::v1::VALUE_TYPE_INT64);
     val.set_int64_value(i);
     return val;
 }
 
 // Helper: Create protobuf Value from bool
-static anolis::deviceprovider::v0::Value bool_to_value(bool b) {
-    anolis::deviceprovider::v0::Value val;
-    val.set_type(anolis::deviceprovider::v0::VALUE_TYPE_BOOL);
+static anolis::deviceprovider::v1::Value bool_to_value(bool b) {
+    anolis::deviceprovider::v1::Value val;
+    val.set_type(anolis::deviceprovider::v1::VALUE_TYPE_BOOL);
     val.set_bool_value(b);
     return val;
 }
 
 // Helper: Create protobuf Value from string
-static anolis::deviceprovider::v0::Value string_to_value(const std::string &s) {
-    anolis::deviceprovider::v0::Value val;
-    val.set_type(anolis::deviceprovider::v0::VALUE_TYPE_STRING);
+static anolis::deviceprovider::v1::Value string_to_value(const std::string &s) {
+    anolis::deviceprovider::v1::Value val;
+    val.set_type(anolis::deviceprovider::v1::VALUE_TYPE_STRING);
     val.set_string_value(s);
     return val;
 }

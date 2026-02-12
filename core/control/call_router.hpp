@@ -25,7 +25,7 @@ namespace control {
 struct CallRequest {
     std::string device_handle;  // "provider_id/device_id"
     std::string function_name;
-    std::map<std::string, anolis::deviceprovider::v0::Value> args;
+    std::map<std::string, anolis::deviceprovider::v1::Value> args;
     bool is_automated = false;  // true if called from BT automation, false if manual (HTTP/UI)
 };
 
@@ -33,8 +33,8 @@ struct CallRequest {
 struct CallResult {
     bool success;
     std::string error_message;
-    std::map<std::string, anolis::deviceprovider::v0::Value> results;
-    anolis::deviceprovider::v0::Status_Code status_code = anolis::deviceprovider::v0::Status_Code_CODE_OK;
+    std::map<std::string, anolis::deviceprovider::v1::Value> results;
+    anolis::deviceprovider::v1::Status_Code status_code = anolis::deviceprovider::v1::Status_Code_CODE_OK;
 };
 
 // CallRouter - Unified control path with validation and state management
@@ -69,13 +69,13 @@ private:
     bool validate_function_exists(const registry::RegisteredDevice &device, const std::string &function_name,
                                   const registry::FunctionSpec *&out_spec, std::string &error) const;
     bool validate_arguments(const registry::FunctionSpec &spec,
-                            const std::map<std::string, anolis::deviceprovider::v0::Value> &args,
+                            const std::map<std::string, anolis::deviceprovider::v1::Value> &args,
                             std::string &error) const;
-    bool validate_argument_type(const anolis::deviceprovider::v0::ArgSpec &spec,
-                                const anolis::deviceprovider::v0::Value &value, std::string &error) const;
-    bool validate_argument_range(const anolis::deviceprovider::v0::ArgSpec &spec,
-                                 const anolis::deviceprovider::v0::Value &value, std::string &error) const;
-    std::string value_type_to_string(anolis::deviceprovider::v0::ValueType type) const;
+    bool validate_argument_type(const anolis::deviceprovider::v1::ArgSpec &spec,
+                                const anolis::deviceprovider::v1::Value &value, std::string &error) const;
+    bool validate_argument_range(const anolis::deviceprovider::v1::ArgSpec &spec,
+                                 const anolis::deviceprovider::v1::Value &value, std::string &error) const;
+    std::string value_type_to_string(anolis::deviceprovider::v1::ValueType type) const;
 
     // Helper: Parse device_handle into provider_id and device_id
     bool parse_device_handle(const std::string &device_handle, std::string &provider_id, std::string &device_id,

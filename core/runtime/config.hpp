@@ -23,6 +23,8 @@ struct ProviderConfig {
     std::string command;                 // Path to provider executable
     std::vector<std::string> args;       // Command-line arguments
     int timeout_ms = 5000;               // ADPP operation timeout (default 5s)
+    int hello_timeout_ms = 5000;         // Process liveness check timeout (default 5s)
+    int ready_timeout_ms = 60000;        // Hardware initialization timeout (default 60s)
     RestartPolicyConfig restart_policy;  // Automatic restart configuration
 };
 

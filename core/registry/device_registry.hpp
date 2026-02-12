@@ -18,7 +18,7 @@ namespace registry {
 struct SignalSpec {
     std::string signal_id;
     std::string label;
-    anolis::deviceprovider::v0::ValueType type;
+    anolis::deviceprovider::v1::ValueType type;
     bool readable;
     bool writable;
     bool is_default;  // Polled automatically
@@ -29,14 +29,14 @@ struct FunctionSpec {
     uint32_t function_id;
     std::string function_name;
     std::string label;
-    std::vector<anolis::deviceprovider::v0::ArgSpec> args;  // Full ArgSpec for validation
+    std::vector<anolis::deviceprovider::v1::ArgSpec> args;  // Full ArgSpec for validation
 };
 
 // Immutable device capabilities (populated from DescribeDevice)
 // Named DeviceCapabilitySet to avoid Windows macro collision with DeviceCapabilities
 struct DeviceCapabilitySet {
     // Raw protobuf (for serialization/inspection)
-    anolis::deviceprovider::v0::Device proto;
+    anolis::deviceprovider::v1::Device proto;
 
     // Lookup maps (for fast validation)
     std::unordered_map<std::string, SignalSpec> signals_by_id;
@@ -101,8 +101,8 @@ private:
     mutable std::shared_mutex mutex_;
 
     // Helper: Build capability maps from protobuf (not thread-safe, called under lock)
-    bool build_capabilities(const anolis::deviceprovider::v0::Device &proto_device,
-                            const anolis::deviceprovider::v0::CapabilitySet &proto_caps, DeviceCapabilitySet &caps);
+    bool build_capabilities(const anolis::deviceprovider::v1::Device &proto_device,
+                            const anolis::deviceprovider::v1::CapabilitySet &proto_caps, DeviceCapabilitySet &caps);
 };
 
 }  // namespace registry

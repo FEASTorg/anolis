@@ -10,10 +10,13 @@ namespace anolis {
 namespace provider {
 
 ProviderHandle::ProviderHandle(const std::string &provider_id, const std::string &executable_path,
-                               const std::vector<std::string> &args, int timeout_ms, int shutdown_timeout_ms)
+                               const std::vector<std::string> &args, int timeout_ms, int hello_timeout_ms,
+                               int ready_timeout_ms, int shutdown_timeout_ms)
     : process_(provider_id, executable_path, args, shutdown_timeout_ms),
       next_request_id_(1),
       timeout_ms_(timeout_ms),
+      hello_timeout_ms_(hello_timeout_ms),
+      ready_timeout_ms_(ready_timeout_ms),
       shutdown_timeout_ms_(shutdown_timeout_ms) {}
 
 bool ProviderHandle::start() {
@@ -25,8 +28,8 @@ bool ProviderHandle::start() {
         return false;
     }
 
-    // Perform Hello handshake
-    anolis::deviceprovider::v0::HelloResponse hello_response;
+    // Phase 1: Process liveness check with Hello handshake
+    anolis::deviceprovider::v1::HelloResponse hello_response;
     if (!hello(hello_response)) {
         LOG_ERROR("[" << process_.provider_id() << "] Hello handshake failed: " << error_);
         return false;
@@ -34,19 +37,42 @@ bool ProviderHandle::start() {
 
     LOG_INFO("[" << process_.provider_id() << "] Hello succeeded: " << hello_response.provider_name() << " v"
                  << hello_response.provider_version());
+
+    // Phase 2: Check if provider supports WaitReady via capability signaling
+    bool supports_ready = hello_response.metadata().count("supports_wait_ready") &&
+                          hello_response.metadata().at("supports_wait_ready") == "true";
+
+    if (supports_ready) {
+        LOG_INFO("[" << process_.provider_id() << "] Provider supports WaitReady, waiting for initialization...");
+        anolis::deviceprovider::v1::WaitReadyResponse ready_response;
+        if (!wait_ready(ready_response)) {
+            LOG_ERROR("[" << process_.provider_id() << "] WaitReady failed: " << error_);
+            return false;
+        }
+
+        // Log initialization diagnostics
+        if (ready_response.diagnostics().count("init_time_ms")) {
+            LOG_INFO("[" << process_.provider_id()
+                         << "] Provider initialized in " << ready_response.diagnostics().at("init_time_ms") << "ms");
+        }
+    } else {
+        LOG_INFO("[" << process_.provider_id() << "] Provider does not support WaitReady (v0 backward compat)");
+    }
+
     return true;
 }
 
-bool ProviderHandle::hello(anolis::deviceprovider::v0::HelloResponse &response) {
-    anolis::deviceprovider::v0::Request request;
-    request.set_request_id(next_request_id_++);
+bool ProviderHandle::hello(anolis::deviceprovider::v1::HelloResponse &response) {
+    anolis::deviceprovider::v1::Request request;
+    uint64_t request_id = next_request_id_++;
+    request.set_request_id(request_id);
     auto *hello_req = request.mutable_hello();
-    hello_req->set_protocol_version("v0");
+    hello_req->set_protocol_version("v1");
     hello_req->set_client_name("anolis-runtime");
     hello_req->set_client_version("0.1.0");
 
-    anolis::deviceprovider::v0::Response resp;
-    if (!send_request(request, resp)) {
+    anolis::deviceprovider::v1::Response resp;
+    if (!send_request(request, resp, request_id)) {
         return false;
     }
 
@@ -59,13 +85,36 @@ bool ProviderHandle::hello(anolis::deviceprovider::v0::HelloResponse &response) 
     return true;
 }
 
-bool ProviderHandle::list_devices(std::vector<anolis::deviceprovider::v0::Device> &devices) {
-    anolis::deviceprovider::v0::Request request;
-    request.set_request_id(next_request_id_++);
+bool ProviderHandle::wait_ready(anolis::deviceprovider::v1::WaitReadyResponse &response) {
+    anolis::deviceprovider::v1::Request request;
+    uint64_t request_id = next_request_id_++;
+    request.set_request_id(request_id);
+    auto *ready_req = request.mutable_wait_ready();
+    ready_req->set_max_wait_ms_hint(ready_timeout_ms_);
+
+    anolis::deviceprovider::v1::Response resp;
+    // Use ready_timeout_ms_ for this RPC (hardware initialization can be slow)
+    if (!send_request(request, resp, request_id)) {
+        return false;
+    }
+
+    if (!resp.has_wait_ready()) {
+        error_ = "Response missing wait_ready field";
+        return false;
+    }
+
+    response = resp.wait_ready();
+    return true;
+}
+
+bool ProviderHandle::list_devices(std::vector<anolis::deviceprovider::v1::Device> &devices) {
+    anolis::deviceprovider::v1::Request request;
+    uint64_t request_id = next_request_id_++;
+    request.set_request_id(request_id);
     request.mutable_list_devices();
 
-    anolis::deviceprovider::v0::Response resp;
-    if (!send_request(request, resp)) {
+    anolis::deviceprovider::v1::Response resp;
+    if (!send_request(request, resp, request_id)) {
         return false;
     }
 
@@ -82,13 +131,14 @@ bool ProviderHandle::list_devices(std::vector<anolis::deviceprovider::v0::Device
 }
 
 bool ProviderHandle::describe_device(const std::string &device_id,
-                                     anolis::deviceprovider::v0::DescribeDeviceResponse &response) {
-    anolis::deviceprovider::v0::Request request;
-    request.set_request_id(next_request_id_++);
+                                     anolis::deviceprovider::v1::DescribeDeviceResponse &response) {
+    anolis::deviceprovider::v1::Request request;
+    uint64_t request_id = next_request_id_++;
+    request.set_request_id(request_id);
     request.mutable_describe_device()->set_device_id(device_id);
 
-    anolis::deviceprovider::v0::Response resp;
-    if (!send_request(request, resp)) {
+    anolis::deviceprovider::v1::Response resp;
+    if (!send_request(request, resp, request_id)) {
         return false;
     }
 
@@ -102,17 +152,18 @@ bool ProviderHandle::describe_device(const std::string &device_id,
 }
 
 bool ProviderHandle::read_signals(const std::string &device_id, const std::vector<std::string> &signal_ids,
-                                  anolis::deviceprovider::v0::ReadSignalsResponse &response) {
-    anolis::deviceprovider::v0::Request request;
-    request.set_request_id(next_request_id_++);
+                                  anolis::deviceprovider::v1::ReadSignalsResponse &response) {
+    anolis::deviceprovider::v1::Request request;
+    uint64_t request_id = next_request_id_++;
+    request.set_request_id(request_id);
     auto *read_req = request.mutable_read_signals();
     read_req->set_device_id(device_id);
     for (const auto &sig_id : signal_ids) {
         read_req->add_signal_ids(sig_id);
     }
 
-    anolis::deviceprovider::v0::Response resp;
-    if (!send_request(request, resp)) {
+    anolis::deviceprovider::v1::Response resp;
+    if (!send_request(request, resp, request_id)) {
         return false;
     }
 
@@ -126,10 +177,11 @@ bool ProviderHandle::read_signals(const std::string &device_id, const std::vecto
 }
 
 bool ProviderHandle::call(const std::string &device_id, uint32_t function_id, const std::string &function_name,
-                          const std::map<std::string, anolis::deviceprovider::v0::Value> &args,
-                          anolis::deviceprovider::v0::CallResponse &response) {
-    anolis::deviceprovider::v0::Request request;
-    request.set_request_id(next_request_id_++);
+                          const std::map<std::string, anolis::deviceprovider::v1::Value> &args,
+                          anolis::deviceprovider::v1::CallResponse &response) {
+    anolis::deviceprovider::v1::Request request;
+    uint64_t request_id = next_request_id_++;
+    request.set_request_id(request_id);
     auto *call_req = request.mutable_call();
     call_req->set_device_id(device_id);
     call_req->set_function_id(function_id);
@@ -138,8 +190,8 @@ bool ProviderHandle::call(const std::string &device_id, uint32_t function_id, co
         (*call_req->mutable_args())[key] = value;
     }
 
-    anolis::deviceprovider::v0::Response resp;
-    if (!send_request(request, resp)) {
+    anolis::deviceprovider::v1::Response resp;
+    if (!send_request(request, resp, request_id)) {
         return false;
     }
 
@@ -152,8 +204,8 @@ bool ProviderHandle::call(const std::string &device_id, uint32_t function_id, co
     return true;
 }
 
-bool ProviderHandle::send_request(const anolis::deviceprovider::v0::Request &request,
-                                  anolis::deviceprovider::v0::Response &response) {
+bool ProviderHandle::send_request(const anolis::deviceprovider::v1::Request &request,
+                                  anolis::deviceprovider::v1::Response &response, uint64_t request_id) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     // Check provider is running
@@ -169,15 +221,23 @@ bool ProviderHandle::send_request(const anolis::deviceprovider::v0::Request &req
         return false;
     }
 
+    // Determine timeout based on request type
+    int timeout_to_use = timeout_ms_;  // Default for normal operations
+    if (request.has_hello()) {
+        timeout_to_use = hello_timeout_ms_;
+    } else if (request.has_wait_ready()) {
+        timeout_to_use = ready_timeout_ms_;
+    }
+
     // Send frame
     if (!process_.client().write_frame(reinterpret_cast<const uint8_t *>(serialized.data()), serialized.size(),
-                                       timeout_ms_)) {
+                                       timeout_to_use)) {
         error_ = "Failed to write request: " + process_.client().last_error();
         return false;
     }
 
-    // Wait for response
-    if (!wait_for_response(response, timeout_ms_)) {
+    // Wait for response with request_id validation
+    if (!wait_for_response(response, request_id, timeout_to_use)) {
         return false;
     }
 
@@ -185,7 +245,7 @@ bool ProviderHandle::send_request(const anolis::deviceprovider::v0::Request &req
     last_status_code_ = response.status().code();
 
     // Check status code
-    if (last_status_code_ != anolis::deviceprovider::v0::Status_Code_CODE_OK) {
+    if (last_status_code_ != anolis::deviceprovider::v1::Status_Code_CODE_OK) {
         error_ = "Provider returned error: " + response.status().message();
         return false;
     }
@@ -193,7 +253,8 @@ bool ProviderHandle::send_request(const anolis::deviceprovider::v0::Request &req
     return true;
 }
 
-bool ProviderHandle::wait_for_response(anolis::deviceprovider::v0::Response &response, int timeout_ms) {
+bool ProviderHandle::wait_for_response(anolis::deviceprovider::v1::Response &response, uint64_t expected_request_id,
+                                       int timeout_ms) {
     auto start = std::chrono::steady_clock::now();
 
     // Simple polling loop with timeout
@@ -227,6 +288,15 @@ bool ProviderHandle::wait_for_response(anolis::deviceprovider::v0::Response &res
                     error_ = "Failed to parse response protobuf";
                     return false;
                 }
+
+                // Validate request_id correlation
+                if (response.request_id() != expected_request_id) {
+                    error_ = "Response request_id mismatch (expected " + std::to_string(expected_request_id) +
+                             ", got " + std::to_string(response.request_id()) + ")";
+                    LOG_ERROR("[" << process_.provider_id() << "] " << error_);
+                    return false;
+                }
+
                 return true;
             }
 

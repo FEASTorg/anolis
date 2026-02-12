@@ -81,9 +81,9 @@ bool Runtime::init_providers(std::string &error) {
         LOG_INFO("[Runtime] Starting provider: " << provider_config.id);
         LOG_DEBUG("[Runtime]   Command: " << provider_config.command);
 
-        auto provider = std::make_shared<provider::ProviderHandle>(provider_config.id, provider_config.command,
-                                                                   provider_config.args, provider_config.timeout_ms,
-                                                                   config_.runtime.shutdown_timeout_ms);
+        auto provider = std::make_shared<provider::ProviderHandle>(
+            provider_config.id, provider_config.command, provider_config.args, provider_config.timeout_ms,
+            provider_config.hello_timeout_ms, provider_config.ready_timeout_ms, config_.runtime.shutdown_timeout_ms);
 
         if (!provider->start()) {
             error = "Failed to start provider '" + provider_config.id + "': " + provider->last_error();
@@ -430,9 +430,9 @@ bool Runtime::restart_provider(const std::string &provider_id, const ProviderCon
     LOG_DEBUG("[Runtime]   Command: " << provider_config.command);
 
     // Create new provider instance
-    auto provider =
-        std::make_shared<provider::ProviderHandle>(provider_id, provider_config.command, provider_config.args,
-                                                   provider_config.timeout_ms, config_.runtime.shutdown_timeout_ms);
+    auto provider = std::make_shared<provider::ProviderHandle>(
+        provider_id, provider_config.command, provider_config.args, provider_config.timeout_ms,
+        provider_config.hello_timeout_ms, provider_config.ready_timeout_ms, config_.runtime.shutdown_timeout_ms);
 
     if (!provider->start()) {
         LOG_ERROR("[Runtime] Failed to start provider '" << provider_id << "': " << provider->last_error());

@@ -11,7 +11,7 @@ bool DeviceRegistry::discover_provider(const std::string &provider_id, anolis::p
     LOG_INFO("[Registry] Discovering provider: " << provider_id);
 
     // Step 1: ListDevices
-    std::vector<anolis::deviceprovider::v0::Device> device_list;
+    std::vector<anolis::deviceprovider::v1::Device> device_list;
     if (!provider.list_devices(device_list)) {
         error_ = "ListDevices failed: " + provider.last_error();
         LOG_ERROR("[Registry] " << error_);
@@ -29,7 +29,7 @@ bool DeviceRegistry::discover_provider(const std::string &provider_id, anolis::p
         const std::string &device_id = device_brief.device_id();
         LOG_INFO("[Registry] Describing device: " << device_id);
 
-        anolis::deviceprovider::v0::DescribeDeviceResponse describe_response;
+        anolis::deviceprovider::v1::DescribeDeviceResponse describe_response;
         if (!provider.describe_device(device_id, describe_response)) {
             // Device unavailable - log warning and continue with other devices
             LOG_WARN("[Registry] Device " << device_id << " unavailable: " << provider.last_error());
@@ -151,8 +151,8 @@ std::string DeviceRegistry::last_error() const {
     return error_;
 }
 
-bool DeviceRegistry::build_capabilities(const anolis::deviceprovider::v0::Device &proto_device,
-                                        const anolis::deviceprovider::v0::CapabilitySet &proto_caps,
+bool DeviceRegistry::build_capabilities(const anolis::deviceprovider::v1::Device &proto_device,
+                                        const anolis::deviceprovider::v1::CapabilitySet &proto_caps,
                                         DeviceCapabilitySet &caps) {
     // Store raw proto
     caps.proto = proto_device;

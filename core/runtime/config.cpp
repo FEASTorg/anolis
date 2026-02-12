@@ -98,6 +98,14 @@ bool validate_config(const RuntimeConfig &config, std::string &error) {
             error = "Provider timeout must be >= 100ms";
             return false;
         }
+        if (provider.hello_timeout_ms < 100) {
+            error = "Provider hello_timeout_ms must be >= 100ms";
+            return false;
+        }
+        if (provider.ready_timeout_ms < 1000) {
+            error = "Provider ready_timeout_ms must be >= 1000ms";
+            return false;
+        }
 
         // Validate restart policy
         if (provider.restart_policy.enabled) {
@@ -276,6 +284,14 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
 
                 if (provider_node["timeout_ms"]) {
                     provider.timeout_ms = provider_node["timeout_ms"].as<int>();
+                }
+
+                if (provider_node["hello_timeout_ms"]) {
+                    provider.hello_timeout_ms = provider_node["hello_timeout_ms"].as<int>();
+                }
+
+                if (provider_node["ready_timeout_ms"]) {
+                    provider.ready_timeout_ms = provider_node["ready_timeout_ms"].as<int>();
                 }
 
                 // Parse restart policy

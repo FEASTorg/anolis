@@ -12,9 +12,9 @@ namespace state {
 // CachedSignalValue methods
 bool CachedSignalValue::is_stale(std::chrono::milliseconds timeout, std::chrono::system_clock::time_point now) const {
     // Check quality-based staleness
-    if (quality == anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_STALE ||
-        quality == anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_FAULT ||
-        quality == anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_UNKNOWN) {
+    if (quality == anolis::deviceprovider::v1::SignalValue_Quality_QUALITY_STALE ||
+        quality == anolis::deviceprovider::v1::SignalValue_Quality_QUALITY_FAULT ||
+        quality == anolis::deviceprovider::v1::SignalValue_Quality_QUALITY_UNKNOWN) {
         return true;
     }
 
@@ -242,7 +242,7 @@ bool StateCache::poll_device(const std::string &provider_id, const std::string &
     std::string device_handle = provider_id + "/" + device_id;
 
     // Call ReadSignals
-    anolis::deviceprovider::v0::ReadSignalsResponse response;
+    anolis::deviceprovider::v1::ReadSignalsResponse response;
     if (!provider.read_signals(device_id, signal_ids, response)) {
         LOG_ERROR("[StateCache] ReadSignals failed for " << device_id << ": " << provider.last_error());
 
@@ -268,12 +268,12 @@ bool StateCache::poll_device(const std::string &provider_id, const std::string &
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void StateCache::update_device_state(const std::string &device_handle, const std::string &provider_id,
                                      const std::string &device_id,
-                                     const anolis::deviceprovider::v0::ReadSignalsResponse &response) {
+                                     const anolis::deviceprovider::v1::ReadSignalsResponse &response) {
     // Collect events to emit outside lock
     struct PendingEvent {
         std::string signal_id;
-        anolis::deviceprovider::v0::Value value;
-        anolis::deviceprovider::v0::SignalValue_Quality quality;
+        anolis::deviceprovider::v1::Value value;
+        anolis::deviceprovider::v1::SignalValue_Quality quality;
     };
     std::vector<PendingEvent> pending_events;
 
@@ -332,14 +332,14 @@ void StateCache::update_device_state(const std::string &device_handle, const std
     }
 }
 
-bool StateCache::value_changed(const anolis::deviceprovider::v0::Value &old_val,
-                               const anolis::deviceprovider::v0::Value &new_val) const {
+bool StateCache::value_changed(const anolis::deviceprovider::v1::Value &old_val,
+                               const anolis::deviceprovider::v1::Value &new_val) const {
     // Different types = changed
     if (old_val.type() != new_val.type()) {
         return true;
     }
 
-    using VT = anolis::deviceprovider::v0::ValueType;
+    using VT = anolis::deviceprovider::v1::ValueType;
     switch (old_val.type()) {
         case VT::VALUE_TYPE_DOUBLE: {
             // Bitwise comparison for deterministic NaN/+/-0 handling
@@ -366,21 +366,21 @@ bool StateCache::value_changed(const anolis::deviceprovider::v0::Value &old_val,
     }
 }
 
-bool StateCache::quality_changed(anolis::deviceprovider::v0::SignalValue_Quality old_q,
-                                 anolis::deviceprovider::v0::SignalValue_Quality new_q) const {
+bool StateCache::quality_changed(anolis::deviceprovider::v1::SignalValue_Quality old_q,
+                                 anolis::deviceprovider::v1::SignalValue_Quality new_q) const {
     return old_q != new_q;
 }
 
 void StateCache::emit_state_update(const std::string &provider_id, const std::string &device_id,
-                                   const std::string &signal_id, const anolis::deviceprovider::v0::Value &value,
-                                   anolis::deviceprovider::v0::SignalValue_Quality quality) {
+                                   const std::string &signal_id, const anolis::deviceprovider::v1::Value &value,
+                                   anolis::deviceprovider::v1::SignalValue_Quality quality) {
     if (!event_emitter_) {
         return;  // No emitter attached, skip
     }
 
     // Convert protobuf Value to TypedValue
     events::TypedValue typed_val;
-    using VT = anolis::deviceprovider::v0::ValueType;
+    using VT = anolis::deviceprovider::v1::ValueType;
     switch (value.type()) {
         case VT::VALUE_TYPE_DOUBLE:
             typed_val = value.double_value();
@@ -407,7 +407,7 @@ void StateCache::emit_state_update(const std::string &provider_id, const std::st
 
     // Convert protobuf quality to event quality
     events::Quality event_quality;
-    using Q = anolis::deviceprovider::v0::SignalValue_Quality;
+    using Q = anolis::deviceprovider::v1::SignalValue_Quality;
     switch (quality) {
         case Q::SignalValue_Quality_QUALITY_OK:
             event_quality = events::Quality::OK;

@@ -27,7 +27,7 @@ void HttpServer::handle_post_call(const httplib::Request &req, httplib::Response
         // Decode call request
         std::string provider_id, device_id;
         uint32_t function_id;
-        std::map<std::string, anolis::deviceprovider::v0::Value> args;
+        std::map<std::string, anolis::deviceprovider::v1::Value> args;
         std::string error;
 
         if (!decode_call_request(request_json, provider_id, device_id, function_id, args, error)) {
@@ -89,21 +89,21 @@ void HttpServer::handle_post_call(const httplib::Request &req, httplib::Response
             StatusCode status = StatusCode::INTERNAL;
 
             switch (result.status_code) {
-                case anolis::deviceprovider::v0::Status_Code_CODE_INVALID_ARGUMENT:
-                case anolis::deviceprovider::v0::Status_Code_CODE_OUT_OF_RANGE:
+                case anolis::deviceprovider::v1::Status_Code_CODE_INVALID_ARGUMENT:
+                case anolis::deviceprovider::v1::Status_Code_CODE_OUT_OF_RANGE:
                     status = StatusCode::INVALID_ARGUMENT;
                     break;
-                case anolis::deviceprovider::v0::Status_Code_CODE_NOT_FOUND:
+                case anolis::deviceprovider::v1::Status_Code_CODE_NOT_FOUND:
                     status = StatusCode::NOT_FOUND;
                     break;
-                case anolis::deviceprovider::v0::Status_Code_CODE_FAILED_PRECONDITION:
+                case anolis::deviceprovider::v1::Status_Code_CODE_FAILED_PRECONDITION:
                     status = StatusCode::FAILED_PRECONDITION;
                     break;
-                case anolis::deviceprovider::v0::Status_Code_CODE_UNAVAILABLE:
-                case anolis::deviceprovider::v0::Status_Code_CODE_RESOURCE_EXHAUSTED:
+                case anolis::deviceprovider::v1::Status_Code_CODE_UNAVAILABLE:
+                case anolis::deviceprovider::v1::Status_Code_CODE_RESOURCE_EXHAUSTED:
                     status = StatusCode::UNAVAILABLE;
                     break;
-                case anolis::deviceprovider::v0::Status_Code_CODE_DEADLINE_EXCEEDED:
+                case anolis::deviceprovider::v1::Status_Code_CODE_DEADLINE_EXCEEDED:
                     status = StatusCode::DEADLINE_EXCEEDED;
                     break;
                 default:

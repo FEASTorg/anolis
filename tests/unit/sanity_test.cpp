@@ -16,9 +16,9 @@
 TEST(InfrastructureTest, ProtobufSerializationWorks) {
     // Verify protobuf can serialize and deserialize Value messages
     // This is critical since ADPP protocol depends on protobuf
-    anolis::deviceprovider::v0::Value val;
+    anolis::deviceprovider::v1::Value val;
     val.set_double_value(42.5);
-    val.set_type(anolis::deviceprovider::v0::VALUE_TYPE_DOUBLE);
+    val.set_type(anolis::deviceprovider::v1::VALUE_TYPE_DOUBLE);
 
     // Serialize to string
     std::string serialized;
@@ -26,12 +26,12 @@ TEST(InfrastructureTest, ProtobufSerializationWorks) {
     EXPECT_FALSE(serialized.empty());
 
     // Deserialize back
-    anolis::deviceprovider::v0::Value deserialized;
+    anolis::deviceprovider::v1::Value deserialized;
     ASSERT_TRUE(deserialized.ParseFromString(serialized));
 
     // Verify values match
     EXPECT_DOUBLE_EQ(deserialized.double_value(), 42.5);
-    EXPECT_EQ(deserialized.type(), anolis::deviceprovider::v0::VALUE_TYPE_DOUBLE);
+    EXPECT_EQ(deserialized.type(), anolis::deviceprovider::v1::VALUE_TYPE_DOUBLE);
 }
 
 TEST(InfrastructureTest, JsonParsingWorks) {

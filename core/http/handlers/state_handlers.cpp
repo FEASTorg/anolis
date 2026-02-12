@@ -83,7 +83,7 @@ void HttpServer::handle_get_device_state(const httplib::Request &req, httplib::R
     // Build filtered or full state
     nlohmann::json values = nlohmann::json::array();
 
-    auto worst_quality = anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_OK;
+    auto worst_quality = anolis::deviceprovider::v1::SignalValue_Quality_QUALITY_OK;
 
     for (const auto &[signal_id, cached] : state->signals) {
         // Apply filter if specified

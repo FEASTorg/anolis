@@ -21,7 +21,7 @@ namespace http {
  */
 
 // Forward declarations
-nlohmann::json encode_value(const anolis::deviceprovider::v0::Value& value);
+nlohmann::json encode_value(const anolis::deviceprovider::v1::Value& value);
 nlohmann::json encode_signal_value(const state::CachedSignalValue& cached, const std::string& signal_id);
 nlohmann::json encode_device_state(const state::DeviceState& state, const std::string& provider_id,
                                    const std::string& device_id);
@@ -31,14 +31,14 @@ nlohmann::json encode_signal_spec(const registry::SignalSpec& spec);
 nlohmann::json encode_function_spec(const registry::FunctionSpec& spec);
 
 // Decode functions for incoming requests
-bool decode_value(const nlohmann::json& json, anolis::deviceprovider::v0::Value& value, std::string& error);
+bool decode_value(const nlohmann::json& json, anolis::deviceprovider::v1::Value& value, std::string& error);
 bool decode_call_request(const nlohmann::json& json, std::string& provider_id, std::string& device_id,
-                         uint32_t& function_id, std::map<std::string, anolis::deviceprovider::v0::Value>& args,
+                         uint32_t& function_id, std::map<std::string, anolis::deviceprovider::v1::Value>& args,
                          std::string& error);
 
 // Quality conversions
-std::string quality_to_string(anolis::deviceprovider::v0::SignalValue_Quality quality);
-std::string value_type_to_string(anolis::deviceprovider::v0::ValueType type);
+std::string quality_to_string(anolis::deviceprovider::v1::SignalValue_Quality quality);
+std::string value_type_to_string(anolis::deviceprovider::v1::ValueType type);
 
 }  // namespace http
 }  // namespace anolis

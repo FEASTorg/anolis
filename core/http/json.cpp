@@ -57,8 +57,8 @@ static std::string base64_decode(const std::string &encoded) {
     return decoded;
 }
 
-std::string quality_to_string(anolis::deviceprovider::v0::SignalValue_Quality quality) {
-    using Q = anolis::deviceprovider::v0::SignalValue_Quality;
+std::string quality_to_string(anolis::deviceprovider::v1::SignalValue_Quality quality) {
+    using Q = anolis::deviceprovider::v1::SignalValue_Quality;
     switch (quality) {
         case Q::SignalValue_Quality_QUALITY_OK:
             return "OK";
@@ -73,8 +73,8 @@ std::string quality_to_string(anolis::deviceprovider::v0::SignalValue_Quality qu
     }
 }
 
-std::string value_type_to_string(anolis::deviceprovider::v0::ValueType type) {
-    using VT = anolis::deviceprovider::v0::ValueType;
+std::string value_type_to_string(anolis::deviceprovider::v1::ValueType type) {
+    using VT = anolis::deviceprovider::v1::ValueType;
     switch (type) {
         case VT::VALUE_TYPE_DOUBLE:
             return "double";
@@ -93,10 +93,10 @@ std::string value_type_to_string(anolis::deviceprovider::v0::ValueType type) {
     }
 }
 
-nlohmann::json encode_value(const anolis::deviceprovider::v0::Value &value) {
+nlohmann::json encode_value(const anolis::deviceprovider::v1::Value &value) {
     nlohmann::json result;
 
-    using VT = anolis::deviceprovider::v0::ValueType;
+    using VT = anolis::deviceprovider::v1::ValueType;
     switch (value.type()) {
         case VT::VALUE_TYPE_DOUBLE:
             result["type"] = "double";
@@ -147,7 +147,7 @@ nlohmann::json encode_device_state(const state::DeviceState &state, const std::s
     nlohmann::json values = nlohmann::json::array();
 
     // Determine worst-case quality for device-level quality
-    auto worst_quality = anolis::deviceprovider::v0::SignalValue_Quality_QUALITY_OK;
+    auto worst_quality = anolis::deviceprovider::v1::SignalValue_Quality_QUALITY_OK;
 
     for (const auto &[signal_id, cached] : state.signals) {
         values.push_back(encode_signal_value(cached, signal_id));
@@ -203,19 +203,19 @@ nlohmann::json encode_function_spec(const registry::FunctionSpec &spec) {
         }
 
         // Add range constraints for numeric types
-        if (arg.type() == anolis::deviceprovider::v0::VALUE_TYPE_DOUBLE) {
+        if (arg.type() == anolis::deviceprovider::v1::VALUE_TYPE_DOUBLE) {
             bool has_bounds = arg.min_double() != 0.0 || arg.max_double() != 0.0;
             if (has_bounds) {
                 arg_info["min"] = arg.min_double();
                 arg_info["max"] = arg.max_double();
             }
-        } else if (arg.type() == anolis::deviceprovider::v0::VALUE_TYPE_INT64) {
+        } else if (arg.type() == anolis::deviceprovider::v1::VALUE_TYPE_INT64) {
             bool has_bounds = arg.min_int64() != 0 || arg.max_int64() != 0;
             if (has_bounds) {
                 arg_info["min"] = arg.min_int64();
                 arg_info["max"] = arg.max_int64();
             }
-        } else if (arg.type() == anolis::deviceprovider::v0::VALUE_TYPE_UINT64) {
+        } else if (arg.type() == anolis::deviceprovider::v1::VALUE_TYPE_UINT64) {
             bool has_bounds = arg.min_uint64() != 0 || arg.max_uint64() != 0;
             if (has_bounds) {
                 arg_info["min"] = static_cast<int64_t>(arg.min_uint64());
@@ -243,7 +243,7 @@ nlohmann::json encode_capabilities(const registry::DeviceCapabilitySet &caps) {
     return {{"signals", signals}, {"functions", functions}};
 }
 
-bool decode_value(const nlohmann::json &json, anolis::deviceprovider::v0::Value &value, std::string &error) {
+bool decode_value(const nlohmann::json &json, anolis::deviceprovider::v1::Value &value, std::string &error) {
     try {
         if (!json.contains("type")) {
             error = "Value missing 'type' field";
@@ -252,7 +252,7 @@ bool decode_value(const nlohmann::json &json, anolis::deviceprovider::v0::Value 
 
         std::string type = json.at("type").get<std::string>();
 
-        using VT = anolis::deviceprovider::v0::ValueType;
+        using VT = anolis::deviceprovider::v1::ValueType;
 
         if (type == "double") {
             if (!json.contains("double")) {
@@ -309,7 +309,7 @@ bool decode_value(const nlohmann::json &json, anolis::deviceprovider::v0::Value 
 }
 
 bool decode_call_request(const nlohmann::json &json, std::string &provider_id, std::string &device_id,
-                         uint32_t &function_id, std::map<std::string, anolis::deviceprovider::v0::Value> &args,
+                         uint32_t &function_id, std::map<std::string, anolis::deviceprovider::v1::Value> &args,
                          std::string &error) {
     try {
         if (!json.contains("provider_id")) {
@@ -338,7 +338,7 @@ bool decode_call_request(const nlohmann::json &json, std::string &provider_id, s
             }
 
             for (const auto &[key, val] : args_json.items()) {
-                anolis::deviceprovider::v0::Value value;
+                anolis::deviceprovider::v1::Value value;
                 if (!decode_value(val, value, error)) {
                     std::string message;
                     message.reserve(key.size() + error.size() + 23);
