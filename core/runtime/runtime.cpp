@@ -18,11 +18,39 @@ Runtime::~Runtime() { shutdown(); }
 bool Runtime::initialize(std::string &error) {
     LOG_INFO("[Runtime] Initializing Anolis Core");
 
+    // Start overall startup timeout tracking
+    auto startup_start = std::chrono::steady_clock::now();
+    auto timeout_ms = std::chrono::milliseconds(config_.runtime.startup_timeout_ms);
+
+    auto check_timeout = [&](const std::string &phase) -> bool {
+        auto elapsed = std::chrono::steady_clock::now() - startup_start;
+        if (elapsed >= timeout_ms) {
+            error = "Startup timeout exceeded during " + phase +
+                    " (timeout: " + std::to_string(config_.runtime.startup_timeout_ms) + "ms, elapsed: " +
+                    std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count()) + "ms)";
+            LOG_ERROR("[Runtime] " << error);
+            return true;  // Timeout exceeded
+        }
+        return false;  // Still within timeout
+    };
+
+    if (check_timeout("initialization start")) {
+        return false;
+    }
+
     if (!init_core_services(error)) {
         return false;
     }
 
+    if (check_timeout("core services")) {
+        return false;
+    }
+
     if (!init_providers(error)) {
+        return false;
+    }
+
+    if (check_timeout("provider initialization")) {
         return false;
     }
 
@@ -31,10 +59,22 @@ bool Runtime::initialize(std::string &error) {
         return false;
     }
 
+    if (check_timeout("state cache initialization")) {
+        return false;
+    }
+
     // Prime state cache once so initial HTTP calls observe a full snapshot
     state_cache_->poll_once(provider_registry_);
 
+    if (check_timeout("state cache prime")) {
+        return false;
+    }
+
     if (!init_automation(error)) {
+        return false;
+    }
+
+    if (check_timeout("automation initialization")) {
         return false;
     }
 
@@ -42,11 +82,21 @@ bool Runtime::initialize(std::string &error) {
         return false;
     }
 
+    if (check_timeout("HTTP server initialization")) {
+        return false;
+    }
+
     if (!init_telemetry(error)) {
         return false;
     }
 
-    LOG_INFO("[Runtime] Initialization complete");
+    if (check_timeout("telemetry initialization")) {
+        return false;
+    }
+
+    auto total_elapsed = std::chrono::steady_clock::now() - startup_start;
+    auto total_ms = std::chrono::duration_cast<std::chrono::milliseconds>(total_elapsed).count();
+    LOG_INFO("[Runtime] Initialization complete in " << total_ms << "ms");
     return true;
 }
 

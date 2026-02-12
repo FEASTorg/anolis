@@ -164,7 +164,27 @@ def assert_signal_value(
 
     def check_signal():
         try:
-            resp = requests.get(f"{base_url}/v0/state/{device_id}", timeout=2)
+            # API requires provider_id and device_id in path
+            # Parse device_id if format is "provider/device"
+            if "/" in device_id:
+                provider_id, dev_id = device_id.split("/", 1)
+                resp = requests.get(f"{base_url}/v0/state/{provider_id}/{dev_id}", timeout=2)
+            else:
+                # device_id alone - need to get full state and search
+                resp = requests.get(f"{base_url}/v0/state", timeout=2)
+                if resp.status_code != 200:
+                    return False
+                state = resp.json()
+                for device_state in state.get("devices", []):
+                    if device_state.get("device_id") == device_id:
+                        for signal in device_state.get("signals", []):
+                            if signal.get("name") == signal_name:
+                                actual = signal.get("value")
+                                if isinstance(expected_value, (int, float)) and isinstance(actual, (int, float)):
+                                    return abs(actual - expected_value) <= tolerance
+                                return actual == expected_value
+                return False
+
             if resp.status_code != 200:
                 return False
             state = resp.json()

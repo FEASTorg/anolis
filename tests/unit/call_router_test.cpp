@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 
@@ -593,4 +594,114 @@ TEST_F(CallRouterValidationTest, OptionalArgumentCanBeOmitted) {
 
     std::string error;
     EXPECT_TRUE(router->validate_call(req, error)) << "Error: " << error;
+}
+
+// =======================
+// Concurrency Tests
+// =======================
+
+TEST_F(CallRouterTest, ConcurrentCallsSameProvider) {
+    // Regression test for provider_locks_ map race condition
+    // Multiple threads calling the same provider concurrently should not crash
+
+    RegisterMockDevice();
+
+    // Mock provider will be called multiple times
+    EXPECT_CALL(*mock_provider, call("dev1", 1, "reset", _, _)).Times(10).WillRepeatedly(Return(true));
+
+    // Mock state polling
+    EXPECT_CALL(*mock_provider, read_signals("dev1", _, _)).Times(AtLeast(10)).WillRepeatedly(Return(true));
+
+    control::CallRequest req;
+    req.device_handle = "sim0/dev1";
+    req.function_name = "reset";
+
+    std::vector<std::thread> threads;
+    std::vector<control::CallResult> results(10);
+
+    // Launch 10 threads calling the same provider concurrently
+    for (int i = 0; i < 10; ++i) {
+        threads.emplace_back(
+            [this, req, &results, i]() { results[i] = router->execute_call(req, *provider_registry); });
+    }
+
+    // Wait for all threads
+    for (auto& t : threads) {
+        t.join();
+    }
+
+    // All calls should succeed
+    for (const auto& result : results) {
+        EXPECT_TRUE(result.success) << "Error: " << result.error_message;
+    }
+}
+
+TEST_F(CallRouterTest, ConcurrentCallsMultipleProviders) {
+    // Test concurrent calls to different providers
+    // This specifically tests the provider_locks_ map insertion race
+
+    // Register devices on multiple providers
+    RegisterMockDevice();  // sim0/dev1
+
+    auto mock_provider2 = std::make_shared<StrictMock<MockProviderHandle>>();
+    mock_provider2->_id = "sim1";
+    EXPECT_CALL(*mock_provider2, provider_id()).WillRepeatedly(ReturnRef(mock_provider2->_id));
+    EXPECT_CALL(*mock_provider2, is_available()).WillRepeatedly(Return(true));
+    provider_registry->add_provider("sim1", mock_provider2);
+
+    EXPECT_CALL(*mock_provider2, list_devices(_)).WillOnce(Invoke([](std::vector<Device>& devices) {
+        Device dev;
+        dev.set_device_id("dev2");
+        devices.push_back(dev);
+        return true;
+    }));
+
+    EXPECT_CALL(*mock_provider2, describe_device("dev2", _))
+        .WillOnce(Invoke([](const std::string&, DescribeDeviceResponse& response) {
+            auto* device = response.mutable_device();
+            device->set_device_id("dev2");
+            auto* caps = response.mutable_capabilities();
+            auto* fn = caps->add_functions();
+            fn->set_name("start");
+            fn->set_function_id(2);
+            return true;
+        }));
+
+    registry->discover_provider("sim1", *mock_provider2);
+
+    // Mock calls
+    EXPECT_CALL(*mock_provider, call("dev1", 1, "reset", _, _)).Times(5).WillRepeatedly(Return(true));
+
+    EXPECT_CALL(*mock_provider2, call("dev2", 2, "start", _, _)).Times(5).WillRepeatedly(Return(true));
+
+    EXPECT_CALL(*mock_provider, read_signals("dev1", _, _)).Times(AtLeast(5)).WillRepeatedly(Return(true));
+
+    EXPECT_CALL(*mock_provider2, read_signals("dev2", _, _)).Times(AtLeast(5)).WillRepeatedly(Return(true));
+
+    std::vector<std::thread> threads;
+    std::vector<control::CallResult> results(10);
+
+    // Launch threads alternating between providers
+    for (int i = 0; i < 10; ++i) {
+        threads.emplace_back([this, &results, i]() {
+            control::CallRequest req;
+            if (i % 2 == 0) {
+                req.device_handle = "sim0/dev1";
+                req.function_name = "reset";
+            } else {
+                req.device_handle = "sim1/dev2";
+                req.function_name = "start";
+            }
+            results[i] = router->execute_call(req, *provider_registry);
+        });
+    }
+
+    for (auto& t : threads) {
+        t.join();
+    }
+
+    // All calls should succeed
+    for (const auto& result : results) {
+        EXPECT_TRUE(result.success) << "Error: " << result.error_message;
+    }
 }

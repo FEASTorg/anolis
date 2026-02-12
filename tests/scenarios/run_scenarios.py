@@ -583,16 +583,30 @@ class ScenarioRunner:
                     try:
                         import requests
 
-                        fault_type = random.choice(["UNAVAILABLE", "SIGNAL_FAULT", "CALL_LATENCY"])
-                        args = {"fault_type": fault_type}
-                        if fault_type == "CALL_LATENCY":
-                            args["latency_ms"] = random.randint(100, 500)
+                        # Choose a fault type and build args
+                        fault_choice = random.choice(["device_unavailable", "call_latency"])
+
+                        if fault_choice == "device_unavailable":
+                            # Function ID 1: inject_device_unavailable
+                            function_id = 1
+                            args = {
+                                "device_id": {"type": "string", "string": "tempctl0"},
+                                "duration_ms": {"type": "int64", "int64": 5000},
+                            }
+                        else:  # call_latency
+                            # Function ID 3: inject_call_latency
+                            function_id = 3
+                            args = {
+                                "device_id": {"type": "string", "string": "tempctl0"},
+                                "latency_ms": {"type": "int64", "int64": random.randint(100, 500)},
+                            }
+
                         resp = requests.post(
                             f"{runtime.base_url}/v0/call",
                             json={
-                                "provider": "sim0",
-                                "device": "sim_control",
-                                "function": "inject_fault",
+                                "provider_id": "sim0",
+                                "device_id": "sim_control",
+                                "function_id": function_id,
                                 "args": args,
                             },
                             timeout=2,
@@ -604,9 +618,9 @@ class ScenarioRunner:
                             requests.post(
                                 f"{runtime.base_url}/v0/call",
                                 json={
-                                    "provider": "sim0",
-                                    "device": "sim_control",
-                                    "function": "clear_fault",
+                                    "provider_id": "sim0",
+                                    "device_id": "sim_control",
+                                    "function_id": 5,  # clear_faults
                                     "args": {},
                                 },
                                 timeout=2,

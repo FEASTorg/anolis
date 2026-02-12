@@ -145,22 +145,19 @@ Anolis enforces a **safe-by-default** design. Contributions must maintain safety
 
 #### Test Configuration Defaults
 
-- ✅ **Test configs MUST set explicit mode**: Tests should explicitly set `mode: MANUAL` in YAML configs for predictable behavior
-- ✅ **Production configs use IDLE**: Example configs (anolis-runtime.yaml) must use `mode: IDLE` as safe startup default
-- ❌ **Don't rely on implicit defaults**: Tests should not assume runtime mode without explicit configuration
+- ✅ **Runtime mode not configurable**: Runtime always starts in IDLE mode (safe default)
+- ✅ **Use HTTP API for mode changes**: Tests/production must use `POST /v0/mode` to transition modes
+- ❌ **Don't set mode in YAML**: YAML `runtime.mode` field is rejected by config validation
 
-**Example test config**:
+**Mode transitions via HTTP API**:
 
-```yaml
-runtime:
-  mode: MANUAL # Explicit for tests
-```
+```bash
+# Start in IDLE (enforced at startup)
+# Transition to MANUAL
+curl -X POST http://localhost:8080/v0/mode -d '{"mode": "MANUAL"}'
 
-**Example production config**:
-
-```yaml
-runtime:
-  mode: IDLE # Safe default for hardware
+# Transition to AUTO (requires automation enabled)
+curl -X POST http://localhost:8080/v0/mode -d '{"mode": "AUTO"}'
 ```
 
 #### Safety Test Requirements
@@ -773,6 +770,12 @@ void update_state() {
 The project uses **ThreadSanitizer (TSAN)** to detect data races and lock inversions.
 See the [Sanitizers](#sanitizers) section for build and run instructions.
 
+**Platform Support:**
+
+- ✅ **Linux/macOS**: Full TSAN support via native toolchain
+- ⚠️ **Windows**: TSAN not supported by MSVC/clang-cl - use WSL or Linux for validation
+- ✅ **CI**: TSAN validation runs automatically via `.github/workflows/tsan.yml` on push/PR to `main`
+
 **TSAN builds** use a custom vcpkg triplet (`x64-linux-tsan`) that ensures **all dependencies**
 (protobuf, abseil, etc.) are instrumented with `-fsanitize=thread`.
 This prevents false positives from uninstrumented libraries.
@@ -780,14 +783,31 @@ This prevents false positives from uninstrumented libraries.
 **When adding new synchronization**:
 
 1. Add unit tests for concurrent access (see `tests/unit/*_concurrency_test.cpp`)
-2. Run with TSAN locally before pushing:
+2. Run with TSAN locally before pushing concurrency-related changes (CI also runs TSAN, but local runs shorten feedback):
+
+   **Linux/macOS:**
 
    ```bash
    ./scripts/build.sh --tsan --clean
    ./scripts/test.sh --tsan
    ```
 
-3. Ensure CI TSAN tests pass (no race reports)
+   **Windows (via WSL):**
+
+   ```powershell
+   # From Windows PowerShell - launches WSL
+   wsl bash -c "cd /mnt/d/repos_feast/anolis && ./scripts/build.sh --tsan --clean && ./scripts/test.sh --tsan"
+   ```
+
+   **Manual CMake (Linux/macOS only):**
+
+   ```bash
+   cmake -B build-tsan -DENABLE_TSAN=ON -DCMAKE_BUILD_TYPE=Debug
+   cmake --build build-tsan
+   cd build-tsan && ctest --output-on-failure
+   ```
+
+3. Verify no race reports in output (TSAN reports start with "WARNING: ThreadSanitizer:")
 
 **TSAN Detection in Tests:**
 

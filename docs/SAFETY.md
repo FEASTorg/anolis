@@ -32,8 +32,8 @@ This guide establishes safety procedures for operating Anolis-controlled hardwar
 
 3. **Transition to MANUAL** (enable control)
    - **Decision point**: Operator confirms system ready for control operations
-   - Execute mode transition: `POST /v0/runtime/mode` with `{"mode": "MANUAL"}`
-   - Verify transition: `GET /v0/runtime/mode` confirms MANUAL mode
+   - Execute mode transition: `POST /v0/mode` with `{"mode": "MANUAL"}`
+   - Verify transition: `GET /v0/mode` confirms MANUAL mode
    - **Control operations now enabled**
 
 4. **Manual Verification** (MANUAL mode)
@@ -46,7 +46,7 @@ This guide establishes safety procedures for operating Anolis-controlled hardwar
 5. **Transition to AUTO** (enable automation)
    - **Decision point**: Operator confirms system ready for automated operation
    - Review behavior tree configuration and parameters
-   - Execute mode transition: `POST /v0/runtime/mode` with `{"mode": "AUTO"}`
+   - Execute mode transition: `POST /v0/mode` with `{"mode": "AUTO"}`
    - Monitor initial automation cycles for correct behavior
    - Remain accessible to intervene if needed
 
@@ -83,18 +83,18 @@ For development and testing scenarios where hardware safety is not a concern:
 
 ```bash
 # 1. Verify current mode
-curl http://localhost:8080/v0/runtime/mode
+curl http://localhost:8080/v0/mode
 
 # 2. Check device states
 curl http://localhost:8080/v0/state/{provider}/{device}
 
 # 3. Transition to MANUAL
-curl -X POST http://localhost:8080/v0/runtime/mode \\
+curl -X POST http://localhost:8080/v0/mode \\
   -H "Content-Type: application/json" \\
   -d '{"mode": "MANUAL"}'
 
 # 4. Verify transition
-curl http://localhost:8080/v0/runtime/mode
+curl http://localhost:8080/v0/mode
 ```
 
 **Post-transition**: Control operations now allowed; operator responsible for all device commands
@@ -120,7 +120,7 @@ curl http://localhost:8080/v0/automation/parameters
 # Check runtime config: automation.manual_gating_policy
 
 # 3. Transition to AUTO
-curl -X POST http://localhost:8080/v0/runtime/mode \\
+curl -X POST http://localhost:8080/v0/mode \\
   -H "Content-Type: application/json" \\
   -d '{"mode": "AUTO"}'
 
@@ -138,7 +138,7 @@ curl http://localhost:8080/v0/runtime/status
 
 ```bash
 # Transition to MANUAL
-curl -X POST http://localhost:8080/v0/runtime/mode \\
+curl -X POST http://localhost:8080/v0/mode \\
   -H "Content-Type: application/json" \\
   -d '{"mode": "MANUAL"}'
 
@@ -164,7 +164,7 @@ curl -X POST http://localhost:8080/v0/call/{provider}/{device}/{function} \\
 curl http://localhost:8080/v0/state/{provider}/{device}
 
 # 3. Transition to IDLE
-curl -X POST http://localhost:8080/v0/runtime/mode \\
+curl -X POST http://localhost:8080/v0/mode \\
   -H "Content-Type: application/json" \\
   -d '{"mode": "IDLE"}'
 ```
@@ -208,7 +208,7 @@ curl http://localhost:8080/v0/devices
 curl http://localhost:8080/v0/state/{provider}/{device}
 
 # 4. Transition to MANUAL
-curl -X POST http://localhost:8080/v0/runtime/mode \\
+curl -X POST http://localhost:8080/v0/mode \\
   -H "Content-Type: application/json" \\
   -d '{"mode": "MANUAL"}'
 
@@ -230,7 +230,7 @@ curl -X POST http://localhost:8080/v0/runtime/mode \\
 
 ```bash
 # Stop automation immediately (AUTO → MANUAL)
-curl -X POST http://localhost:8080/v0/runtime/mode \\
+curl -X POST http://localhost:8080/v0/mode \\
   -H "Content-Type: application/json" \\
   -d '{"mode": "MANUAL"}'
 ```

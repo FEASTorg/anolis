@@ -769,3 +769,142 @@ logging:
     EXPECT_FALSE(error.empty());
     EXPECT_NE(error.find("timeout_ms must be >= 1000ms"), std::string::npos);
 }
+
+TEST_F(ConfigTest, StartupTimeoutTooLow) {
+    std::string config_content = R"(
+runtime:
+  startup_timeout_ms: 4000  # Below minimum of 5000ms
+
+http:
+  enabled: false
+
+providers:
+  - id: test
+    command: /path/to/provider
+
+logging:
+  level: info
+)";
+
+    std::string config_path = create_config_file("startup_timeout_low.yaml", config_content);
+    RuntimeConfig config;
+    std::string error;
+
+    EXPECT_FALSE(load_config(config_path, config, error));
+    EXPECT_FALSE(error.empty());
+    EXPECT_NE(error.find("startup_timeout_ms must be between 5000 and 300000"), std::string::npos);
+}
+
+TEST_F(ConfigTest, StartupTimeoutTooHigh) {
+    std::string config_content = R"(
+runtime:
+  startup_timeout_ms: 400000  # Above maximum of 300000ms
+
+http:
+  enabled: false
+
+providers:
+  - id: test
+    command: /path/to/provider
+
+logging:
+  level: info
+)";
+
+    std::string config_path = create_config_file("startup_timeout_high.yaml", config_content);
+    RuntimeConfig config;
+    std::string error;
+
+    EXPECT_FALSE(load_config(config_path, config, error));
+    EXPECT_FALSE(error.empty());
+    EXPECT_NE(error.find("startup_timeout_ms must be between 5000 and 300000"), std::string::npos);
+}
+
+TEST_F(ConfigTest, StartupTimeoutValid) {
+    std::string config_content = R"(
+runtime:
+  startup_timeout_ms: 60000  # Valid value
+
+http:
+  enabled: false
+
+providers:
+  - id: test
+    command: /path/to/provider
+
+logging:
+  level: info
+)";
+
+    std::string config_path = create_config_file("startup_timeout_valid.yaml", config_content);
+    RuntimeConfig config;
+    std::string error;
+
+    ASSERT_TRUE(load_config(config_path, config, error)) << "Error: " << error;
+    EXPECT_EQ(config.runtime.startup_timeout_ms, 60000);
+}
+
+TEST_F(ConfigTest, TelemetryQueueSizeValid) {
+    std::string config_content = R"(
+runtime:
+
+http:
+  enabled: false
+
+providers:
+  - id: test
+    command: /path/to/provider
+
+logging:
+  level: info
+
+telemetry:
+  enabled: true
+  influxdb:
+    url: http://localhost:8086
+    org: testorg
+    bucket: testbucket
+    token: testtoken
+    queue_size: 50000
+)";
+
+    std::string config_path = create_config_file("telemetry_queue_size.yaml", config_content);
+    RuntimeConfig config;
+    std::string error;
+
+    ASSERT_TRUE(load_config(config_path, config, error)) << "Error: " << error;
+    EXPECT_TRUE(config.telemetry.enabled);
+    EXPECT_EQ(config.telemetry.queue_size, 50000);
+}
+
+TEST_F(ConfigTest, TelemetryQueueSizeDefaultWhenOmitted) {
+    std::string config_content = R"(
+runtime:
+
+http:
+  enabled: false
+
+providers:
+  - id: test
+    command: /path/to/provider
+
+logging:
+  level: info
+
+telemetry:
+  enabled: true
+  influxdb:
+    url: http://localhost:8086
+    org: testorg
+    bucket: testbucket
+    token: testtoken
+)";
+
+    std::string config_path = create_config_file("telemetry_no_queue_size.yaml", config_content);
+    RuntimeConfig config;
+    std::string error;
+
+    ASSERT_TRUE(load_config(config_path, config, error)) << "Error: " << error;
+    EXPECT_TRUE(config.telemetry.enabled);
+    EXPECT_EQ(config.telemetry.queue_size, 10000);  // Default value
+}

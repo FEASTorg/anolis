@@ -299,11 +299,11 @@ TEST_F(HttpHandlersTest, GetDeviceStateSuccess) {
 
     ASSERT_TRUE(res);
     // Device exists but state is unavailable without polling
-    EXPECT_TRUE(res->status == 503 || res->status == 200);  // Either unavailable or empty state
+    EXPECT_EQ(503, res->status);  // Service unavailable (no state data yet)
 
     auto json = nlohmann::json::parse(res->body);
-    // Either UNAVAILABLE status or OK with UNAVAILABLE quality
-    EXPECT_TRUE(json["status"]["code"] == "UNAVAILABLE" || json["status"]["code"] == "OK");
+    // UNAVAILABLE status when no polling has occurred
+    EXPECT_EQ("UNAVAILABLE", json["status"]["code"]);
 }
 
 TEST_F(HttpHandlersTest, GetDeviceStateWithSignalFilter) {
@@ -314,8 +314,8 @@ TEST_F(HttpHandlersTest, GetDeviceStateWithSignalFilter) {
     auto res = client->Get("/v0/state/test_provider/test_device?signal_id=1");
 
     ASSERT_TRUE(res);
-    // Accepts the request even if state is unavailable
-    EXPECT_TRUE(res->status == 503 || res->status == 200);
+    // Service unavailable when no state data exists
+    EXPECT_EQ(503, res->status);
 
     auto json = nlohmann::json::parse(res->body);
     // Either UNAVAILABLE or OK with empty/unavailable state is acceptable
@@ -490,13 +490,16 @@ TEST_F(HttpHandlersTest, GetRuntimeStatus) {
 //=============================================================================
 
 TEST_F(HttpHandlersTest, CORSHeadersPresent) {
-    auto res = client->Get("/v0/devices");
+    // Send Origin header to trigger CORS middleware
+    httplib::Headers headers = {{"Origin", "http://localhost:3000"}};
+    auto res = client->Get("/v0/devices", headers);
 
     ASSERT_TRUE(res);
     EXPECT_EQ(200, res->status);
 
-    // Check for CORS headers (if configured in server)
-    // Note: cpp-httplib may add these automatically based on server config
+    // Verify CORS headers are present (server configured with CORS enabled and Origin header sent)
+    EXPECT_TRUE(res->has_header("Access-Control-Allow-Origin"));
+    EXPECT_EQ("*", res->get_header_value("Access-Control-Allow-Origin"));  // Wildcard configured in test
     EXPECT_TRUE(res->has_header("Content-Type"));
 }
 

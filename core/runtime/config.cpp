@@ -375,6 +375,9 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
                 if (influx["max_retry_buffer_size"]) {
                     config.telemetry.max_retry_buffer_size = influx["max_retry_buffer_size"].as<size_t>();
                 }
+                if (influx["queue_size"]) {
+                    config.telemetry.queue_size = influx["queue_size"].as<size_t>();
+                }
             }
 
             // Check for token from environment variable if not in config

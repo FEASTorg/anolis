@@ -289,12 +289,16 @@ curl -X POST http://localhost:8080/v0/parameters \
 curl -X POST http://localhost:8080/v0/call \
   -H "Content-Type: application/json" \
   -d '{
-    "provider": "sim0",
-    "device": "tempctl0",
-    "function": "set_temp",
-    "args": {"temp": 28.0}
+    "provider_id": "sim0",
+    "device_id": "tempctl0",
+    "function_id": 2,
+    "args": {
+      "value": {"type": "double", "double": 28.0}
+    }
   }'
 ```
+
+**Note:** Function ID 2 is `set_setpoint` for tempctl device.
 
 **Expected:**
 
@@ -311,12 +315,17 @@ curl -X POST http://localhost:8080/v0/call \
 curl -X POST http://localhost:8080/v0/call \
   -H "Content-Type: application/json" \
   -d '{
-    "provider": "sim0",
-    "device": "sim_control",
-    "function": "inject_fault",
-    "args": {"fault_type": "UNAVAILABLE"}
+    "provider_id": "sim0",
+    "device_id": "sim_control",
+    "function_id": 1,
+    "args": {
+      "device_id": {"type": "string", "string": "tempctl0"},
+      "duration_ms": {"type": "int64", "int64": 5000}
+    }
   }'
 ```
+
+**Note:** Function ID 1 is `inject_device_unavailable` for sim_control device.
 
 **Verify:** Next status check shows `runtime_mode: "FAULT"`
 
@@ -326,12 +335,14 @@ curl -X POST http://localhost:8080/v0/call \
 curl -X POST http://localhost:8080/v0/call \
   -H "Content-Type: application/json" \
   -d '{
-    "provider": "sim0",
-    "device": "sim_control",
-    "function": "clear_fault",
+    "provider_id": "sim0",
+    "device_id": "sim_control",
+    "function_id": 5,
     "args": {}
   }'
 ```
+
+**Note:** Function ID 5 is `clear_faults` for sim_control device.
 
 ### Step 11: Monitor Events (SSE Stream)
 

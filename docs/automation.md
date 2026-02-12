@@ -90,7 +90,7 @@ Valid transitions:
 
 - **Startup:** IDLE (safe default, control operations blocked)
 - **After fault:** FAULT (requires explicit recovery)
-- **Config override:** Set `runtime.mode: IDLE | MANUAL | AUTO` in YAML
+- **Runtime mode:** System starts in IDLE (not configurable). Use `POST /v0/mode` to transition modes
 
 **Safe Startup Sequence:**
 

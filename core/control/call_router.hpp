@@ -63,6 +63,7 @@ private:
 
     // Per-provider mutexes for serialized access (v0: prevent concurrent calls to same provider)
     std::map<std::string, std::mutex> provider_locks_;
+    std::mutex map_mutex_;  // Protects provider_locks_ map access
 
     // Validation helpers
     bool validate_device_exists(const std::string &device_handle, std::string &error) const;

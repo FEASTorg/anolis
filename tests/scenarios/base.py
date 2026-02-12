@@ -305,7 +305,7 @@ class ScenarioBase:
         """Assert that a device exists."""
         devices = self.get_devices()
         for d in devices:
-            if d.get("provider") == provider and d.get("device_id") == device:
+            if d.get("provider_id") == provider and d.get("device_id") == device:
                 return
         raise AssertionError(f"Device {provider}/{device} not found")
 

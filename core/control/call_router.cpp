@@ -9,15 +9,15 @@
 namespace anolis {
 namespace control {
 
-CallRouter::CallRouter(const registry::DeviceRegistry &registry, state::StateCache &state_cache)
+CallRouter::CallRouter(const registry::DeviceRegistry& registry, state::StateCache& state_cache)
     : registry_(registry), state_cache_(state_cache) {}
 
-void CallRouter::set_mode_manager(automation::ModeManager *mode_manager, const std::string &gating_policy) {
+void CallRouter::set_mode_manager(automation::ModeManager* mode_manager, const std::string& gating_policy) {
     mode_manager_ = mode_manager;
     manual_gating_policy_ = gating_policy;
 }
 
-CallResult CallRouter::execute_call(const CallRequest &request, provider::ProviderRegistry &provider_registry) {
+CallResult CallRouter::execute_call(const CallRequest& request, provider::ProviderRegistry& provider_registry) {
     CallResult result;
     result.success = false;
 
@@ -86,9 +86,9 @@ CallResult CallRouter::execute_call(const CallRequest &request, provider::Provid
         result.status_code = anolis::deviceprovider::v1::Status_Code_CODE_NOT_FOUND;
         return result;
     }
-    const auto &device = device_opt.value();
+    const auto& device = device_opt.value();
 
-    const registry::FunctionSpec *func_spec = nullptr;
+    const registry::FunctionSpec* func_spec = nullptr;
     auto func_it = device.capabilities.functions_by_id.find(request.function_name);
     if (func_it == device.capabilities.functions_by_id.end()) {
         result.error_message = "Function not found: " + request.function_name;
@@ -97,8 +97,16 @@ CallResult CallRouter::execute_call(const CallRequest &request, provider::Provid
     }
     func_spec = &func_it->second;
 
-    // Per-provider serialization (v0: simple mutex lock)
-    std::lock_guard<std::mutex> lock(provider_locks_[provider_id]);
+    // Per-provider serialization (v0: prevent concurrent calls to same provider)
+    // Step 1: Safely get reference to provider's mutex (map access must be synchronized)
+    std::mutex* provider_mutex = nullptr;
+    {
+        std::lock_guard<std::mutex> map_lock(map_mutex_);
+        provider_mutex = &provider_locks_[provider_id];  // Creates entry if needed
+    }
+
+    // Step 2: Lock the provider-specific mutex (outside map_mutex_ scope)
+    std::lock_guard<std::mutex> provider_lock(*provider_mutex);
 
     // Forward call to provider
     anolis::deviceprovider::v1::CallResponse call_response;
@@ -110,7 +118,7 @@ CallResult CallRouter::execute_call(const CallRequest &request, provider::Provid
     }
 
     // Extract results
-    for (const auto &[key, value] : call_response.results()) {
+    for (const auto& [key, value] : call_response.results()) {
         result.results[key] = value;
     }
 
@@ -121,7 +129,7 @@ CallResult CallRouter::execute_call(const CallRequest &request, provider::Provid
     return result;
 }
 
-bool CallRouter::validate_call(const CallRequest &request, std::string &error) const {
+bool CallRouter::validate_call(const CallRequest& request, std::string& error) const {
     // Check device exists
     if (!validate_device_exists(request.device_handle, error)) {
         return false;
@@ -139,10 +147,10 @@ bool CallRouter::validate_call(const CallRequest &request, std::string &error) c
         error = "Device not found in registry: " + request.device_handle;
         return false;
     }
-    const auto &device = device_opt.value();
+    const auto& device = device_opt.value();
 
     // Check function exists
-    const registry::FunctionSpec *func_spec = nullptr;
+    const registry::FunctionSpec* func_spec = nullptr;
     if (!validate_function_exists(device, request.function_name, func_spec, error)) {
         return false;
     }
@@ -155,7 +163,7 @@ bool CallRouter::validate_call(const CallRequest &request, std::string &error) c
     return true;
 }
 
-bool CallRouter::validate_device_exists(const std::string &device_handle, std::string &error) const {
+bool CallRouter::validate_device_exists(const std::string& device_handle, std::string& error) const {
     auto device_opt = registry_.get_device_by_handle_copy(device_handle);
     if (!device_opt.has_value()) {
         error = "Device not found: " + device_handle;
@@ -164,8 +172,8 @@ bool CallRouter::validate_device_exists(const std::string &device_handle, std::s
     return true;
 }
 
-bool CallRouter::validate_function_exists(const registry::RegisteredDevice &device, const std::string &function_name,
-                                          const registry::FunctionSpec *&out_spec, std::string &error) const {
+bool CallRouter::validate_function_exists(const registry::RegisteredDevice& device, const std::string& function_name,
+                                          const registry::FunctionSpec*& out_spec, std::string& error) const {
     auto it = device.capabilities.functions_by_id.find(function_name);
     if (it == device.capabilities.functions_by_id.end()) {
         error = "Function not found: " + function_name + " on device " + device.get_handle();
@@ -175,17 +183,17 @@ bool CallRouter::validate_function_exists(const registry::RegisteredDevice &devi
     return true;
 }
 
-bool CallRouter::validate_arguments(const registry::FunctionSpec &spec,
-                                    const std::map<std::string, anolis::deviceprovider::v1::Value> &args,
-                                    std::string &error) const {
+bool CallRouter::validate_arguments(const registry::FunctionSpec& spec,
+                                    const std::map<std::string, anolis::deviceprovider::v1::Value>& args,
+                                    std::string& error) const {
     // Build arg name to ArgSpec map for validation
-    std::unordered_map<std::string, const anolis::deviceprovider::v1::ArgSpec *> spec_map;
-    for (const auto &arg_spec : spec.args) {
+    std::unordered_map<std::string, const anolis::deviceprovider::v1::ArgSpec*> spec_map;
+    for (const auto& arg_spec : spec.args) {
         spec_map[arg_spec.name()] = &arg_spec;
     }
 
     // Check all required arguments are present
-    for (const auto &arg_spec : spec.args) {
+    for (const auto& arg_spec : spec.args) {
         if (arg_spec.required() && args.find(arg_spec.name()) == args.end()) {
             error = "Missing required argument: " + arg_spec.name();
             return false;
@@ -193,7 +201,7 @@ bool CallRouter::validate_arguments(const registry::FunctionSpec &spec,
     }
 
     // Validate provided arguments
-    for (const auto &[arg_name, arg_value] : args) {
+    for (const auto& [arg_name, arg_value] : args) {
         // Check that argument is expected
         auto spec_it = spec_map.find(arg_name);
         if (spec_it == spec_map.end()) {
@@ -201,7 +209,7 @@ bool CallRouter::validate_arguments(const registry::FunctionSpec &spec,
             return false;
         }
 
-        const auto &arg_spec = *spec_it->second;
+        const auto& arg_spec = *spec_it->second;
 
         // Type validation
         if (!validate_argument_type(arg_spec, arg_value, error)) {
@@ -231,8 +239,8 @@ bool CallRouter::validate_arguments(const registry::FunctionSpec &spec,
     return true;
 }
 
-bool CallRouter::validate_argument_type(const anolis::deviceprovider::v1::ArgSpec &spec,
-                                        const anolis::deviceprovider::v1::Value &value, std::string &error) const {
+bool CallRouter::validate_argument_type(const anolis::deviceprovider::v1::ArgSpec& spec,
+                                        const anolis::deviceprovider::v1::Value& value, std::string& error) const {
     using ValueType = anolis::deviceprovider::v1::ValueType;
 
     // Check that value type matches spec type
@@ -270,8 +278,8 @@ bool CallRouter::validate_argument_type(const anolis::deviceprovider::v1::ArgSpe
     return true;
 }
 
-bool CallRouter::validate_argument_range(const anolis::deviceprovider::v1::ArgSpec &spec,
-                                         const anolis::deviceprovider::v1::Value &value, std::string &error) const {
+bool CallRouter::validate_argument_range(const anolis::deviceprovider::v1::ArgSpec& spec,
+                                         const anolis::deviceprovider::v1::Value& value, std::string& error) const {
     using ValueType = anolis::deviceprovider::v1::ValueType;
 
     switch (spec.type()) {
@@ -363,8 +371,8 @@ std::string CallRouter::value_type_to_string(anolis::deviceprovider::v1::ValueTy
 }
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-bool CallRouter::parse_device_handle(const std::string &device_handle, std::string &provider_id, std::string &device_id,
-                                     std::string &error) const {
+bool CallRouter::parse_device_handle(const std::string& device_handle, std::string& provider_id, std::string& device_id,
+                                     std::string& error) const {
     // Device handle format: "provider_id/device_id"
     auto slash_pos = device_handle.find('/');
     if (slash_pos == std::string::npos) {

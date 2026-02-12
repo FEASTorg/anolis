@@ -79,7 +79,8 @@ This ensures safe-by-default behavior where control operations are blocked until
 
 ### Runtime Modes
 
-The `runtime.mode` setting controls the operational state of the system on startup. Mode can be changed at runtime via HTTP API (`POST /v0/runtime/mode`).
+Runtime mode is **not configurable in YAML**. The system always starts in IDLE mode (safe-by-default).
+Mode can be changed at runtime via HTTP API (`POST /v0/mode`).
 
 **Available Modes:**
 
