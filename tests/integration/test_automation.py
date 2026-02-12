@@ -21,7 +21,6 @@ Prerequisites:
 import argparse
 import os
 import sys
-import time
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -31,7 +30,7 @@ import requests
 from test_fixtures import RuntimeFixture
 
 # Import shared test helpers (API-based assertions)
-from test_helpers import wait_for_condition
+from test_helpers import assert_http_available, wait_for_condition
 
 
 class Colors:
@@ -139,19 +138,12 @@ class AutomationTester:
             raise RuntimeError("Failed to start runtime")
 
         # Wait for HTTP endpoint to be up
-        deadline = time.time() + 10.0
-        while time.time() < deadline:
+        if not assert_http_available(self.base_url, timeout=10.0):
             if not self.fixture.is_running():
                 raise RuntimeError("Runtime process terminated")
+            raise RuntimeError("Runtime HTTP endpoint did not become available")
 
-            try:
-                requests.get(f"{self.base_url}/v0/devices", timeout=1)
-                log_pass("Runtime started successfully")
-                return
-            except requests.RequestException:
-                time.sleep(0.1)
-
-        raise RuntimeError("Runtime HTTP endpoint did not become available")
+        log_pass("Runtime started successfully")
 
     def cleanup(self):
         """Clean up resources"""
@@ -204,7 +196,7 @@ class AutomationTester:
         if not result or result.get("mode") != "MANUAL":
             log_fail(f"Failed to transition to MANUAL, got {result}")
             return False
-        
+
         # Now transition MANUAL -> AUTO
         result = self.set_mode("AUTO")
         if not result:
@@ -447,13 +439,9 @@ class AutomationTester:
                 return False
 
             # Wait for HTTP to be up
-            deadline = time.time() + 10.0
-            while time.time() < deadline:
-                try:
-                    requests.get(f"{self.base_url}/v0/devices", timeout=1)
-                    break
-                except requests.RequestException:
-                    time.sleep(0.1)
+            if not assert_http_available(self.base_url, timeout=10.0):
+                log_fail("HTTP endpoint did not become available")
+                return False
 
             # Try to get mode
             result = self.get_mode()

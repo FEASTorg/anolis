@@ -32,6 +32,94 @@ env:
   VCPKG_COMMIT: "66c0373dc7fca549e5803087b9487edfe3aca0a1"
 
 jobs:
+  format-check:
+    name: C++ Formatting (clang-format)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      - name: Check C++ formatting
+        run: |
+          echo "=== Checking C++ formatting with .clang-format ==="
+          FILES=$(find core tests -type f \( -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \))
+          if [ -z "$FILES" ]; then
+            echo "No C++ files found"
+            exit 1
+          fi
+
+          echo "$FILES" | xargs clang-format --dry-run --Werror
+          FORMAT_EXIT=$?
+
+          if [ $FORMAT_EXIT -eq 0 ]; then
+            echo "✓ All C++ files are properly formatted"
+          else
+            echo "✗ Formatting issues detected"
+            echo ""
+            echo "To fix locally, run:"
+            echo "  find core tests -name '*.cpp' -o -name '*.hpp' -o -name '*.h' | xargs clang-format -i"
+          fi
+
+          exit $FORMAT_EXIT
+
+  python-lint:
+    name: Python Linting (ruff)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ruff
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff==0.15.0
+
+      - name: Run ruff check
+        run: |
+          echo "=== Running ruff linter ==="
+          ruff check . --output-format=github
+          CHECK_EXIT=$?
+
+          if [ $CHECK_EXIT -ne 0 ]; then
+            echo ""
+            echo "To fix issues locally, run:"
+            echo "  ruff check --fix ."
+          fi
+
+          exit $CHECK_EXIT
+
+      - name: Run ruff format check
+        run: |
+          echo "=== Running ruff formatter ==="
+          ruff format --check .
+          FORMAT_EXIT=$?
+
+          if [ $FORMAT_EXIT -ne 0 ]; then
+            echo ""
+            echo "To fix formatting locally, run:"
+            echo "  ruff format ."
+          fi
+
+          exit $FORMAT_EXIT
+
   build-linux:
     name: Linux (Ubuntu 24.04)
     runs-on: ubuntu-24.04

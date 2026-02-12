@@ -52,8 +52,8 @@ bool ProviderHandle::start() {
 
         // Log initialization diagnostics
         if (ready_response.diagnostics().count("init_time_ms")) {
-            LOG_INFO("[" << process_.provider_id()
-                         << "] Provider initialized in " << ready_response.diagnostics().at("init_time_ms") << "ms");
+            LOG_INFO("[" << process_.provider_id() << "] Provider initialized in "
+                         << ready_response.diagnostics().at("init_time_ms") << "ms");
         }
     } else {
         LOG_INFO("[" << process_.provider_id() << "] Provider does not support WaitReady (v0 backward compat)");

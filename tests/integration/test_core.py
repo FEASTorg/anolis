@@ -35,6 +35,7 @@ from test_helpers import (
     assert_provider_available,
     get_devices,
     get_runtime_status,
+    wait_for_condition,
 )
 
 
@@ -146,25 +147,30 @@ class CoreFeatureTester:
             first_device_id = first_device.get("device_id") if isinstance(first_device, dict) else None
 
             if first_provider_id and first_device_id:
-                # Give polling time to start and populate cache
-                time.sleep(1.0)
+                # Poll until state is available (polling has populated cache)
+                import requests
 
-                # Try to read state - if polling is working, this should succeed
-                try:
-                    import requests
+                def check_state_available():
+                    try:
+                        resp = requests.get(
+                            f"{self.base_url}/v0/state/{first_provider_id}/{first_device_id}",
+                            timeout=2,
+                        )
+                        return resp.status_code == 200
+                    except Exception:
+                        return False
 
-                    resp = requests.get(
-                        f"{self.base_url}/v0/state/{first_provider_id}/{first_device_id}",
-                        timeout=2,
-                    )
-                    polling_works = resp.status_code == 200
-                    self.record(
-                        "State cache polling",
-                        polling_works,
-                        "State not available" if not polling_works else "",
-                    )
-                except Exception as e:
-                    self.record("State cache polling", False, f"State read failed: {e}")
+                polling_works = wait_for_condition(
+                    check_state_available,
+                    timeout=5.0,
+                    interval=0.2,
+                    description="State cache populated",
+                )
+                self.record(
+                    "State cache polling",
+                    polling_works,
+                    "State not available" if not polling_works else "",
+                )
             else:
                 self.record("State cache polling", False, "Could not get device identifiers")
         else:
