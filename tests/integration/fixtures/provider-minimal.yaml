@@ -4,8 +4,7 @@
 devices:
   - id: tempctl0
     type: tempctl
-    config:
-      initial_temp: 25.0
+    initial_temp: 25.0
 
 simulation:
   noise_enabled: false

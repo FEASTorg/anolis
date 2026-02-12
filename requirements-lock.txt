@@ -1,6 +1,7 @@
-﻿certifi==2026.1.4
+certifi==2026.1.4
 charset-normalizer==3.4.4
 idna==3.11
+protobuf==5.29.6
 psutil==6.1.1
 PyYAML==6.0.3
 requests==2.32.5

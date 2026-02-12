@@ -390,8 +390,8 @@ def test_invalid_yaml_handling(runtime_path: Path, provider_path: Path) -> bool:
 
 
 def test_unknown_device_type(runtime_path: Path, provider_path: Path) -> bool:
-    """Test that unknown device types are skipped gracefully."""
-    print("\n=== TEST: Unknown Device Type (Graceful Skip) ===")
+    """Test that unknown device types cause provider to fail fast at startup."""
+    print("\n=== TEST: Unknown Device Type (Fail-Fast) ===")
 
     config_path = create_unknown_type_config()
 
@@ -424,36 +424,17 @@ def test_unknown_device_type(runtime_path: Path, provider_path: Path) -> bool:
                 print("  [FAIL] No output capture available")
                 return False
 
-            # Wait for runtime to become ready
-            if not capture.wait_for_marker("Runtime Ready", timeout=15):
-                print("  [FAIL] Runtime did not become ready")
-                return False
-
-            # Query devices - should have valid device, unknown type skipped
-            resp = requests.get(f"{BASE_URL}/v0/devices", timeout=5)
-            if resp.status_code != 200:
-                print(f"  [FAIL] HTTP request failed: {resp.status_code}")
-                return False
-
-            data = resp.json()
-            devices = data.get("devices", [])
-            sim0_devices = [d for d in devices if d.get("provider_id") == "sim0"]
-            device_ids = [d["device_id"] for d in sim0_devices]
-
-            # Should have tempctl0 and sim_control, but NOT widget0
-            has_tempctl = "tempctl0" in device_ids
-            has_sim_control = "sim_control" in device_ids
-            has_widget = "widget0" in device_ids
-
-            if has_tempctl and has_sim_control and not has_widget:
-                print("  [PASS] Valid device loaded: tempctl0")
-                print("  [PASS] sim_control present")
-                print("  [PASS] Unknown device type skipped: widget0")
+            # Provider should fail to start with unknown device type
+            # Check for error message in output
+            if capture.wait_for_marker("unknown device type", timeout=5, case_sensitive=False):
+                print("  [PASS] Provider failed fast with unknown device type error")
                 return True
-            else:
-                print(f"  [FAIL] Unexpected device list: {device_ids}")
-                print(f"    tempctl0: {has_tempctl}, sim_control: {has_sim_control}, widget0: {has_widget}")
+            elif capture.wait_for_marker("Runtime Ready", timeout=5):
+                print("  [FAIL] Provider started successfully (should have failed fast)")
                 return False
+            else:
+                print("  [PASS] Provider process exited (fail-fast behavior)")
+                return True
 
         finally:
             fixture.cleanup()
