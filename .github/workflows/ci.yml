@@ -62,6 +62,13 @@ jobs:
           fi
 
           echo "$FILES" | xargs clang-format-19 --dry-run --Werror
+          FORMAT_EXIT=$?
+
+          if [ $FORMAT_EXIT -eq 0 ]; then
+            echo "✓ All C++ files are properly formatted"
+          else
+            echo "✗ Formatting issues detected"
+            echo ""
             echo "To fix locally:"
             echo "  1. Install clang-format 19: https://github.com/llvm/llvm-project/releases/tag/llvmorg-19.1.5"
             echo "  2. Run: clang-format -i core/**/*.{cpp,hpp} tests/**/*.{cpp,hpp}"
