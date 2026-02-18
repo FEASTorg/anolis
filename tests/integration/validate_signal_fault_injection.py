@@ -59,7 +59,7 @@ def test_signal_fault_injection():
     # Step 2: Inject signal fault
     print("\n2. Injecting signal fault for temp_pv (5 seconds)...")
     response = requests.post(
-        f"{BASE_URL}/v0/call/sim0/sim_control/inject_signal_fault",
+        f"{BASE_URL}/v0/call/sim0/chaos_control/inject_signal_fault",
         json={
             "args": {
                 "device_id": "tempctl0",
@@ -129,7 +129,7 @@ def test_signal_fault_injection():
 
     # Step 5: Clear faults and verify recovery
     print("\n5. Clearing faults...")
-    response = requests.post(f"{BASE_URL}/v0/call/sim0/sim_control/clear_faults", json={"args": {}})
+    response = requests.post(f"{BASE_URL}/v0/call/sim0/chaos_control/clear_faults", json={"args": {}})
 
     if response.status_code != 200:
         print(f"FAIL: Could not clear faults: {response.status_code}")

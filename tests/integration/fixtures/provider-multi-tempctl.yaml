@@ -19,5 +19,6 @@ devices:
     max_speed: 3000.0
 
 simulation:
+  mode: non_interacting
   noise_enabled: false
-  update_rate_hz: 10
+  tick_rate_hz: 10

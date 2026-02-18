@@ -161,8 +161,8 @@ def test_default_config_loads(runtime_path: Path, provider_path: Path) -> bool:
         sim0_devices = [d for d in devices if d.get("provider_id") == "sim0"]
         device_ids = [d["device_id"] for d in sim0_devices]
 
-        # Expected: tempctl0, motorctl0, relayio0, analogsensor0, sim_control
-        expected = {"tempctl0", "motorctl0", "relayio0", "analogsensor0", "sim_control"}
+        # Expected: tempctl0, motorctl0, relayio0, analogsensor0, chaos_control
+        expected = {"tempctl0", "motorctl0", "relayio0", "analogsensor0", "chaos_control"}
 
         if set(device_ids) == expected:
             print(f"  [PASS] All {len(expected)} devices loaded correctly")
@@ -236,8 +236,8 @@ def test_multi_device_config(runtime_path: Path, provider_path: Path) -> bool:
         sim0_devices = [d for d in devices if d.get("provider_id") == "sim0"]
         device_ids = [d["device_id"] for d in sim0_devices]
 
-        # Expected: tempctl0, tempctl1, motorctl0, sim_control
-        expected = {"tempctl0", "tempctl1", "motorctl0", "sim_control"}
+        # Expected: tempctl0, tempctl1, motorctl0, chaos_control
+        expected = {"tempctl0", "tempctl1", "motorctl0", "chaos_control"}
 
         if set(device_ids) != expected:
             print(f"  [FAIL] Expected {expected}, got {set(device_ids)}")
@@ -317,8 +317,8 @@ def test_minimal_config(runtime_path: Path, provider_path: Path) -> bool:
         sim0_devices = [d for d in devices if d.get("provider_id") == "sim0"]
         device_ids = [d["device_id"] for d in sim0_devices]
 
-        # Expected: only tempctl0 + sim_control
-        expected = {"tempctl0", "sim_control"}
+        # Expected: only tempctl0 + chaos_control
+        expected = {"tempctl0", "chaos_control"}
 
         if set(device_ids) == expected:
             print("  [PASS] Minimal config loaded (2 devices)")

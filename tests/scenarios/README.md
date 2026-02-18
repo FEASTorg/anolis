@@ -185,14 +185,14 @@ self.wait_for_mode(expected_mode, timeout_sec=5.0)
 ### Fault Injection
 
 ```python
-# Inject faults via sim_control device
-self.call_function("sim0", "sim_control", "inject_device_unavailable", {
+# Inject faults via chaos_control device
+self.call_function("sim0", "chaos_control", "inject_device_unavailable", {
     "device_id": "tempctl0",
     "duration_ms": 5000
 })
 
 # Clear all faults
-self.call_function("sim0", "sim_control", "clear_faults", {})
+self.call_function("sim0", "chaos_control", "clear_faults", {})
 ```
 
 ## Scenario Template

@@ -38,7 +38,7 @@ class HappyPathEndToEnd(ScenarioBase):
                 "motorctl0",
                 "relayio0",
                 "analogsensor0",
-                "sim_control",
+                "chaos_control",
             ]
             for expected_device in expected:
                 self.assert_in(expected_device, device_ids, f"Device {expected_device} not found")

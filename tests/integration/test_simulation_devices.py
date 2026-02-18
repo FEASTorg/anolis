@@ -2,7 +2,7 @@
 Simulation Device and Fault Injection Testing
 
 Validates provider-sim devices and fault injection capabilities:
-1. Device discovery (all 5 devices: tempctl0, motorctl0, relayio0, analogsensor0, sim_control)
+1. Device discovery (all 5 devices: tempctl0, motorctl0, relayio0, analogsensor0, chaos_control)
 2. Device functionality (signals, functions, state changes)
 3. Fault injection functions (device unavailable, call latency, call failure, signal faults)
 
@@ -36,7 +36,7 @@ def test_device_discovery():
         "motorctl0",
         "relayio0",
         "analogsensor0",
-        "sim_control",
+        "chaos_control",
     ]
     found_devices = [d["device_id"] for d in devices if d["provider_id"] == "sim0"]
 
@@ -150,7 +150,7 @@ def test_fault_injection_clear():
 
     call_body = {
         "provider_id": "sim0",
-        "device_id": "sim_control",
+        "device_id": "chaos_control",
         "function_id": 5,
         "args": {},
     }
@@ -180,7 +180,7 @@ def test_fault_injection_device_unavailable():
     # Inject device unavailable
     call_body = {
         "provider_id": "sim0",
-        "device_id": "sim_control",
+        "device_id": "chaos_control",
         "function_id": 1,
         "args": {
             "device_id": {"type": "string", "string": "motorctl0"},
@@ -221,7 +221,7 @@ def test_fault_injection_call_latency():
     # Inject 1 second latency
     call_body = {
         "provider_id": "sim0",
-        "device_id": "sim_control",
+        "device_id": "chaos_control",
         "function_id": 3,
         "args": {
             "device_id": {"type": "string", "string": "relayio0"},
@@ -264,7 +264,7 @@ def test_fault_injection_call_failure():
     # Inject 100% failure rate
     call_body = {
         "provider_id": "sim0",
-        "device_id": "sim_control",
+        "device_id": "chaos_control",
         "function_id": 4,
         "args": {
             "device_id": {"type": "string", "string": "relayio0"},

@@ -22,6 +22,7 @@ devices:
     num_channels: 8
 
 simulation:
+  mode: non_interacting
   noise_enabled: true
   noise_amplitude: 0.1
-  update_rate_hz: 10
+  tick_rate_hz: 10

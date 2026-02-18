@@ -31,7 +31,7 @@ class FaultToManualRecovery(ScenarioBase):
             # Step 3: Inject device unavailable fault for tempctl0 (5 seconds)
             result = self.call_function(
                 "sim0",
-                "sim_control",
+                "chaos_control",
                 "inject_device_unavailable",
                 {"device_id": "tempctl0", "duration_ms": 5000},
             )
@@ -62,7 +62,7 @@ class FaultToManualRecovery(ScenarioBase):
             # Both are acceptable behaviors for this scenario
 
             # Step 6: Clear the fault
-            result = self.call_function("sim0", "sim_control", "clear_faults", {})
+            result = self.call_function("sim0", "chaos_control", "clear_faults", {})
             self.assert_equal(result["status"], "OK", "Failed to clear faults")
 
             # Step 7: Verify device is accessible again

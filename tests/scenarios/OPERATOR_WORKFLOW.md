@@ -107,7 +107,7 @@ python tests/scenarios/run_scenarios.py --start-only
 ### Step 8: Inject Fault (via Device Detail)
 
 1. Navigate to "Devices" tab
-2. Select `sim_control` device from dropdown (special fault injection device)
+2. Select `chaos_control` device from dropdown (special chaos engineering device)
 3. Scroll to "Functions" section
 4. Find `inject_fault` function
 5. Set parameters:
@@ -122,7 +122,7 @@ python tests/scenarios/run_scenarios.py --start-only
 
 ### Step 9: Clear Fault and Recover
 
-1. Still in `sim_control` device detail
+1. Still in `chaos_control` device detail
 2. Find `clear_fault` function
 3. Click "Call" button (no parameters needed)
 4. **Expected:**
@@ -316,7 +316,7 @@ curl -X POST http://localhost:8080/v0/call \
   -H "Content-Type: application/json" \
   -d '{
     "provider_id": "sim0",
-    "device_id": "sim_control",
+    "device_id": "chaos_control",
     "function_id": 1,
     "args": {
       "device_id": {"type": "string", "string": "tempctl0"},
@@ -325,7 +325,7 @@ curl -X POST http://localhost:8080/v0/call \
   }'
 ```
 
-**Note:** Function ID 1 is `inject_device_unavailable` for sim_control device.
+**Note:** Function ID 1 is `inject_device_unavailable` for chaos_control device.
 
 **Verify:** Next status check shows `runtime_mode: "FAULT"`
 
@@ -336,13 +336,13 @@ curl -X POST http://localhost:8080/v0/call \
   -H "Content-Type: application/json" \
   -d '{
     "provider_id": "sim0",
-    "device_id": "sim_control",
+    "device_id": "chaos_control",
     "function_id": 5,
     "args": {}
   }'
 ```
 
-**Note:** Function ID 5 is `clear_faults` for sim_control device.
+**Note:** Function ID 5 is `clear_faults` for chaos_control device.
 
 ### Step 11: Monitor Events (SSE Stream)
 

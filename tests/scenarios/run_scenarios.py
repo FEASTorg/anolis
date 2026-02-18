@@ -605,7 +605,7 @@ class ScenarioRunner:
                             f"{runtime.base_url}/v0/call",
                             json={
                                 "provider_id": "sim0",
-                                "device_id": "sim_control",
+                                "device_id": "chaos_control",
                                 "function_id": function_id,
                                 "args": args,
                             },
@@ -619,7 +619,7 @@ class ScenarioRunner:
                                 f"{runtime.base_url}/v0/call",
                                 json={
                                     "provider_id": "sim0",
-                                    "device_id": "sim_control",
+                                    "device_id": "chaos_control",
                                     "function_id": 5,  # clear_faults
                                     "args": {},
                                 },

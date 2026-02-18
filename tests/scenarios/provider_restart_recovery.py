@@ -50,7 +50,7 @@ class ProviderRestartRecovery(ScenarioBase):
             for device_id in expected_devices:
                 result = self.call_function(
                     "sim0",
-                    "sim_control",
+                    "chaos_control",
                     "inject_device_unavailable",
                     {"device_id": device_id, "duration_ms": 20000},
                 )
@@ -89,7 +89,7 @@ class ProviderRestartRecovery(ScenarioBase):
             self.assert_in("mode", status, "Runtime status should still be accessible")
 
             # Step 6: Clear all faults (simulating provider recovery)
-            result = self.call_function("sim0", "sim_control", "clear_faults", {})
+            result = self.call_function("sim0", "chaos_control", "clear_faults", {})
             self.assert_equal(result["status"], "OK", "Failed to clear faults")
 
             # Step 7: Verify devices become accessible again

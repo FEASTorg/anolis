@@ -64,7 +64,7 @@ class ScenarioBase:
         self.set_mode("MANUAL")
 
         # Clear any injected faults
-        self.call_function("sim0", "sim_control", "clear_faults", {})
+        self.call_function("sim0", "chaos_control", "clear_faults", {})
 
     def cleanup(self):
         """
@@ -72,7 +72,7 @@ class ScenarioBase:
         Default implementation clears faults and returns to MANUAL mode.
         """
         try:
-            self.call_function("sim0", "sim_control", "clear_faults", {})
+            self.call_function("sim0", "chaos_control", "clear_faults", {})
             self.set_mode("MANUAL")
         except Exception:
             pass  # Best effort cleanup
