@@ -180,6 +180,7 @@ celerybeat.pid
 .env
 .envrc
 .venv
+.venv-*/
 env/
 venv/
 ENV/
@@ -252,6 +253,8 @@ artifacts/
 
 # build files
 build/
+build-*/
+cmake-build-*/
 
 # private files
 _reference
