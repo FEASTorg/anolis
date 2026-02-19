@@ -298,10 +298,10 @@ We use `clang-format` to enforce C++ style. **CI uses clang-format 19** - ensure
 clang-format -i core/runtime/src/main.cpp
 
 # Recursively (PowerShell)
-Get-ChildItem -Path core -Recurse -Include *.cpp,*.hpp | ForEach-Object { clang-format -i $_.FullName }
+Get-ChildItem -Path core,tests -Recurse -Include *.cpp,*.hpp | ForEach-Object { clang-format -i $_.FullName }
 
 # Recursively (Bash)
-find core \( -name "*.cpp" -o -name "*.hpp" \) -print0 | xargs -0 clang-format -i
+find core tests \( -name "*.cpp" -o -name "*.hpp" \) -print0 | xargs -0 clang-format -i
 ```
 
 ### Python Code Quality
