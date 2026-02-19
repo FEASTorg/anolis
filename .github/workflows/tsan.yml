@@ -35,7 +35,7 @@ jobs:
   tsan-linux:
     name: ThreadSanitizer (Ubuntu 24.04)
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 85
 
     steps:
       - name: Checkout anolis
