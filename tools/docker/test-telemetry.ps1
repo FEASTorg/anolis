@@ -10,10 +10,10 @@ param(
 $ErrorActionPreference = "Stop"
 
 # Colors for output
-function Write-Step { Write-Host "► $args" -ForegroundColor Cyan }
-function Write-Success { Write-Host "✓ $args" -ForegroundColor Green }
-function Write-Warning { Write-Host "⚠ $args" -ForegroundColor Yellow }
-function Write-Error { Write-Host "✗ $args" -ForegroundColor Red }
+function Write-Step { Write-Host "> $args" -ForegroundColor Cyan }
+function Write-Success { Write-Host "[OK] $args" -ForegroundColor Green }
+function Write-Warning { Write-Host "[WARN] $args" -ForegroundColor Yellow }
+function Write-Error { Write-Host "[FAIL] $args" -ForegroundColor Red }
 
 Write-Host ""
 Write-Host "==========================================" -ForegroundColor Cyan
@@ -169,19 +169,19 @@ Write-Host ""
 Write-Host "1. InfluxDB Data Explorer:" -ForegroundColor Cyan
 Write-Host "   http://localhost:8086" -ForegroundColor White
 Write-Host "   Login: admin / anolis123" -ForegroundColor Gray
-Write-Host "   → Data Explorer → Select bucket 'anolis'" -ForegroundColor Gray
-Write-Host "   → Query: anolis_signal" -ForegroundColor Gray
-Write-Host "   → Click Submit - you should see data points" -ForegroundColor Gray
+Write-Host "   -> Data Explorer -> Select bucket 'anolis'" -ForegroundColor Gray
+Write-Host "   -> Query: anolis_signal" -ForegroundColor Gray
+Write-Host "   -> Click Submit - you should see data points" -ForegroundColor Gray
 Write-Host ""
 Write-Host "2. Grafana Dashboards:" -ForegroundColor Cyan
 Write-Host "   http://localhost:3000" -ForegroundColor White
 Write-Host "   Login: admin / anolis123" -ForegroundColor Gray
-Write-Host "   → Dashboards → Browse → Anolis folder" -ForegroundColor Gray
-Write-Host "   → Open 'Signal History' - time-series should appear" -ForegroundColor Gray
+Write-Host "   -> Dashboards -> Browse -> Anolis folder" -ForegroundColor Gray
+Write-Host "   -> Open 'Signal History' - time-series should appear" -ForegroundColor Gray
 Write-Host ""
 Write-Host "3. Operator UI (Optional):" -ForegroundColor Cyan
 Write-Host "   http://localhost:8080 (via runtime)" -ForegroundColor White
-Write-Host "   → Should show real-time updates via SSE" -ForegroundColor Gray
+Write-Host "   -> Should show real-time updates via SSE" -ForegroundColor Gray
 Write-Host ""
 Write-Host "=========================================="
 Write-Host ""

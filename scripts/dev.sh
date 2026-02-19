@@ -21,10 +21,10 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 print_header() { echo -e "${CYAN}$*${NC}"; }
-print_success() { echo -e "${GREEN}✓ $*${NC}"; }
-print_warning() { echo -e "${YELLOW}⚠ $*${NC}"; }
-print_error() { echo -e "${RED}✗ $*${NC}"; }
-print_step() { echo -e "${CYAN}► $*${NC}"; }
+print_success() { echo -e "${GREEN}[OK] $*${NC}"; }
+print_warning() { echo -e "${YELLOW}[WARN] $*${NC}"; }
+print_error() { echo -e "${RED}[FAIL] $*${NC}"; }
+print_step() { echo -e "${CYAN}> $*${NC}"; }
 
 # Parse arguments
 SKIP_BUILD=false
@@ -121,9 +121,9 @@ trap cleanup EXIT
 # Header
 # ============================================================================
 echo ""
-echo -e "${CYAN}╔════════════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║  Anolis Development Environment                ║${NC}"
-echo -e "${CYAN}╚════════════════════════════════════════════════╝${NC}"
+echo -e "${CYAN}=====================================================${NC}"
+echo -e "${CYAN}  Anolis Development Environment                   ${NC}"
+echo -e "${CYAN}=====================================================${NC}"
 echo ""
 
 # ============================================================================
@@ -259,23 +259,23 @@ fi
 # Step 4: Print Dashboard
 # ============================================================================
 echo ""
-echo -e "${GREEN}╔════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║  Development Environment Ready                 ║${NC}"
-echo -e "${GREEN}╠════════════════════════════════════════════════╣${NC}"
-echo -e "║  Runtime:  http://127.0.0.1:8080              ║"
+echo -e "${GREEN}=====================================================${NC}"
+echo -e "${GREEN}  Development Environment Ready                   ${NC}"
+echo -e "${GREEN}=====================================================${NC}"
+echo -e "  Runtime:  http://127.0.0.1:8080               "
 
 if [ "$NO_UI" = false ] && [ -n "$UI_SERVER_PID" ]; then
-	echo -e "║  Operator: http://localhost:3000              ║"
+	echo -e "  Operator: http://localhost:3000               "
 fi
 
 if [ "$SKIP_INFRA" = false ]; then
-	echo -e "║  Grafana:  http://localhost:3001 (admin/...)  ║"
-	echo -e "║  InfluxDB: http://localhost:8086 (admin/...)  ║"
+	echo -e "  Grafana:  http://localhost:3001 (admin/...)   "
+	echo -e "  InfluxDB: http://localhost:8086 (admin/...)   "
 fi
 
-echo -e "${GREEN}╠════════════════════════════════════════════════╣${NC}"
-echo -e "${GREEN}║  Press Ctrl+C to stop                          ║${NC}"
-echo -e "${GREEN}╚════════════════════════════════════════════════╝${NC}"
+echo -e "${GREEN}=====================================================${NC}"
+echo -e "${GREEN}  Press Ctrl+C to stop                            ${NC}"
+echo -e "${GREEN}=====================================================${NC}"
 echo ""
 
 # ============================================================================

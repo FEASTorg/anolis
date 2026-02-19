@@ -60,7 +60,7 @@ struct RegisteredDevice {
  * - All write methods use unique_lock (exclusive access)
  * - Returns by-value to prevent dangling pointers after clear_provider_devices()
  *
- * Migration from raw pointers (Phase 13 Sprint 1.2):
+ * Migration from raw pointers:
  * - Old: get_device() returned const RegisteredDevice* (could dangle)
  * - New: get_device_copy() returns std::optional<RegisteredDevice> (safe copy)
  * - get_all_devices() now returns vector<RegisteredDevice> by value

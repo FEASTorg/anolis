@@ -28,10 +28,10 @@ $Cyan = "`e[36m"
 $Reset = "`e[0m"
 
 function Write-Header { Write-Host $args -ForegroundColor Cyan }
-function Write-Success { Write-Host "✓ $args" -ForegroundColor Green }
-function Write-Warning { Write-Host "⚠ $args" -ForegroundColor Yellow }
-function Write-Error { Write-Host "✗ $args" -ForegroundColor Red }
-function Write-Step { Write-Host "►" -NoNewline -ForegroundColor Cyan; Write-Host " $args" }
+function Write-Success { Write-Host "[OK] $args" -ForegroundColor Green }
+function Write-Warning { Write-Host "[WARN] $args" -ForegroundColor Yellow }
+function Write-Error { Write-Host "[FAIL] $args" -ForegroundColor Red }
+function Write-Step { Write-Host ">" -NoNewline -ForegroundColor Cyan; Write-Host " $args" }
 
 # Paths
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path

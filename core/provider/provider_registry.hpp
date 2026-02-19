@@ -26,7 +26,7 @@ namespace provider {
  * - get_provider() and get_all_providers() allow concurrent reads
  * - add_provider(), remove_provider(), clear() require exclusive access
  *
- * Design Constraints (Phase 13):
+ * Design Constraints:
  * - Maintains shared_ptr semantics for provider ownership
  * - Minimal performance impact (shared_mutex for read-heavy workload)
  * - Compatible with existing consumer APIs (StateCache, CallRouter, HttpServer)

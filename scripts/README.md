@@ -227,7 +227,7 @@ cd tools\operator-ui
 
 ```powershell
 # I want to...                      # Run this:
-Test Phase 14 automation UI         .\scripts\dev.ps1
+Test automation UI                  .\scripts\dev.ps1
 Build everything                    .\scripts\build.ps1 --Clean
 Just start runtime                  .\scripts\run.ps1
 Run unit tests                      .\scripts\test.ps1
