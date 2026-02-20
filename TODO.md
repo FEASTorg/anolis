@@ -3,7 +3,7 @@
 ## CI / Quality
 
 - [ ] Add a Linux coverage CI lane (`-DENABLE_COVERAGE=ON`) with artifact + summary reporting.
-- [ ] Add mypy CI lane for Python scripts/tests (ruff remains lint/format gate).
+- [x] Add mypy CI lane for Python scripts/tests (ruff remains lint/format gate).
 - [ ] Roll out warnings-as-errors for first-party C++ (`-Werror`/`/WX`) in staged mode.
 - [ ] Add Aarch64 CI build/test lane (Raspberry Pi deployment path).
 - [ ] Add fuzzing targets for ADPP/protocol and runtime config parsing surfaces.

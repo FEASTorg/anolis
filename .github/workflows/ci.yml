@@ -126,6 +126,44 @@ jobs:
 
           exit $FORMAT_EXIT
 
+  python-typecheck:
+    name: Python Type Checking (mypy)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run mypy type checker
+        run: |
+          echo "=== Running mypy type checker ==="
+          mypy --version
+          mypy .
+          MYPY_EXIT=$?
+
+          if [ $MYPY_EXIT -ne 0 ]; then
+            echo ""
+            echo "Type checking failed. To fix issues locally:"
+            echo "  1. Install dependencies: pip install -r requirements.txt"
+            echo "  2. Run mypy: mypy ."
+            echo "  3. Fix reported type errors"
+          fi
+
+          exit $MYPY_EXIT
+
   build-linux:
     name: Linux (Ubuntu 24.04)
     runs-on: ubuntu-24.04
