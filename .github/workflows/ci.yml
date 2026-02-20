@@ -420,14 +420,14 @@ jobs:
 
       - name: Run unit tests
         env:
-          LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/lib
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/debug/lib
         run: |
           echo "=== Running CTest with coverage ==="
           ctest --test-dir build --output-on-failure -C Debug
 
       - name: Run integration tests
         env:
-          LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/lib
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/debug/lib
         run: |
           echo "=== Running integration tests with coverage ==="
           python3 tests/integration/test_all.py --timeout=120 \
@@ -435,7 +435,7 @@ jobs:
 
       - name: Run validation scenarios
         env:
-          LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/lib
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/debug/lib
         run: |
           echo "=== Running validation scenarios with coverage ==="
           python3 tests/scenarios/run_scenarios.py \
