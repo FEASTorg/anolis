@@ -26,17 +26,17 @@ function Write-Warn { param($m) Write-Host "[WARN]  $m" -ForegroundColor Yellow 
 function Write-Fail { param($m) Write-Host "[ERROR] $m" -ForegroundColor Red; exit 1 }
 
 function Get-VcpkgBaseline {
-    $vcpkgJson = Join-Path $RepoRoot "vcpkg.json"
-    if (Test-Path $vcpkgJson) {
+    $vcpkgConfig = Join-Path $RepoRoot "vcpkg-configuration.json"
+    if (Test-Path $vcpkgConfig) {
         try {
-            $json = Get-Content $vcpkgJson | ConvertFrom-Json
-            if ($json.'builtin-baseline') {
-                return $json.'builtin-baseline'
+            $json = Get-Content $vcpkgConfig | ConvertFrom-Json
+            if ($json.'default-registry'.baseline) {
+                return $json.'default-registry'.baseline
             }
         }
         catch {}
     }
-    Write-Fail "Unable to determine vcpkg builtin-baseline from vcpkg.json"
+    Write-Fail "Unable to determine vcpkg baseline from vcpkg-configuration.json"
 }
 
 $VcpkgBaseline = Get-VcpkgBaseline

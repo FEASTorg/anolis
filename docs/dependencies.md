@@ -7,8 +7,8 @@ for Python tooling.
 
 To ensure reproducible builds across local development and CI:
 
-1. **Single Source of Truth**: The `builtin-baseline` in `vcpkg.json` and the `baseline` in `vcpkg-configuration.json` MUST match.
-2. **CI Alignment**: The environment variable `VCPKG_COMMIT` in `.github/workflows/ci.yml` must match the baseline in the JSON files.
+1. **Single Source of Truth**: The `baseline` in `vcpkg-configuration.json` is the canonical baseline.
+2. **CI Alignment**: The environment variable `VCPKG_COMMIT` in `.github/workflows/ci.yml` must match the baseline.
 3. **Locking**: We pin to a specific vcpkg git commit SHA (e.g., from a quarterly release tag).
 
 ## Update Cadence
@@ -16,10 +16,9 @@ To ensure reproducible builds across local development and CI:
 - **Quarterly**: Review the latest vcpkg release tag.
 - **Process**:
   1. Update `VCPKG_COMMIT` in `ci.yml`.
-  2. Update `builtin-baseline` in `vcpkg.json`.
-  3. Update `baseline` in `vcpkg-configuration.json`.
-  4. Run a full clean build and test cycle.
-  5. If dependencies break (ABI changes, API removal), fix code or peg specific package
+  2. Update `baseline` in `vcpkg-configuration.json`.
+  3. Run a full clean build and test cycle.
+  4. If dependencies break (ABI changes, API removal), fix code or peg specific package
      versions in `vcpkg.json` "overrides".
 
 ## CVE / Security Updates

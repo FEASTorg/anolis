@@ -7,7 +7,7 @@
 - [ ] Roll out warnings-as-errors for first-party C++ (`-Werror`/`/WX`) in staged mode.
 - [ ] Add Aarch64 CI build/test lane (Raspberry Pi deployment path).
 - [ ] Add fuzzing targets for ADPP/protocol and runtime config parsing surfaces.
-- [ ] Migrate to config-only vcpkg baseline and update in the same change:
+- [x] Migrate to config-only vcpkg baseline and update in the same change:
   - `scripts/setup.ps1`
   - `scripts/setup.sh`
   - `docs/dependencies.md`

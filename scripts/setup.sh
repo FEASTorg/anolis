@@ -32,16 +32,16 @@ error() {
 
 # ---- Extract vcpkg baseline ----
 get_vcpkg_baseline() {
-	if [[ -f "$REPO_ROOT/vcpkg.json" ]]; then
-		grep -o '"builtin-baseline"[[:space:]]*:[[:space:]]*"[^"]*"' \
-			"$REPO_ROOT/vcpkg.json" |
+	if [[ -f "$REPO_ROOT/vcpkg-configuration.json" ]]; then
+		grep -o '"baseline"[[:space:]]*:[[:space:]]*"[^"]*"' \
+			"$REPO_ROOT/vcpkg-configuration.json" | tail -1 |
 			sed 's/.*"\([^"]*\)".*/\1/' || true
 	fi
 }
 
 VCPKG_BASELINE="$(get_vcpkg_baseline)"
 if [[ -z "${VCPKG_BASELINE:-}" ]]; then
-	error "Failed to extract builtin-baseline from vcpkg.json"
+	error "Failed to extract baseline from vcpkg-configuration.json"
 fi
 
 # ---- Parse arguments ----
