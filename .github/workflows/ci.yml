@@ -419,6 +419,8 @@ jobs:
           cmake --build build --config Debug --parallel
 
       - name: Run unit tests
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/lib
         run: |
           echo "=== Running CTest with coverage ==="
           ctest --test-dir build --output-on-failure -C Debug
