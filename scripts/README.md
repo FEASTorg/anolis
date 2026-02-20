@@ -4,19 +4,19 @@ Quick reference for all automation scripts in the repository.
 
 ## Core Scripts (scripts/)
 
-| Script           | Purpose                                          | Usage                            |
-| ---------------- | ------------------------------------------------ | -------------------------------- |
-| **dev.ps1/sh**   | **One-command dev environment**                  | `.\scripts\dev.ps1`              |
-|                  | Starts: Runtime + UI + Docker (InfluxDB/Grafana) | Recommended for Phase 14 testing |
-|                  | Options: `-SkipInfra`, `-NoUI`, `-SkipBuild`     |                                  |
-| **build.ps1/sh** | Build anolis + anolis-provider-sim               | `.\scripts\build.ps1`            |
-|                  | Options: `--Clean`, `--Release`, `--Debug`       |                                  |
-| **run.ps1/sh**   | Start anolis runtime only                        | `.\scripts\run.ps1`              |
-|                  | Options: `-Config PATH`, `-BuildDir PATH`        | Production/CI usage              |
-| **test.ps1/sh**  | Run unit tests                                   | `.\scripts\test.ps1`             |
-|                  | Executes anolis_unit_tests.exe                   |                                  |
-| **setup.ps1/sh** | Bootstrap vcpkg dependencies                     | `.\scripts\setup.ps1`            |
-|                  | Run once after clone                             |                                  |
+| Script           | Purpose                                           | Usage                            |
+| ---------------- | ------------------------------------------------- | -------------------------------- |
+| **dev.ps1/sh**   | **One-command dev environment**                   | `.\scripts\dev.ps1`              |
+|                  | Starts: Runtime + UI + Docker (InfluxDB/Grafana)  | Recommended for Phase 14 testing |
+|                  | Options: `-SkipInfra`, `-NoUI`, `-SkipBuild`      |                                  |
+| **build.ps1/sh** | Build anolis + anolis-provider-sim                | `.\scripts\build.ps1`            |
+|                  | Provider FluxGraph defaults OFF; opt-in via flags |                                  |
+| **run.ps1/sh**   | Start anolis runtime only                         | `.\scripts\run.ps1`              |
+|                  | Options: `-Config PATH`, `-BuildDir PATH`         | Production/CI usage              |
+| **test.ps1/sh**  | Run unit tests                                    | `.\scripts\test.ps1`             |
+|                  | Executes anolis_unit_tests.exe                    |                                  |
+| **setup.ps1/sh** | Bootstrap vcpkg dependencies                      | `.\scripts\setup.ps1`            |
+|                  | Run once after clone                              |                                  |
 
 ## Common Workflows
 
@@ -26,6 +26,10 @@ Quick reference for all automation scripts in the repository.
 
 # Build only
 .\scripts\build.ps1 --Clean
+
+# Build with provider FluxGraph enabled (opt-in)
+.\scripts\build.ps1 -WithFluxGraph
+# Linux/macOS: ./scripts/build.sh --with-fluxgraph
 
 # Runtime only (Docker already running)
 .\scripts\run.ps1
@@ -99,7 +103,7 @@ Quick reference for all automation scripts in the repository.
 
 - anolis core library
 - anolis-runtime.exe
-- anolis-provider-sim (sibling repo)
+- anolis-provider-sim (sibling repo, `ENABLE_FLUXGRAPH=OFF` by default)
 - Unit tests
 
 ---

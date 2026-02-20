@@ -12,6 +12,9 @@
 #   --clang-tidy            Enable clang-tidy (default)
 #   --no-clang-tidy         Disable clang-tidy
 #   --tsan                  Enable ThreadSanitizer (requires TSAN triplet + ENABLE_TSAN=ON)
+#   --with-fluxgraph        Build provider-sim with FluxGraph support (default: OFF)
+#   --without-fluxgraph     Build provider-sim without FluxGraph support
+#   --fluxgraph-dir <path>  FluxGraph repo path for provider-sim (used with --with-fluxgraph)
 #   --generator <name>      CMake generator (default: Ninja if available, else platform default)
 #   -j, --jobs <N>          Parallel build jobs (default: auto)
 #   -h, --help              Show help
@@ -27,6 +30,8 @@ CLEAN=false
 BUILD_TESTS=true
 CLANG_TIDY=true
 TSAN=false
+WITH_FLUXGRAPH=false
+FLUXGRAPH_DIR=""
 GENERATOR=""
 JOBS=""
 
@@ -65,6 +70,22 @@ while [[ $# -gt 0 ]]; do
 		TSAN=true
 		shift
 		;;
+	--with-fluxgraph)
+		WITH_FLUXGRAPH=true
+		shift
+		;;
+	--without-fluxgraph)
+		WITH_FLUXGRAPH=false
+		shift
+		;;
+	--fluxgraph-dir)
+		[[ $# -lt 2 ]] && {
+			echo "[ERROR] --fluxgraph-dir requires a value"
+			exit 2
+		}
+		FLUXGRAPH_DIR="$2"
+		shift 2
+		;;
 	--generator)
 		[[ $# -lt 2 ]] && {
 			echo "[ERROR] --generator requires a value"
@@ -97,6 +118,10 @@ echo "[INFO] Build type: $BUILD_TYPE"
 echo "[INFO] Build tests: $BUILD_TESTS"
 echo "[INFO] clang-tidy: $CLANG_TIDY"
 echo "[INFO] ThreadSanitizer: $TSAN"
+echo "[INFO] Provider FluxGraph: $([[ "$WITH_FLUXGRAPH" == true ]] && echo "ON" || echo "OFF")"
+if [[ "$WITH_FLUXGRAPH" == true && -n "$FLUXGRAPH_DIR" ]]; then
+	echo "[INFO] Provider FluxGraph dir: $FLUXGRAPH_DIR"
+fi
 
 # Prefer a separate build dir for TSAN to avoid mixing CMake caches/artifacts
 BUILD_DIR="$REPO_ROOT/build"
@@ -175,7 +200,14 @@ fi
 PROVIDER_CONFIG_ARGS=(
 	"${COMMON_CONFIG_ARGS[@]}"
 	-DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+	-DENABLE_FLUXGRAPH="$([[ "$WITH_FLUXGRAPH" == true ]] && echo "ON" || echo "OFF")"
 )
+
+if [[ "$WITH_FLUXGRAPH" == true && -n "$FLUXGRAPH_DIR" ]]; then
+	PROVIDER_CONFIG_ARGS+=(-DFLUXGRAPH_DIR="$FLUXGRAPH_DIR")
+elif [[ "$WITH_FLUXGRAPH" == false && -n "$FLUXGRAPH_DIR" ]]; then
+	echo "[WARN] --fluxgraph-dir ignored because provider FluxGraph is disabled."
+fi
 
 # IMPORTANT: provider-sim must also be TSAN-instrumented when TSAN is enabled,
 # otherwise you'll get mixed-instrumentation crashes / TSAN deadly signals.

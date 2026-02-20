@@ -1,13 +1,15 @@
 # Anolis Build Script (Windows)
 #
 # Usage:
-#   .\scripts\build.ps1 [-Clean] [-Debug] [-NoTests] [-TSan]
+#   .\scripts\build.ps1 [-Clean] [-Debug] [-NoTests] [-TSan] [-WithFluxGraph] [-FluxGraphDir <path>]
 
 param(
     [switch]$Clean,
     [switch]$Debug,
     [switch]$NoTests,
-    [switch]$TSan
+    [switch]$TSan,
+    [switch]$WithFluxGraph,
+    [string]$FluxGraphDir
 )
 
 $ErrorActionPreference = "Stop"
@@ -61,6 +63,13 @@ else {
 
 Write-Host "[INFO] Build type: $BuildType" -ForegroundColor Green
 Write-Host "[INFO] Build tests: $BuildTests" -ForegroundColor Green
+Write-Host "[INFO] Provider FluxGraph: $(if ($WithFluxGraph) { 'ON' } else { 'OFF' })" -ForegroundColor Green
+if ($WithFluxGraph -and $FluxGraphDir) {
+    Write-Host "[INFO] Provider FluxGraph dir: $FluxGraphDir" -ForegroundColor Green
+}
+elseif ((-not $WithFluxGraph) -and $FluxGraphDir) {
+    Write-Host "[WARN] FluxGraphDir ignored because provider FluxGraph is disabled." -ForegroundColor Yellow
+}
 
 # ---- vcpkg detection ----
 if (-not $env:VCPKG_ROOT) {
@@ -104,10 +113,18 @@ $AnolisArgs = @(
     "-DBUILD_TESTING=$BuildTestingValue"
 )
 
+$ProviderArgs = @(
+    $CommonArgs
+    "-DENABLE_FLUXGRAPH=$(if ($WithFluxGraph) { 'ON' } else { 'OFF' })"
+)
+if ($WithFluxGraph -and $FluxGraphDir) {
+    $ProviderArgs += "-DFLUXGRAPH_DIR=$FluxGraphDir"
+}
+
 # ---- Build provider-sim ----
 if (Test-Path $ProviderSimDir) {
     Write-Host "[INFO] Building anolis-provider-sim..." -ForegroundColor Green
-    cmake @CMakeGeneratorArgs -B $ProviderBuildDir -S $ProviderSimDir @CommonArgs
+    cmake @CMakeGeneratorArgs -B $ProviderBuildDir -S $ProviderSimDir @ProviderArgs
     cmake --build $ProviderBuildDir --config $BuildType
 }
 else {

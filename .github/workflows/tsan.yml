@@ -89,6 +89,7 @@ jobs:
             -DVCPKG_OVERLAY_TRIPLETS=${{ github.workspace }}/triplets \
             -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
             -DVCPKG_INSTALLED_DIR=$GITHUB_WORKSPACE/build/vcpkg_installed \
+            -DENABLE_FLUXGRAPH=OFF \
             -DVCPKG_MANIFEST_INSTALL=OFF
           cmake --build build --config RelWithDebInfo --parallel
 

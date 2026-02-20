@@ -187,6 +187,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
             -DVCPKG_INSTALLED_DIR=$GITHUB_WORKSPACE/build/vcpkg_installed \
+            -DENABLE_FLUXGRAPH=OFF \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           cmake --build build --config Release --parallel
 
@@ -366,7 +367,8 @@ jobs:
           cd anolis-provider-sim
           cmake -B build -S . -DCMAKE_BUILD_TYPE=Release `
             "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
-            "-DVCPKG_INSTALLED_DIR=$env:GITHUB_WORKSPACE/build/vcpkg_installed"
+            "-DVCPKG_INSTALLED_DIR=$env:GITHUB_WORKSPACE/build/vcpkg_installed" `
+            "-DENABLE_FLUXGRAPH=OFF"
 
           cmake --build build --config Release --parallel
 
