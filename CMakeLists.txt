@@ -29,6 +29,11 @@ option(ENABLE_COVERAGE "Enable code coverage instrumentation" OFF)
 if(ENABLE_COVERAGE)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         add_compile_options(--coverage -fprofile-arcs -ftest-coverage)
+        # Multithreaded tests can corrupt gcov counters without atomic updates,
+        # which causes lcov/geninfo failures with negative branch counts.
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+            add_compile_options(-fprofile-update=atomic)
+        endif()
         add_link_options(--coverage)
         message(STATUS "Code coverage enabled (gcov/lcov compatible)")
     elseif(MSVC)
