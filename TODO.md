@@ -4,7 +4,7 @@
 
 - [x] Add mypy CI lane for Python scripts/tests (ruff remains lint/format gate).
 - [x] Migrate to config-only vcpkg baseline and update in the same change: `scripts/setup.ps1`, `scripts/setup.sh`, `docs/dependencies.md`
-- [ ] Add a Linux coverage CI lane (`-DENABLE_COVERAGE=ON`) with artifact + summary reporting.
+- [x] Add a Linux coverage CI lane (`-DENABLE_COVERAGE=ON`) with artifact + summary reporting.
 - [ ] Roll out warnings-as-errors for first-party C++ (`-Werror`/`/WX`) in staged mode.
 - [ ] Add Aarch64 CI build/test lane (Raspberry Pi deployment path).
 - [ ] Add fuzzing targets for ADPP/protocol and runtime config parsing surfaces.
