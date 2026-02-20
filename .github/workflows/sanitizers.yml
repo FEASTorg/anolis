@@ -66,8 +66,9 @@ jobs:
           LSAN_OPTIONS: log_path=lsan:verbosity=1
         run: |
           set +e
+          set -o pipefail
           ctest --test-dir build --output-on-failure 2>&1 | tee asan-output.log
-          EXIT_CODE=$?
+          EXIT_CODE=${PIPESTATUS[0]}
 
           # Check for ASAN reports
           if ls asan.* lsan.* 1>/dev/null 2>&1; then
@@ -157,8 +158,9 @@ jobs:
           UBSAN_OPTIONS: log_path=ubsan:halt_on_error=1:print_stacktrace=1
         run: |
           set +e
+          set -o pipefail
           ctest --test-dir build --output-on-failure 2>&1 | tee ubsan-output.log
-          EXIT_CODE=$?
+          EXIT_CODE=${PIPESTATUS[0]}
 
           # Check for UBSAN reports
           if ls ubsan.* 1>/dev/null 2>&1; then

@@ -59,14 +59,15 @@ jobs:
       - name: Analyze with clang-tidy
         run: |
           set +e
+          set -o pipefail
           cmake --build build --parallel 2>&1 | tee clang-tidy.log
-          EXIT_CODE=$?
+          EXIT_CODE=${PIPESTATUS[0]}
 
           # Count warnings and errors
-          ERROR_COUNT=$(grep -c "error:" clang-tidy.log || echo "0")
-          WARNING_COUNT=$(grep -c "warning:" clang-tidy.log || echo "0")
+          ERROR_COUNT=$(grep -c "error:" clang-tidy.log || true)
+          WARNING_COUNT=$(grep -c "warning:" clang-tidy.log || true)
 
-          if [ $EXIT_CODE -ne 0 ] || [ $ERROR_COUNT -gt 0 ]; then
+          if [ "$EXIT_CODE" -ne 0 ] || [ "$ERROR_COUNT" -gt 0 ]; then
             echo "FAIL: Clang-tidy found errors"
             {
               echo "## Clang-Tidy Analysis Failed"
@@ -81,7 +82,10 @@ jobs:
               echo ""
               echo "Artifact: \`clang-tidy-log-${{ github.run_number }}\`"
             } >> $GITHUB_STEP_SUMMARY
-            exit $EXIT_CODE
+            if [ "$EXIT_CODE" -ne 0 ]; then
+              exit "$EXIT_CODE"
+            fi
+            exit 1
           fi
 
           {

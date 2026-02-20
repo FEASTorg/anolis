@@ -45,12 +45,13 @@ runs:
       shell: bash
       run: |
         set +e
+        set -o pipefail
         echo "=== Running CTest ==="
         ctest --test-dir ${{ inputs.build-dir }} \
               --output-on-failure \
               --timeout ${{ inputs.timeout }} \
               -C ${{ inputs.config }} 2>&1 | tee ${{ inputs.log-file }}
-        CTEST_EXIT=$?
+        CTEST_EXIT=${PIPESTATUS[0]}
 
         # Parse test results
         TOTAL_TESTS=$(grep -oP '\d+(?= tests?)' ${{ inputs.log-file }} | tail -1 || echo "0")

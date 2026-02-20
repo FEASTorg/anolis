@@ -98,6 +98,7 @@ jobs:
           TSAN_OPTIONS: "second_deadlock_stack=1 detect_deadlocks=1 history_size=7 log_path=${{ github.workspace }}/tsan-unit"
         run: |
           set +e
+          set -o pipefail
           echo "=== Running unit tests with ThreadSanitizer ==="
 
           # Ensure deterministic execution under TSAN
@@ -111,7 +112,7 @@ jobs:
                             --verbose \
                             --timeout 300 \
                             -C RelWithDebInfo 2>&1 | tee tsan-unit-output.log
-          EXIT_CODE=$?
+          EXIT_CODE=${PIPESTATUS[0]}
 
           # Check for TSAN reports
           if ls tsan-unit.* 1>/dev/null 2>&1; then
@@ -159,11 +160,12 @@ jobs:
           TSAN_OPTIONS: "second_deadlock_stack=1 history_size=7 log_path=${{ github.workspace }}/tsan-integration"
         run: |
           set +e
+          set -o pipefail
 
           echo "=== Running integration tests with ThreadSanitizer ==="
           python3 tests/integration/test_all.py --timeout=180 \
             --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim 2>&1 | tee tsan-integration-output.log
-          TEST_EXIT=$?
+          TEST_EXIT=${PIPESTATUS[0]}
 
           # Check for TSAN reports
           if ls tsan-integration.* 1>/dev/null 2>&1; then
@@ -213,13 +215,14 @@ jobs:
           TSAN_OPTIONS: "second_deadlock_stack=1 history_size=7 log_path=${{ github.workspace }}/tsan-stress"
         run: |
           set +e
+          set -o pipefail
 
           echo "=== Running concurrency stress test with ThreadSanitizer ==="
           if [ -f tests/integration/test_concurrency_stress.py ]; then
             python3 tests/integration/test_concurrency_stress.py \
               --runtime=build/core/anolis-runtime \
               --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim 2>&1 | tee tsan-stress-output.log
-            TEST_EXIT=$?
+            TEST_EXIT=${PIPESTATUS[0]}
 
             # Check for TSAN reports
             if ls tsan-stress.* 1>/dev/null 2>&1; then
@@ -287,7 +290,7 @@ jobs:
       - name: Final Summary
         if: always()
         run: |
-          if [ -f tsan-unit.* ] || [ -f tsan-integration.* ] || [ -f tsan-stress.* ]; then
+          if compgen -G "tsan-unit.*" > /dev/null || compgen -G "tsan-integration.*" > /dev/null || compgen -G "tsan-stress.*" > /dev/null; then
             echo "FAIL: ThreadSanitizer workflow completed with data races detected"
             {
               echo "---"

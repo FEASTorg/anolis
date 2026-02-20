@@ -231,9 +231,10 @@ jobs:
       - name: Run unit tests
         run: |
           set +e
+          set -o pipefail
           echo "=== Running CTest ==="
           ctest --test-dir build --output-on-failure -C Release 2>&1 | tee ctest-output.log
-          CTEST_EXIT=$?
+          CTEST_EXIT=${PIPESTATUS[0]}
 
           # Parse test results
           TOTAL_TESTS=$(grep -oP '\d+(?= tests)' ctest-output.log | tail -1 || echo "0")
@@ -265,6 +266,7 @@ jobs:
           LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/lib
         run: |
           set +e  # Don't exit on error so we can capture diagnostics
+          set -o pipefail
 
           # Smoke test: verify binaries can start
           echo "=== Smoke test: runtime --help ==="
@@ -280,7 +282,7 @@ jobs:
           START_TIME=$(date +%s)
           python3 tests/integration/test_all.py --timeout=120 \
             --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim 2>&1 | tee integration-test.log
-          TEST_EXIT=$?
+          TEST_EXIT=${PIPESTATUS[0]}
           END_TIME=$(date +%s)
           DURATION=$((END_TIME - START_TIME))
 
@@ -330,11 +332,12 @@ jobs:
           LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/lib
         run: |
           set +e
+          set -o pipefail
           echo "=== Running validation scenario suite ==="
           python3 tests/scenarios/run_scenarios.py \
             --runtime=build/core/anolis-runtime \
             --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim 2>&1 | tee scenarios.log
-          SCENARIO_EXIT=$?
+          SCENARIO_EXIT=${PIPESTATUS[0]}
 
           {
             echo "## Validation Scenarios (Linux)"
