@@ -40,6 +40,9 @@ target_link_libraries(anolis_unit_tests PRIVATE
     protobuf::libprotobuf
 )
 
-# Register tests
+# Register tests. Use PRE_TEST so discovery does not execute during build.
 include(GoogleTest)
-gtest_discover_tests(anolis_unit_tests)
+gtest_discover_tests(anolis_unit_tests
+    DISCOVERY_MODE PRE_TEST
+    DISCOVERY_TIMEOUT 60
+)

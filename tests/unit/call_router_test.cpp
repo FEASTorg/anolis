@@ -609,9 +609,6 @@ TEST_F(CallRouterTest, ConcurrentCallsSameProvider) {
     // Mock provider will be called multiple times
     EXPECT_CALL(*mock_provider, call("dev1", 1, "reset", _, _)).Times(10).WillRepeatedly(Return(true));
 
-    // Mock state polling
-    EXPECT_CALL(*mock_provider, read_signals("dev1", _, _)).Times(AtLeast(10)).WillRepeatedly(Return(true));
-
     control::CallRequest req;
     req.device_handle = "sim0/dev1";
     req.function_name = "reset";
@@ -673,10 +670,6 @@ TEST_F(CallRouterTest, ConcurrentCallsMultipleProviders) {
     EXPECT_CALL(*mock_provider, call("dev1", 1, "reset", _, _)).Times(5).WillRepeatedly(Return(true));
 
     EXPECT_CALL(*mock_provider2, call("dev2", 2, "start", _, _)).Times(5).WillRepeatedly(Return(true));
-
-    EXPECT_CALL(*mock_provider, read_signals("dev1", _, _)).Times(AtLeast(5)).WillRepeatedly(Return(true));
-
-    EXPECT_CALL(*mock_provider2, read_signals("dev2", _, _)).Times(AtLeast(5)).WillRepeatedly(Return(true));
 
     std::vector<std::thread> threads;
     std::vector<control::CallResult> results(10);

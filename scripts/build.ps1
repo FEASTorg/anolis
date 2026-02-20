@@ -125,7 +125,16 @@ if ($WithFluxGraph -and $FluxGraphDir) {
 if (Test-Path $ProviderSimDir) {
     Write-Host "[INFO] Building anolis-provider-sim..." -ForegroundColor Green
     cmake @CMakeGeneratorArgs -B $ProviderBuildDir -S $ProviderSimDir @ProviderArgs
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERROR] anolis-provider-sim CMake configure failed." -ForegroundColor Red
+        exit $LASTEXITCODE
+    }
+
     cmake --build $ProviderBuildDir --config $BuildType
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERROR] anolis-provider-sim build failed." -ForegroundColor Red
+        exit $LASTEXITCODE
+    }
 }
 else {
     Write-Host "[INFO] anolis-provider-sim not found (skipping)" -ForegroundColor Yellow
@@ -134,7 +143,16 @@ else {
 # ---- Build anolis ----
 Write-Host "[INFO] Building anolis..." -ForegroundColor Green
 cmake @CMakeGeneratorArgs -B $BuildDir -S $RepoRoot @AnolisArgs
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] anolis CMake configure failed." -ForegroundColor Red
+    exit $LASTEXITCODE
+}
+
 cmake --build $BuildDir --config $BuildType
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] anolis build failed." -ForegroundColor Red
+    exit $LASTEXITCODE
+}
 
 Write-Host "[INFO] Build complete" -ForegroundColor Green
 Write-Host "[INFO] Build directory: $BuildDir" -ForegroundColor Green
