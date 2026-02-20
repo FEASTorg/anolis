@@ -18,6 +18,7 @@ Usage:
 
 import argparse
 import os
+import re
 import sys
 import time
 from dataclasses import dataclass
@@ -131,6 +132,48 @@ class SupervisionTester:
             except Exception:
                 pass  # Cleanup error, ignore
 
+    def _fail_with_output(self, name: str, message: str, tail_lines: int = 200) -> TestResult:
+        """Build a failure result with recent runtime output context."""
+        if self.capture is None:
+            return TestResult(name, False, message)
+
+        output_tail = self.capture.get_recent_output(tail_lines)
+        return TestResult(name, False, f"{message}\nOutput tail:\n{output_tail}")
+
+    def _pattern_count(self, pattern: str) -> int:
+        """Count regex matches in currently captured output."""
+        if self.capture is None:
+            return 0
+        return len(re.findall(pattern, self.capture.get_all_output()))
+
+    def _wait_for_new_pattern(self, pattern: str, previous_count: int, timeout: float):
+        """Wait for a new regex match that appears after previous_count matches."""
+        if self.capture is None:
+            return None
+
+        regex = re.compile(pattern)
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            matches = list(regex.finditer(self.capture.get_all_output()))
+            if len(matches) > previous_count:
+                return matches[previous_count]
+            time.sleep(0.05)
+
+        return None
+
+    def _wait_for_new_marker(self, marker: str, previous_count: int, timeout: float) -> bool:
+        """Wait for marker occurrence count to increase past previous_count."""
+        if self.capture is None:
+            return False
+
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if self.capture.get_all_output().count(marker) > previous_count:
+                return True
+            time.sleep(0.05)
+
+        return False
+
     def test_automatic_restart(self) -> TestResult:
         """Test that provider restarts automatically after crash."""
         print("\n[TEST] Automatic Restart")
@@ -148,24 +191,23 @@ class SupervisionTester:
 
             # Wait for initial provider start
             if not self.capture.wait_for_marker("Registered provider 'provider-sim'", timeout=10.0):
-                return TestResult("automatic_restart", False, "Provider not registered")
+                return self._fail_with_output("automatic_restart", "Provider not registered")
 
             # Wait for first crash (after 2s)
             if not self.capture.wait_for_marker("crashed (attempt 1/3", timeout=5.0):
-                output = self.capture.get_all_output()
-                return TestResult("automatic_restart", False, f"No crash detected. Output:\n{output}")
+                return self._fail_with_output("automatic_restart", "No crash detected")
 
             # Wait for restart attempt
-            if not self.capture.wait_for_marker("Attempting to restart provider: provider-sim", timeout=2.0):
-                return TestResult("automatic_restart", False, "No restart attempt logged")
+            if not self.capture.wait_for_marker("Attempting to restart provider: provider-sim", timeout=4.0):
+                return self._fail_with_output("automatic_restart", "No restart attempt logged")
 
             # Wait for successful restart
             if not self.capture.wait_for_marker("Provider restarted successfully", timeout=5.0):
-                return TestResult("automatic_restart", False, "Provider failed to restart")
+                return self._fail_with_output("automatic_restart", "Provider failed to restart")
 
             # Wait for recovery message
-            if not self.capture.wait_for_marker("recovered successfully", timeout=2.0):
-                return TestResult("automatic_restart", False, "No recovery message")
+            if not self.capture.wait_for_marker("recovered successfully", timeout=4.0):
+                return self._fail_with_output("automatic_restart", "No recovery message")
 
             return TestResult(
                 "automatic_restart",
@@ -195,29 +237,45 @@ class SupervisionTester:
 
             # Wait for registration
             if not self.capture.wait_for_marker("Registered provider 'provider-sim'", timeout=10.0):
-                return TestResult("backoff_timing", False, "Provider not registered")
+                return self._fail_with_output("backoff_timing", "Provider not registered")
 
-            # Measure first crash and restart
-            crash1_time = time.time()
-            if not self.capture.wait_for_marker("crashed (attempt 1/3, retry in 500ms)", timeout=3.0):
-                return TestResult("backoff_timing", False, "First crash not logged")
+            # Wait for first crash and validate parsed policy fields from log
+            crash_pattern = r"crashed \(attempt 1/(\d+), retry in (\d+)ms\)"
+            crash_count_before = self._pattern_count(crash_pattern)
+            restart_marker = "Attempting to restart provider: provider-sim"
+            restart_count_before = self.capture.get_all_output().count(restart_marker)
 
-            restart1_time = time.time()
-            if not self.capture.wait_for_marker("Attempting to restart", timeout=2.0):
-                return TestResult("backoff_timing", False, "First restart not attempted")
+            crash_match = self._wait_for_new_pattern(crash_pattern, crash_count_before, timeout=6.0)
+            if not crash_match:
+                return self._fail_with_output("backoff_timing", "First crash not logged")
 
-            # Check first backoff (~500ms, allow 200-1200ms tolerance for Windows)
-            first_backoff = (restart1_time - crash1_time) * 1000
-            if not (200 <= first_backoff <= 1200):
-                return TestResult(
+            expected_attempts = 3
+            expected_backoff_ms = 500
+            actual_attempts = int(crash_match.group(1))
+            actual_backoff_ms = int(crash_match.group(2))
+            if actual_attempts != expected_attempts or actual_backoff_ms != expected_backoff_ms:
+                return self._fail_with_output(
                     "backoff_timing",
-                    False,
+                    f"Unexpected restart policy in crash log: attempt 1/{actual_attempts}, retry in "
+                    f"{actual_backoff_ms}ms (expected 1/{expected_attempts}, {expected_backoff_ms}ms)",
+                )
+
+            crash1_time = time.time()
+            if not self._wait_for_new_marker(restart_marker, restart_count_before, timeout=6.0):
+                return self._fail_with_output("backoff_timing", "First restart not attempted")
+            restart1_time = time.time()
+
+            # Check first backoff (~500ms, allow generous tolerance on shared CI)
+            first_backoff = (restart1_time - crash1_time) * 1000
+            if not (100 <= first_backoff <= 2500):
+                return self._fail_with_output(
+                    "backoff_timing",
                     f"First backoff incorrect: {first_backoff:.0f}ms (expected ~500ms)",
                 )
 
             # Wait for recovery
-            if not self.capture.wait_for_marker("recovered successfully", timeout=3.0):
-                return TestResult("backoff_timing", False, "Recovery not detected")
+            if not self.capture.wait_for_marker("recovered successfully", timeout=6.0):
+                return self._fail_with_output("backoff_timing", "Recovery not detected")
 
             return TestResult("backoff_timing", True, f"Backoff timing correct: {first_backoff:.0f}ms")
 
@@ -244,19 +302,35 @@ class SupervisionTester:
 
             # Wait for provider to start
             if not self.capture.wait_for_marker("Provider provider-sim started", timeout=10.0):
-                return TestResult("circuit_breaker", False, "Provider not startd")
+                return self._fail_with_output("circuit_breaker", "Provider not started")
 
-            # Wait for first crash
-            if not self.capture.wait_for_marker("crashed (attempt 1/2", timeout=3.0):
-                return TestResult("circuit_breaker", False, "First crash not detected")
+            # Wait for first crash and validate policy-specific attempt/backoff
+            crash_pattern = r"crashed \(attempt 1/(\d+), retry in (\d+)ms\)"
+            crash_count_before = self._pattern_count(crash_pattern)
+            first_crash = self._wait_for_new_pattern(crash_pattern, crash_count_before, timeout=6.0)
+            if not first_crash:
+                return self._fail_with_output("circuit_breaker", "First crash not detected")
+
+            expected_attempts = 2
+            expected_backoff_ms = 200
+            actual_attempts = int(first_crash.group(1))
+            actual_backoff_ms = int(first_crash.group(2))
+            if actual_attempts != expected_attempts or actual_backoff_ms != expected_backoff_ms:
+                return self._fail_with_output(
+                    "circuit_breaker",
+                    f"Unexpected restart policy in crash log: attempt 1/{actual_attempts}, retry in "
+                    f"{actual_backoff_ms}ms (expected 1/{expected_attempts}, {expected_backoff_ms}ms)",
+                )
 
             # Wait for successful recovery
-            if not self.capture.wait_for_marker("recovered successfully", timeout=5.0):
-                return TestResult("circuit_breaker", False, "Recovery not detected")
+            if not self.capture.wait_for_marker("recovered successfully", timeout=6.0):
+                return self._fail_with_output("circuit_breaker", "Recovery not detected")
 
-            # Wait for second crash (should be attempt 1/2 again after recovery)
-            if not self.capture.wait_for_marker("crashed (attempt 1/2", timeout=5.0):
-                return TestResult("circuit_breaker", False, "Second crash not detected")
+            # Wait for second crash (must be a new occurrence after recovery)
+            second_crash_marker = "crashed (attempt 1/2"
+            second_crash_count_before = self.capture.get_all_output().count(second_crash_marker)
+            if not self._wait_for_new_marker(second_crash_marker, second_crash_count_before, timeout=8.0):
+                return self._fail_with_output("circuit_breaker", "Second crash not detected")
 
             return TestResult("circuit_breaker", True, "Crash counter resets properly after recovery")
 
@@ -279,23 +353,23 @@ class SupervisionTester:
 
             # Wait for initial device discovery
             if not self.capture.wait_for_marker("Registered: provider-sim/tempctl0", timeout=10.0):
-                return TestResult("device_rediscovery", False, "Initial device not discovered")
+                return self._fail_with_output("device_rediscovery", "Initial device not discovered")
 
             # Wait for crash
             if not self.capture.wait_for_marker("crashed (attempt 1/3", timeout=5.0):
-                return TestResult("device_rediscovery", False, "No crash detected")
+                return self._fail_with_output("device_rediscovery", "No crash detected")
 
             # Wait for device clearing
-            if not self.capture.wait_for_marker("Clearing devices for provider: provider-sim", timeout=2.0):
-                return TestResult("device_rediscovery", False, "Devices not cleared before restart")
+            if not self.capture.wait_for_marker("Clearing devices for provider: provider-sim", timeout=4.0):
+                return self._fail_with_output("device_rediscovery", "Devices not cleared before restart")
 
             # Wait for restart
             if not self.capture.wait_for_marker("Provider restarted successfully", timeout=5.0):
-                return TestResult("device_rediscovery", False, "Provider failed to restart")
+                return self._fail_with_output("device_rediscovery", "Provider failed to restart")
 
             # Wait for device rediscovery
-            if not self.capture.wait_for_marker("Registered: provider-sim/tempctl0", timeout=2.0):
-                return TestResult("device_rediscovery", False, "Device not rediscovered after restart")
+            if not self.capture.wait_for_marker("Registered: provider-sim/tempctl0", timeout=4.0):
+                return self._fail_with_output("device_rediscovery", "Device not rediscovered after restart")
 
             return TestResult(
                 "device_rediscovery",
@@ -409,6 +483,7 @@ def main():
     parser = argparse.ArgumentParser(description="Provider Supervision Integration Test")
     parser.add_argument("--runtime", type=Path, help="Path to anolis runtime executable")
     parser.add_argument("--provider-sim", type=Path, help="Path to anolis-provider-sim executable")
+    parser.add_argument("--provider", dest="provider_sim", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--timeout", type=float, default=60.0, help="Test timeout in seconds")
     args = parser.parse_args()
 

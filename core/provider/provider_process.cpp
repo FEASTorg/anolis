@@ -10,6 +10,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #else
+#include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/wait.h>
@@ -228,37 +229,66 @@ bool ProviderProcess::is_running() const {
     return exit_code == STILL_ACTIVE;
 #else
     if (pid_ <= 0) return false;
-    // Use kill(0) to test process existence without reaping
-    // Returns 0 if process exists, -1 with errno ESRCH if process doesn't exist
-    int result = kill(pid_, 0);
-    if (result == 0) {
-        return true;  // Process exists
+
+    // Use waitpid(WNOHANG) for child liveness. kill(pid, 0) is not sufficient
+    // because zombies still "exist" and would be misclassified as running.
+    int status = 0;
+    while (true) {
+        pid_t result = waitpid(pid_, &status, WNOHANG);
+        if (result == 0) {
+            return true;  // Child still running
+        }
+        if (result == pid_) {
+            return false;  // Child exited (reaped by this call)
+        }
+        if (result == -1) {
+            if (errno == EINTR) {
+                continue;
+            }
+            if (errno == ECHILD) {
+                return false;  // Already reaped
+            }
+            return false;  // Conservative on unexpected errors
+        }
     }
-    return false;  // Process doesn't exist (ESRCH) or other error
 #endif
 }
 
 void ProviderProcess::shutdown() {
-    if (!is_running()) {
-        return;
-    }
+    const bool running = is_running();
 
-    LOG_INFO("[" << provider_id_ << "] Initiating shutdown");
+    if (running) {
+        LOG_INFO("[" << provider_id_ << "] Initiating shutdown");
 
-    // 1. Send EOF
-    client_.close_stdin();
+        // 1. Send EOF
+        client_.close_stdin();
 
-    // 2. Wait with configurable timeout
-    bool exited = wait_for_exit(shutdown_timeout_ms_);
+        // 2. Wait with configurable timeout
+        bool exited = wait_for_exit(shutdown_timeout_ms_);
 
-    if (exited) {
-        LOG_INFO("[" << provider_id_ << "] Clean shutdown");
+        if (exited) {
+            LOG_INFO("[" << provider_id_ << "] Clean shutdown");
+        } else {
+            // 3. Forced kill
+            LOG_WARN("[" << provider_id_ << "] Timeout - forcing termination");
+            force_terminate();
+            wait_for_exit(500);
+        }
     } else {
-        // 3. Forced kill
-        LOG_WARN("[" << provider_id_ << "] Timeout - forcing termination");
-        force_terminate();
-        wait_for_exit(500);
+#ifndef _WIN32
+        // Normalize pid_ when process already exited before shutdown().
+        wait_for_exit(0);
+#endif
     }
+
+    // Always release pipe handles, even if the process exited earlier.
+    client_.close_stdin();
+    client_.close_stdout();
+
+#ifndef _WIN32
+    stdin_write_fd_ = -1;
+    stdout_read_fd_ = -1;
+#endif
 
 #ifdef _WIN32
     if (process_handle_) {

@@ -46,6 +46,9 @@ public:
     // Close stdin (signals EOF to provider)
     void close_stdin();
 
+    // Close stdout read handle
+    void close_stdout();
+
     // Get last error message
     const std::string &last_error() const { return error_; }
 

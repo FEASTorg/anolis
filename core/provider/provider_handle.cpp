@@ -21,16 +21,19 @@ ProviderHandle::ProviderHandle(const std::string &provider_id, const std::string
 
 bool ProviderHandle::start() {
     LOG_INFO("[" << process_.provider_id() << "] Starting provider");
+    session_healthy_.store(false, std::memory_order_release);
 
     // Spawn process
     if (!process_.spawn()) {
         error_ = process_.last_error();
         return false;
     }
+    session_healthy_.store(true, std::memory_order_release);
 
     // Phase 1: Process liveness check with Hello handshake
     anolis::deviceprovider::v1::HelloResponse hello_response;
     if (!hello(hello_response)) {
+        session_healthy_.store(false, std::memory_order_release);
         LOG_ERROR("[" << process_.provider_id() << "] Hello handshake failed: " << error_);
         return false;
     }
@@ -46,6 +49,7 @@ bool ProviderHandle::start() {
         LOG_INFO("[" << process_.provider_id() << "] Provider supports WaitReady, waiting for initialization...");
         anolis::deviceprovider::v1::WaitReadyResponse ready_response;
         if (!wait_ready(ready_response)) {
+            session_healthy_.store(false, std::memory_order_release);
             LOG_ERROR("[" << process_.provider_id() << "] WaitReady failed: " << error_);
             return false;
         }
@@ -208,8 +212,14 @@ bool ProviderHandle::send_request(const anolis::deviceprovider::v1::Request &req
                                   anolis::deviceprovider::v1::Response &response, uint64_t request_id) {
     std::lock_guard<std::mutex> lock(mutex_);
 
+    if (!session_healthy_.load(std::memory_order_acquire)) {
+        error_ = "Provider session not healthy";
+        return false;
+    }
+
     // Check provider is running
     if (!process_.is_running()) {
+        session_healthy_.store(false, std::memory_order_release);
         error_ = "Provider process not running";
         return false;
     }
@@ -232,6 +242,7 @@ bool ProviderHandle::send_request(const anolis::deviceprovider::v1::Request &req
     // Send frame
     if (!process_.client().write_frame(reinterpret_cast<const uint8_t *>(serialized.data()), serialized.size(),
                                        timeout_to_use)) {
+        session_healthy_.store(false, std::memory_order_release);
         error_ = "Failed to write request: " + process_.client().last_error();
         return false;
     }
@@ -285,12 +296,14 @@ bool ProviderHandle::wait_for_response(anolis::deviceprovider::v1::Response &res
             if (process_.client().read_frame(frame_data, read_timeout)) {
                 // Parse response
                 if (!response.ParseFromArray(frame_data.data(), static_cast<int>(frame_data.size()))) {
+                    session_healthy_.store(false, std::memory_order_release);
                     error_ = "Failed to parse response protobuf";
                     return false;
                 }
 
                 // Validate request_id correlation
                 if (response.request_id() != expected_request_id) {
+                    session_healthy_.store(false, std::memory_order_release);
                     error_ = "Response request_id mismatch (expected " + std::to_string(expected_request_id) +
                              ", got " + std::to_string(response.request_id()) + ")";
                     LOG_ERROR("[" << process_.provider_id() << "] " << error_);
@@ -301,18 +314,21 @@ bool ProviderHandle::wait_for_response(anolis::deviceprovider::v1::Response &res
             }
 
             if (!process_.client().last_error().empty()) {
+                session_healthy_.store(false, std::memory_order_release);
                 error_ = "Failed to read response: " + process_.client().last_error();
             } else {
                 error_ = "Timed out reading response payload";
             }
             return false;
         } else if (!process_.client().last_error().empty()) {
+            session_healthy_.store(false, std::memory_order_release);
             error_ = "Failed waiting for response: " + process_.client().last_error();
             return false;
         }
 
         // Check if process died
         if (!process_.is_running()) {
+            session_healthy_.store(false, std::memory_order_release);
             error_ = "Provider process died while waiting for response";
             return false;
         }

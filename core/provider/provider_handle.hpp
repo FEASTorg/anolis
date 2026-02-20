@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <chrono>
 #include <mutex>
 #include <string>
@@ -30,7 +31,9 @@ public:
     bool start() override;
 
     // Check if provider is available
-    bool is_available() const override { return process_.is_running(); }
+    bool is_available() const override {
+        return session_healthy_.load(std::memory_order_acquire) && process_.is_running();
+    }
 
     // ADPP Operations (all blocking, synchronous)
     bool hello(anolis::deviceprovider::v1::HelloResponse &response) override;
@@ -55,6 +58,7 @@ public:
 
 private:
     ProviderProcess process_;
+    std::atomic<bool> session_healthy_{false};
     std::string error_;
     anolis::deviceprovider::v1::Status_Code last_status_code_ = anolis::deviceprovider::v1::Status_Code_CODE_OK;
     uint32_t next_request_id_;

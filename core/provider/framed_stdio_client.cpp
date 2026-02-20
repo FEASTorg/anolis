@@ -291,5 +291,19 @@ void FramedStdioClient::close_stdin() {
 #endif
 }
 
+void FramedStdioClient::close_stdout() {
+#ifdef _WIN32
+    if (stdout_read_) {
+        CloseHandle(stdout_read_);
+        stdout_read_ = nullptr;
+    }
+#else
+    if (stdout_read_ >= 0) {
+        close(stdout_read_);
+        stdout_read_ = -1;
+    }
+#endif
+}
+
 }  // namespace provider
 }  // namespace anolis

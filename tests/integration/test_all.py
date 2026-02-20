@@ -227,11 +227,12 @@ def run_test_script(
             message=f"Script not found: {script_path}",
         )
 
+    provider_flag = "--provider-sim" if script_name == "test_provider_supervision.py" else "--provider"
     cmd = [
         sys.executable,
         str(script_path),
         f"--runtime={runtime_path}",
-        f"--provider={provider_path}",
+        f"{provider_flag}={provider_path}",
         f"--timeout={timeout}",
     ]
 
@@ -511,7 +512,8 @@ def main() -> int:
     print("=" * 60)
 
     skipped: int = sum(1 for r in results if r.skipped)
-    failed: int = sum(1 for r in results if not r.passed)
+    passed_count: int = sum(1 for r in results if r.passed)
+    failed: int = sum(1 for r in results if (not r.passed) and (not r.skipped))
     total_duration: float = sum(r.duration for r in results)
 
     for result in results:
@@ -529,9 +531,9 @@ def main() -> int:
 
     print()
     if skipped > 0:
-        print(f"Passed: {passed}/{len(results)}, Skipped: {skipped}")
+        print(f"Passed: {passed_count}/{len(results)}, Skipped: {skipped}")
     else:
-        print(f"Passed: {passed}/{len(results)}")
+        print(f"Passed: {passed_count}/{len(results)}")
     print(f"Duration: {total_duration:.1f}s")
 
     if failed == 0:
