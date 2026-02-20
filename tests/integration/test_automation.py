@@ -22,7 +22,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 import requests
 
@@ -153,7 +153,7 @@ class AutomationTester:
         """Get current mode via HTTP API"""
         try:
             resp = requests.get(f"{self.base_url}/v0/mode", timeout=2)
-            return resp.json()
+            return cast(Dict[str, Any], resp.json())
         except requests.RequestException as e:
             log_fail(f"Request exception: {e}")
             return None
@@ -162,7 +162,7 @@ class AutomationTester:
         """Set mode via HTTP API"""
         try:
             resp = requests.post(f"{self.base_url}/v0/mode", json={"mode": mode}, timeout=2)
-            return resp.json()
+            return cast(Dict[str, Any], resp.json())
         except requests.RequestException as e:
             log_fail(f"Request failed: {e}")
             return None

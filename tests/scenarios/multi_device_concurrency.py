@@ -13,6 +13,7 @@ Tests:
 
 import threading
 import time
+from typing import Any, Dict
 
 from .base import ScenarioBase, ScenarioResult, create_result
 
@@ -35,7 +36,7 @@ class MultiDeviceConcurrency(ScenarioBase):
             poll_results = {}
             poll_errors = []
 
-            def poll_device(device_id):
+            def poll_device(device_id: str) -> None:
                 try:
                     start = time.time()
                     state = self.get_state("sim0", device_id)
@@ -76,10 +77,10 @@ class MultiDeviceConcurrency(ScenarioBase):
                 )
 
             # Step 3: Concurrent function calls to multiple devices
-            call_results = {}
+            call_results: Dict[str, Dict[str, Any]] = {}
             call_errors = []
 
-            def call_device_function(device_id, function_name, args):
+            def call_device_function(device_id: str, function_name: str, args: Dict[str, Any]) -> None:
                 try:
                     start = time.time()
                     result = self.call_function("sim0", device_id, function_name, args)
@@ -115,9 +116,10 @@ class MultiDeviceConcurrency(ScenarioBase):
             self.assert_equal(len(call_errors), 0, f"Concurrent function calls failed: {call_errors}")
 
             for device_id, result in call_results.items():
+                success = result.get("success")
                 self.assert_true(
-                    result["success"],
-                    f"Function call to {device_id} failed: {result['status']}",
+                    bool(success),
+                    f"Function call to {device_id} failed: {result.get('status')}",
                 )
 
             # Step 4: Verify all state changes were applied
@@ -140,7 +142,7 @@ class MultiDeviceConcurrency(ScenarioBase):
                     motor1_duty = sig.get("value")
                     break
             self.assert_true(
-                abs(motor1_duty - 0.5) < 0.01,
+                motor1_duty is not None and abs(motor1_duty - 0.5) < 0.01,
                 f"motorctl0 duty not updated: expected 0.5, got {motor1_duty}",
             )
 
@@ -182,8 +184,8 @@ class MultiDeviceConcurrency(ScenarioBase):
             )
 
             # Calculate average latencies
-            avg_poll_latency = sum(r["latency"] for r in poll_results.values()) / len(poll_results)
-            avg_call_latency = sum(r["latency"] for r in call_results.values()) / len(call_results)
+            avg_poll_latency = sum(float(r["latency"]) for r in poll_results.values()) / len(poll_results)
+            avg_call_latency = sum(float(r["latency"]) for r in call_results.values()) / len(call_results)
 
             return create_result(
                 self,

@@ -61,6 +61,9 @@ def test_relayio0():
     print(f"  Signals: {len(state['values'])}")
 
     relay1_before = next((s for s in state["values"] if s["signal_id"] == "relay_ch1_state"), None)
+    if not relay1_before:
+        print("  [FAIL] Could not find relay_ch1_state signal")
+        return False
     print(f"  relay_ch1_state: {relay1_before['value']['bool']}")
 
     # Toggle relay
@@ -90,6 +93,10 @@ def test_relayio0():
     state = resp.json()
     relay1_after = next((s for s in state["values"] if s["signal_id"] == "relay_ch1_state"), None)
 
+    if not relay1_after:
+        print("  [FAIL] Could not find relay_ch1_state signal after toggle")
+        return False
+
     if relay1_after["value"]["bool"]:
         print("  [PASS] Relay toggled successfully")
         return True
@@ -108,6 +115,13 @@ def test_analogsensor0():
 
     voltage_ch1 = next((s for s in state["values"] if s["signal_id"] == "voltage_ch1"), None)
     quality = next((s for s in state["values"] if s["signal_id"] == "sensor_quality"), None)
+
+    if not voltage_ch1:
+        print("  [FAIL] Could not find voltage_ch1 signal")
+        return False
+    if not quality:
+        print("  [FAIL] Could not find sensor_quality signal")
+        return False
 
     print(f"  voltage_ch1: {voltage_ch1['value']['double']:.2f}V")
     print(f"  sensor_quality: {quality['value']['string']}")
@@ -133,6 +147,10 @@ def test_analogsensor0():
     resp = requests.get(f"{BASE_URL}/v0/state/sim0/analogsensor0")
     state = resp.json()
     quality_after = next((s for s in state["values"] if s["signal_id"] == "sensor_quality"), None)
+
+    if not quality_after:
+        print("  [FAIL] Could not find sensor_quality signal after noise")
+        return False
 
     print(f"  sensor_quality after noise: {quality_after['value']['string']}")
 

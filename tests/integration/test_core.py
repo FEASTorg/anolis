@@ -199,14 +199,16 @@ class CoreFeatureTester:
         self.record("Process alive", True)
 
         # Check for warnings/errors in logs (for debugging context, not pass/fail)
-        output = self.fixture.get_output_capture().get_all_output()
-        has_warnings = "WARNING:" in output or "ERROR:" in output
-        if has_warnings:
-            print("[DEBUG NOTE] Warnings or errors detected (context only):")
-            # Show last few WARNING/ERROR lines
-            for line in self.fixture.get_output_capture().lines[-50:]:
-                if "WARNING:" in line or "ERROR:" in line:
-                    print(f"    {line}")
+        capture = self.fixture.get_output_capture()
+        if capture is not None:
+            output = capture.get_all_output()
+            has_warnings = "WARNING:" in output or "ERROR:" in output
+            if has_warnings:
+                print("[DEBUG NOTE] Warnings or errors detected (context only):")
+                # Show last few WARNING/ERROR lines
+                for line in capture.lines[-50:]:
+                    if "WARNING:" in line or "ERROR:" in line:
+                        print(f"    {line}")
 
         # Test 7: Graceful Shutdown (handled by RuntimeFixture)
         print("\n7. Graceful Shutdown")

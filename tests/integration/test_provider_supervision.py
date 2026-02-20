@@ -65,7 +65,7 @@ class SupervisionTester:
             return self.fixture.get_output_capture()
         return None
 
-    def create_config(self, crash_after: float, max_attempts: int = 3, backoff_ms: List[int] = None) -> dict:
+    def create_config(self, crash_after: float, max_attempts: int = 3, backoff_ms: Optional[List[int]] = None) -> dict:
         """Create config dict with supervision settings."""
         if backoff_ms is None:
             backoff_ms = [100, 1000, 5000]
@@ -143,6 +143,9 @@ class SupervisionTester:
             if not self.start_runtime(config_dict):
                 return TestResult("automatic_restart", False, "Failed to start runtime")
 
+            if self.capture is None:
+                return TestResult("automatic_restart", False, "OutputCapture not available")
+
             # Wait for initial provider start
             if not self.capture.wait_for_marker("Registered provider 'provider-sim'", timeout=10.0):
                 return TestResult("automatic_restart", False, "Provider not registered")
@@ -186,6 +189,9 @@ class SupervisionTester:
         try:
             if not self.start_runtime(config_dict):
                 return TestResult("backoff_timing", False, "Failed to start runtime")
+
+            if self.capture is None:
+                return TestResult("backoff_timing", False, "OutputCapture not available")
 
             # Wait for registration
             if not self.capture.wait_for_marker("Registered provider 'provider-sim'", timeout=10.0):
@@ -233,6 +239,9 @@ class SupervisionTester:
             if not self.start_runtime(config_dict):
                 return TestResult("circuit_breaker", False, "Failed to start runtime")
 
+            if self.capture is None:
+                return TestResult("circuit_breaker", False, "OutputCapture not available")
+
             # Wait for provider to start
             if not self.capture.wait_for_marker("Provider provider-sim started", timeout=10.0):
                 return TestResult("circuit_breaker", False, "Provider not startd")
@@ -264,6 +273,9 @@ class SupervisionTester:
         try:
             if not self.start_runtime(config_dict):
                 return TestResult("device_rediscovery", False, "Failed to start runtime")
+
+            if self.capture is None:
+                return TestResult("device_rediscovery", False, "OutputCapture not available")
 
             # Wait for initial device discovery
             if not self.capture.wait_for_marker("Registered: provider-sim/tempctl0", timeout=10.0):

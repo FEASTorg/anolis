@@ -71,7 +71,7 @@ class HttpGatewayTester:
         if message and not passed:
             print(f"      {message}")
 
-    def http_get(self, path: str) -> Optional[Dict[str, Any]]:
+    def http_get(self, path: str) -> Dict[str, Any]:
         """Make GET request, return JSON or None."""
         try:
             resp = requests.get(f"{self.base_url}{path}", timeout=5)
@@ -79,7 +79,7 @@ class HttpGatewayTester:
         except Exception as e:
             return {"status_code": 0, "error": str(e)}
 
-    def http_post(self, path: str, data: Dict) -> Optional[Dict[str, Any]]:
+    def http_post(self, path: str, data: Dict) -> Dict[str, Any]:
         """Make POST request, return JSON or None."""
         try:
             resp = requests.post(f"{self.base_url}{path}", json=data, timeout=5)
@@ -471,20 +471,24 @@ class HttpGatewayTester:
         self.record("Call status OK", True)
 
         # Verify state changed (wait for poll cycle + post-call poll)
-        motor1_duty = {"value": None}
+        motor1_duty: Dict[str, Optional[float]] = {"value": None}
 
-        def duty_updated():
+        def duty_updated() -> bool:
             result = self.http_get("/v0/state/sim0/motorctl0")
             body = result["body"]
             for val in body.get("values", []):
                 if val.get("signal_id") == "motor1_duty":
                     motor1_duty["value"] = val.get("value", {}).get("double")
                     break
-            return motor1_duty["value"] is not None and abs(motor1_duty["value"] - 0.5) < 0.01
+            value = motor1_duty["value"]
+            if value is None:
+                return False
+            return abs(value - 0.5) < 0.01
 
         if not wait_for_condition(duty_updated, timeout=3.0, interval=0.1, description="motor duty update"):
             self.record("Duty changed", False, f"Expected 0.5, got {motor1_duty['value']}")
             return False
+
         self.record("Motor duty changed to 0.5", True)
 
         # ========================================

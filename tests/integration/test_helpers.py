@@ -13,7 +13,7 @@ Philosophy:
 """
 
 import time
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, cast
 
 import requests
 
@@ -246,7 +246,7 @@ def get_runtime_status(base_url: str, timeout: float = 2.0) -> Optional[Dict[str
     try:
         resp = requests.get(f"{base_url}/v0/runtime/status", timeout=timeout)
         if resp.status_code == 200:
-            return resp.json()
+            return cast(Dict[str, Any], resp.json())
     except (requests.exceptions.RequestException, ValueError):
         pass
     return None
@@ -268,7 +268,7 @@ def get_devices(base_url: str, timeout: float = 2.0) -> Optional[List[Dict[str, 
         if resp.status_code == 200:
             data = resp.json()
             # API returns {"status": {...}, "devices": [...]}
-            return data.get("devices", [])
+            return cast(List[Dict[str, Any]], data.get("devices", []))
     except (requests.exceptions.RequestException, ValueError):
         pass
     return None
@@ -290,7 +290,7 @@ def get_device_state(base_url: str, provider_id: str, device_id: str, timeout: f
     try:
         resp = requests.get(f"{base_url}/v0/state/{provider_id}/{device_id}", timeout=timeout)
         if resp.status_code == 200:
-            return resp.json()
+            return cast(Dict[str, Any], resp.json())
     except (requests.exceptions.RequestException, ValueError):
         pass
     return None
@@ -311,7 +311,7 @@ def get_mode(base_url: str, timeout: float = 2.0) -> Optional[str]:
         resp = requests.get(f"{base_url}/v0/mode", timeout=timeout)
         if resp.status_code == 200:
             mode_data = resp.json()
-            return mode_data.get("mode")
+            return cast(Optional[str], mode_data.get("mode"))
     except (requests.exceptions.RequestException, ValueError):
         pass
     return None

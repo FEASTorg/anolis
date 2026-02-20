@@ -214,7 +214,7 @@ def run_test_script(
     provider_path: Path,
     timeout: int,
     verbose: bool,
-    extra_args: List[str] = None,
+    extra_args: Optional[List[str]] = None,
 ) -> TestSuiteResult:
     """Run a single test script, streaming output to log file to prevent OOM."""
     script_path = get_script_dir() / script_name
@@ -259,14 +259,15 @@ def run_test_script(
                 )
 
                 # Read and write line by line
-                while True:
-                    line = process.stdout.readline()
-                    if not line and process.poll() is not None:
-                        break
-                    if line:
-                        print(line, end="", flush=True)
-                        log_file.write(line)
-                        log_file.flush()
+                if process.stdout:
+                    while True:
+                        line = process.stdout.readline()
+                        if not line and process.poll() is not None:
+                            break
+                        if line:
+                            print(line, end="", flush=True)
+                            log_file.write(line)
+                            log_file.flush()
 
                 result_code = process.wait(timeout=timeout + 30)
             else:
@@ -509,10 +510,9 @@ def main() -> int:
     print("Summary")
     print("=" * 60)
 
-    passed = sum(1 for r in results if r.passed and not r.skipped)
-    skipped = sum(1 for r in results if r.skipped)
-    failed = sum(1 for r in results if not r.passed)
-    total_duration = sum(r.duration for r in results)
+    skipped: int = sum(1 for r in results if r.skipped)
+    failed: int = sum(1 for r in results if not r.passed)
+    total_duration: float = sum(r.duration for r in results)
 
     for result in results:
         if result.skipped:

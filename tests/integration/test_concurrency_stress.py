@@ -40,7 +40,7 @@ class StressTestResult:
     message: str
     restart_count: int = 0
     http_requests: int = 0
-    errors: List[str] = None
+    errors: Optional[List[str]] = None
 
     def __post_init__(self):
         if self.errors is None:

@@ -52,13 +52,17 @@ class OutputCapture:
             while not self.stop_event.is_set():
                 if self.process.poll() is not None:
                     # Process ended, read remaining output
-                    remaining = self.process.stderr.read()
-                    if remaining:
-                        for line in remaining.splitlines():
-                            self._add_line(line)
+                    if self.process.stderr:
+                        remaining = self.process.stderr.read()
+                        if remaining:
+                            for line in remaining.splitlines():
+                                self._add_line(line)
                     break
 
-                line = self.process.stderr.readline()
+                if self.process.stderr:
+                    line = self.process.stderr.readline()
+                else:
+                    break
                 if line:
                     self._add_line(line.rstrip("\n\r"))
         except Exception as e:

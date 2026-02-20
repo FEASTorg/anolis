@@ -117,6 +117,10 @@ def test_signal_fault_injection():
             temp_pv_frozen = signal
             break
 
+    if not temp_pv_frozen:
+        print("FAIL: Could not find temp_pv signal after 1s")
+        return False
+
     print(f"   Frozen: temp_pv = {temp_pv_frozen['value']}, quality = {temp_pv_frozen['quality']}")
 
     if temp_pv_frozen["quality"] != "FAULT":
@@ -148,6 +152,10 @@ def test_signal_fault_injection():
         if signal["signal_id"] == "temp_pv":
             temp_pv_recovered = signal
             break
+
+    if not temp_pv_recovered:
+        print("FAIL: Could not find temp_pv signal after clearing faults")
+        return False
 
     print(f"   Recovered: temp_pv = {temp_pv_recovered['value']}, quality = {temp_pv_recovered['quality']}")
 

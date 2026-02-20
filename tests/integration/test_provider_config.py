@@ -426,7 +426,7 @@ def test_unknown_device_type(runtime_path: Path, provider_path: Path) -> bool:
 
             # Provider should fail to start with unknown device type
             # Check for error message in output
-            if capture.wait_for_marker("unknown device type", timeout=5, case_sensitive=False):
+            if capture.wait_for_marker("unknown device type", timeout=5):
                 print("  [PASS] Provider failed fast with unknown device type error")
                 return True
             elif capture.wait_for_marker("Runtime Ready", timeout=5):

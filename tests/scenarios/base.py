@@ -10,7 +10,7 @@ Provides common infrastructure for validation scenarios:
 
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List
+from typing import Any, Dict, List, cast
 
 
 @dataclass
@@ -88,8 +88,8 @@ class ScenarioBase:
         url = f"{self.base_url}/v0/devices"
         resp = requests.get(url, timeout=5)
         resp.raise_for_status()
-        data = resp.json()
-        return data.get("devices", [])
+        data = cast(Dict[str, Any], resp.json())
+        return cast(List[Dict[str, Any]], data.get("devices", []))
 
     def get_capabilities(self, provider: str, device: str) -> Dict[str, Any]:
         """Get device capabilities (signals and functions)."""
@@ -98,10 +98,10 @@ class ScenarioBase:
         url = f"{self.base_url}/v0/devices/{provider}/{device}/capabilities"
         resp = requests.get(url, timeout=5)
         resp.raise_for_status()
-        data = resp.json()
+        data = cast(Dict[str, Any], resp.json())
         # Return the inner capabilities object for convenience
         # API returns: {"status": ..., "capabilities": {"signals": [], "functions": []}, ...}
-        return data.get("capabilities", data)
+        return cast(Dict[str, Any], data.get("capabilities", data))
 
     def get_state(self, provider: str, device: str) -> Dict[str, Any]:
         """
@@ -116,7 +116,7 @@ class ScenarioBase:
         url = f"{self.base_url}/v0/state/{provider}/{device}"
         resp = requests.get(url, timeout=5)
         resp.raise_for_status()
-        data = resp.json()
+        data = cast(Dict[str, Any], resp.json())
 
         # Normalize: API returns 'values', scenarios expect 'signals'
         # Also extract actual value from typed format
@@ -159,7 +159,7 @@ class ScenarioBase:
         url = f"{self.base_url}/v0/state"
         resp = requests.get(url, timeout=5)
         resp.raise_for_status()
-        return resp.json()
+        return cast(Dict[str, Any], resp.json())
 
     def call_function(self, provider: str, device: str, function: Any, args: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -225,7 +225,7 @@ class ScenarioBase:
             resp.raise_for_status()
 
         try:
-            result = resp.json()
+            result = cast(Dict[str, Any], resp.json())
         except ValueError:
             # If not JSON (e.g. 404 text), then raise
             resp.raise_for_status()
@@ -246,7 +246,7 @@ class ScenarioBase:
         url = f"{self.base_url}/v0/runtime/status"
         resp = requests.get(url, timeout=5)
         resp.raise_for_status()
-        return resp.json()
+        return cast(Dict[str, Any], resp.json())
 
     def set_mode(self, mode: str):
         """Set runtime control mode (MANUAL or AUTO)."""

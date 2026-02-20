@@ -103,7 +103,7 @@ class ParameterValidation(ScenarioBase):
                     break
 
             self.assert_true(
-                abs(setpoint_signal - 60.0) < 0.1,
+                setpoint_signal is not None and abs(setpoint_signal - 60.0) < 0.1,
                 f"Setpoint not updated correctly: expected 60.0, got {setpoint_signal}",
             )
 

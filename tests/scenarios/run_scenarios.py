@@ -68,7 +68,7 @@ class StreamReader:
     def __init__(self, stream, name: str):
         self.stream = stream
         self.name = name
-        self.output = []
+        self.output: list[str] = []
         self.thread = threading.Thread(target=self._read_loop, daemon=True)
         self.thread.start()
 
@@ -90,7 +90,7 @@ class RuntimeProcess:
     """Wrapper for runtime and provider processes"""
 
     runtime_proc: subprocess.Popen
-    provider_proc: subprocess.Popen
+    provider_proc: Optional[subprocess.Popen]
     base_url: str
     config_file: str
     stdout_reader: Optional[StreamReader] = None
@@ -335,7 +335,7 @@ class ScenarioRunner:
             scenario.setup()
 
             # Run
-            result = scenario.run()
+            result: ScenarioResult = scenario.run()
 
             # Cleanup
             try:
@@ -751,8 +751,6 @@ def find_executable(name: str, build_dir: str = "build") -> Optional[str]:
             path = PROJECT_ROOT / d / name
             if path.exists():
                 return str(path)
-
-    return None
 
     return None
 

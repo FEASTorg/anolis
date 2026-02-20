@@ -82,6 +82,10 @@ def test_scoped_cleanup(runtime_path: Path, provider_path: Path) -> bool:
         pgid = fixture.get_pgid()
         print(f"[PASS] Runtime started - PID={pid}, PGID={pgid}")
 
+        if pid is None:
+            print("[FAIL] Could not get PID after start")
+            return False
+
         # Verify process is running
         if not fixture.is_running():
             print("[FAIL] Process not running after start")
@@ -160,7 +164,7 @@ def test_cleanup_on_exception(runtime_path: Path, provider_path: Path) -> bool:
 
     # Verify cleanup worked despite exception
     print("\n[4] Verifying process terminated after exception...")
-    if pid and not verify_process_cleanup(pid, timeout=3.0):
+    if pid is not None and not verify_process_cleanup(pid, timeout=3.0):
         print(f"[FAIL] Process PID={pid} still running after cleanup!")
         return False
 
@@ -193,6 +197,10 @@ def test_double_cleanup(runtime_path: Path, provider_path: Path) -> bool:
 
         pid = fixture.get_pid()
         print(f"[PASS] Runtime started - PID={pid}")
+
+        if pid is None:
+            print("[FAIL] Could not get PID after start")
+            return False
 
         print("\n[2] First cleanup...")
         fixture.cleanup()
@@ -244,7 +252,9 @@ def test_graceful_vs_force_kill(runtime_path: Path, provider_path: Path) -> bool
 
         pid = fixture.get_pid()
         print(f"[PASS] Runtime started - PID={pid}")
-
+        if pid is None:
+            print("[FAIL] Could not get PID after start")
+            return False
         print("\n[2] Cleanup (should try graceful SIGTERM first)...")
         start_time = time.time()
         fixture.cleanup()
