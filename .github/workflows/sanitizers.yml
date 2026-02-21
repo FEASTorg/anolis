@@ -30,186 +30,77 @@ env:
   VCPKG_COMMIT: "66c0373dc7fca549e5803087b9487edfe3aca0a1"
 
 jobs:
-  asan:
-    name: AddressSanitizer
+  sanitizer-linux:
+    name: ${{ matrix.lane }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lane: AddressSanitizer
+            preset: ci-asan
+            asan_options: log_path=asan:halt_on_error=1:detect_leaks=1:symbolize=1
+            ubsan_options: ""
+            log_glob: "asan.* lsan.*"
+          - lane: UndefinedBehaviorSanitizer
+            preset: ci-ubsan
+            asan_options: ""
+            ubsan_options: log_path=ubsan:halt_on_error=1:print_stacktrace=1
+            log_glob: "ubsan.*"
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build g++
+
+
+      - name: Validate requirements lockfile
+        uses: ./.github/actions/validate-lockfile
 
       - name: Setup vcpkg
         uses: ./.github/actions/setup-vcpkg
         with:
           vcpkg-commit: ${{ env.VCPKG_COMMIT }}
 
-      - name: Configure CMake (ASAN)
-        run: |
-          cmake -B build -S . -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
-            -DCMAKE_CXX_FLAGS="-fsanitize=address -fno-omit-frame-pointer" \
-            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address" \
-            -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address"
+      - name: Configure
+        run: cmake --preset "${{ matrix.preset }}"
 
       - name: Build
-        run: cmake --build build --parallel
+        run: cmake --build --preset "${{ matrix.preset }}" --parallel
 
-      - name: Run tests with ASAN
+      - name: Run tests
         env:
-          ASAN_OPTIONS: log_path=asan:halt_on_error=1:detect_leaks=1:symbolize=1
-          LSAN_OPTIONS: log_path=lsan:verbosity=1
+          ASAN_OPTIONS: ${{ matrix.asan_options }}
+          UBSAN_OPTIONS: ${{ matrix.ubsan_options }}
         run: |
           set +e
           set -o pipefail
-          ctest --test-dir build --output-on-failure 2>&1 | tee asan-output.log
+          ctest --preset "${{ matrix.preset }}" 2>&1 | tee sanitizer-output.log
           EXIT_CODE=${PIPESTATUS[0]}
 
-          # Check for ASAN reports
-          if ls asan.* lsan.* 1>/dev/null 2>&1; then
-            echo "FAIL: AddressSanitizer detected memory errors"
-            ISSUE_COUNT=$(ls asan.* lsan.* 2>/dev/null | wc -l)
-            {
-              echo "## ASAN Detected Memory Errors"
-              echo ""
-              echo "**Issues found:** $ISSUE_COUNT"
-              echo ""
-              echo "### First Issue:"
-              echo '```'
-              head -100 asan.* lsan.* 2>/dev/null | head -50
-              echo '```'
-              echo ""
-              echo "Artifact: \`asan-logs-${{ github.run_number }}\`"
-            } >> $GITHUB_STEP_SUMMARY
+          if ls ${{ matrix.log_glob }} >/dev/null 2>&1; then
+            echo "Sanitizer reports detected"
             exit 1
           fi
 
-          if [ $EXIT_CODE -ne 0 ]; then
-            echo "FAIL: Tests failed with exit code $EXIT_CODE"
-            {
-              echo "## ASAN Tests Failed"
-              echo ""
-              echo "Exit code: $EXIT_CODE"
-              echo ""
-              echo "See artifacts for details."
-            } >> $GITHUB_STEP_SUMMARY
-            exit $EXIT_CODE
-          fi
+          exit $EXIT_CODE
 
-          echo "PASS: All tests passed, no memory errors detected"
-          {
-            echo "## AddressSanitizer Passed"
-            echo ""
-            echo "- No memory leaks detected"
-            echo "- No buffer overflows detected"
-            echo "- No use-after-free errors detected"
-            echo "- All tests passed successfully"
-          } >> $GITHUB_STEP_SUMMARY
-
-      - name: Upload ASAN logs
+      - name: Upload sanitizer logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: asan-logs-${{ github.run_number }}
+          name: ${{ matrix.preset }}-logs-${{ github.run_number }}
           path: |
             asan.*
             lsan.*
-            asan-output.log
-          if-no-files-found: ignore
-          retention-days: 14
-
-  ubsan:
-    name: UndefinedBehaviorSanitizer
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y ninja-build
-
-      - name: Setup vcpkg
-        uses: ./.github/actions/setup-vcpkg
-        with:
-          vcpkg-commit: ${{ env.VCPKG_COMMIT }}
-
-      - name: Configure CMake (UBSAN)
-        run: |
-          cmake -B build -S . -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
-            -DCMAKE_CXX_FLAGS="-fsanitize=undefined -fno-omit-frame-pointer" \
-            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=undefined" \
-            -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=undefined"
-
-      - name: Build
-        run: cmake --build build --parallel
-
-      - name: Run tests with UBSAN
-        env:
-          UBSAN_OPTIONS: log_path=ubsan:halt_on_error=1:print_stacktrace=1
-        run: |
-          set +e
-          set -o pipefail
-          ctest --test-dir build --output-on-failure 2>&1 | tee ubsan-output.log
-          EXIT_CODE=${PIPESTATUS[0]}
-
-          # Check for UBSAN reports
-          if ls ubsan.* 1>/dev/null 2>&1; then
-            echo "FAIL: UndefinedBehaviorSanitizer detected issues"
-            ISSUE_COUNT=$(ls ubsan.* 2>/dev/null | wc -l)
-            {
-              echo "## UBSAN Detected Undefined Behavior"
-              echo ""
-              echo "**Issues found:** $ISSUE_COUNT"
-              echo ""
-              echo "### First Issue:"
-              echo '```'
-              head -100 ubsan.* 2>/dev/null | head -50
-              echo '```'
-              echo ""
-              echo "Artifact: \`ubsan-logs-${{ github.run_number }}\`"
-            } >> $GITHUB_STEP_SUMMARY
-            exit 1
-          fi
-
-          if [ $EXIT_CODE -ne 0 ]; then
-            echo "FAIL: Tests failed with exit code $EXIT_CODE"
-            {
-              echo "## UBSAN Tests Failed"
-              echo ""
-              echo "Exit code: $EXIT_CODE"
-              echo ""
-              echo "See artifacts for details."
-            } >> $GITHUB_STEP_SUMMARY
-            exit $EXIT_CODE
-          fi
-
-          echo "PASS: All tests passed, no undefined behavior detected"
-          {
-            echo "## UndefinedBehaviorSanitizer Passed"
-            echo ""
-            echo "- No undefined behavior detected"
-            echo "- No integer overflows detected"
-            echo "- No null pointer dereferences detected"
-            echo "- All tests passed successfully"
-          } >> $GITHUB_STEP_SUMMARY
-
-      - name: Upload UBSAN logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ubsan-logs-${{ github.run_number }}
-          path: |
             ubsan.*
-            ubsan-output.log
+            sanitizer-output.log
           if-no-files-found: ignore
           retention-days: 14

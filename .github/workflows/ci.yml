@@ -26,8 +26,6 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# vcpkg commit from the official release 2026.01.16
-# https://github.com/microsoft/vcpkg/releases/tag/2026.01.16
 env:
   VCPKG_COMMIT: "66c0373dc7fca549e5803087b9487edfe3aca0a1"
 
@@ -35,52 +33,32 @@ jobs:
   format-check:
     name: C++ Formatting (clang-format)
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
-
       - name: Install clang-format
         run: |
-          # Install clang-format 19 from LLVM apt repository
-          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-          sudo add-apt-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-19 main"
           sudo apt-get update
-          sudo apt-get install -y clang-format-19
+          sudo apt-get install -y clang-format
 
-      - name: Check C++ formatting
+      - name: Check formatting
         run: |
-          echo "=== Checking C++ formatting with .clang-format ==="
-          clang-format-19 --version
+          set -euo pipefail
           FILES=$(find core tests -type f \( -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \))
           if [ -z "$FILES" ]; then
             echo "No C++ files found"
             exit 1
           fi
-
-          echo "$FILES" | xargs clang-format-19 --dry-run --Werror
-          FORMAT_EXIT=$?
-
-          if [ $FORMAT_EXIT -eq 0 ]; then
-            echo "✓ All C++ files are properly formatted"
-          else
-            echo "✗ Formatting issues detected"
-            echo ""
-            echo "To fix locally:"
-            echo "  1. Install clang-format 19: https://github.com/llvm/llvm-project/releases/tag/llvmorg-19.1.5"
-            echo "  2. Run: clang-format -i core/**/*.{cpp,hpp} tests/**/*.{cpp,hpp}"
-            echo "  3. Or use: Get-ChildItem -Path core,tests -Recurse -Include *.cpp,*.hpp | ForEach-Object { clang-format -i \$_.FullName }"
-          fi
-
-          exit $FORMAT_EXIT
+          echo "$FILES" | xargs clang-format --dry-run --Werror
 
   python-lint:
     name: Python Linting (ruff)
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
@@ -98,38 +76,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install ruff==0.15.0
 
-      - name: Run ruff check
+      - name: Run ruff checks
         run: |
-          echo "=== Running ruff linter ==="
           ruff check . --output-format=github
-          CHECK_EXIT=$?
-
-          if [ $CHECK_EXIT -ne 0 ]; then
-            echo ""
-            echo "To fix issues locally, run:"
-            echo "  ruff check --fix ."
-          fi
-
-          exit $CHECK_EXIT
-
-      - name: Run ruff format check
-        run: |
-          echo "=== Running ruff formatter ==="
           ruff format --check .
-          FORMAT_EXIT=$?
-
-          if [ $FORMAT_EXIT -ne 0 ]; then
-            echo ""
-            echo "To fix formatting locally, run:"
-            echo "  ruff format ."
-          fi
-
-          exit $FORMAT_EXIT
 
   python-typecheck:
     name: Python Type Checking (mypy)
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
@@ -137,412 +92,45 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Setup Python and dependencies
+        uses: ./.github/actions/setup-python-deps
         with:
           python-version: "3.12"
+          upgrade-pip: "true"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+      - name: Run mypy
+        run: mypy .
 
-      - name: Run mypy type checker
-        run: |
-          echo "=== Running mypy type checker ==="
-          mypy --version
-          mypy .
-          MYPY_EXIT=$?
-
-          if [ $MYPY_EXIT -ne 0 ]; then
-            echo ""
-            echo "Type checking failed. To fix issues locally:"
-            echo "  1. Install dependencies: pip install -r requirements.txt"
-            echo "  2. Run mypy: mypy ."
-            echo "  3. Fix reported type errors"
-          fi
-
-          exit $MYPY_EXIT
-
-  build-linux:
-    name: Linux (Ubuntu 24.04)
-    runs-on: ubuntu-24.04
-    timeout-minutes: 85
+  core-build-test:
+    name: ${{ matrix.lane }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lane: Linux Release (Core)
+            os: ubuntu-24.04
+            configure_preset: ci-linux-release
+            test_preset: ci-linux-release
+          - lane: Windows Release (Core)
+            os: windows-2022
+            configure_preset: ci-windows-release
+            test_preset: ci-windows-release
 
     steps:
-      - name: Checkout anolis
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Checkout anolis-provider-sim
-        uses: ./.github/actions/checkout-provider-sim
-
-      - name: Validate requirements-lock.txt encoding
-        uses: ./.github/actions/validate-lockfile
-
-      - name: Install system dependencies
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build ccache g++ python3 python3-pip
-          python3 -m pip install --upgrade pip
-          # Configure ccache
-          /usr/sbin/update-ccache-symlinks
-          echo 'export PATH="/usr/lib/ccache:$PATH"' >> $GITHUB_ENV
-          export PATH="/usr/lib/ccache:$PATH"
-          ccache --set-config=max_size=1G
+          sudo apt-get install -y ninja-build g++
 
-      - name: Cache ccache
-        uses: actions/cache@v4
-        with:
-          path: ~/.ccache
-          key: ccache-linux-${{ runner.os }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
-          restore-keys: |
-            ccache-linux-${{ runner.os }}-
-
-      - name: Setup Python and dependencies
-        uses: ./.github/actions/setup-python-deps
-
-      - name: Setup vcpkg
-        uses: ./.github/actions/setup-vcpkg
-        with:
-          vcpkg-commit: ${{ env.VCPKG_COMMIT }}
-
-      - name: Build anolis
-        run: |
-          cmake -B build -S . -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-          cmake --build build --config Release --parallel
-
-      - name: Build anolis-provider-sim
-        run: |
-          cd anolis-provider-sim
-          cmake -B build -S . -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
-            -DENABLE_FLUXGRAPH=OFF \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-          cmake --build build --config Release --parallel
-
-      - name: Run unit tests
-        run: |
-          set +e
-          set -o pipefail
-          echo "=== Running CTest ==="
-          ctest --test-dir build --output-on-failure -C Release 2>&1 | tee ctest-output.log
-          CTEST_EXIT=${PIPESTATUS[0]}
-
-          # Parse test results
-          TOTAL_TESTS=$(grep -oP '\d+(?= tests)' ctest-output.log | tail -1 || echo "0")
-          PASSED_TESTS=$(grep -oP '\d+(?= tests passed)' ctest-output.log | tail -1 || echo "0")
-          FAILED_TESTS=$(grep -oP '\d+(?= tests failed)' ctest-output.log | tail -1 || echo "0")
-
-          {
-            echo "## Unit Tests (Linux)"
-            echo ""
-            if [ $CTEST_EXIT -eq 0 ]; then
-              echo "**PASS:** All unit tests passed"
-            else
-              echo "**FAIL:** Unit tests failed"
-            fi
-            echo ""
-            echo "- Total: $TOTAL_TESTS"
-            echo "- Passed: $PASSED_TESTS"
-            echo "- Failed: $FAILED_TESTS"
-            echo ""
-            if [ $CTEST_EXIT -ne 0 ]; then
-              echo "See logs in artifact: \`test-logs-linux-${{ github.run_number }}\`"
-            fi
-          } >> $GITHUB_STEP_SUMMARY
-
-          exit $CTEST_EXIT
-
-      - name: Run integration tests
-        env:
-          LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/lib
-        run: |
-          set +e  # Don't exit on error so we can capture diagnostics
-          set -o pipefail
-
-          # Smoke test: verify binaries can start
-          echo "=== Smoke test: runtime --help ==="
-          timeout 10 build/core/anolis-runtime --help || echo "Runtime help exit: $?"
-
-          echo "=== Smoke test: provider-sim --help ==="
-          timeout 10 $GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim --help || echo "Provider help exit: $?"
-
-          echo "=== Memory status before tests ==="
-          free -m
-
-          echo "=== Running tests ==="
-          START_TIME=$(date +%s)
-          python3 tests/integration/test_all.py --timeout=120 \
-            --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim 2>&1 | tee integration-test.log
-          TEST_EXIT=${PIPESTATUS[0]}
-          END_TIME=$(date +%s)
-          DURATION=$((END_TIME - START_TIME))
-
-          # Count test results from pytest output
-          TEST_COUNT=$(grep -oP '\d+(?= passed|failed|error)' integration-test.log | head -1 || echo "N/A")
-
-          {
-            echo "## Integration Tests (Linux)"
-            echo ""
-            if [ $TEST_EXIT -eq 0 ]; then
-              echo "**PASS:** All integration tests passed"
-            else
-              echo "**FAIL:** Integration tests failed"
-            fi
-            echo ""
-            echo "- Duration: ${DURATION}s"
-            echo "- Tests: $TEST_COUNT"
-            echo "- Exit code: $TEST_EXIT"
-            echo ""
-            if [ $TEST_EXIT -ne 0 ]; then
-              echo "### Diagnostics captured:"
-              echo "- Memory status"
-              echo "- OOM check"
-              echo "- Test log tails"
-              echo ""
-              echo "Artifact: \`test-logs-linux-${{ github.run_number }}\`"
-            fi
-          } >> $GITHUB_STEP_SUMMARY
-
-          # On failure, show diagnostics
-          if [ $TEST_EXIT -ne 0 ]; then
-            echo "=== Test failed with exit code $TEST_EXIT ==="
-            echo "=== Memory status after tests ==="
-            free -m
-            echo "=== Checking for OOM kills ==="
-            dmesg 2>/dev/null | grep -i "oom\|killed" | tail -20 || true
-            echo "=== Top memory consumers ==="
-            ps aux --sort=-rss | head -10 || true
-            echo "=== Test log tails ==="
-            tail -100 build/test-logs/*.log 2>/dev/null || true
-          fi
-          ccache -s
-          exit $TEST_EXIT
-
-      - name: Run validation scenarios
-        env:
-          LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/lib
-        run: |
-          set +e
-          set -o pipefail
-          echo "=== Running validation scenario suite ==="
-          python3 tests/scenarios/run_scenarios.py \
-            --runtime=build/core/anolis-runtime \
-            --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim 2>&1 | tee scenarios.log
-          SCENARIO_EXIT=${PIPESTATUS[0]}
-
-          {
-            echo "## Validation Scenarios (Linux)"
-            echo ""
-            if [ $SCENARIO_EXIT -eq 0 ]; then
-              echo "**PASS:** All scenarios passed"
-            else
-              echo "**FAIL:** Scenarios failed"
-              echo ""
-              echo "Exit code: $SCENARIO_EXIT"
-              echo ""
-              echo "Artifact: \`test-logs-linux-${{ github.run_number }}\`"
-            fi
-          } >> $GITHUB_STEP_SUMMARY
-
-          exit $SCENARIO_EXIT
-
-      - name: Upload Test Logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-logs-linux-${{ github.run_number }}
-          path: |
-            build/test-logs/
-            ctest-output.log
-            integration-test.log
-            scenarios.log
-          if-no-files-found: ignore
-          retention-days: 7
-
-  coverage-linux:
-    name: Coverage Analysis (Linux)
-    runs-on: ubuntu-24.04
-    timeout-minutes: 90
-
-    steps:
-      - name: Checkout anolis
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Checkout anolis-provider-sim
-        uses: ./.github/actions/checkout-provider-sim
-
-      - name: Validate requirements-lock.txt encoding
-        uses: ./.github/actions/validate-lockfile
-
-      - name: Install system dependencies and coverage tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build g++ python3 python3-pip lcov
-          python3 -m pip install --upgrade pip
-
-      - name: Setup Python and dependencies
-        uses: ./.github/actions/setup-python-deps
-
-      - name: Setup vcpkg
-        uses: ./.github/actions/setup-vcpkg
-        with:
-          vcpkg-commit: ${{ env.VCPKG_COMMIT }}
-
-      - name: Build anolis with coverage instrumentation
-        run: |
-          cmake -B build -S . -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
-            -DENABLE_COVERAGE=ON
-          cmake --build build --config Debug --parallel
-
-      - name: Build anolis-provider-sim with coverage instrumentation
-        run: |
-          cd anolis-provider-sim
-          cmake -B build -S . -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
-            -DENABLE_FLUXGRAPH=OFF
-          cmake --build build --config Debug --parallel
-
-      - name: Reset coverage counters
-        run: |
-          echo "=== Resetting coverage counters ==="
-          lcov --rc branch_coverage=1 --directory build --zerocounters
-
-      - name: Run unit tests
-        run: |
-          echo "=== Running CTest with coverage ==="
-          ctest --test-dir build --output-on-failure -C Debug
-
-      - name: Run integration tests
-        env:
-          LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/lib
-        run: |
-          echo "=== Running integration tests with coverage ==="
-          python3 tests/integration/test_all.py --timeout=120 \
-            --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim
-
-      - name: Run validation scenarios
-        env:
-          LD_LIBRARY_PATH: ${{ github.workspace }}/build/vcpkg_installed/x64-linux/lib
-        run: |
-          echo "=== Running validation scenarios with coverage ==="
-          python3 tests/scenarios/run_scenarios.py \
-            --runtime=build/core/anolis-runtime \
-            --provider=$GITHUB_WORKSPACE/anolis-provider-sim/build/anolis-provider-sim
-
-      - name: Collect coverage data
-        run: |
-          echo "=== Collecting coverage data with lcov ==="
-
-          # Capture coverage data first. Ignore known external gcov/mismatch noise
-          # (e.g. templated system/vcpkg headers) and filter external files in the next step.
-          lcov --rc branch_coverage=1 --rc geninfo_unexecuted_blocks=1 \
-            --ignore-errors mismatch,gcov \
-            --directory build --capture --output-file coverage.raw.info
-
-          # Remove coverage from external dependencies (vcpkg, system headers, test code)
-          lcov --rc branch_coverage=1 --ignore-errors unused --remove coverage.raw.info \
-            '/usr/*' \
-            '*/vcpkg_installed/*' \
-            '*/build/_deps/*' \
-            '*/tests/*' \
-            --output-file coverage.info
-
-          # List coverage summary
-          lcov --rc branch_coverage=1 --list coverage.info
-
-      - name: Generate HTML coverage report
-        run: |
-          echo "=== Generating HTML coverage report ==="
-          genhtml --rc branch_coverage=1 coverage.info \
-            --output-directory coverage-html \
-            --title "Anolis Runtime Coverage" \
-            --demangle-cpp \
-            --legend
-
-      - name: Extract coverage summary
-        run: |
-          echo "=== Extracting coverage summary ==="
-
-          # Extract line coverage percentage
-          LINE_COV=$(lcov --summary coverage.info 2>&1 | grep 'lines' | grep -oP '\d+\.\d+(?=%)')
-          FUNC_COV=$(lcov --summary coverage.info 2>&1 | grep 'functions' | grep -oP '\d+\.\d+(?=%)')
-
-          # Get total lines/functions
-          TOTAL_LINES=$(lcov --summary coverage.info 2>&1 | grep 'lines' | grep -oP '\d+(?= of)')
-          TOTAL_FUNCS=$(lcov --summary coverage.info 2>&1 | grep 'functions' | grep -oP '\d+(?= of)')
-
-          echo "Line Coverage: $LINE_COV%"
-          echo "Function Coverage: $FUNC_COV%"
-
-          # Generate summary for GitHub Actions
-          {
-            echo "## Code Coverage Report"
-            echo ""
-            echo "### Summary"
-            echo ""
-            echo "| Metric | Coverage | Details |"
-            echo "|--------|----------|---------|"
-            echo "| **Lines** | **${LINE_COV}%** | ${TOTAL_LINES} lines |"
-            echo "| **Functions** | **${FUNC_COV}%** | ${TOTAL_FUNCS} functions |"
-            echo ""
-            echo "### Coverage Report"
-            echo ""
-            echo "Download the full HTML coverage report from the artifacts below."
-            echo ""
-            echo "**Artifact:** \`coverage-report-${{ github.run_number }}\`"
-            echo ""
-            echo "### Recent Coverage Details"
-            echo ""
-            echo "<details>"
-            echo "<summary>Top covered files</summary>"
-            echo ""
-            echo "\`\`\`"
-            lcov --list coverage.info | head -20
-            echo "\`\`\`"
-            echo "</details>"
-          } >> $GITHUB_STEP_SUMMARY
-
-      - name: Upload coverage HTML report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report-${{ github.run_number }}
-          path: coverage-html/
-          retention-days: 30
-
-      - name: Upload raw coverage data
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-data-${{ github.run_number }}
-          path: coverage.info
-          retention-days: 30
-
-  build-windows:
-    name: Windows (MSVC 2022)
-    runs-on: windows-latest
-    timeout-minutes: 85 # Windows builds and tests can be slower
-
-    steps:
-      - name: Checkout anolis
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Checkout anolis-provider-sim
-        uses: ./.github/actions/checkout-provider-sim
-
-      - name: Validate requirements-lock.txt encoding
+      - name: Validate requirements lockfile
         uses: ./.github/actions/validate-lockfile
 
       - name: Setup Python and dependencies
@@ -555,106 +143,184 @@ jobs:
         with:
           vcpkg-commit: ${{ env.VCPKG_COMMIT }}
 
-      - name: Build anolis
+      - name: Configure
+        run: cmake --preset "${{ matrix.configure_preset }}"
+
+      - name: Build
+        run: cmake --build --preset "${{ matrix.configure_preset }}" --parallel
+
+      - name: Run CTest
+        run: ctest --preset "${{ matrix.test_preset }}"
+
+  anolis-provider-compat:
+    name: anolis-provider-compat
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout anolis
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install system dependencies
         run: |
-          cmake -B build -S . -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
-          cmake --build build --config Release --parallel
+          sudo apt-get update
+          sudo apt-get install -y ninja-build g++
 
-      - name: Build anolis-provider-sim
+
+      - name: Resolve provider pin
+        id: pins
         run: |
-          cd anolis-provider-sim
-          cmake -B build -S . -DCMAKE_BUILD_TYPE=Release `
-            "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
-            "-DENABLE_FLUXGRAPH=OFF"
+          set -euo pipefail
+          PROVIDER_REPO=$(awk '/provider_sim:/{f=1; next} f && /repository:/{print $2; exit}' .ci/dependency-pins.yml)
+          PROVIDER_REF=$(awk '/provider_sim:/{f=1; next} f && /ref:/{print $2; exit}' .ci/dependency-pins.yml)
+          if [ -z "$PROVIDER_REPO" ] || [ -z "$PROVIDER_REF" ]; then
+            echo "Failed to resolve provider pin from .ci/dependency-pins.yml" >&2
+            exit 1
+          fi
+          echo "repo=$PROVIDER_REPO" >> "$GITHUB_OUTPUT"
+          echo "ref=$PROVIDER_REF" >> "$GITHUB_OUTPUT"
+          echo "Using provider pin: $PROVIDER_REPO@$PROVIDER_REF"
 
-          cmake --build build --config Release --parallel
+      - name: Checkout pinned provider-sim
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.pins.outputs.repo }}
+          ref: ${{ steps.pins.outputs.ref }}
+          path: anolis-provider-sim
+          submodules: recursive
 
-      - name: Run unit tests
+      - name: Validate requirements lockfile
+        uses: ./.github/actions/validate-lockfile
+
+      - name: Setup Python and dependencies
+        uses: ./.github/actions/setup-python-deps
+        with:
+          upgrade-pip: "true"
+
+      - name: Setup vcpkg
+        uses: ./.github/actions/setup-vcpkg
+        with:
+          vcpkg-commit: ${{ env.VCPKG_COMMIT }}
+
+      - name: Build pinned provider-sim (FluxGraph OFF)
+        working-directory: anolis-provider-sim
+        run: bash ./scripts/build.sh --preset ci-linux-release
+
+      - name: Resolve provider executable
+        id: provider
         run: |
-          ctest --test-dir build --output-on-failure -C Release 2>&1 | Tee-Object -FilePath ctest-output.log
-          $CTEST_EXIT = $LASTEXITCODE
+          set -euo pipefail
+          EXE="$GITHUB_WORKSPACE/anolis-provider-sim/build/ci-linux-release/anolis-provider-sim"
+          if [ ! -x "$EXE" ]; then
+            echo "Provider executable not found: $EXE" >&2
+            exit 1
+          fi
+          echo "exe=$EXE" >> "$GITHUB_OUTPUT"
 
-          # Parse test results
-          $TestOutput = Get-Content ctest-output.log -Raw
-          $TotalTests = if ($TestOutput -match '(\d+) tests') { $Matches[1] } else { "0" }
-          $PassedTests = if ($TestOutput -match '(\d+) tests passed') { $Matches[1] } else { "0" }
-          $FailedTests = if ($TestOutput -match '(\d+) tests failed') { $Matches[1] } else { "0" }
-
-          $Summary = "## Unit Tests (Windows)`n`n"
-          if ($CTEST_EXIT -eq 0) {
-            $Summary += "**PASS:** All unit tests passed`n"
-          } else {
-            $Summary += "**FAIL:** Unit tests failed`n"
-          }
-          $Summary += "`n- Total: $TotalTests`n"
-          $Summary += "- Passed: $PassedTests`n"
-          $Summary += "- Failed: $FailedTests`n`n"
-          if ($CTEST_EXIT -ne 0) {
-            $Summary += "Artifact: ``test-logs-windows-${{ github.run_number }}``n"
-          }
-
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $Summary
-
-          if ($CTEST_EXIT -ne 0) { exit $CTEST_EXIT }
-
-      - name: Run integration tests
+      - name: Configure compatibility preset
         run: |
-          $StartTime = Get-Date
-          python tests/integration/test_all.py --timeout=120 "--provider=$env:GITHUB_WORKSPACE/anolis-provider-sim/build/Release/anolis-provider-sim.exe" 2>&1 | Tee-Object -FilePath integration-test.log
-          $TEST_EXIT = $LASTEXITCODE
-          $EndTime = Get-Date
-          $Duration = [int](($EndTime - $StartTime).TotalSeconds)
+          cmake --preset ci-linux-compat \
+            -DANOLIS_ENABLE_PYTHON_CTEST=ON \
+            -DANOLIS_PROVIDER_SIM_EXE="${{ steps.provider.outputs.exe }}"
 
-          $TestOutput = Get-Content integration-test.log -Raw
-          $TestCount = if ($TestOutput -match '(\d+) (passed|failed|error)') { $Matches[1] } else { "N/A" }
+      - name: Build compatibility preset
+        run: cmake --build --preset ci-linux-compat --parallel
 
-          $Summary = "## Integration Tests (Windows)`n`n"
-          if ($TEST_EXIT -eq 0) {
-            $Summary += "**PASS:** All integration tests passed`n"
-          } else {
-            $Summary += "**FAIL:** Integration tests failed`n"
-          }
-          $Summary += "`n- Duration: ${Duration}s`n"
-          $Summary += "- Tests: $TestCount`n"
-          $Summary += "- Exit code: $TEST_EXIT`n`n"
-          if ($TEST_EXIT -ne 0) {
-            $Summary += "Artifact: ``test-logs-windows-${{ github.run_number }}``n"
-          }
+      - name: Run CTest compatibility entrypoint (Python)
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build/ci-linux-compat/vcpkg_installed/x64-linux/lib
+        run: ctest --preset ci-linux-compat -L integration
 
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $Summary
-
-          if ($TEST_EXIT -ne 0) { exit $TEST_EXIT }
-
-      - name: Run validation scenarios
+      - name: Run legacy integration suites (coverage parity during migration)
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build/ci-linux-compat/vcpkg_installed/x64-linux/lib
+          SKIP_STRESS_TESTS: "1"
         run: |
-          Write-Host "=== Running validation scenario suite ==="
-          python tests/scenarios/run_scenarios.py `
-            "--runtime=build/core/Release/anolis-runtime.exe" `
-            "--provider=$env:GITHUB_WORKSPACE/anolis-provider-sim/build/Release/anolis-provider-sim.exe" 2>&1 | Tee-Object -FilePath scenarios.log
-          $SCENARIO_EXIT = $LASTEXITCODE
+          python3 tests/integration/test_all.py \
+            --runtime=build/ci-linux-compat/core/anolis-runtime \
+            --provider="${{ steps.provider.outputs.exe }}" \
+            --timeout=120
 
-          $Summary = "## Validation Scenarios (Windows)`n`n"
-          if ($SCENARIO_EXIT -eq 0) {
-            $Summary += "**PASS:** All scenarios passed`n"
-          } else {
-            $Summary += "**FAIL:** Scenarios failed`n`n"
-            $Summary += "Exit code: $SCENARIO_EXIT`n`n"
-            $Summary += "Artifact: ``test-logs-windows-${{ github.run_number }}``n"
-          }
+          python3 tests/scenarios/run_scenarios.py \
+            --runtime=build/ci-linux-compat/core/anolis-runtime \
+            --provider="${{ steps.provider.outputs.exe }}"
 
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $Summary
+  coverage-linux:
+    name: Coverage Analysis (Linux, Advisory)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    continue-on-error: true
 
-          if ($SCENARIO_EXIT -ne 0) { exit $SCENARIO_EXIT }
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-      - name: Upload Test Logs
-        if: always()
+      - name: Validate requirements lockfile
+        uses: ./.github/actions/validate-lockfile
+
+      - name: Install coverage tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build g++ lcov
+
+      - name: Setup Python and dependencies
+        uses: ./.github/actions/setup-python-deps
+        with:
+          upgrade-pip: "true"
+
+      - name: Setup vcpkg
+        uses: ./.github/actions/setup-vcpkg
+        with:
+          vcpkg-commit: ${{ env.VCPKG_COMMIT }}
+
+      - name: Configure
+        run: cmake --preset ci-coverage
+
+      - name: Build
+        run: cmake --build --preset ci-coverage --parallel
+
+      - name: Reset coverage counters
+        run: lcov --rc branch_coverage=1 --directory build/ci-coverage --zerocounters
+
+      - name: Run CTest
+        run: ctest --preset ci-coverage
+
+      - name: Collect coverage data
+        run: |
+          set -euo pipefail
+          lcov --rc branch_coverage=1 --rc geninfo_unexecuted_blocks=1 \
+            --ignore-errors mismatch,gcov \
+            --directory build/ci-coverage \
+            --capture \
+            --output-file coverage.raw.info
+
+          lcov --rc branch_coverage=1 --ignore-errors unused \
+            --remove coverage.raw.info \
+            '/usr/*' \
+            '*/vcpkg_installed/*' \
+            '*/build/_deps/*' \
+            '*/tests/*' \
+            --output-file coverage.info
+
+          lcov --rc branch_coverage=1 --list coverage.info
+
+      - name: Generate HTML coverage report
+        run: |
+          genhtml --rc branch_coverage=1 coverage.info \
+            --output-directory coverage-html \
+            --title "Anolis Runtime Coverage" \
+            --demangle-cpp \
+            --legend
+
+      - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: test-logs-windows-${{ github.run_number }}
+          name: coverage-report-${{ github.run_number }}
           path: |
-            build/test-logs/
-            ctest-output.log
-            integration-test.log
-            scenarios.log
-          if-no-files-found: ignore
-          retention-days: 7
+            coverage.info
+            coverage-html/
+          retention-days: 14

@@ -1,29 +1,41 @@
 # Anolis Runtime Start Script (Windows)
 #
 # Usage:
-#   .\scripts\run.ps1 [-Config PATH] [-BuildDir PATH]
+#   .\scripts\run.ps1 [-Preset NAME] [-Config PATH] [-BuildDir PATH]
 
 param(
+    [string]$Preset = "",
     [string]$Config,
     [string]$BuildDir
 )
 
 $ErrorActionPreference = "Stop"
 
+function Get-DefaultPreset {
+    if ($env:OS -eq "Windows_NT") {
+        return "dev-windows-release"
+    }
+    return "dev-release"
+}
+
+if (-not $Preset) {
+    $Preset = Get-DefaultPreset
+}
+if (($env:OS -eq "Windows_NT") -and $Preset -in @("dev-release", "dev-debug")) {
+    throw "Preset '$Preset' uses Ninja and may select MinGW on Windows. Use 'dev-windows-release', 'dev-windows-debug', or 'ci-windows-release'."
+}
+
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = Split-Path -Parent $ScriptDir
 
 if (-not $BuildDir) {
-    $BuildDir = Join-Path $RepoRoot "build"
+    $BuildDir = Join-Path $RepoRoot "build\$Preset"
 }
 
 if (-not $Config) {
     $Config = Join-Path $RepoRoot "anolis-runtime.yaml"
 }
 
-# ------------------------------------------------------------
-# Validation
-# ------------------------------------------------------------
 if (-not (Test-Path $Config)) {
     Write-Host "[ERROR] Config file not found: $Config" -ForegroundColor Red
     exit 1
@@ -31,38 +43,30 @@ if (-not (Test-Path $Config)) {
 
 if (-not (Test-Path $BuildDir)) {
     Write-Host "[ERROR] Build directory not found: $BuildDir" -ForegroundColor Red
-    Write-Host "Run: .\scripts\build.ps1" -ForegroundColor Yellow
+    Write-Host "Run: .\scripts\build.ps1 -Preset $Preset" -ForegroundColor Yellow
     exit 1
 }
 
-# ------------------------------------------------------------
-# Detect Runtime Executable (multi-config and single-config)
-# ------------------------------------------------------------
-# Try Release first (Visual Studio multi-config)
-$Runtime = Join-Path $BuildDir "core\Release\anolis-runtime.exe"
+$candidates = @(
+    (Join-Path $BuildDir "core\anolis-runtime.exe"),
+    (Join-Path $BuildDir "core\Release\anolis-runtime.exe"),
+    (Join-Path $BuildDir "core\Debug\anolis-runtime.exe")
+)
 
-if (-not (Test-Path $Runtime)) {
-    # Try Debug
-    $Runtime = Join-Path $BuildDir "core\Debug\anolis-runtime.exe"
+$Runtime = $null
+foreach ($candidate in $candidates) {
+    if (Test-Path $candidate) {
+        $Runtime = $candidate
+        break
+    }
 }
 
-if (-not (Test-Path $Runtime)) {
-    # Try single-config (Ninja, Unix Makefiles)
-    $Runtime = Join-Path $BuildDir "core\anolis-runtime.exe"
-}
-
-if (-not (Test-Path $Runtime)) {
-    Write-Host "[ERROR] Runtime executable not found. Tried:" -ForegroundColor Red
-    Write-Host "  $BuildDir\core\Release\anolis-runtime.exe" -ForegroundColor Red
-    Write-Host "  $BuildDir\core\Debug\anolis-runtime.exe" -ForegroundColor Red
-    Write-Host "  $BuildDir\core\anolis-runtime.exe" -ForegroundColor Red
-    Write-Host "Run: .\scripts\build.ps1" -ForegroundColor Yellow
+if (-not $Runtime) {
+    Write-Host "[ERROR] Runtime executable not found under: $BuildDir\core" -ForegroundColor Red
+    Write-Host "Run: .\scripts\build.ps1 -Preset $Preset" -ForegroundColor Yellow
     exit 1
 }
 
-# ------------------------------------------------------------
-# Detect TSAN build (informational only on Windows)
-# ------------------------------------------------------------
 $CMakeCache = Join-Path $BuildDir "CMakeCache.txt"
 if (Test-Path $CMakeCache) {
     $cacheContent = Get-Content $CMakeCache -Raw
@@ -72,10 +76,8 @@ if (Test-Path $CMakeCache) {
     }
 }
 
-# ------------------------------------------------------------
-# Launch
-# ------------------------------------------------------------
 Write-Host "[INFO] Starting Anolis Runtime..." -ForegroundColor Green
+Write-Host "[INFO] Preset:          $Preset" -ForegroundColor Green
 Write-Host "[INFO] Build directory: $BuildDir" -ForegroundColor Green
 Write-Host "[INFO] Executable:      $Runtime" -ForegroundColor Green
 Write-Host "[INFO] Config:          $Config" -ForegroundColor Green

@@ -5,4 +5,4 @@ provider_sim:
   repository: FEASTorg/anolis-provider-sim
   ref: 7e810fadb5f63f19e58790ba8da75b3537493ee4
   updated_utc: 2026-02-21
-  rationale: "Phase 31.0 baseline pin before build/CI convergence"
+  rationale: "Baseline compatibility pin for runtime/provider CI"

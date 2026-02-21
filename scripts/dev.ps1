@@ -9,16 +9,32 @@
 #   .\scripts\dev.ps1 -NoUI           # No operator UI server
 #   .\scripts\dev.ps1 -SkipBuild      # Don't check/rebuild if needed
 #   .\scripts\dev.ps1 -Config PATH    # Custom config file
+#   .\scripts\dev.ps1 -Preset NAME   # Build preset (default: dev-release on Linux/macOS, dev-windows-release on Windows)
 
 param(
     [switch]$SkipBuild,
     [switch]$SkipInfra,
     [switch]$NoUI,
+    [string]$Preset = "",
     [string]$Config,
     [string]$BuildDir
 )
 
 $ErrorActionPreference = "Stop"
+
+function Get-DefaultPreset {
+    if ($env:OS -eq "Windows_NT") {
+        return "dev-windows-release"
+    }
+    return "dev-release"
+}
+
+if (-not $Preset) {
+    $Preset = Get-DefaultPreset
+}
+if (($env:OS -eq "Windows_NT") -and $Preset -in @("dev-release", "dev-debug")) {
+    throw "Preset '$Preset' uses Ninja and may select MinGW on Windows. Use 'dev-windows-release', 'dev-windows-debug', or 'ci-windows-release'."
+}
 
 # ANSI colors
 $Red = "`e[31m"
@@ -38,7 +54,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = Split-Path -Parent $ScriptDir
 
 if (-not $BuildDir) {
-    $BuildDir = Join-Path $RepoRoot "build"
+    $BuildDir = Join-Path $RepoRoot "build\$Preset"
 }
 
 if (-not $Config) {
@@ -150,7 +166,7 @@ if (-not (Test-Path $Runtime)) {
     }
 
     Write-Step "Building..."
-    & (Join-Path $ScriptDir "build.ps1")
+    & (Join-Path $ScriptDir "build.ps1") -Preset $Preset
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Build failed"
         exit 1

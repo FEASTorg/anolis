@@ -41,7 +41,7 @@ jobs:
       - name: Install clang-tidy
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-tidy-14 ninja-build
+          sudo apt-get install -y clang-tidy-14 ninja-build g++
           sudo ln -sf /usr/bin/clang-tidy-14 /usr/bin/clang-tidy
 
       - name: Setup vcpkg
@@ -49,21 +49,19 @@ jobs:
         with:
           vcpkg-commit: ${{ env.VCPKG_COMMIT }}
 
-      - name: Configure CMake
+      - name: Configure CMake (preset-first)
         run: |
-          cmake -B build -S . -G Ninja \
+          cmake --preset ci-linux-release \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
             -DENABLE_CLANG_TIDY=ON
 
       - name: Analyze with clang-tidy
         run: |
           set +e
           set -o pipefail
-          cmake --build build --parallel 2>&1 | tee clang-tidy.log
+          cmake --build --preset ci-linux-release --parallel 2>&1 | tee clang-tidy.log
           EXIT_CODE=${PIPESTATUS[0]}
 
-          # Count warnings and errors
           ERROR_COUNT=$(grep -c "error:" clang-tidy.log || true)
           WARNING_COUNT=$(grep -c "warning:" clang-tidy.log || true)
 

@@ -369,23 +369,23 @@ ctest --test-dir build_asan
 
 #### ThreadSanitizer (TSAN) - Race Detection
 
-ThreadSanitizer detects data races at runtime with 5-20x performance overhead. Use separate `build-tsan/` directory to avoid CMake cache conflicts.
+ThreadSanitizer detects data races at runtime with 5-20x performance overhead. Use the dedicated `ci-tsan` preset to keep TSAN cache/toolchain isolated.
 
 **Building with TSAN:**
 
 ```bash
 # Linux/WSL only (uses x64-linux-tsan vcpkg triplet for consistent instrumentation)
-./scripts/build.sh --tsan
+bash ./scripts/build.sh --preset ci-tsan
 
 # Clean rebuild recommended when switching to/from TSAN
-./scripts/build.sh --tsan --clean
+bash ./scripts/build.sh --preset ci-tsan --clean
 ```
 
 **Running Tests with TSAN:**
 
 ```bash
 # Run all tests (unit + integration)
-./scripts/test.sh --tsan
+bash ./scripts/test.sh --preset ci-tsan
 
 # TSAN is NOT supported on Windows MSVC - use WSL or Linux
 ```
@@ -788,23 +788,23 @@ This prevents false positives from uninstrumented libraries.
    **Linux/macOS:**
 
    ```bash
-   ./scripts/build.sh --tsan --clean
-   ./scripts/test.sh --tsan
+   bash ./scripts/build.sh --preset ci-tsan --clean
+   bash ./scripts/test.sh --preset ci-tsan
    ```
 
    **Windows (via WSL):**
 
    ```powershell
    # From Windows PowerShell - launches WSL
-   wsl bash -c "cd /mnt/d/repos_feast/anolis && ./scripts/build.sh --tsan --clean && ./scripts/test.sh --tsan"
+   wsl bash -c "cd /mnt/d/repos_feast/anolis && bash ./scripts/build.sh --preset ci-tsan --clean && bash ./scripts/test.sh --preset ci-tsan"
    ```
 
    **Manual CMake (Linux/macOS only):**
 
    ```bash
-   cmake -B build-tsan -DENABLE_TSAN=ON -DCMAKE_BUILD_TYPE=Debug
-   cmake --build build-tsan
-   cd build-tsan && ctest --output-on-failure
+   cmake --preset ci-tsan
+   cmake --build --preset ci-tsan --parallel
+   ctest --preset ci-tsan
    ```
 
 3. Verify no race reports in output (TSAN reports start with "WARNING: ThreadSanitizer:")
@@ -831,7 +831,7 @@ if skip_timing or tsan_env:
 
 **Environment Variables:**
 
-- `ANOLIS_TSAN=1`: Set automatically by test.sh when TSAN build detected
+- `ANOLIS_TSAN=1`: Set in TSAN CI/local TSAN invocations to signal timing-sensitive tests
 - `ANOLIS_SKIP_TIMING_TESTS=1`: Manual override to skip timing-sensitive tests
 - `TSAN_OPTIONS`: TSAN runtime configuration (presence indicates TSAN environment)
 

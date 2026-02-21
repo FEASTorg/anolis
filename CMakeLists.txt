@@ -6,6 +6,24 @@ project(anolis LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Guard against unsupported ABI/toolchain combinations on Windows.
+# The default vcpkg Windows triplets are MSVC-based and are incompatible
+# with MinGW/GNU unless a MinGW triplet is explicitly selected.
+if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(_anolis_triplet "${VCPKG_TARGET_TRIPLET}")
+    if(NOT _anolis_triplet OR _anolis_triplet MATCHES "windows")
+        if(NOT _anolis_triplet MATCHES "mingw")
+            message(FATAL_ERROR
+                "Unsupported Windows toolchain/triplet combination:\n"
+                "  compiler: ${CMAKE_CXX_COMPILER_ID}\n"
+                "  VCPKG_TARGET_TRIPLET: '${_anolis_triplet}'\n"
+                "Use MSVC presets (`dev-windows-release`, `dev-windows-debug`, `ci-windows-release`),\n"
+                "or select an explicit MinGW triplet (e.g. x64-mingw-dynamic)."
+            )
+        endif()
+    endif()
+endif()
+
 # Find protobuf via vcpkg
 find_package(Protobuf CONFIG REQUIRED)
 
@@ -60,13 +78,39 @@ if(ENABLE_TSAN)
     endif()
 endif()
 
-# Subdirectories
-add_subdirectory(core)
-
 # Enable testing
 option(BUILD_TESTING "Build unit tests" ON)
+option(ANOLIS_ENABLE_PYTHON_CTEST "Register selected Python integration tests with CTest" OFF)
+set(ANOLIS_PROVIDER_SIM_EXE "" CACHE FILEPATH "Path to anolis-provider-sim executable for compatibility integration tests")
+
+# Subdirectories
+add_subdirectory(core)
 
 if(BUILD_TESTING)
     enable_testing()
     add_subdirectory(tests/unit)
+
+    if(ANOLIS_ENABLE_PYTHON_CTEST)
+        find_package(Python3 COMPONENTS Interpreter QUIET)
+        if(NOT Python3_Interpreter_FOUND)
+            message(WARNING "ANOLIS_ENABLE_PYTHON_CTEST=ON but Python3 interpreter not found; skipping Python CTest registration")
+        elseif(NOT ANOLIS_PROVIDER_SIM_EXE OR NOT EXISTS "${ANOLIS_PROVIDER_SIM_EXE}")
+            message(STATUS "ANOLIS_ENABLE_PYTHON_CTEST=ON but ANOLIS_PROVIDER_SIM_EXE is unset or missing; skipping Python integration test registration")
+        else()
+            add_test(
+                NAME integration.core_api
+                COMMAND ${Python3_EXECUTABLE}
+                        ${CMAKE_SOURCE_DIR}/tests/integration/test_core.py
+                        --runtime=$<TARGET_FILE:anolis-runtime>
+                        --provider=${ANOLIS_PROVIDER_SIM_EXE}
+                        --timeout=60
+                        --port=18080
+            )
+            set_tests_properties(integration.core_api PROPERTIES
+                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                TIMEOUT 240
+                LABELS "integration;python;compatibility"
+            )
+        endif()
+    endif()
 endif()

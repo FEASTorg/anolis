@@ -138,7 +138,6 @@ Examples:
 ```bash
 # Clone repositories
 git clone https://github.com/FEASTorg/anolis.git
-git clone https://github.com/FEASTorg/anolis-provider-sim.git
 cd anolis
 
 # Run setup script
@@ -149,8 +148,8 @@ cd anolis
 ### Build
 
 ```bash
-./scripts/build.sh      # Linux/macOS
-.\scripts\build.ps1     # Windows
+bash ./scripts/build.sh --preset dev-release   # Linux/macOS
+.\scripts\build.ps1 -Preset dev-windows-release # Windows
 ```
 
 ### Run
@@ -163,8 +162,8 @@ cd anolis
 ### Test
 
 ```bash
-./scripts/test.sh       # Linux/macOS
-.\scripts\test.ps1      # Windows
+bash ./scripts/test.sh --preset dev-release   # Linux/macOS
+.\scripts\test.ps1 -Preset dev-windows-release # Windows
 ```
 
 ### Validation & Acceptance Testing
@@ -205,6 +204,8 @@ See [tests/scenarios/README.md](tests/scenarios/README.md) for full scenario doc
 See [tests/scenarios/OPERATOR_WORKFLOW.md](tests/scenarios/OPERATOR_WORKFLOW.md) for step-by-step manual validation guide.
 
 Build/dependency/CI governance: [docs/dependencies.md](docs/dependencies.md).
+
+Cross-repo compatibility is validated in CI via the pinned `anolis-provider-compat` lane (see `.ci/dependency-pins.yml`).
 
 ---
 

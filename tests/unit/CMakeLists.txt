@@ -45,4 +45,5 @@ include(GoogleTest)
 gtest_discover_tests(anolis_unit_tests
     DISCOVERY_MODE PRE_TEST
     DISCOVERY_TIMEOUT 60
+    PROPERTIES LABELS "unit"
 )

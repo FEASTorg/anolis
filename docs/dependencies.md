@@ -4,7 +4,7 @@ Anolis uses:
 - **vcpkg** (manifest mode) for C++ dependencies
 - **pip** (`requirements*.txt`) for Python tooling/tests
 
-This document is the Phase 31 governance baseline for dependency pinning, CI lanes, presets, and cross-repo compatibility.
+This document defines governance for dependency pinning, CI lanes, presets, and cross-repo compatibility.
 
 ## vcpkg Policy
 
@@ -39,7 +39,7 @@ Rules:
 Promotion rule:
 - Advisory lane can be promoted to required only after **10 consecutive green default-branch runs** and an explicit promotion PR.
 
-## Dual-Run Policy
+## Rollout Policy
 
 When replacing legacy build/test/CI paths:
 1. Run legacy and new paths in parallel.
@@ -58,6 +58,24 @@ Rules:
 2. CI-only deviations must be explicit and documented.
 3. Repo-specific extension presets are allowed if documented (for example feature-specific lanes).
 
+Contributor quick check:
+
+```bash
+cmake --list-presets
+ctest --list-presets
+```
+
+On Windows local development, use `dev-windows-*` presets (MSVC toolchain).
+
+## Pin Bump Process (Compatibility Lane)
+
+When updating runtime/provider compatibility pins:
+
+1. Update `.ci/dependency-pins.yml` (`provider_sim.ref`, `updated_utc`, `rationale`).
+2. Update matching entry in `.ci/compatibility-matrix.yml`.
+3. Run `anolis-provider-compat` lane against the new pin.
+4. Merge only when required lanes and compatibility lane are green.
+
 ## Current C++ Dependencies
 
 | Package              | Purpose                                 |
@@ -74,4 +92,4 @@ Rules:
 1. Update dependency refs/policies in one PR.
 2. Validate required lanes and compatibility lane.
 3. Update compatibility matrix + changelog note.
-4. Merge only after lane tier and dual-run rules are satisfied.
+4. Merge only after lane tier and rollout rules are satisfied.

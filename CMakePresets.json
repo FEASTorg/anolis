@@ -1,0 +1,256 @@
+{
+  "version": 2,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "BUILD_TESTING": "ON",
+        "ENABLE_CLANG_TIDY": "OFF",
+        "ENABLE_COVERAGE": "OFF",
+        "ENABLE_TSAN": "OFF",
+        "ANOLIS_ENABLE_PYTHON_CTEST": "OFF",
+        "ANOLIS_PROVIDER_SIM_EXE": ""
+      }
+    },
+    {
+      "name": "base-windows-msvc",
+      "hidden": true,
+      "inherits": "base",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x64-windows"
+      }
+    },
+    {
+      "name": "dev-debug",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ENABLE_CLANG_TIDY": "ON"
+      }
+    },
+    {
+      "name": "dev-release",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "dev-windows-debug",
+      "inherits": "base-windows-msvc",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ENABLE_CLANG_TIDY": "ON"
+      }
+    },
+    {
+      "name": "dev-windows-release",
+      "inherits": "base-windows-msvc",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "ci-linux-release",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "VCPKG_TARGET_TRIPLET": "x64-linux"
+      }
+    },
+    {
+      "name": "ci-windows-release",
+      "inherits": "base-windows-msvc",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "ci-coverage",
+      "inherits": "ci-linux-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ENABLE_COVERAGE": "ON"
+      }
+    },
+    {
+      "name": "ci-asan",
+      "inherits": "ci-linux-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS": "-fsanitize=address -fno-omit-frame-pointer",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address",
+        "CMAKE_MODULE_LINKER_FLAGS": "-fsanitize=address"
+      }
+    },
+    {
+      "name": "ci-ubsan",
+      "inherits": "ci-linux-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS": "-fsanitize=undefined -fno-omit-frame-pointer",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=undefined",
+        "CMAKE_MODULE_LINKER_FLAGS": "-fsanitize=undefined"
+      }
+    },
+    {
+      "name": "ci-tsan",
+      "inherits": "ci-linux-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "VCPKG_TARGET_TRIPLET": "x64-linux-tsan",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/triplets",
+        "ENABLE_TSAN": "ON"
+      }
+    },
+    {
+      "name": "ci-linux-compat",
+      "inherits": "ci-linux-release",
+      "cacheVariables": {
+        "ANOLIS_ENABLE_PYTHON_CTEST": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "dev-debug",
+      "configurePreset": "dev-debug"
+    },
+    {
+      "name": "dev-release",
+      "configurePreset": "dev-release"
+    },
+    {
+      "name": "dev-windows-debug",
+      "configurePreset": "dev-windows-debug",
+      "configuration": "Debug"
+    },
+    {
+      "name": "dev-windows-release",
+      "configurePreset": "dev-windows-release",
+      "configuration": "Release"
+    },
+    {
+      "name": "ci-linux-release",
+      "configurePreset": "ci-linux-release"
+    },
+    {
+      "name": "ci-windows-release",
+      "configurePreset": "ci-windows-release",
+      "configuration": "Release"
+    },
+    {
+      "name": "ci-coverage",
+      "configurePreset": "ci-coverage"
+    },
+    {
+      "name": "ci-asan",
+      "configurePreset": "ci-asan"
+    },
+    {
+      "name": "ci-ubsan",
+      "configurePreset": "ci-ubsan"
+    },
+    {
+      "name": "ci-tsan",
+      "configurePreset": "ci-tsan"
+    },
+    {
+      "name": "ci-linux-compat",
+      "configurePreset": "ci-linux-compat"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "dev-debug",
+      "configurePreset": "dev-debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "dev-release",
+      "configurePreset": "dev-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "dev-windows-debug",
+      "configurePreset": "dev-windows-debug",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "dev-windows-release",
+      "configurePreset": "dev-windows-release",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci-linux-release",
+      "configurePreset": "ci-linux-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci-windows-release",
+      "configurePreset": "ci-windows-release",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci-coverage",
+      "configurePreset": "ci-coverage",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci-asan",
+      "configurePreset": "ci-asan",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci-ubsan",
+      "configurePreset": "ci-ubsan",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci-tsan",
+      "configurePreset": "ci-tsan",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci-linux-compat",
+      "configurePreset": "ci-linux-compat",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

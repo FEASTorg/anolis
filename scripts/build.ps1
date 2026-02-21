@@ -1,161 +1,106 @@
-# Anolis Build Script (Windows)
+#!/usr/bin/env pwsh
+# Anolis build wrapper (preset-first)
 #
 # Usage:
-#   .\scripts\build.ps1 [-Clean] [-Debug] [-NoTests] [-TSan] [-WithFluxGraph] [-FluxGraphDir <path>]
+#   .\scripts\build.ps1 [options] [-- <extra-cmake-configure-args>]
+#
+# Options:
+#   -Preset <name>     Configure/build preset (default: dev-release on Linux/macOS, dev-windows-release on Windows)
+#   -Clean             Remove preset build directory before configure
+#   -Jobs <N>          Parallel build jobs
+#   -Help              Show help
 
+[CmdletBinding(PositionalBinding = $false)]
 param(
+    [string]$Preset = "",
     [switch]$Clean,
-    [switch]$Debug,
-    [switch]$NoTests,
-    [switch]$TSan,
-    [switch]$WithFluxGraph,
-    [string]$FluxGraphDir
+    [int]$Jobs,
+    [switch]$Help,
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$ExtraArgs
 )
 
 $ErrorActionPreference = "Stop"
 
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$RepoRoot = Split-Path -Parent $ScriptDir
-$ProviderSimDir = Join-Path (Split-Path -Parent $RepoRoot) "anolis-provider-sim"
-
-$BuildType = if ($Debug) { "Debug" } else { "Release" }
-$BuildTests = -not $NoTests
-$BuildTestingValue = if ($BuildTests) { "ON" } else { "OFF" }
-
-# ---- ThreadSanitizer (not supported on MSVC) ----
-if ($TSan) {
-    Write-Host "[ERROR] ThreadSanitizer is not supported on Windows/MSVC." -ForegroundColor Red
-    Write-Host "        Use WSL or Linux for TSAN builds." -ForegroundColor Yellow
-    exit 1
+function Get-DefaultPreset {
+    if ($env:OS -eq "Windows_NT") {
+        return "dev-windows-release"
+    }
+    return "dev-release"
 }
 
-# ---- Build directories (match Linux structure philosophy) ----
-$BuildDir = Join-Path $RepoRoot "build"
-$ProviderBuildDir = Join-Path $ProviderSimDir "build"
+function Assert-PresetAllowed {
+    param([string]$RequestedPreset)
 
-# ---- Generator selection ----
-$CMakeGeneratorArgs = @()
-$vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio/Installer/vswhere.exe"
-$vsInstance = $null
-
-if (Test-Path $vswhere) {
-    $vsInstance = & $vswhere -latest -products * `
-        -requires Microsoft.Component.MSBuild `
-        -property installationPath
+    if (($env:OS -eq "Windows_NT") -and $RequestedPreset -in @("dev-release", "dev-debug")) {
+        throw "Preset '$RequestedPreset' uses Ninja and may select MinGW on Windows. Use 'dev-windows-release', 'dev-windows-debug', or 'ci-windows-release'."
+    }
 }
 
-if ($vsInstance) {
-    Write-Host "[INFO] Using Visual Studio 17 2022 at $vsInstance" -ForegroundColor Green
-    $CMakeGeneratorArgs += @(
-        "-G", "Visual Studio 17 2022",
-        "-A", "x64",
-        "-DCMAKE_GENERATOR_INSTANCE=$vsInstance"
-    )
-}
-elseif (Get-Command ninja -ErrorAction SilentlyContinue) {
-    Write-Host "[INFO] Using Ninja generator" -ForegroundColor Green
-    $CMakeGeneratorArgs += @("-G", "Ninja")
-}
-else {
-    Write-Host "[ERROR] No suitable CMake generator found. Install VS 2022 Build Tools or Ninja." -ForegroundColor Red
-    exit 1
-}
-
-Write-Host "[INFO] Build type: $BuildType" -ForegroundColor Green
-Write-Host "[INFO] Build tests: $BuildTests" -ForegroundColor Green
-Write-Host "[INFO] Provider FluxGraph: $(if ($WithFluxGraph) { 'ON' } else { 'OFF' })" -ForegroundColor Green
-if ($WithFluxGraph -and $FluxGraphDir) {
-    Write-Host "[INFO] Provider FluxGraph dir: $FluxGraphDir" -ForegroundColor Green
-}
-elseif ((-not $WithFluxGraph) -and $FluxGraphDir) {
-    Write-Host "[WARN] FluxGraphDir ignored because provider FluxGraph is disabled." -ForegroundColor Yellow
-}
-
-# ---- vcpkg detection ----
-if (-not $env:VCPKG_ROOT) {
-    $vcpkgPaths = @(
-        "$env:USERPROFILE\vcpkg",
-        "C:\vcpkg",
-        "C:\src\vcpkg"
-    )
-
-    foreach ($path in $vcpkgPaths) {
-        if (Test-Path "$path\vcpkg.exe") {
-            $env:VCPKG_ROOT = $path
+for ($i = 0; $i -lt $ExtraArgs.Count; $i++) {
+    $arg = $ExtraArgs[$i]
+    switch -Regex ($arg) {
+        '^--help$' { $Help = $true; continue }
+        '^--clean$' { $Clean = $true; continue }
+        '^--preset$' {
+            if ($i + 1 -ge $ExtraArgs.Count) { throw "--preset requires a value" }
+            $i++
+            $Preset = $ExtraArgs[$i]
+            continue
+        }
+        '^--preset=(.+)$' { $Preset = $Matches[1]; continue }
+        '^(-j|--jobs)$' {
+            if ($i + 1 -ge $ExtraArgs.Count) { throw "$arg requires a value" }
+            $i++
+            $Jobs = [int]$ExtraArgs[$i]
+            continue
+        }
+        '^--jobs=(.+)$' { $Jobs = [int]$Matches[1]; continue }
+        '^--$' {
+            if ($i + 1 -lt $ExtraArgs.Count) {
+                $ExtraArgs = $ExtraArgs[($i + 1) .. ($ExtraArgs.Count - 1)]
+            }
+            else {
+                $ExtraArgs = @()
+            }
             break
         }
-    }
-
-    if (-not $env:VCPKG_ROOT) {
-        Write-Host "[ERROR] VCPKG_ROOT not set. Run setup.ps1 first." -ForegroundColor Red
-        exit 1
+        default {
+            throw "Unknown argument: $arg"
+        }
     }
 }
 
-$ToolchainFile = Join-Path $env:VCPKG_ROOT "scripts\buildsystems\vcpkg.cmake"
-
-# ---- Clean ----
-if ($Clean) {
-    Write-Host "[INFO] Cleaning build directories..." -ForegroundColor Green
-    if (Test-Path $BuildDir) { Remove-Item -Recurse -Force $BuildDir }
-    if (Test-Path $ProviderBuildDir) { Remove-Item -Recurse -Force $ProviderBuildDir }
+if ($Help) {
+    Get-Content $MyInvocation.MyCommand.Path | Select-Object -First 22
+    exit 0
 }
 
-# ---- Common CMake arguments ----
-$CommonArgs = @(
-    "-DCMAKE_BUILD_TYPE=$BuildType",
-    "-DCMAKE_TOOLCHAIN_FILE=$ToolchainFile",
-    "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
-)
+if (-not $Preset) {
+    $Preset = Get-DefaultPreset
+}
+Assert-PresetAllowed -RequestedPreset $Preset
 
-$AnolisArgs = @(
-    $CommonArgs
-    "-DBUILD_TESTING=$BuildTestingValue"
-)
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$repoRoot = Split-Path -Parent $scriptDir
+$buildDir = Join-Path $repoRoot "build\$Preset"
 
-$ProviderArgs = @(
-    $CommonArgs
-    "-DENABLE_FLUXGRAPH=$(if ($WithFluxGraph) { 'ON' } else { 'OFF' })"
-)
-if ($WithFluxGraph -and $FluxGraphDir) {
-    $ProviderArgs += "-DFLUXGRAPH_DIR=$FluxGraphDir"
+if ($Clean -and (Test-Path $buildDir)) {
+    Write-Host "[INFO] Cleaning build directory: $buildDir"
+    Remove-Item -Recurse -Force $buildDir
 }
 
-# ---- Build provider-sim ----
-if (Test-Path $ProviderSimDir) {
-    Write-Host "[INFO] Building anolis-provider-sim..." -ForegroundColor Green
-    cmake @CMakeGeneratorArgs -B $ProviderBuildDir -S $ProviderSimDir @ProviderArgs
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "[ERROR] anolis-provider-sim CMake configure failed." -ForegroundColor Red
-        exit $LASTEXITCODE
-    }
+Write-Host "[INFO] Configure preset: $Preset"
+& cmake --preset $Preset @ExtraArgs
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-    cmake --build $ProviderBuildDir --config $BuildType
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "[ERROR] anolis-provider-sim build failed." -ForegroundColor Red
-        exit $LASTEXITCODE
-    }
+Write-Host "[INFO] Build preset: $Preset"
+if ($Jobs -gt 0) {
+    & cmake --build --preset $Preset --parallel $Jobs
 }
 else {
-    Write-Host "[INFO] anolis-provider-sim not found (skipping)" -ForegroundColor Yellow
+    & cmake --build --preset $Preset --parallel
 }
-
-# ---- Build anolis ----
-Write-Host "[INFO] Building anolis..." -ForegroundColor Green
-cmake @CMakeGeneratorArgs -B $BuildDir -S $RepoRoot @AnolisArgs
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "[ERROR] anolis CMake configure failed." -ForegroundColor Red
-    exit $LASTEXITCODE
-}
-
-cmake --build $BuildDir --config $BuildType
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "[ERROR] anolis build failed." -ForegroundColor Red
-    exit $LASTEXITCODE
-}
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "[INFO] Build complete" -ForegroundColor Green
-Write-Host "[INFO] Build directory: $BuildDir" -ForegroundColor Green
-if (Test-Path $ProviderSimDir) {
-    Write-Host "[INFO] Provider build directory: $ProviderBuildDir" -ForegroundColor Green
-}

@@ -10,6 +10,7 @@
 #   ./scripts/dev.sh --no-ui         # No operator UI server
 #   ./scripts/dev.sh --skip-build    # Don't check/rebuild if needed
 #   ./scripts/dev.sh --config PATH   # Custom config file
+#   ./scripts/dev.sh --preset NAME  # Build preset (default: dev-release)
 
 set -euo pipefail
 
@@ -32,6 +33,7 @@ SKIP_INFRA=false
 NO_UI=false
 CONFIG=""
 BUILD_DIR=""
+PRESET="dev-release"
 
 while [[ $# -gt 0 ]]; do
 	case $1 in
@@ -55,6 +57,14 @@ while [[ $# -gt 0 ]]; do
 		BUILD_DIR="$2"
 		shift 2
 		;;
+	--preset)
+		PRESET="$2"
+		shift 2
+		;;
+	--preset=*)
+		PRESET="${1#*=}"
+		shift
+		;;
 	*)
 		echo "Unknown option: $1"
 		exit 1
@@ -66,7 +76,7 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
-[ -z "$BUILD_DIR" ] && BUILD_DIR="$REPO_ROOT/build"
+[ -z "$BUILD_DIR" ] && BUILD_DIR="$REPO_ROOT/build/$PRESET"
 [ -z "$CONFIG" ] && CONFIG="$REPO_ROOT/anolis-runtime.yaml"
 
 DOCKER_DIR="$REPO_ROOT/tools/docker"
@@ -151,7 +161,7 @@ if [ ! -f "$RUNTIME" ]; then
 	fi
 
 	print_step "Building..."
-	"$SCRIPT_DIR/build.sh"
+	"$SCRIPT_DIR/build.sh" --preset "$PRESET"
 
 	# Re-check after build
 	RUNTIME="$BUILD_DIR/core/Release/anolis-runtime"

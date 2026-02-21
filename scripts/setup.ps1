@@ -1,25 +1,33 @@
 # Anolis Development Setup Script (Windows)
 #
-# Bootstraps development environment:
-# - Verifies prerequisites
-# - Ensures vcpkg baseline
-# - Installs Python dependencies
-# - Initializes submodules
-# - Optionally cleans
-# - Delegates build to build.ps1
+# Bootstraps local prerequisites and performs a preset-driven build.
 #
 # Usage:
-#   .\scripts\setup.ps1 [-Clean]
+#   .\scripts\setup.ps1 [-Clean] [-Preset <name>]
 
 param(
-    [switch]$Clean
+    [switch]$Clean,
+    [string]$Preset = ""
 )
 
 $ErrorActionPreference = "Stop"
 
+function Get-DefaultPreset {
+    if ($env:OS -eq "Windows_NT") {
+        return "dev-windows-release"
+    }
+    return "dev-release"
+}
+
+if (-not $Preset) {
+    $Preset = Get-DefaultPreset
+}
+if (($env:OS -eq "Windows_NT") -and $Preset -in @("dev-release", "dev-debug")) {
+    throw "Preset '$Preset' uses Ninja and may select MinGW on Windows. Use 'dev-windows-release', 'dev-windows-debug', or 'ci-windows-release'."
+}
+
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = Split-Path -Parent $ScriptDir
-$ProviderSimDir = Join-Path (Split-Path -Parent $RepoRoot) "anolis-provider-sim"
 
 function Write-Info { param($m) Write-Host "[INFO]  $m" -ForegroundColor Green }
 function Write-Warn { param($m) Write-Host "[WARN]  $m" -ForegroundColor Yellow }
@@ -143,22 +151,11 @@ Write-Info "  Submodules ready"
 Write-Host ""
 
 # -------------------------------------------------
-# Provider Repository
-# -------------------------------------------------
-if (-not (Test-Path $ProviderSimDir)) {
-    Write-Info "Cloning anolis-provider-sim..."
-    git clone https://github.com/FEASTorg/anolis-provider-sim.git $ProviderSimDir
-}
-
-# -------------------------------------------------
 # Clean
 # -------------------------------------------------
 if ($Clean) {
-    Write-Info "Cleaning build directories..."
+    Write-Info "Cleaning build directory root..."
     Remove-Item -Recurse -Force "$RepoRoot\build" -ErrorAction SilentlyContinue
-    Remove-Item -Recurse -Force "$RepoRoot\build-tsan" -ErrorAction SilentlyContinue
-    Remove-Item -Recurse -Force "$ProviderSimDir\build" -ErrorAction SilentlyContinue
-    Remove-Item -Recurse -Force "$ProviderSimDir\build-tsan" -ErrorAction SilentlyContinue
 }
 
 Write-Host ""
@@ -166,8 +163,8 @@ Write-Host ""
 # -------------------------------------------------
 # Delegate Build
 # -------------------------------------------------
-Write-Info "Building project (Release)..."
-& "$ScriptDir\build.ps1"
+Write-Info "Building project (preset: $Preset)..."
+& "$ScriptDir\build.ps1" -Preset $Preset
 
 if ($LASTEXITCODE -ne 0) {
     Write-Fail "Build failed"
@@ -179,7 +176,6 @@ Write-Host "Setup Complete"
 Write-Host "=============================================="
 Write-Host ""
 Write-Host "Next steps:"
-Write-Host "  Run tests:     .\scripts\test.ps1"
-Write-Host "  TSAN build:    .\scripts\build.ps1 -TSan -Debug"
-Write-Host "  Run runtime:   .\scripts\run.ps1"
+Write-Host "  Run tests:     .\scripts\test.ps1 -Preset $Preset"
+Write-Host "  Run runtime:   .\scripts\run.ps1 -Preset $Preset"
 Write-Host ""

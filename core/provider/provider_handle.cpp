@@ -30,7 +30,7 @@ bool ProviderHandle::start() {
     }
     session_healthy_.store(true, std::memory_order_release);
 
-    // Phase 1: Process liveness check with Hello handshake
+    // Step 1: Process liveness check with Hello handshake
     anolis::deviceprovider::v1::HelloResponse hello_response;
     if (!hello(hello_response)) {
         session_healthy_.store(false, std::memory_order_release);
@@ -41,7 +41,7 @@ bool ProviderHandle::start() {
     LOG_INFO("[" << process_.provider_id() << "] Hello succeeded: " << hello_response.provider_name() << " v"
                  << hello_response.provider_version());
 
-    // Phase 2: Check if provider supports WaitReady via capability signaling
+    // Step 2: Check if provider supports WaitReady via capability signaling
     bool supports_ready = hello_response.metadata().count("supports_wait_ready") &&
                           hello_response.metadata().at("supports_wait_ready") == "true";
 

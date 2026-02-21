@@ -1,20 +1,20 @@
-# Phase/Subphase Completion Checklist
+# Change Completion Checklist
 
-Use this checklist in each implementation PR for Phase 31.x work.
+Use this checklist in implementation PRs for build/dependency/CI policy changes.
 
 ## Required
 
-- [ ] Scope implemented exactly for this subphase
-- [ ] Subphase exit criteria verified
+- [ ] Scope implemented exactly as proposed
+- [ ] Exit criteria verified
 - [ ] Required docs updated
-- [ ] Required CI lanes green on new path
-- [ ] Rollback path validated for this subphase
-- [ ] Next subphase preconditions confirmed
+- [ ] Required CI lanes green on target path
+- [ ] Rollback path validated
+- [ ] Follow-on preconditions confirmed
 
-## Dual-Run (when applicable)
+## Rollout (when applicable)
 
 - [ ] Legacy and new paths run in parallel
-- [ ] Dual-run started date recorded
+- [ ] Rollout start date recorded
 - [ ] Consecutive green runs count recorded
 - [ ] Minimum gate met (5 green runs)
 - [ ] Preferred gate met (10 green runs)
