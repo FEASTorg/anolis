@@ -259,3 +259,6 @@ cmake-build-*/
 # private files
 _reference
 working/
+
+# vcpkg manifest-mode artifacts (machine-local)
+vcpkg_installed/
