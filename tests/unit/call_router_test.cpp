@@ -136,10 +136,10 @@ TEST_F(CallRouterTest, PreconditionFailure) {
         .WillOnce(Invoke([](const std::string&, uint32_t, const std::string&, const ValueMap&, CallResponse& resp) {
             // Note: CallResponse doesn't have status code in DPV0 if it fails?
             // Checking protocol.pb.h above, CallResponse has `results` and `operation_id`.
-            // STATUS is defined in the top-level Response envelope (anolis-protocol/spec/device-provider/protocol.proto).
-            // However, the provider interface (IProviderHandle) returns bool.
-            // If it returns false, the router checks last_status_code() of the provider handle?
-            // Let's check IProviderHandle again.
+            // STATUS is defined in the top-level Response envelope
+            // (anolis-protocol/spec/device-provider/protocol.proto). However, the provider interface (IProviderHandle)
+            // returns bool. If it returns false, the router checks last_status_code() of the provider handle? Let's
+            // check IProviderHandle again.
             return false;  // Provider indicates failure
         }));
 
