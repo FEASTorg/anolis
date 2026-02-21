@@ -457,7 +457,6 @@ jobs:
           # Remove coverage from external dependencies (vcpkg, system headers, test code)
           lcov --rc branch_coverage=1 --remove coverage.raw.info \
             '/usr/*' \
-            '*/build/vcpkg_installed/*' \
             '*/vcpkg_installed/*' \
             '*/build/_deps/*' \
             '*/tests/*' \
