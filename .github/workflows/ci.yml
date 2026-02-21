@@ -177,8 +177,6 @@ jobs:
 
       - name: Checkout anolis-provider-sim
         uses: ./.github/actions/checkout-provider-sim
-        with:
-          commit-sha: ${{ github.sha }}
 
       - name: Validate requirements-lock.txt encoding
         uses: ./.github/actions/validate-lockfile
@@ -381,8 +379,6 @@ jobs:
 
       - name: Checkout anolis-provider-sim
         uses: ./.github/actions/checkout-provider-sim
-        with:
-          commit-sha: ${{ github.sha }}
 
       - name: Validate requirements-lock.txt encoding
         uses: ./.github/actions/validate-lockfile
@@ -545,8 +541,6 @@ jobs:
 
       - name: Checkout anolis-provider-sim
         uses: ./.github/actions/checkout-provider-sim
-        with:
-          commit-sha: ${{ github.sha }}
 
       - name: Validate requirements-lock.txt encoding
         uses: ./.github/actions/validate-lockfile

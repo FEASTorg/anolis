@@ -1,7 +1,20 @@
 # Anolis Core - Runtime Executable
 
-# Generate protobuf from spec (same as provider-sim)
-set(ADPP_PROTO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../spec/device-provider)
+# Generate protobuf from anolis-protocol (same as provider-sim)
+if(NOT DEFINED ANOLIS_PROTOCOL_DIR)
+    set(ANOLIS_PROTOCOL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../external/anolis-protocol" CACHE PATH "Path to anolis-protocol repository")
+endif()
+get_filename_component(ANOLIS_PROTOCOL_DIR_ABS "${ANOLIS_PROTOCOL_DIR}" REALPATH)
+set(ADPP_PROTO_DIR "${ANOLIS_PROTOCOL_DIR_ABS}/spec/device-provider")
+
+if(NOT EXISTS "${ADPP_PROTO_DIR}/protocol.proto")
+    message(FATAL_ERROR
+        "ADPP proto not found at: ${ADPP_PROTO_DIR}/protocol.proto\n"
+        "Expected anolis-protocol submodule at: ${ANOLIS_PROTOCOL_DIR_ABS}\n"
+        "Run: git submodule update --init --recursive\n"
+        "Or set custom path: cmake -DANOLIS_PROTOCOL_DIR=/path/to/anolis-protocol ..."
+    )
+endif()
 
 # Use modern protobuf_generate instead of deprecated protobuf_generate_cpp
 add_library(anolis_proto OBJECT ${ADPP_PROTO_DIR}/protocol.proto)

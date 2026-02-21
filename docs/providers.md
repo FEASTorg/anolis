@@ -32,7 +32,7 @@ Runtime ◄───┘
 4. **ReadSignals**: Returns current signal values
 5. **Call**: Executes function (e.g., set_relay, move_motor)
 
-See `external/anolis/spec/device-provider/protocol.proto` for schema.
+See `external/anolis-protocol/spec/device-provider/protocol.proto` for schema.
 
 ## Example: anolis-provider-sim
 
