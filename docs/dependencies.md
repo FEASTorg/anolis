@@ -1,47 +1,77 @@
-# Dependency Management Policy
+# Dependency, Build, and CI Governance
 
-Anolis uses **vcpkg** (manifest mode) for C++ dependencies and **pip** (requirements.txt)
-for Python tooling.
+Anolis uses:
+- **vcpkg** (manifest mode) for C++ dependencies
+- **pip** (`requirements*.txt`) for Python tooling/tests
 
-## Pinning Policy
+This document is the Phase 31 governance baseline for dependency pinning, CI lanes, presets, and cross-repo compatibility.
 
-To ensure reproducible builds across local development and CI:
+## vcpkg Policy
 
-1. **Single Source of Truth**: The `baseline` in `vcpkg-configuration.json` is the canonical baseline.
-2. **CI Alignment**: The environment variable `VCPKG_COMMIT` in `.github/workflows/ci.yml` must match the baseline.
-3. **Locking**: We pin to a specific vcpkg git commit SHA (e.g., from a quarterly release tag).
+1. **Single baseline source**: `vcpkg-configuration.json` is canonical.
+2. **No `builtin-baseline`** in manifests.
+3. **Lockfile pinning deferred** for now.
+4. **Determinism source**: pinned baseline + reviewed `vcpkg.json` changes.
 
-## Update Cadence
+## Cross-Repo Pinning and Compatibility
 
-- **Quarterly**: Review the latest vcpkg release tag.
-- **Process**:
-  1. Update `VCPKG_COMMIT` in `ci.yml`.
-  2. Update `baseline` in `vcpkg-configuration.json`.
-  3. Run a full clean build and test cycle.
-  4. If dependencies break (ABI changes, API removal), fix code or peg specific package
-     versions in `vcpkg.json` "overrides".
+Anolis tracks provider/runtime compatibility with two control files:
+- `.ci/dependency-pins.yml`: refs consumed by compatibility lanes
+- `.ci/compatibility-matrix.yml`: tested runtime/provider/protocol/fluxgraph combinations
 
-## CVE / Security Updates
+Rules:
+1. Pin updates and matrix updates must be in the same reviewed PR.
+2. Compatibility lane must consume pinned refs, never floating `main`.
+3. Pin changes require rationale and date.
 
-- **Critical CVE**: If a critical vulnerability is found in a dependency (e.g., `cpp-httplib`),
-  we will deviate from the quarterly cadence and either:
-  - Bump the vcpkg baseline immediately to get the patched version, or
-  - Override that specific package version in `vcpkg.json` overrides section
+## Version Numbering Policy (Cross-Repo)
 
-## Current Dependencies
+- `anolis`, `anolis-provider-sim`, `fluxgraph`, and `anolis-protocol` version independently using **SemVer** (`MAJOR.MINOR.PATCH`).
+- Public contract/build-surface changes require version-bump decision + changelog note.
+- Compatibility matrix records tested cross-repo version/ref combinations.
+
+## CI Lane Tiers
+
+- **Required PR lanes**: merge-blocking.
+- **Advisory lanes**: visible, non-blocking.
+- **Nightly/periodic lanes**: heavy coverage/sanitizer/stress lanes.
+
+Promotion rule:
+- Advisory lane can be promoted to required only after **10 consecutive green default-branch runs** and an explicit promotion PR.
+
+## Dual-Run Policy
+
+When replacing legacy build/test/CI paths:
+1. Run legacy and new paths in parallel.
+2. Minimum gate: **5 consecutive green runs**.
+3. Preferred gate: **10 runs**.
+4. Remove legacy path only after gate is met and approved.
+
+## Preset Baseline and Exception Policy
+
+Shared preset naming baseline:
+- `dev-debug`, `dev-release`, `ci-linux-release`, `ci-windows-release`
+- Specialized where supported: `ci-asan`, `ci-ubsan`, `ci-tsan`, `ci-coverage`
+
+Rules:
+1. CI jobs should call named presets directly.
+2. CI-only deviations must be explicit and documented.
+3. Repo-specific extension presets are allowed if documented (for example feature-specific lanes).
+
+## Current C++ Dependencies
 
 | Package              | Purpose                                 |
 | :------------------- | :-------------------------------------- |
 | **protobuf**         | Serialization format for ADPP protocol. |
-| **yaml-cpp**         | Parsing `anolis-runtime.yaml`.          |
-| **cpp-httplib**      | Embedding the HTTP server.              |
-| **nlohmann-json**    | JSON utility for API responses.         |
+| **yaml-cpp**         | Parsing runtime/provider YAML config.   |
+| **cpp-httplib**      | Embedded HTTP server.                   |
+| **nlohmann-json**    | JSON handling.                          |
 | **behaviortree-cpp** | Automation engine.                      |
 | **gtest**            | Unit testing framework.                 |
 
-## Troubleshooting
+## Update Workflow (Summary)
 
-**Works locally but fails in CI**:
-
-- Check if your local vcpkg cache is stale. Run `git clean -fdx` and rebuild.
-- Verify `vcpkg-configuration.json` matches `ci.yml` SHA.
+1. Update dependency refs/policies in one PR.
+2. Validate required lanes and compatibility lane.
+3. Update compatibility matrix + changelog note.
+4. Merge only after lane tier and dual-run rules are satisfied.

@@ -204,6 +204,8 @@ See [tests/scenarios/README.md](tests/scenarios/README.md) for full scenario doc
 
 See [tests/scenarios/OPERATOR_WORKFLOW.md](tests/scenarios/OPERATOR_WORKFLOW.md) for step-by-step manual validation guide.
 
+Build/dependency/CI governance: [docs/dependencies.md](docs/dependencies.md).
+
 ---
 
 ## HTTP API Examples
