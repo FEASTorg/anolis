@@ -369,7 +369,8 @@ ctest --test-dir build_asan
 
 #### ThreadSanitizer (TSAN) - Race Detection
 
-ThreadSanitizer detects data races at runtime with 5-20x performance overhead. Use the dedicated `ci-tsan` preset to keep TSAN cache/toolchain isolated.
+ThreadSanitizer detects data races at runtime with 5-20x performance overhead.
+Use the dedicated `ci-tsan` preset to keep TSAN cache/toolchain isolated.
 
 **Building with TSAN:**
 

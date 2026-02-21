@@ -1,6 +1,7 @@
 # Dependency, Build, and CI Governance
 
 Anolis uses:
+
 - **vcpkg** (manifest mode) for C++ dependencies
 - **pip** (`requirements*.txt`) for Python tooling/tests
 
@@ -16,10 +17,12 @@ This document defines governance for dependency pinning, CI lanes, presets, and 
 ## Cross-Repo Pinning and Compatibility
 
 Anolis tracks provider/runtime compatibility with two control files:
+
 - `.ci/dependency-pins.yml`: refs consumed by compatibility lanes
 - `.ci/compatibility-matrix.yml`: tested runtime/provider/protocol/fluxgraph combinations
 
 Rules:
+
 1. Pin updates and matrix updates must be in the same reviewed PR.
 2. Compatibility lane must consume pinned refs, never floating `main`.
 3. Pin changes require rationale and date.
@@ -37,11 +40,13 @@ Rules:
 - **Nightly/periodic lanes**: heavy coverage/sanitizer/stress lanes.
 
 Promotion rule:
+
 - Advisory lane can be promoted to required only after **10 consecutive green default-branch runs** and an explicit promotion PR.
 
 ## Rollout Policy
 
 When replacing legacy build/test/CI paths:
+
 1. Run legacy and new paths in parallel.
 2. Minimum gate: **5 consecutive green runs**.
 3. Preferred gate: **10 runs**.
@@ -50,10 +55,12 @@ When replacing legacy build/test/CI paths:
 ## Preset Baseline and Exception Policy
 
 Shared preset naming baseline:
+
 - `dev-debug`, `dev-release`, `ci-linux-release`, `ci-windows-release`
 - Specialized where supported: `ci-asan`, `ci-ubsan`, `ci-tsan`, `ci-coverage`
 
 Rules:
+
 1. CI jobs should call named presets directly.
 2. CI-only deviations must be explicit and documented.
 3. Repo-specific extension presets are allowed if documented (for example feature-specific lanes).
