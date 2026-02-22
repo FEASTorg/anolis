@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Anolis Telemetry Stack Test Script (Linux/macOS)
-# Tests full observability pipeline: Runtime → InfluxDB → Grafana
+# Tests full observability pipeline: Runtime -> InfluxDB -> Grafana
 
 set -e
 
@@ -41,47 +41,47 @@ echo -e "${CYAN}==========================================${NC}"
 echo ""
 
 # Check prerequisites
-echo -e "${CYAN}► Checking prerequisites...${NC}"
+echo -e "${CYAN}> Checking prerequisites...${NC}"
 
 if ! command -v docker &> /dev/null; then
-    echo -e "${RED}✗ Docker not found. Install Docker first.${NC}"
+    echo -e "${RED}[FAIL] Docker not found. Install Docker first.${NC}"
     exit 1
 fi
-echo -e "${GREEN}✓ Docker installed${NC}"
+echo -e "${GREEN}[OK] Docker installed${NC}"
 
 if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
-    echo -e "${RED}✗ Docker Compose not found${NC}"
+    echo -e "${RED}[FAIL] Docker Compose not found${NC}"
     exit 1
 fi
-echo -e "${GREEN}✓ Docker Compose available${NC}"
+echo -e "${GREEN}[OK] Docker Compose available${NC}"
 
 # Check if runtime is built
 RUNTIME_PATH="../../build/core/anolis-runtime"
 if [ ! -f "$RUNTIME_PATH" ]; then
-    echo -e "${YELLOW}⚠ Runtime not built at $RUNTIME_PATH${NC}"
+    echo -e "${YELLOW}[WARN] Runtime not built at $RUNTIME_PATH${NC}"
     if [ "$SKIP_BUILD" = false ]; then
-        echo -e "${CYAN}► Building runtime...${NC}"
+        echo -e "${CYAN}> Building runtime...${NC}"
         cd ../..
         ./scripts/build.sh
         cd tools/docker
     else
-        echo -e "${RED}✗ Runtime not found and --skip-build specified${NC}"
+        echo -e "${RED}[FAIL] Runtime not found and --skip-build specified${NC}"
         exit 1
     fi
 fi
-echo -e "${GREEN}✓ Runtime executable found${NC}"
+echo -e "${GREEN}[OK] Runtime executable found${NC}"
 
 # Check provider-sim
 PROVIDER_PATH="../../../anolis-provider-sim/build/anolis-provider-sim"
 if [ ! -f "$PROVIDER_PATH" ]; then
-    echo -e "${RED}✗ Provider-sim not found at $PROVIDER_PATH${NC}"
+    echo -e "${RED}[FAIL] Provider-sim not found at $PROVIDER_PATH${NC}"
     echo "Run: cd ../anolis-provider-sim && ./scripts/build.sh"
     exit 1
 fi
-echo -e "${GREEN}✓ Provider-sim found${NC}"
+echo -e "${GREEN}[OK] Provider-sim found${NC}"
 
 echo ""
-echo -e "${CYAN}► Step 1: Starting Docker stack (InfluxDB + Grafana)...${NC}"
+echo -e "${CYAN}> Step 1: Starting Docker stack (InfluxDB + Grafana)...${NC}"
 echo ""
 
 docker compose -f docker-compose.observability.yml down -v 2>/dev/null || true
@@ -90,10 +90,10 @@ sleep 2
 docker compose -f docker-compose.observability.yml up -d
 
 echo ""
-echo -e "${CYAN}► Waiting for containers to be healthy (30s)...${NC}"
+echo -e "${CYAN}> Waiting for containers to be healthy (30s)...${NC}"
 for i in {1..30}; do
     if docker compose -f docker-compose.observability.yml ps | grep -q "healthy"; then
-        echo -e "${GREEN}✓ InfluxDB is healthy${NC}"
+        echo -e "${GREEN}[OK] InfluxDB is healthy${NC}"
         break
     fi
     echo -n "."
@@ -104,23 +104,23 @@ echo ""
 sleep 3
 
 echo ""
-echo -e "${CYAN}► Step 2: Verifying InfluxDB is accessible...${NC}"
+echo -e "${CYAN}> Step 2: Verifying InfluxDB is accessible...${NC}"
 if curl -s -o /dev/null -w "%{http_code}" http://localhost:8086/health | grep -q "200"; then
-    echo -e "${GREEN}✓ InfluxDB responding at http://localhost:8086${NC}"
+    echo -e "${GREEN}[OK] InfluxDB responding at http://localhost:8086${NC}"
 else
-    echo -e "${YELLOW}⚠ InfluxDB health check failed, continuing anyway...${NC}"
+    echo -e "${YELLOW}[WARN] InfluxDB health check failed, continuing anyway...${NC}"
 fi
 
 echo ""
-echo -e "${CYAN}► Step 3: Verifying Grafana is accessible...${NC}"
+echo -e "${CYAN}> Step 3: Verifying Grafana is accessible...${NC}"
 if curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/health | grep -q "200"; then
-    echo -e "${GREEN}✓ Grafana responding at http://localhost:3000${NC}"
+    echo -e "${GREEN}[OK] Grafana responding at http://localhost:3000${NC}"
 else
-    echo -e "${YELLOW}⚠ Grafana might still be starting...${NC}"
+    echo -e "${YELLOW}[WARN] Grafana might still be starting...${NC}"
 fi
 
 echo ""
-echo -e "${CYAN}► Step 4: Starting Anolis runtime with telemetry...${NC}"
+echo -e "${CYAN}> Step 4: Starting Anolis runtime with telemetry...${NC}"
 echo ""
 
 # Start runtime in background
@@ -129,7 +129,7 @@ cd ../..
 RUNTIME_PID=$!
 cd tools/docker
 
-echo -e "${GREEN}✓ Runtime started (PID: $RUNTIME_PID)${NC}"
+echo -e "${GREEN}[OK] Runtime started (PID: $RUNTIME_PID)${NC}"
 echo ""
 echo -e "${YELLOW}Watching runtime output (first 15 seconds)...${NC}"
 echo ""
@@ -137,7 +137,7 @@ echo ""
 sleep 15
 
 echo ""
-echo -e "${CYAN}► Step 5: Checking data flow (waiting 10 seconds for events)...${NC}"
+echo -e "${CYAN}> Step 5: Checking data flow (waiting 10 seconds for events)...${NC}"
 sleep 10
 
 echo ""
@@ -148,19 +148,19 @@ echo ""
 echo -e "${CYAN}1. InfluxDB Data Explorer:${NC}"
 echo "   http://localhost:8086"
 echo -e "   ${GRAY}Login: admin / anolis123${NC}"
-echo -e "   ${GRAY}→ Data Explorer → Select bucket 'anolis'${NC}"
-echo -e "   ${GRAY}→ Query: anolis_signal${NC}"
-echo -e "   ${GRAY}→ Click Submit - you should see data points${NC}"
+echo -e "   ${GRAY}-> Data Explorer -> Select bucket 'anolis'${NC}"
+echo -e "   ${GRAY}-> Query: anolis_signal${NC}"
+echo -e "   ${GRAY}-> Click Submit - you should see data points${NC}"
 echo ""
 echo -e "${CYAN}2. Grafana Dashboards:${NC}"
 echo "   http://localhost:3000"
 echo -e "   ${GRAY}Login: admin / anolis123${NC}"
-echo -e "   ${GRAY}→ Dashboards → Browse → Anolis folder${NC}"
-echo -e "   ${GRAY}→ Open 'Signal History' - time-series should appear${NC}"
+echo -e "   ${GRAY}-> Dashboards -> Browse -> Anolis folder${NC}"
+echo -e "   ${GRAY}-> Open 'Signal History' - time-series should appear${NC}"
 echo ""
 echo -e "${CYAN}3. Operator UI (Optional):${NC}"
 echo "   http://localhost:8080 (via runtime)"
-echo -e "   ${GRAY}→ Should show real-time updates via SSE${NC}"
+echo -e "   ${GRAY}-> Should show real-time updates via SSE${NC}"
 echo ""
 echo "=========================================="
 echo ""
@@ -179,15 +179,15 @@ else
     sleep 30
     
     echo ""
-    echo -e "${CYAN}► Cleaning up...${NC}"
+    echo -e "${CYAN}> Cleaning up...${NC}"
     
     # Stop runtime
     kill $RUNTIME_PID 2>/dev/null || true
-    echo -e "${GREEN}✓ Runtime stopped${NC}"
+    echo -e "${GREEN}[OK] Runtime stopped${NC}"
     
     # Stop Docker stack
     docker compose -f docker-compose.observability.yml down
-    echo -e "${GREEN}✓ Docker stack stopped${NC}"
+    echo -e "${GREEN}[OK] Docker stack stopped${NC}"
     
     echo ""
     echo -e "${YELLOW}To keep services running for manual testing, use:${NC}"
@@ -196,5 +196,5 @@ else
 fi
 
 echo ""
-echo -e "${GREEN}✓ Telemetry test complete!${NC}"
+echo -e "${GREEN}[OK] Telemetry test complete!${NC}"
 echo ""

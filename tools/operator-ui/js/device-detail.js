@@ -532,7 +532,7 @@ async function handleFunctionSubmit(event) {
     );
 
     // Show success
-    feedback.textContent = "✓ Success";
+    feedback.textContent = "Success";
     feedback.className = "function-feedback success";
 
     console.log(
@@ -547,7 +547,7 @@ async function handleFunctionSubmit(event) {
     }, 3000);
   } catch (err) {
     console.error(`[DeviceDetail] Function execution failed:`, err);
-    feedback.textContent = `✗ Error: ${err.message || "Unknown error"}`;
+    feedback.textContent = `Error: ${err.message || "Unknown error"}`;
     feedback.className = "function-feedback error";
   } finally {
     submitBtn.disabled = false;

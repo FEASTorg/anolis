@@ -1,22 +1,22 @@
-# Runtime compatibility matrix for pinned cross-repo integrations.
-# Only update in the same PR as dependency pin changes.
+# Runtime compatibility matrix for cross-repo integrations.
+# DEV PHASE: provider/fluxgraph refs may float on `main` for faster iteration.
 
 schema_version: 1
 runtime:
   repository: FEASTorg/anolis
   entries:
     - runtime_ref: b6a1e6ffbaaf796cbef47396849e113436770abc
-      tested_on_utc: 2026-02-21
+      tested_on_utc: 2026-02-22
       provider_sim:
         repository: FEASTorg/anolis-provider-sim
-        ref: 7e810fadb5f63f19e58790ba8da75b3537493ee4
+        ref: main
       anolis_protocol:
         repository: FEASTorg/anolis-protocol
         ref: 6987308a91fed5b968ed5124f784a42cb502d7fa
       fluxgraph:
         repository: FEASTorg/fluxgraph
-        ref: f267e671ede1ad9b553488a570b5631fb49b3ef9
+        ref: main
         mode: optional
       ci:
         compatibility_lane: anolis-provider-compat
-      notes: "Baseline validated runtime/provider/protocol/fluxgraph refs"
+      notes: "DEV PHASE: compatibility lane tracks provider/fluxgraph main branches"

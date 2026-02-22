@@ -7,7 +7,7 @@ Tests:
 1. Runtime starts in IDLE mode (safe default)
 2. Control operations blocked in IDLE
 3. Read-only operations allowed in IDLE (state queries)
-4. IDLE → MANUAL transition enables control operations
+4. IDLE -> MANUAL transition enables control operations
 5. Automation doesn't run in IDLE
 """
 

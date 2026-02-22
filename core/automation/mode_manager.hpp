@@ -14,8 +14,8 @@ namespace automation {
  * State transitions:
  * - MANUAL <-> AUTO (normal operation)
  * - MANUAL <-> IDLE (operator signaling standby)
- * - Any → FAULT (error condition)
- * - FAULT → MANUAL (manual recovery)
+ * - Any -> FAULT (error condition)
+ * - FAULT -> MANUAL (manual recovery)
  * - FAULT -X-> AUTO (must recover through MANUAL first)
  */
 enum class RuntimeMode {
@@ -77,12 +77,12 @@ public:
      * Request mode transition.
      *
      * Validates transition rules:
-     * - MANUAL ↔ AUTO: allowed
-     * - MANUAL ↔ IDLE: allowed
-     * - Any → FAULT: allowed (error condition)
-     * - FAULT → MANUAL: allowed (recovery)
-     * - FAULT → AUTO: blocked (must go through MANUAL)
-     * - FAULT → IDLE: blocked (must go through MANUAL)
+     * - MANUAL <-> AUTO: allowed
+     * - MANUAL <-> IDLE: allowed
+     * - Any -> FAULT: allowed (error condition)
+     * - FAULT -> MANUAL: allowed (recovery)
+     * - FAULT -> AUTO: blocked (must go through MANUAL)
+     * - FAULT -> IDLE: blocked (must go through MANUAL)
      *
      * @param new_mode Requested mode
      * @param error Output error message if transition fails

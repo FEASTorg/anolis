@@ -9,9 +9,9 @@
         "enable": true,
         "iconColor": "rgba(255, 96, 96, 1)",
         "name": "Mode Changes",
-        "query": "from(bucket: \"anolis\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"mode_change\")\n  |> filter(fn: (r) => r._field == \"previous_mode\")\n  |> map(fn: (r) => ({\n      time: r._time,\n      text: \"Mode: \" + r.previous_mode + \" → \" + r.new_mode\n    }))",
+        "query": "from(bucket: \"anolis\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"mode_change\")\n  |> filter(fn: (r) => r._field == \"previous_mode\")\n  |> map(fn: (r) => ({\n      time: r._time,\n      text: \"Mode: \" + r.previous_mode + \" -> \" + r.new_mode\n    }))",
         "tagKeys": "previous_mode,new_mode",
-        "textFormat": "Mode: {{previous_mode}} → {{new_mode}}",
+        "textFormat": "Mode: {{previous_mode}} -> {{new_mode}}",
         "titleFormat": "Mode Change"
       },
       {
@@ -22,9 +22,9 @@
         "enable": true,
         "iconColor": "rgba(96, 165, 250, 1)",
         "name": "Parameter Changes",
-        "query": "from(bucket: \"anolis\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"parameter_change\")\n  |> filter(fn: (r) => r._field == \"parameter_name\")\n  |> map(fn: (r) => ({\n      time: r._time,\n      text: r.parameter_name + \": \" + r.old_value + \" → \" + r.new_value\n    }))",
+        "query": "from(bucket: \"anolis\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"parameter_change\")\n  |> filter(fn: (r) => r._field == \"parameter_name\")\n  |> map(fn: (r) => ({\n      time: r._time,\n      text: r.parameter_name + \": \" + r.old_value + \" -> \" + r.new_value\n    }))",
         "tagKeys": "parameter_name,old_value,new_value",
-        "textFormat": "{{parameter_name}}: {{old_value}} → {{new_value}}",
+        "textFormat": "{{parameter_name}}: {{old_value}} -> {{new_value}}",
         "titleFormat": "Parameter Change"
       }
     ]

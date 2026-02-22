@@ -8,7 +8,7 @@
 #
 # DASHBOARDS:
 #   - Open http://localhost:3000 (admin/anolis123)
-#   - Navigate to Dashboards → Signal History or Device Health
+#   - Navigate to Dashboards -> Signal History or Device Health
 
 runtime:
   name: "anolis-telemetry"      # Instance identifier

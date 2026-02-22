@@ -5,7 +5,7 @@ Provides RuntimeFixture for safe, scoped process management:
 - Process-group scoped termination (no global pkill/taskkill)
 - Proper cleanup on test failure (try/finally safety)
 - Cross-platform support (Windows and Linux)
-- Timeout and escalation (SIGTERM → SIGKILL)
+- Timeout and escalation (SIGTERM -> SIGKILL)
 """
 
 import os

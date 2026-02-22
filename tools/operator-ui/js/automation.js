@@ -105,7 +105,7 @@ function handleModeChange(data) {
 
   addEvent(
     "mode_change",
-    `${data.previous_mode} → ${data.new_mode}`,
+    `${data.previous_mode} -> ${data.new_mode}`,
     data.timestamp_ms,
   );
 }
@@ -177,7 +177,7 @@ async function handleSetMode() {
     const result = await API.setMode(newMode);
 
     if (result.status?.code === "OK") {
-      elements.modeFeedback.textContent = "✓ Mode set";
+      elements.modeFeedback.textContent = "Mode set";
       elements.modeFeedback.className = "success";
       
       // Reset dirty flag - mode change successful
@@ -190,7 +190,7 @@ async function handleSetMode() {
       throw new Error(result.status?.message || "Failed to set mode");
     }
   } catch (err) {
-    elements.modeFeedback.textContent = `✗ ${err.message}`;
+    elements.modeFeedback.textContent = `Error: ${err.message}`;
     elements.modeFeedback.className = "error";
     console.error("Failed to set mode:", err);
   }
@@ -265,7 +265,7 @@ export async function updateParameter(name, type) {
     const result = await API.updateParameter(name, value);
 
     if (result.status?.code === "OK") {
-      feedbackElement.textContent = "✓";
+      feedbackElement.textContent = "Updated";
       feedbackElement.className = "feedback success";
       setTimeout(() => {
         feedbackElement.textContent = "";
@@ -275,7 +275,7 @@ export async function updateParameter(name, type) {
       throw new Error(result.status?.message || "Update failed");
     }
   } catch (err) {
-    feedbackElement.textContent = `✗ ${err.message}`;
+    feedbackElement.textContent = `Error: ${err.message}`;
     feedbackElement.className = "feedback error";
   }
 }
@@ -286,7 +286,7 @@ export async function updateParameter(name, type) {
 function handleParameterChange(data) {
   addEvent(
     "parameter_change",
-    `${data.parameter_name}: ${data.old_value} → ${data.new_value}`,
+    `${data.parameter_name}: ${data.old_value} -> ${data.new_value}`,
     data.timestamp_ms,
   );
   refreshParameters();
@@ -326,7 +326,9 @@ function renderBTOutline(xmlDoc, node = null, indent = 0, isLast = true) {
 
   let output = "";
   const prefix =
-    indent === 0 ? "" : " ".repeat((indent - 1) * 2) + (isLast ? "└─ " : "├─ ");
+    indent === 0
+      ? ""
+      : " ".repeat((indent - 1) * 2) + (isLast ? "\\- " : "|- ");
   const nodeName = node.getAttribute("name") || "";
   output += `${prefix}${node.tagName}${nodeName ? ` "${nodeName}"` : ""}\n`;
 

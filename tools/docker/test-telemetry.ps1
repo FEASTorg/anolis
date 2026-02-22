@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 # Anolis Telemetry Stack Test Script (Windows PowerShell)
-# Tests full observability pipeline: Runtime → InfluxDB → Grafana
+# Tests full observability pipeline: Runtime -> InfluxDB -> Grafana
 
 param(
     [switch]$SkipBuild,

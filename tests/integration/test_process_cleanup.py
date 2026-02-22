@@ -5,7 +5,7 @@ Process Cleanup Verification Test
 Validates that RuntimeFixture provides safe, scoped process cleanup:
 1. Only terminates the spawned process (no collateral damage)
 2. Uses process-group scoped termination
-3. Proper escalation (SIGTERM → SIGKILL)
+3. Proper escalation (SIGTERM -> SIGKILL)
 4. Cleanup works even on test failure
 
 Usage:
@@ -108,7 +108,7 @@ def test_scoped_cleanup(runtime_path: Path, provider_path: Path) -> bool:
             return False
         print("[PASS] Fixture state cleaned up")
 
-        print("\n[✓] Test 1 PASSED: Scoped cleanup working")
+        print("\n[PASS] Test 1 PASSED: Scoped cleanup working")
         return True
 
     except Exception as e:
@@ -169,7 +169,7 @@ def test_cleanup_on_exception(runtime_path: Path, provider_path: Path) -> bool:
         return False
 
     print(f"[PASS] Process PID={pid} terminated successfully")
-    print("\n[✓] Test 2 PASSED: Cleanup on exception working")
+    print("\n[PASS] Test 2 PASSED: Cleanup on exception working")
     return True
 
 
@@ -214,7 +214,7 @@ def test_double_cleanup(runtime_path: Path, provider_path: Path) -> bool:
         fixture.cleanup()  # Should not crash
         print("[PASS] Second cleanup succeeded (no crash)")
 
-        print("\n[✓] Test 3 PASSED: Double cleanup is safe")
+        print("\n[PASS] Test 3 PASSED: Double cleanup is safe")
         return True
 
     except Exception as e:
@@ -239,7 +239,7 @@ def test_graceful_vs_force_kill(runtime_path: Path, provider_path: Path) -> bool
     cleanup logic completes successfully.
     """
     print("\n" + "=" * 60)
-    print("  Test 4: Graceful → Force Kill Escalation")
+    print("  Test 4: Graceful -> Force Kill Escalation")
     print("=" * 60)
 
     fixture = RuntimeFixture(runtime_path, provider_path, http_port=8084, verbose=True)
@@ -271,7 +271,7 @@ def test_graceful_vs_force_kill(runtime_path: Path, provider_path: Path) -> bool
         else:
             print("[INFO] Cleanup completed quickly (likely graceful shutdown)")
 
-        print("\n[✓] Test 4 PASSED: Escalation logic working")
+        print("\n[PASS] Test 4 PASSED: Escalation logic working")
         return True
 
     except Exception as e:
@@ -332,10 +332,10 @@ def main():
     print(f"\nTotal: {passed}/{total} tests passed")
 
     if passed == total:
-        print("\n✓ All process cleanup tests PASSED")
+        print("\n[PASS] All process cleanup tests PASSED")
         return 0
     else:
-        print(f"\n✗ {total - passed} test(s) FAILED")
+        print(f"\n[FAIL] {total - passed} test(s) FAILED")
         return 1
 
 
