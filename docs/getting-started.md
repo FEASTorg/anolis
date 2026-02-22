@@ -4,101 +4,62 @@
 
 - **Windows**: Visual Studio 2022 with C++ desktop development
 - **Linux**: GCC 11+, CMake 3.20+
-- **vcpkg**: For dependency management
-- **Python 3**: For running tests
-- **Git**: For version control
+- **vcpkg**: dependency management
+- **Python 3**: test tooling
+- **Git**: source control
 
-## Quick Start (Recommended)
-
-Use the setup scripts to bootstrap your environment:
+## Quick Start (Preset-First)
 
 ```bash
-# Clone repositories
+# Clone
 git clone https://github.com/FEASTorg/anolis.git
-git clone https://github.com/FEASTorg/anolis-provider-sim.git
 cd anolis
 
-# Run setup (installs dependencies, builds both repos)
-./scripts/setup.sh      # Linux/macOS
-.\scripts\setup.ps1     # Windows
+# Pull required protocol submodule
+git submodule update --init --recursive
 
-# Run tests
-./scripts/test.sh       # Linux/macOS
-.\scripts\test.ps1      # Windows
+# Setup + build
+bash ./scripts/setup.sh --preset dev-release      # Linux/macOS
+# .\scripts\setup.ps1 -Preset dev-windows-release # Windows
 
-# Start the runtime
-./scripts/run.sh        # Linux/macOS
-.\scripts\run.ps1       # Windows
+# Test
+bash ./scripts/test.sh --preset dev-release       # Linux/macOS
+# .\scripts\test.ps1 -Preset dev-windows-release  # Windows
+
+# Run runtime
+bash ./scripts/run.sh --preset dev-release        # Linux/macOS
+# .\scripts\run.ps1 -Preset dev-windows-release   # Windows
 ```
 
-## Manual Build
-
-If you prefer manual setup:
+Use presets directly when needed:
 
 ```bash
-# Set VCPKG_ROOT to your vcpkg installation
-export VCPKG_ROOT=~/vcpkg  # or wherever vcpkg is installed
-
-# Build provider-sim
-cd anolis-provider-sim
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
-cmake --build build --config Release
-
-# Build anolis
-cd ../anolis
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
-cmake --build build --config Release
+cmake --list-presets
+ctest --list-presets
 ```
 
-## Run the Runtime
-
-```bash
-cd build/core/Release
-./anolis-runtime.exe --config=anolis-runtime.yaml  # Windows
-./anolis-runtime --config=anolis-runtime.yaml      # Linux
-```
-
-**Expected Output**:
-
-- Provider spawns
-- Hello handshake
-- Devices discovered
-- State cache polling starts
-- HTTP API available at `http://127.0.0.1:8080`
-
-## Quick HTTP API Test
+## Runtime API Smoke Check
 
 ```bash
 # List devices
 curl -s http://127.0.0.1:8080/v0/devices | jq
 
-# Get device state
+# Read state
 curl -s http://127.0.0.1:8080/v0/state/sim0/motorctl0 | jq
 ```
 
-See [http-api.md](http-api.md) for full API reference.
+See [http-api.md](http-api.md) for full API details.
 
 ## Operator UI
-
-A minimal dev UI is included at `tools/operator-ui/`:
 
 ```bash
 python -m http.server 3000 -d tools/operator-ui
 # Open http://localhost:3000
 ```
 
-## Current Limitations (v0)
-
-- Single provider only
-- No authentication
-- Operator UI is minimal (developer-focused)
-- Automation is policy-only (not safety-rated)
-
 ## Automation Quickstart
 
-Enable automation and parameters in your runtime config:
+Enable automation in runtime config:
 
 ```yaml
 automation:
@@ -122,7 +83,7 @@ curl -s -X POST http://127.0.0.1:8080/v0/parameters \
   -d '{"name": "temp_setpoint", "value": 30.0}' | jq
 ```
 
-Switch to AUTO mode to run the BT:
+Switch to AUTO mode:
 
 ```bash
 curl -s -X POST http://127.0.0.1:8080/v0/mode \
@@ -130,15 +91,8 @@ curl -s -X POST http://127.0.0.1:8080/v0/mode \
   -d '{"mode": "AUTO"}' | jq
 ```
 
-The demo behavior tree reads `temp_setpoint` via:
-
-```xml
-<GetParameter param="temp_setpoint" value="{target_temp}"/>
-```
-
 ## Next Steps
 
-- **Validation scenarios**: See [../scenarios/README.md](../scenarios/README.md) regarding system validation
-- **For users**: See [http-api.md](http-api.md) for API usage
-- **For developers**: See [providers.md](providers.md) to create a provider
-- **For contributors**: Check `CONTRIBUTING.md` for workflow
+- For provider integration and safety contracts: [providers.md](providers.md)
+- For runtime config details: [configuration.md](configuration.md)
+- For contributor workflow: [../CONTRIBUTING.md](../CONTRIBUTING.md)

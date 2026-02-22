@@ -12,41 +12,37 @@ Thank you for your interest in contributing to Anolis!
 
 ### Setup
 
-1. **Repository Layout**:
-   The build scripts assume `anolis` and `anolis-provider-sim` are sibling directories.
-   **You must clone them into the same parent folder.**
-
-   ```text
-   workspace/
-   ├── anolis/
-   └── anolis-provider-sim/
-   ```
-
-2. Clone the repositories:
+1. Clone the repository:
 
    ```bash
    git clone https://github.com/FEASTorg/anolis.git
-   git clone https://github.com/FEASTorg/anolis-provider-sim.git
+   cd anolis
    ```
 
-3. Run the setup script:
+2. Initialize protocol submodule:
+
+   ```bash
+   git submodule update --init --recursive
+   ```
+
+3. Run the setup script (preset-first):
 
    ```bash
    # Linux/macOS
-   ./scripts/setup.sh
+   bash ./scripts/setup.sh --preset dev-release
 
    # Windows (PowerShell)
-   .\scripts\setup.ps1
+   .\scripts\setup.ps1 -Preset dev-windows-release
    ```
 
 4. Run the tests:
 
    ```bash
    # Linux/macOS
-   ./scripts/test.sh
+   bash ./scripts/test.sh --preset dev-release
 
    # Windows
-   .\scripts\test.ps1
+   .\scripts\test.ps1 -Preset dev-windows-release
    ```
 
 ## Development Workflow
@@ -55,31 +51,31 @@ Thank you for your interest in contributing to Anolis!
 
 ```bash
 # Linux/macOS
-./scripts/build.sh
+bash ./scripts/build.sh --preset dev-release
 
 # Windows
-.\scripts\build.ps1
+.\scripts\build.ps1 -Preset dev-windows-release
 
 # Clean build
-./scripts/build.sh --clean
+bash ./scripts/build.sh --preset dev-release --clean
 ```
 
 ### Running
 
 ```bash
 # Linux/macOS
-./scripts/run.sh
+bash ./scripts/run.sh --preset dev-release
 
 # Windows
-.\scripts\run.ps1
+.\scripts\run.ps1 -Preset dev-windows-release
 ```
 
 ### Testing
 
 ```bash
 # Run all tests (includes unit + integration)
-./scripts/test.sh          # Linux/macOS
-.\scripts\test.ps1         # Windows
+bash ./scripts/test.sh --preset dev-release          # Linux/macOS
+.\scripts\test.ps1 -Preset dev-windows-release       # Windows
 
 # Or run integration tests directly
 python tests/integration/test_all.py --timeout=60
@@ -87,7 +83,7 @@ python tests/integration/test_all.py --timeout=60
 # With explicit paths
 python tests/integration/test_all.py \
   --runtime=build/core/Release/anolis-runtime.exe \
-  --provider=../anolis-provider-sim/build/Release/anolis-provider-sim.exe
+  --provider=/path/to/anolis-provider-sim
 
 # Run validation scenarios
 python tests/scenarios/run_scenarios.py
@@ -266,7 +262,8 @@ So we do **not** enforce clang-tidy on Windows.
 
 **Local runs (recommended: Linux/WSL)**:
 
-- Enable via the build script: `./scripts/build.sh --clang-tidy` (default on Linux; disable with `--no-clang-tidy` if you want a faster build).
+- Configure with `-DENABLE_CLANG_TIDY=ON` (example: `cmake --preset dev-debug -DENABLE_CLANG_TIDY=ON`).
+- Or use a preset that sets `ENABLE_CLANG_TIDY=ON`.
 - You need `clang-tidy` installed (`sudo apt install clang-tidy`).
 
 **Windows note**: You can install clang-tidy with the "C++ Clang tools" workload or LLVM, but results under MSVC are incomplete.
@@ -519,22 +516,21 @@ struct DeviceCapabilitySet {
 
 ### 3. vcpkg Package Sharing Between Projects
 
-**Problem**: Building `anolis-provider-sim` after `anolis` re-downloads packages.
+**Problem**: Re-running dependency resolution across projects increases build time.
 
-**Solution**: Share `vcpkg_installed` directory:
+**Solution**: Use pinned vcpkg baseline + cached vcpkg root (preset-first) instead of manual cross-repo `VCPKG_INSTALLED_DIR` wiring:
 
 ```bash
-# Build anolis first (creates vcpkg_installed/)
-cmake -B build -S . \
-  -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
+# Anolis
+cmake --preset dev-release
+cmake --build --preset dev-release
 
-# Build provider-sim, reusing packages
-cd ../anolis-provider-sim
-cmake -B build -S . \
-  -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
-  -DVCPKG_INSTALLED_DIR=$ANOLIS_ROOT/build/vcpkg_installed \
-  -DVCPKG_MANIFEST_INSTALL=OFF
+# Provider-sim (separate repo, separate build tree)
+cmake --preset ci-linux-release
+cmake --build --preset ci-linux-release
 ```
+
+In CI, use reusable setup actions and pinned commit/baseline policy (`docs/dependencies.md`).
 
 ### 4. Linux Process Cleanup (pkill)
 
@@ -775,7 +771,7 @@ See the [Sanitizers](#sanitizers) section for build and run instructions.
 
 - ✅ **Linux/macOS**: Full TSAN support via native toolchain
 - ⚠️ **Windows**: TSAN not supported by MSVC/clang-cl - use WSL or Linux for validation
-- ✅ **CI**: TSAN validation runs automatically via `.github/workflows/tsan.yml` on push/PR to `main`
+- ✅ **CI**: TSAN validation runs automatically via `.github/workflows/extended.yml` on push/PR to `main`
 
 **TSAN builds** use a custom vcpkg triplet (`x64-linux-tsan`) that ensures **all dependencies**
 (protobuf, abseil, etc.) are instrumented with `-fsanitize=thread`.

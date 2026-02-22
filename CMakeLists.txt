@@ -1,6 +1,6 @@
 # Anolis Runtime - CMake Build Configuration
 cmake_minimum_required(VERSION 3.20)
-project(anolis LANGUAGES CXX)
+project(anolis VERSION 0.1.0 LANGUAGES CXX)
 
 # Set C++17 standard
 set(CMAKE_CXX_STANDARD 17)
@@ -109,7 +109,37 @@ if(BUILD_TESTING)
             set_tests_properties(integration.core_api PROPERTIES
                 WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
                 TIMEOUT 240
+                ENVIRONMENT "SKIP_STRESS_TESTS=1"
                 LABELS "integration;python;compatibility"
+            )
+
+            add_test(
+                NAME integration.full_suite
+                COMMAND ${Python3_EXECUTABLE}
+                        ${CMAKE_SOURCE_DIR}/tests/integration/test_all.py
+                        --runtime=$<TARGET_FILE:anolis-runtime>
+                        --provider=${ANOLIS_PROVIDER_SIM_EXE}
+                        --timeout=120
+            )
+            set_tests_properties(integration.full_suite PROPERTIES
+                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                TIMEOUT 480
+                ENVIRONMENT "SKIP_STRESS_TESTS=1"
+                LABELS "integration;python;compatibility"
+            )
+
+            add_test(
+                NAME scenarios.full_suite
+                COMMAND ${Python3_EXECUTABLE}
+                        ${CMAKE_SOURCE_DIR}/tests/scenarios/run_scenarios.py
+                        --runtime=$<TARGET_FILE:anolis-runtime>
+                        --provider=${ANOLIS_PROVIDER_SIM_EXE}
+            )
+            set_tests_properties(scenarios.full_suite PROPERTIES
+                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                TIMEOUT 720
+                ENVIRONMENT "SKIP_STRESS_TESTS=1"
+                LABELS "integration;python;compatibility;scenarios"
             )
         endif()
     endif()

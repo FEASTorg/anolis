@@ -93,10 +93,16 @@ jobs:
           submodules: recursive
 
       - name: Setup Python and dependencies
-        uses: ./.github/actions/setup-python-deps
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          upgrade-pip: "true"
+          cache: "pip"
+          cache-dependency-path: requirements-lock.txt
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-lock.txt
 
       - name: Run mypy
         run: mypy .
@@ -131,17 +137,35 @@ jobs:
           sudo apt-get install -y ninja-build g++
 
       - name: Validate requirements lockfile
-        uses: ./.github/actions/validate-lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          LOCKFILE="requirements-lock.txt"
+          test -f "$LOCKFILE"
+          if od -An -tx1 "$LOCKFILE" | tr -s ' ' '\n' | grep -qx '00'; then
+            echo "ERROR: $LOCKFILE contains NUL bytes (binary corruption)" >&2
+            exit 1
+          fi
+          iconv -f UTF-8 -t UTF-8 "$LOCKFILE" > /dev/null 2>&1
+          echo "OK: $LOCKFILE is valid UTF-8 and contains no NUL bytes"
 
       - name: Setup Python and dependencies
-        uses: ./.github/actions/setup-python-deps
+        uses: actions/setup-python@v5
         with:
-          upgrade-pip: "true"
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: requirements-lock.txt
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-lock.txt
 
       - name: Setup vcpkg
-        uses: ./.github/actions/setup-vcpkg
+        uses: lukka/run-vcpkg@v11
         with:
-          vcpkg-commit: ${{ env.VCPKG_COMMIT }}
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+          doNotCache: false
 
       - name: Configure
         run: cmake --preset "${{ matrix.configure_preset }}"
@@ -192,21 +216,41 @@ jobs:
           submodules: recursive
 
       - name: Validate requirements lockfile
-        uses: ./.github/actions/validate-lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          LOCKFILE="requirements-lock.txt"
+          test -f "$LOCKFILE"
+          if od -An -tx1 "$LOCKFILE" | tr -s ' ' '\n' | grep -qx '00'; then
+            echo "ERROR: $LOCKFILE contains NUL bytes (binary corruption)" >&2
+            exit 1
+          fi
+          iconv -f UTF-8 -t UTF-8 "$LOCKFILE" > /dev/null 2>&1
+          echo "OK: $LOCKFILE is valid UTF-8 and contains no NUL bytes"
 
       - name: Setup Python and dependencies
-        uses: ./.github/actions/setup-python-deps
+        uses: actions/setup-python@v5
         with:
-          upgrade-pip: "true"
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: requirements-lock.txt
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-lock.txt
 
       - name: Setup vcpkg
-        uses: ./.github/actions/setup-vcpkg
+        uses: lukka/run-vcpkg@v11
         with:
-          vcpkg-commit: ${{ env.VCPKG_COMMIT }}
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+          doNotCache: false
 
       - name: Build pinned provider-sim (FluxGraph OFF)
         working-directory: anolis-provider-sim
-        run: bash ./scripts/build.sh --preset ci-linux-release
+        run: |
+          cmake --preset ci-linux-release
+          cmake --build --preset ci-linux-release --parallel
 
       - name: Resolve provider executable
         id: provider
@@ -232,95 +276,3 @@ jobs:
         env:
           LD_LIBRARY_PATH: ${{ github.workspace }}/build/ci-linux-compat/vcpkg_installed/x64-linux/lib
         run: ctest --preset ci-linux-compat -L integration
-
-      - name: Run legacy integration suites (coverage parity during migration)
-        env:
-          LD_LIBRARY_PATH: ${{ github.workspace }}/build/ci-linux-compat/vcpkg_installed/x64-linux/lib
-          SKIP_STRESS_TESTS: "1"
-        run: |
-          python3 tests/integration/test_all.py \
-            --runtime=build/ci-linux-compat/core/anolis-runtime \
-            --provider="${{ steps.provider.outputs.exe }}" \
-            --timeout=120
-
-          python3 tests/scenarios/run_scenarios.py \
-            --runtime=build/ci-linux-compat/core/anolis-runtime \
-            --provider="${{ steps.provider.outputs.exe }}"
-
-  coverage-linux:
-    name: Coverage Analysis (Linux, Advisory)
-    runs-on: ubuntu-24.04
-    timeout-minutes: 90
-    continue-on-error: true
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Validate requirements lockfile
-        uses: ./.github/actions/validate-lockfile
-
-      - name: Install coverage tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build g++ lcov
-
-      - name: Setup Python and dependencies
-        uses: ./.github/actions/setup-python-deps
-        with:
-          upgrade-pip: "true"
-
-      - name: Setup vcpkg
-        uses: ./.github/actions/setup-vcpkg
-        with:
-          vcpkg-commit: ${{ env.VCPKG_COMMIT }}
-
-      - name: Configure
-        run: cmake --preset ci-coverage
-
-      - name: Build
-        run: cmake --build --preset ci-coverage --parallel
-
-      - name: Reset coverage counters
-        run: lcov --rc branch_coverage=1 --directory build/ci-coverage --zerocounters
-
-      - name: Run CTest
-        run: ctest --preset ci-coverage
-
-      - name: Collect coverage data
-        run: |
-          set -euo pipefail
-          lcov --rc branch_coverage=1 --rc geninfo_unexecuted_blocks=1 \
-            --ignore-errors mismatch,gcov \
-            --directory build/ci-coverage \
-            --capture \
-            --output-file coverage.raw.info
-
-          lcov --rc branch_coverage=1 --ignore-errors unused \
-            --remove coverage.raw.info \
-            '/usr/*' \
-            '*/vcpkg_installed/*' \
-            '*/build/_deps/*' \
-            '*/tests/*' \
-            --output-file coverage.info
-
-          lcov --rc branch_coverage=1 --list coverage.info
-
-      - name: Generate HTML coverage report
-        run: |
-          genhtml --rc branch_coverage=1 coverage.info \
-            --output-directory coverage-html \
-            --title "Anolis Runtime Coverage" \
-            --demangle-cpp \
-            --legend
-
-      - name: Upload coverage artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report-${{ github.run_number }}
-          path: |
-            coverage.info
-            coverage-html/
-          retention-days: 14

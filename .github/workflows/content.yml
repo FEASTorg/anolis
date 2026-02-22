@@ -1,0 +1,102 @@
+name: Content Checks
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.png"
+      - "**/*.svg"
+      - "**/*.jpg"
+      - "**/*.jpeg"
+      - "**/*.gif"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "**/*.png"
+      - "**/*.svg"
+      - "**/*.jpg"
+      - "**/*.jpeg"
+      - "**/*.gif"
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: content-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  markdown-lint:
+    name: Markdown Lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Markdown Lint
+        id: lint
+        continue-on-error: true
+        uses: davidanson/markdownlint-cli2-action@v16
+        with:
+          globs: |
+            docs/*.md
+            docs/**/*.md
+            README.md
+            CONTRIBUTING.md
+      - name: Generate lint summary
+        if: always()
+        run: |
+          {
+            echo "## Markdown Lint Results"
+            echo ""
+            if [ "${{ steps.lint.outcome }}" == "success" ]; then
+              echo "**PASS:** All markdown files passed linting"
+            else
+              echo "**FAIL:** Markdown linting found issues"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Fail if linting failed
+        if: steps.lint.outcome == 'failure'
+        run: exit 1
+
+  metrics:
+    name: Repository Metrics
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+      - name: Install tools
+        run: |
+          cargo install tokei --locked
+          sudo apt-get update
+          sudo apt-get install -y cloc tree jq
+      - name: Create metrics directory
+        run: mkdir -p metrics
+      - name: Run tokei
+        run: |
+          EXCLUDES=".git,node_modules,dist,build"
+          tokei --exclude "$EXCLUDES" --output json > metrics/tokei.json
+          tokei --exclude "$EXCLUDES" > metrics/tokei.txt
+      - name: Run cloc
+        run: |
+          cloc . \
+            --exclude-dir=.git,node_modules,dist,build \
+            --json \
+            --out=metrics/cloc.json
+      - name: Generate directory tree
+        run: tree -a -I ".git|node_modules|dist|build" > metrics/repo-tree.txt
+      - name: Upload metrics artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-metrics-${{ github.run_number }}
+          path: metrics/
+          retention-days: 30

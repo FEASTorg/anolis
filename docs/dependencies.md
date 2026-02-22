@@ -64,6 +64,7 @@ Rules:
 1. CI jobs should call named presets directly.
 2. CI-only deviations must be explicit and documented.
 3. Repo-specific extension presets are allowed if documented (for example feature-specific lanes).
+4. Every preset must have an active owner/use-case (CI lane, script default, or documented workflow); remove unreferenced presets.
 
 Contributor quick check:
 

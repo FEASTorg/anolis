@@ -9,8 +9,8 @@ Preset-first script reference for `anolis`.
 | `build.ps1/.sh`  | Configure + build Anolis                     | Platform default (`dev-release` Linux/macOS, `dev-windows-release` Windows) |
 | `test.ps1/.sh`   | Run CTest from preset                        | Platform default (`dev-release` Linux/macOS, `dev-windows-release` Windows) |
 | `run.ps1/.sh`    | Launch runtime from a preset build           | Platform default (`dev-release` Linux/macOS, `dev-windows-release` Windows) |
-| `setup.ps1/.sh`  | Bootstrap local dependencies + preset build  | Platform default (`dev-release` Linux/macOS, `dev-windows-release` Windows) |
-| `dev.ps1/.sh`    | Developer convenience stack launcher         | Platform default (`dev-release` Linux/macOS, `dev-windows-release` Windows) |
+| `setup.ps1/.sh`  | Validate local deps + install Python lock + preset build | Platform default (`dev-release` Linux/macOS, `dev-windows-release` Windows) |
+| `dev.ps1/.sh`    | Developer convenience wrapper (`build` then `test`) | Platform default (`dev-release` Linux/macOS, `dev-windows-release` Windows) |
 
 Discover available presets:
 
@@ -72,7 +72,7 @@ bash ./scripts/run.sh --preset dev-release
 Notes:
 - `test.*` is CTest-first.
 - Python integration registration is opt-in at configure time (`ANOLIS_ENABLE_PYTHON_CTEST`).
-- `setup.*` no longer clones sibling repositories.
+- `setup.*` requires `VCPKG_ROOT` to already point to an installed vcpkg toolchain.
 - On Windows, use `dev-windows-*` presets for local work; `dev-*` presets are Ninja-based and intended for Linux/macOS.
 
 ## Policy Notes

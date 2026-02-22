@@ -22,21 +22,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-function Get-DefaultPreset {
-    if ($env:OS -eq "Windows_NT") {
-        return "dev-windows-release"
-    }
-    return "dev-release"
-}
-
-function Assert-PresetAllowed {
-    param([string]$RequestedPreset)
-
-    if (($env:OS -eq "Windows_NT") -and $RequestedPreset -in @("dev-release", "dev-debug")) {
-        throw "Preset '$RequestedPreset' uses Ninja and may select MinGW on Windows. Use 'dev-windows-release', 'dev-windows-debug', or 'ci-windows-release'."
-    }
-}
-
 for ($i = 0; $i -lt $ExtraArgs.Count; $i++) {
     $arg = $ExtraArgs[$i]
     switch -Regex ($arg) {
@@ -77,9 +62,16 @@ if ($Help) {
 }
 
 if (-not $Preset) {
-    $Preset = Get-DefaultPreset
+    if ($env:OS -eq "Windows_NT") {
+        $Preset = "dev-windows-release"
+    }
+    else {
+        $Preset = "dev-release"
+    }
 }
-Assert-PresetAllowed -RequestedPreset $Preset
+if (($env:OS -eq "Windows_NT") -and $Preset -in @("dev-release", "dev-debug")) {
+    throw "Preset '$Preset' uses Ninja and may select MinGW on Windows. Use 'dev-windows-release', 'dev-windows-debug', or 'ci-windows-release'."
+}
 
 $ctestArgs = @("--preset", $Preset)
 if ($Label) {
