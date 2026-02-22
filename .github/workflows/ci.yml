@@ -119,6 +119,10 @@ jobs:
             os: ubuntu-24.04
             configure_preset: ci-linux-release
             test_preset: ci-linux-release
+          - lane: Linux ARM64 Release (Core)
+            os: ubuntu-24.04-arm
+            configure_preset: ci-linux-arm64-release
+            test_preset: ci-linux-arm64-release
           - lane: Windows Release (Core)
             os: windows-2022
             configure_preset: ci-windows-release

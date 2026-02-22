@@ -35,8 +35,8 @@ Rules:
 
 ## CI Lane Tiers
 
-- **Required PR lanes**: merge-blocking.
-- **Advisory lanes**: visible, non-blocking (includes `coverage-linux` and `arm64-core-advisory`).
+- **Required PR lanes**: merge-blocking (core: Linux x64, Linux ARM64, Windows x64 release).
+- **Advisory lanes**: visible, non-blocking (currently `coverage-linux`).
 - **Nightly/periodic lanes**: heavy coverage/sanitizer/stress lanes.
 
 Promotion rule:
