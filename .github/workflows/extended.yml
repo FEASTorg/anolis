@@ -354,3 +354,34 @@ jobs:
             coverage.info
             coverage-html/
           retention-days: 14
+
+  arm64-core-advisory:
+    name: ARM64 Core (Advisory)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build g++
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+          doNotCache: false
+
+      - name: Configure
+        run: cmake --preset ci-linux-arm64-release
+
+      - name: Build
+        run: cmake --build --preset ci-linux-arm64-release --parallel
+
+      - name: Run CTest
+        run: ctest --preset ci-linux-arm64-release

@@ -70,6 +70,14 @@
       }
     },
     {
+      "name": "ci-linux-arm64-release",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "VCPKG_TARGET_TRIPLET": "arm64-linux"
+      }
+    },
+    {
       "name": "ci-linux-clang-tidy",
       "inherits": "ci-linux-release",
       "cacheVariables": {
@@ -154,6 +162,10 @@
       "configurePreset": "ci-linux-release"
     },
     {
+      "name": "ci-linux-arm64-release",
+      "configurePreset": "ci-linux-arm64-release"
+    },
+    {
       "name": "ci-linux-clang-tidy",
       "configurePreset": "ci-linux-clang-tidy"
     },
@@ -217,6 +229,13 @@
     {
       "name": "ci-linux-release",
       "configurePreset": "ci-linux-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci-linux-arm64-release",
+      "configurePreset": "ci-linux-arm64-release",
       "output": {
         "outputOnFailure": true
       }

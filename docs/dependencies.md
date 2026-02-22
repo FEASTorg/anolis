@@ -36,7 +36,7 @@ Rules:
 ## CI Lane Tiers
 
 - **Required PR lanes**: merge-blocking.
-- **Advisory lanes**: visible, non-blocking.
+- **Advisory lanes**: visible, non-blocking (includes `coverage-linux` and `arm64-core-advisory`).
 - **Nightly/periodic lanes**: heavy coverage/sanitizer/stress lanes.
 
 Promotion rule:
@@ -58,6 +58,7 @@ Shared preset naming baseline:
 
 - `dev-debug`, `dev-release`, `ci-linux-release`, `ci-windows-release`
 - Specialized where supported: `ci-asan`, `ci-ubsan`, `ci-tsan`, `ci-coverage`
+- Architecture extension: `ci-linux-arm64-release` (ARM64 runtime portability lane).
 
 Rules:
 
