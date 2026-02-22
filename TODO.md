@@ -2,7 +2,6 @@
 
 ## CI / Quality
 
-- [ ] Roll out warnings-as-errors for first-party C++ (`-Werror`/`/WX`) in staged mode.
 - [ ] Add fuzzing targets for ADPP/protocol and runtime config parsing surfaces.
 
 ## Security / Production Hardening
