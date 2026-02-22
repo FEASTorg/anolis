@@ -28,14 +28,14 @@ enum class RuntimeMode {
 /**
  * Convert RuntimeMode enum to string.
  */
-const char *mode_to_string(RuntimeMode mode);
+const char* mode_to_string(RuntimeMode mode);
 
 /**
  * Parse string to RuntimeMode enum.
  * Returns std::nullopt if string is invalid.
  * Valid values: "MANUAL", "AUTO", "IDLE", "FAULT"
  */
-std::optional<RuntimeMode> string_to_mode(const std::string &str);
+std::optional<RuntimeMode> string_to_mode(const std::string& str);
 
 /**
  * ModeManager - Thread-safe runtime mode state machine.
@@ -81,14 +81,14 @@ public:
      * - MANUAL <-> IDLE: allowed
      * - Any -> FAULT: allowed (error condition)
      * - FAULT -> MANUAL: allowed (recovery)
-     * - FAULT -> AUTO: blocked (must go through MANUAL)
-     * - FAULT -> IDLE: blocked (must go through MANUAL)
+     * - FAULT -> AUTO: blocked (must go thru MANUAL)
+     * - FAULT -> IDLE: blocked (must go thru MANUAL)
      *
      * @param new_mode Requested mode
      * @param error Output error message if transition fails
      * @return true if transition succeeded, false if blocked
      */
-    bool set_mode(RuntimeMode new_mode, std::string &error);
+    bool set_mode(RuntimeMode new_mode, std::string& error);
 
     /**
      * Register callback for mode change notifications.
@@ -98,7 +98,7 @@ public:
      *
      * @param callback Function to call on mode change
      */
-    void on_mode_change(const ModeChangeCallback &callback);
+    void on_mode_change(const ModeChangeCallback& callback);
 
 private:
     /**

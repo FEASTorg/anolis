@@ -113,9 +113,10 @@ inline std::string format_line_protocol(const events::StateUpdateEvent &event) {
     std::ostringstream line;
 
     // Measurement and tags
-    line << "anolis_signal"
-         << ",provider_id=" << escape_tag(event.provider_id) << ",device_id=" << escape_tag(event.device_id)
-         << ",signal_id=" << escape_tag(event.signal_id);
+    line << "anolis_signal";
+    line << ",provider_id=" << escape_tag(event.provider_id);
+    line << ",device_id=" << escape_tag(event.device_id);
+    line << ",signal_id=" << escape_tag(event.signal_id);
 
     // Field set (space before fields)
     line << " ";
@@ -173,8 +174,8 @@ inline std::string format_mode_change_line_protocol(const events::ModeChangeEven
     line << "mode_change";
 
     // Field set
-    line << " previous_mode=\"" << escape_field_string(event.previous_mode) << "\""
-         << ",new_mode=\"" << escape_field_string(event.new_mode) << "\"";
+    line << " previous_mode=\"" << escape_field_string(event.previous_mode) << "\"";
+    line << ",new_mode=\"" << escape_field_string(event.new_mode) << "\"";
 
     // Timestamp (epoch milliseconds)
     line << " " << event.timestamp_ms;
@@ -197,8 +198,8 @@ inline std::string format_parameter_change_line_protocol(const events::Parameter
     line << "parameter_change,parameter_name=" << escape_tag(event.parameter_name);
 
     // Field set
-    line << " old_value=\"" << escape_field_string(event.old_value_str) << "\""
-         << ",new_value=\"" << escape_field_string(event.new_value_str) << "\"";
+    line << " old_value=\"" << escape_field_string(event.old_value_str) << "\"";
+    line << ",new_value=\"" << escape_field_string(event.new_value_str) << "\"";
 
     // Timestamp (epoch milliseconds)
     line << " " << event.timestamp_ms;
