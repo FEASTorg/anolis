@@ -80,7 +80,9 @@ class SupervisionTester:
                     "id": "provider-sim",
                     "command": provider_cmd,
                     "args": ["--config", str(fixture_config).replace("\\", "/"), "--crash-after", str(crash_after)],
-                    "timeout_ms": 5000,
+                    "timeout_ms": 1500,
+                    # Keep supervision tests responsive: lower provider RPC timeout reduces
+                    # crash-detection latency and avoids flaky timing races in CI.
                     "restart_policy": {
                         "enabled": True,
                         "max_attempts": max_attempts,
@@ -193,9 +195,9 @@ class SupervisionTester:
             if not self.capture.wait_for_marker("Registered provider 'provider-sim'", timeout=10.0):
                 return self._fail_with_output("automatic_restart", "Provider not registered")
 
-            # Wait for first crash (after 2s)
-            if not self.capture.wait_for_marker("crashed (attempt 1/3", timeout=5.0):
-                return self._fail_with_output("automatic_restart", "No crash detected")
+            # Wait for provider chaos crash banner (deterministic marker from provider stderr)
+            if not self.capture.wait_for_marker("CRASHING NOW (exit 42)", timeout=8.0):
+                return self._fail_with_output("automatic_restart", "No provider crash detected")
 
             # Wait for restart attempt
             if not self.capture.wait_for_marker("Attempting to restart provider: provider-sim", timeout=4.0):

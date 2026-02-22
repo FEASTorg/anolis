@@ -274,6 +274,7 @@ bool ProviderHandle::wait_for_response(anolis::deviceprovider::v1::Response &res
         auto elapsed = std::chrono::steady_clock::now() - start;
         auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
         if (elapsed_ms >= timeout_ms) {
+            session_healthy_.store(false, std::memory_order_release);
             error_ = "Timeout waiting for response (" + std::to_string(timeout_ms) + "ms)";
             LOG_ERROR("[" << process_.provider_id() << "] " << error_);
             return false;

@@ -18,39 +18,11 @@ Runtime::~Runtime() { shutdown(); }
 bool Runtime::initialize(std::string &error) {
     LOG_INFO("[Runtime] Initializing Anolis Core");
 
-    // Start overall startup timeout tracking
-    auto startup_start = std::chrono::steady_clock::now();
-    auto timeout_ms = std::chrono::milliseconds(config_.runtime.startup_timeout_ms);
-
-    auto check_timeout = [&](const std::string &phase) -> bool {
-        auto elapsed = std::chrono::steady_clock::now() - startup_start;
-        if (elapsed >= timeout_ms) {
-            error = "Startup timeout exceeded during " + phase +
-                    " (timeout: " + std::to_string(config_.runtime.startup_timeout_ms) + "ms, elapsed: " +
-                    std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count()) + "ms)";
-            LOG_ERROR("[Runtime] " << error);
-            return true;  // Timeout exceeded
-        }
-        return false;  // Still within timeout
-    };
-
-    if (check_timeout("initialization start")) {
-        return false;
-    }
-
     if (!init_core_services(error)) {
         return false;
     }
 
-    if (check_timeout("core services")) {
-        return false;
-    }
-
     if (!init_providers(error)) {
-        return false;
-    }
-
-    if (check_timeout("provider initialization")) {
         return false;
     }
 
@@ -59,22 +31,10 @@ bool Runtime::initialize(std::string &error) {
         return false;
     }
 
-    if (check_timeout("state cache initialization")) {
-        return false;
-    }
-
     // Prime state cache once so initial HTTP calls observe a full snapshot
     state_cache_->poll_once(provider_registry_);
 
-    if (check_timeout("state cache prime")) {
-        return false;
-    }
-
     if (!init_automation(error)) {
-        return false;
-    }
-
-    if (check_timeout("automation initialization")) {
         return false;
     }
 
@@ -82,21 +42,11 @@ bool Runtime::initialize(std::string &error) {
         return false;
     }
 
-    if (check_timeout("HTTP server initialization")) {
-        return false;
-    }
-
     if (!init_telemetry(error)) {
         return false;
     }
 
-    if (check_timeout("telemetry initialization")) {
-        return false;
-    }
-
-    auto total_elapsed = std::chrono::steady_clock::now() - startup_start;
-    auto total_ms = std::chrono::duration_cast<std::chrono::milliseconds>(total_elapsed).count();
-    LOG_INFO("[Runtime] Initialization complete in " << total_ms << "ms");
+    LOG_INFO("[Runtime] Initialization complete");
     return true;
 }
 
@@ -131,9 +81,8 @@ bool Runtime::init_providers(std::string &error) {
         LOG_INFO("[Runtime] Starting provider: " << provider_config.id);
         LOG_DEBUG("[Runtime]   Command: " << provider_config.command);
 
-        auto provider = std::make_shared<provider::ProviderHandle>(
-            provider_config.id, provider_config.command, provider_config.args, provider_config.timeout_ms,
-            provider_config.hello_timeout_ms, provider_config.ready_timeout_ms, config_.runtime.shutdown_timeout_ms);
+        auto provider = std::make_shared<provider::ProviderHandle>(provider_config.id, provider_config.command,
+                                                                   provider_config.args, provider_config.timeout_ms);
 
         if (!provider->start()) {
             error = "Failed to start provider '" + provider_config.id + "': " + provider->last_error();
@@ -161,7 +110,6 @@ bool Runtime::init_providers(std::string &error) {
 bool Runtime::init_automation(std::string &error) {
     // Create ModeManager and wire to CallRouter if automation enabled
     if (config_.automation.enabled) {
-        // IDLE mode is enforced at startup (not configurable)
         mode_manager_ = std::make_unique<automation::ModeManager>(automation::RuntimeMode::IDLE);
 
         std::string policy_str =
@@ -480,9 +428,8 @@ bool Runtime::restart_provider(const std::string &provider_id, const ProviderCon
     LOG_DEBUG("[Runtime]   Command: " << provider_config.command);
 
     // Create new provider instance
-    auto provider = std::make_shared<provider::ProviderHandle>(
-        provider_id, provider_config.command, provider_config.args, provider_config.timeout_ms,
-        provider_config.hello_timeout_ms, provider_config.ready_timeout_ms, config_.runtime.shutdown_timeout_ms);
+    auto provider = std::make_shared<provider::ProviderHandle>(provider_id, provider_config.command,
+                                                               provider_config.args, provider_config.timeout_ms);
 
     if (!provider->start()) {
         LOG_ERROR("[Runtime] Failed to start provider '" << provider_id << "': " << provider->last_error());
