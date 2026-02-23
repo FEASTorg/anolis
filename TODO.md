@@ -6,15 +6,23 @@
 
 ## Security / Production Hardening
 
+### Runtime / App Security
+
 - [ ] Implement HTTP/API authentication and authorization before non-localhost exposure.
-- [ ] Add dependency/CVE automation (Dependabot + security advisory checks).
 - [ ] Define and enforce telemetry redaction/classification + secret-safe logging policy.
+
+### Supply Chain Security
+
+- [ ] Add dependency/CVE automation (Dependabot + security advisory checks).
+
+### Compiler / Binary Hardening
+
 - [ ] Enable stack protection for all non-sanitized, production-targeted builds (`-fstack-protector-strong`/`/GS`).
 - [ ] Enable RELRO + immediate binding on ELF platforms (`-Wl,-z,relro,-z,now`).
-- [ ] Enable PIE for for executable to ensure full ASLR on supported platforms (`-fPIE` + `-pie` linker flag).
+- [ ] Enable PIE for executables to ensure full ASLR on supported platforms (`-fPIE` + `-pie` linker flag).
 - [ ] Enable `_FORTIFY_SOURCE=2` (or 3 where supported) for compile-time buffer overflow checks on supported platforms for release builds.
 - [ ] Add hardened "Release-Hardened" preset (separate from sanitizer builds)
-- [ ] Add security-focused static analysis (e.g. clang-tidy security checks) to CI.
+- [ ] Tighten security-focused static analysis in CI (clang-tidy is already enabled; expand security-specific checks and enforce policy).
 - [ ] Add CI lane to verify hardened build flags are present in production builds (check build flags + `checksec` on Linux).
 
 ## Performance / Reliability
