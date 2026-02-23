@@ -32,7 +32,7 @@ std::chrono::milliseconds CachedSignalValue::age(std::chrono::system_clock::time
 
 // StateCache implementation
 StateCache::StateCache(const registry::DeviceRegistry &registry, int poll_interval_ms)
-    : registry_(registry), polling_active_(false), poll_interval_(poll_interval_ms), event_emitter_(nullptr) {}
+    : registry_(registry), event_emitter_(nullptr), polling_active_(false), poll_interval_(poll_interval_ms) {}
 
 StateCache::~StateCache() { stop_polling(); }
 
