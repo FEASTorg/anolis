@@ -79,6 +79,13 @@
       }
     },
     {
+      "name": "ci-linux-arm64-release-strict",
+      "inherits": "ci-linux-arm64-release",
+      "cacheVariables": {
+        "ANOLIS_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
       "name": "ci-linux-clang-tidy",
       "inherits": "ci-linux-release",
       "cacheVariables": {
@@ -91,6 +98,20 @@
       "inherits": "base-windows-msvc",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "ci-linux-release-strict",
+      "inherits": "ci-linux-release",
+      "cacheVariables": {
+        "ANOLIS_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "ci-windows-release-strict",
+      "inherits": "ci-windows-release",
+      "cacheVariables": {
+        "ANOLIS_WARNINGS_AS_ERRORS": "ON"
       }
     },
     {
@@ -167,12 +188,25 @@
       "configurePreset": "ci-linux-arm64-release"
     },
     {
+      "name": "ci-linux-arm64-release-strict",
+      "configurePreset": "ci-linux-arm64-release-strict"
+    },
+    {
       "name": "ci-linux-clang-tidy",
       "configurePreset": "ci-linux-clang-tidy"
     },
     {
       "name": "ci-windows-release",
       "configurePreset": "ci-windows-release",
+      "configuration": "Release"
+    },
+    {
+      "name": "ci-linux-release-strict",
+      "configurePreset": "ci-linux-release-strict"
+    },
+    {
+      "name": "ci-windows-release-strict",
+      "configurePreset": "ci-windows-release-strict",
       "configuration": "Release"
     },
     {
@@ -242,8 +276,30 @@
       }
     },
     {
+      "name": "ci-linux-arm64-release-strict",
+      "configurePreset": "ci-linux-arm64-release-strict",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
       "name": "ci-windows-release",
       "configurePreset": "ci-windows-release",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci-linux-release-strict",
+      "configurePreset": "ci-linux-release-strict",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci-windows-release-strict",
+      "configurePreset": "ci-windows-release-strict",
       "configuration": "Release",
       "output": {
         "outputOnFailure": true

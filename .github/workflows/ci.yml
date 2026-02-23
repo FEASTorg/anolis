@@ -115,18 +115,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - lane: Linux Release (Core)
+          - lane: Linux Release (Core, strict)
             os: ubuntu-24.04
-            configure_preset: ci-linux-release
-            test_preset: ci-linux-release
-          - lane: Linux ARM64 Release (Core)
+            configure_preset: ci-linux-release-strict
+            test_preset: ci-linux-release-strict
+          - lane: Linux ARM64 Release (Core, strict)
             os: ubuntu-24.04-arm
-            configure_preset: ci-linux-arm64-release
-            test_preset: ci-linux-arm64-release
-          - lane: Windows Release (Core)
+            configure_preset: ci-linux-arm64-release-strict
+            test_preset: ci-linux-arm64-release-strict
+          - lane: Windows Release (Core, strict)
             os: windows-2022
-            configure_preset: ci-windows-release
-            test_preset: ci-windows-release
+            configure_preset: ci-windows-release-strict
+            test_preset: ci-windows-release-strict
 
     steps:
       - name: Checkout code
