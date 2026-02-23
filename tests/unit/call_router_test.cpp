@@ -133,7 +133,7 @@ TEST_F(CallRouterTest, PreconditionFailure) {
     // The CallResponse is the 5th arg.
 
     EXPECT_CALL(*mock_provider, call("dev1", _, "reset", _, _))
-        .WillOnce(Invoke([](const std::string&, uint32_t, const std::string&, const ValueMap&, CallResponse& resp) {
+        .WillOnce(Invoke([](const std::string &, uint32_t, const std::string &, const ValueMap &, CallResponse &) {
             // Note: CallResponse doesn't have status code in DPV0 if it fails?
             // Checking protocol.pb.h above, CallResponse has `results` and `operation_id`.
             // STATUS is defined in the top-level Response envelope

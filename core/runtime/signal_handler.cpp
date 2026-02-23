@@ -18,7 +18,7 @@ void SignalHandler::install() {
 
 bool SignalHandler::is_shutdown_requested() { return shutdown_requested_.load(); }
 
-void SignalHandler::handle_signal(int signal) {
+void SignalHandler::handle_signal(int) {
     // Async-signal-safe: only atomic operations allowed
     shutdown_requested_.store(true);
 }

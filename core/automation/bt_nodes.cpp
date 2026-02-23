@@ -29,26 +29,6 @@ static double value_to_double(const anolis::deviceprovider::v1::Value &val) {
     }
 }
 
-// Helper: Convert protobuf Value to string (for output port)
-static std::string value_to_string(const anolis::deviceprovider::v1::Value &val) {
-    switch (val.kind_case()) {
-        case anolis::deviceprovider::v1::Value::kDoubleValue:
-            return std::to_string(val.double_value());
-        case anolis::deviceprovider::v1::Value::kInt64Value:
-            return std::to_string(val.int64_value());
-        case anolis::deviceprovider::v1::Value::kUint64Value:
-            return std::to_string(val.uint64_value());
-        case anolis::deviceprovider::v1::Value::kBoolValue:
-            return val.bool_value() ? "true" : "false";
-        case anolis::deviceprovider::v1::Value::kStringValue:
-            return val.string_value();
-        case anolis::deviceprovider::v1::Value::kBytesValue:
-            return "<bytes>";
-        default:
-            return "<empty>";
-    }
-}
-
 // Helper: Convert quality enum to string
 static std::string quality_to_string(anolis::deviceprovider::v1::SignalValue_Quality q) {
     switch (q) {

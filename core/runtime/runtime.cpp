@@ -50,7 +50,7 @@ bool Runtime::initialize(std::string &error) {
     return true;
 }
 
-bool Runtime::init_core_services(std::string &error) {
+bool Runtime::init_core_services(std::string & /*error*/) {
     // Create registry
     registry_ = std::make_unique<registry::DeviceRegistry>();
 
@@ -269,7 +269,7 @@ bool Runtime::init_http(std::string &error) {
     return true;
 }
 
-bool Runtime::init_telemetry(std::string &error) {
+bool Runtime::init_telemetry(std::string & /*error*/) {
     // Start telemetry sink if enabled
     if (config_.telemetry.enabled) {
         LOG_INFO("[Runtime] Creating telemetry sink");

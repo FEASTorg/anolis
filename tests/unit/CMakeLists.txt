@@ -21,6 +21,8 @@ add_executable(anolis_unit_tests
 target_include_directories(anolis_unit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/core  # Access to internal headers
+)
+target_include_directories(anolis_unit_tests SYSTEM PRIVATE
     ${CMAKE_BINARY_DIR}/core  # Access to generated proto headers
 )
 
@@ -39,6 +41,7 @@ target_link_libraries(anolis_unit_tests PRIVATE
     anolis_proto
     protobuf::libprotobuf
 )
+anolis_apply_warnings(anolis_unit_tests)
 
 # Register tests. Use PRE_TEST so discovery does not execute during build.
 include(GoogleTest)

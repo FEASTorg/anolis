@@ -17,6 +17,7 @@
         "ENABLE_CLANG_TIDY": "OFF",
         "ENABLE_COVERAGE": "OFF",
         "ENABLE_TSAN": "OFF",
+        "ANOLIS_WARNINGS_AS_ERRORS": "OFF",
         "ANOLIS_ENABLE_PYTHON_CTEST": "OFF",
         "ANOLIS_PROVIDER_SIM_EXE": ""
       }

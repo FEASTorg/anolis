@@ -15,7 +15,7 @@ namespace http {
 //=============================================================================
 // GET /v0/state
 //=============================================================================
-void HttpServer::handle_get_state(const httplib::Request &req, httplib::Response &res) {
+void HttpServer::handle_get_state(const httplib::Request &, httplib::Response &res) {
     auto now = std::chrono::system_clock::now();
     auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
 
@@ -175,7 +175,7 @@ void HttpServer::handle_get_events(const httplib::Request &req, httplib::Respons
     // Use chunked content provider for streaming
     res.set_chunked_content_provider(
         "text/event-stream",
-        [this, subscription, client_name, keepalive_counter](size_t offset, httplib::DataSink &sink) {
+        [this, subscription, client_name, keepalive_counter](size_t, httplib::DataSink &sink) {
             // Check if server is still running
             if (!running_.load()) {
                 return false;  // Stop streaming
@@ -206,7 +206,7 @@ void HttpServer::handle_get_events(const httplib::Request &req, httplib::Respons
 
             return true;  // Continue streaming
         },
-        [this, client_name](bool success) {
+        [this](bool) {
             // Cleanup callback when stream ends
             sse_client_count_--;
         });

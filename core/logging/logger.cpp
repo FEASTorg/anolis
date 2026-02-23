@@ -1,6 +1,7 @@
 #include "logger.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <iomanip>
 #include <iostream>
@@ -16,6 +17,9 @@ void Logger::init(Level threshold) { threshold_ = threshold; }
 void Logger::set_level(Level level) { threshold_ = level; }
 
 void Logger::log(Level level, const char *file, int line, const std::string &message) {
+    static_cast<void>(file);
+    static_cast<void>(line);
+
     if (level < threshold_) {
         return;
     }
@@ -66,7 +70,7 @@ void Logger::log(Level level, const char *file, int line, const std::string &mes
 
 Level string_to_level(const std::string &level_str) {
     std::string s = level_str;
-    std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
 
     if (s == "DEBUG") {
         return Level::LVL_DEBUG;

@@ -19,7 +19,7 @@ endif()
 # Use modern protobuf_generate instead of deprecated protobuf_generate_cpp
 add_library(anolis_proto OBJECT ${ADPP_PROTO_DIR}/protocol.proto)
 target_link_libraries(anolis_proto PUBLIC protobuf::libprotobuf)
-target_include_directories(anolis_proto PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(anolis_proto SYSTEM PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
 protobuf_generate(
     TARGET anolis_proto
@@ -42,6 +42,7 @@ add_library(anolis_logging STATIC
 target_include_directories(anolis_logging PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
+anolis_apply_warnings(anolis_logging)
 
 # Provider host library
 add_library(anolis_provider STATIC
@@ -54,7 +55,6 @@ add_library(anolis_provider STATIC
 
 target_include_directories(anolis_provider PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 target_link_libraries(anolis_provider PUBLIC
@@ -62,6 +62,7 @@ target_link_libraries(anolis_provider PUBLIC
     anolis_logging
     protobuf::libprotobuf
 )
+anolis_apply_warnings(anolis_provider)
 
 # Registry library
 add_library(anolis_registry STATIC
@@ -70,7 +71,6 @@ add_library(anolis_registry STATIC
 
 target_include_directories(anolis_registry PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 target_link_libraries(anolis_registry PUBLIC
@@ -79,12 +79,15 @@ target_link_libraries(anolis_registry PUBLIC
     anolis_logging
     protobuf::libprotobuf
 )
+anolis_apply_warnings(anolis_registry)
 
 # Events library (header-only for now)
 add_library(anolis_events INTERFACE)
 
 target_include_directories(anolis_events INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_include_directories(anolis_events SYSTEM INTERFACE
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
@@ -95,13 +98,13 @@ add_library(anolis_telemetry STATIC
 
 target_include_directories(anolis_telemetry PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 target_link_libraries(anolis_telemetry PUBLIC
     anolis_events
     httplib::httplib
 )
+anolis_apply_warnings(anolis_telemetry)
 
 # Automation library (Behavior Trees)
 find_package(behaviortree_cpp CONFIG REQUIRED)
@@ -115,7 +118,6 @@ add_library(anolis_automation STATIC
 
 target_include_directories(anolis_automation PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 target_link_libraries(anolis_automation PUBLIC
@@ -123,6 +125,7 @@ target_link_libraries(anolis_automation PUBLIC
     anolis_control
     BT::behaviortree_cpp
 )
+anolis_apply_warnings(anolis_automation)
 
 # Automation sanity test (lightweight, no gtest)
 add_executable(bt_nodes_sanity
@@ -140,6 +143,7 @@ else()
         BT::behaviortree_cpp
     )
 endif()
+anolis_apply_warnings(bt_nodes_sanity)
 
 # State cache library
 add_library(anolis_state STATIC
@@ -148,7 +152,6 @@ add_library(anolis_state STATIC
 
 target_include_directories(anolis_state PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 target_link_libraries(anolis_state PUBLIC
@@ -158,6 +161,7 @@ target_link_libraries(anolis_state PUBLIC
     anolis_events
     protobuf::libprotobuf
 )
+anolis_apply_warnings(anolis_state)
 
 # Call router library
 add_library(anolis_control STATIC
@@ -166,7 +170,6 @@ add_library(anolis_control STATIC
 
 target_include_directories(anolis_control PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 target_link_libraries(anolis_control PUBLIC
@@ -176,6 +179,7 @@ target_link_libraries(anolis_control PUBLIC
     anolis_state
     protobuf::libprotobuf
 )
+anolis_apply_warnings(anolis_control)
 
 # HTTP server library
 find_package(httplib CONFIG REQUIRED)
@@ -192,7 +196,6 @@ add_library(anolis_http STATIC
 
 target_include_directories(anolis_http PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 target_link_libraries(anolis_http PUBLIC
@@ -206,6 +209,7 @@ target_link_libraries(anolis_http PUBLIC
     nlohmann_json::nlohmann_json
     protobuf::libprotobuf
 )
+anolis_apply_warnings(anolis_http)
 
 # Runtime library (config + bootstrap)
 find_package(yaml-cpp CONFIG REQUIRED)
@@ -218,7 +222,6 @@ add_library(anolis_runtime STATIC
 
 target_include_directories(anolis_runtime PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 target_link_libraries(anolis_runtime PUBLIC
@@ -233,6 +236,7 @@ target_link_libraries(anolis_runtime PUBLIC
     yaml-cpp::yaml-cpp
     protobuf::libprotobuf
 )
+anolis_apply_warnings(anolis_runtime)
 
 # Minimal runtime executable
 add_executable(anolis-runtime
@@ -240,9 +244,11 @@ add_executable(anolis-runtime
 )
 
 target_include_directories(anolis-runtime PRIVATE
-    ${CMAKE_CURRENT_BINARY_DIR}  # Generated headers
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_include_directories(anolis-runtime SYSTEM PRIVATE
+    ${CMAKE_CURRENT_BINARY_DIR}  # Generated headers
 )
 
 target_link_libraries(anolis-runtime PRIVATE
@@ -256,6 +262,7 @@ target_link_libraries(anolis-runtime PRIVATE
     yaml-cpp::yaml-cpp
     protobuf::libprotobuf
 )
+anolis_apply_warnings(anolis-runtime)
 
 if(WIN32)
     target_compile_definitions(anolis-runtime PRIVATE _CRT_SECURE_NO_WARNINGS)

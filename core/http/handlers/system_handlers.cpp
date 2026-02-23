@@ -17,7 +17,7 @@ namespace http {
 //=============================================================================
 // GET /v0/runtime/status
 //=============================================================================
-void HttpServer::handle_get_runtime_status(const httplib::Request &req, httplib::Response &res) {
+void HttpServer::handle_get_runtime_status(const httplib::Request &, httplib::Response &res) {
     // Calculate uptime (approximate - could be tracked more precisely)
     static auto start_time = std::chrono::steady_clock::now();
     auto now = std::chrono::steady_clock::now();
@@ -56,7 +56,7 @@ void HttpServer::handle_get_runtime_status(const httplib::Request &req, httplib:
 //=============================================================================
 // GET /v0/mode - Get current automation mode
 //=============================================================================
-void HttpServer::handle_get_mode(const httplib::Request &req, httplib::Response &res) {
+void HttpServer::handle_get_mode(const httplib::Request &, httplib::Response &res) {
     // If automation not enabled, return error
     if (mode_manager_ == nullptr) {
         nlohmann::json response = make_error_response(StatusCode::UNAVAILABLE, "Automation layer not enabled");
@@ -142,7 +142,7 @@ void HttpServer::handle_post_mode(const httplib::Request &req, httplib::Response
 //=============================================================================
 // GET /v0/parameters - Get all parameters
 //=============================================================================
-void HttpServer::handle_get_parameters(const httplib::Request &req, httplib::Response &res) {
+void HttpServer::handle_get_parameters(const httplib::Request &, httplib::Response &res) {
     // If parameter manager not available, return error
     if (parameter_manager_ == nullptr) {
         nlohmann::json response = make_error_response(StatusCode::UNAVAILABLE, "Parameter system not enabled");
@@ -297,7 +297,7 @@ void HttpServer::handle_post_parameters(const httplib::Request &req, httplib::Re
 //=============================================================================
 // GET /v0/automation/tree - Get loaded behavior tree XML
 //=============================================================================
-void HttpServer::handle_get_automation_tree(const httplib::Request &req, httplib::Response &res) {
+void HttpServer::handle_get_automation_tree(const httplib::Request &, httplib::Response &res) {
     // If automation not enabled or bt_runtime not available
     if (bt_runtime_ == nullptr) {
         nlohmann::json response = make_error_response(StatusCode::UNAVAILABLE, "Automation layer not enabled");
@@ -334,7 +334,7 @@ void HttpServer::handle_get_automation_tree(const httplib::Request &req, httplib
 //=============================================================================
 // GET /v0/automation/status
 //=============================================================================
-void HttpServer::handle_get_automation_status(const httplib::Request &req, httplib::Response &res) {
+void HttpServer::handle_get_automation_status(const httplib::Request &, httplib::Response &res) {
     // If automation not enabled or bt_runtime not available
     if (bt_runtime_ == nullptr) {
         nlohmann::json response = make_error_response(StatusCode::UNAVAILABLE, "Automation layer not enabled");
@@ -408,7 +408,7 @@ void HttpServer::handle_get_automation_status(const httplib::Request &req, httpl
 //=============================================================================
 // GET /v0/providers/health
 //=============================================================================
-void HttpServer::handle_get_providers_health(const httplib::Request &req, httplib::Response &res) {
+void HttpServer::handle_get_providers_health(const httplib::Request &, httplib::Response &res) {
     using namespace std::chrono;
 
     nlohmann::json providers_json = nlohmann::json::array();

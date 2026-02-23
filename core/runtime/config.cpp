@@ -382,10 +382,19 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
 
             // Check for token from environment variable if not in config
             if (config.telemetry.enabled && config.telemetry.influx_token.empty()) {
+#ifdef _WIN32
+                char *token_env = nullptr;
+                size_t token_len = 0;
+                if (_dupenv_s(&token_env, &token_len, "INFLUXDB_TOKEN") == 0 && token_env != nullptr) {
+                    config.telemetry.influx_token = token_env;
+                    std::free(token_env);
+                }
+#else
                 const char *token_env = std::getenv("INFLUXDB_TOKEN");
                 if (token_env != nullptr) {
                     config.telemetry.influx_token = token_env;
                 }
+#endif
             }
         }
 
@@ -505,7 +514,7 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
         LOG_INFO(automation_msg.str());
 
         return true;
-    } catch (const YAML::BadFile &e) {
+    } catch (const YAML::BadFile &) {
         error = "Cannot open config file: " + config_path;
         return false;
     } catch (const YAML::ParserException &e) {

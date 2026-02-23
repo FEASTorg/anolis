@@ -134,7 +134,7 @@ bool HttpServer::start(std::string &error) {
     });
 
     // Set exception handler
-    server_->set_exception_handler([](const httplib::Request &req, httplib::Response &res, std::exception_ptr ep) {
+    server_->set_exception_handler([](const httplib::Request &, httplib::Response &res, std::exception_ptr ep) {
         std::string msg = "Unknown error";
         try {
             std::rethrow_exception(std::move(ep));
@@ -214,14 +214,14 @@ void HttpServer::setup_routes() {
                   [this](const httplib::Request &req, httplib::Response &res) { handle_post_call(req, res); });
 
     // OPTIONS /v0/call - CORS preflight for POST
-    server_->Options("/v0/call", [](const httplib::Request &req, httplib::Response &res) {
+    server_->Options("/v0/call", [](const httplib::Request &, httplib::Response &res) {
         res.status = kStatusNoContent;
         res.set_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
         res.set_header("Access-Control-Allow-Headers", "Content-Type");
     });
 
     // OPTIONS catch-all for CORS preflight on all routes
-    server_->Options(R"(/v0/.*)", [](const httplib::Request &req, httplib::Response &res) {
+    server_->Options(R"(/v0/.*)", [](const httplib::Request &, httplib::Response &res) {
         res.status = kStatusNoContent;
         res.set_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
         res.set_header("Access-Control-Allow-Headers", "Content-Type");

@@ -10,7 +10,7 @@ namespace http {
 //=============================================================================
 // GET /v0/devices
 //=============================================================================
-void HttpServer::handle_get_devices(const httplib::Request &req, httplib::Response &res) {
+void HttpServer::handle_get_devices(const httplib::Request &, httplib::Response &res) {
     auto devices = registry_.get_all_devices();  // Returns vector<RegisteredDevice> by value
 
     nlohmann::json devices_json = nlohmann::json::array();

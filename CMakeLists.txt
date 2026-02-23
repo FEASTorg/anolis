@@ -29,6 +29,9 @@ find_package(Protobuf CONFIG REQUIRED)
 
 # Structural Analysis
 option(ENABLE_CLANG_TIDY "Enable static analysis with clang-tidy" OFF)
+option(ANOLIS_WARNINGS_AS_ERRORS "Treat first-party compiler warnings as errors" OFF)
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Warnings.cmake)
 
 if(ENABLE_CLANG_TIDY)
     find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
