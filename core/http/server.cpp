@@ -29,9 +29,9 @@ HttpServer::HttpServer(const runtime::HttpConfig &config, int polling_interval_m
       state_cache_(state_cache),
       call_router_(call_router),
       provider_registry_(provider_registry),
+      parameter_manager_(parameter_manager),
       event_emitter_(std::move(event_emitter)),
       mode_manager_(mode_manager),
-      parameter_manager_(parameter_manager),
       bt_runtime_(bt_runtime) {}
 
 HttpServer::~HttpServer() { stop(); }
