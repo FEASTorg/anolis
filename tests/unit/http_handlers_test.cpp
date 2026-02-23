@@ -24,6 +24,7 @@
 #include "http/server.hpp"
 #include "mocks/mock_provider_handle.hpp"
 #include "provider/provider_registry.hpp"
+#include "provider/provider_supervisor.hpp"
 #include "registry/device_registry.hpp"
 #include "runtime/config.hpp"
 #include "state/state_cache.hpp"
@@ -98,9 +99,9 @@ protected:
         server = std::make_unique<HttpServer>(http_config,
                                               100,  // polling_interval_ms
                                               *registry, *state_cache, *call_router, *provider_registry,
+                                              nullptr,  // supervisor (disabled)
                                               nullptr,  // event_emitter
-                                              nullptr,  // mode_manager
-                                              nullptr   // parameter_manager
+                                              nullptr   // mode_manager
         );
 
         // Start server
@@ -457,9 +458,40 @@ TEST_F(HttpHandlersTest, PostCallFunctionNotFound) {
     EXPECT_TRUE(json["status"]["message"].get<std::string>().find("Function ID not found") != std::string::npos);
 }
 
-//=============================================================================
-// System Handler Tests
-//=============================================================================
+TEST_F(HttpHandlersTest, GetProvidersHealthNullSupervisorShape) {
+    // With nullptr supervisor, endpoint must still return a well-formed response.
+    // supervision block is always present as an object (never null), containing
+    // zeroed/disabled values.
+    auto res = client->Get("/v0/providers/health");
+
+    ASSERT_TRUE(res) << "Request failed";
+    EXPECT_EQ(200, res->status);
+
+    auto json = nlohmann::json::parse(res->body);
+    EXPECT_EQ("OK", json["status"]["code"]);
+    ASSERT_TRUE(json["providers"].is_array());
+    ASSERT_EQ(1u, json["providers"].size());
+
+    const auto& provider = json["providers"][0];
+    EXPECT_EQ("test_provider", provider["provider_id"]);
+
+    // supervision is always an object, never null — even when supervisor is nullptr
+    ASSERT_TRUE(provider.contains("supervision"));
+    ASSERT_TRUE(provider["supervision"].is_object());
+
+    // Zeroed supervision when no supervisor
+    EXPECT_FALSE(provider["supervision"]["enabled"].get<bool>());
+    EXPECT_EQ(0, provider["supervision"]["attempt_count"].get<int>());
+    EXPECT_TRUE(provider["supervision"]["next_restart_in_ms"].is_null());
+
+    // last_seen_ago_ms present (null before first heartbeat — not the old epoch-zero placeholder)
+    ASSERT_TRUE(provider.contains("last_seen_ago_ms"));
+    EXPECT_TRUE(provider["last_seen_ago_ms"].is_null() || provider["last_seen_ago_ms"].is_number_integer());
+
+    // devices array always present
+    ASSERT_TRUE(provider.contains("devices"));
+    EXPECT_TRUE(provider["devices"].is_array());
+}
 
 TEST_F(HttpHandlersTest, GetRuntimeStatus) {
     RegisterMockDevice();
@@ -525,9 +557,163 @@ TEST_F(HttpHandlersTest, ErrorResponseFormat) {
     EXPECT_FALSE(json["status"]["message"].get<std::string>().empty());
 }
 
-#else  // ANOLIS_SKIP_HTTP_TESTS
+//=============================================================================
+// Providers Health Handler Tests — with real ProviderSupervisor
+//
+// This fixture constructs HttpServer with a live ProviderSupervisor so that the
+// supervision block in /v0/providers/health reflects actual registered policy data,
+// not the zeroed fallback produced when supervisor_ is nullptr.
+//=============================================================================
 
-// Placeholder test to indicate HTTP tests are disabled
+class HttpHandlersProvidersHealthTest : public Test {
+protected:
+    void SetUp() override {
+        registry = std::make_unique<registry::DeviceRegistry>();
+        state_cache = std::make_unique<state::StateCache>(*registry, 100);
+        call_router = std::make_unique<control::CallRouter>(*registry, *state_cache);
+
+        mock_provider = std::make_shared<StrictMock<MockProviderHandle>>();
+        mock_provider->_id = "test_provider";
+        EXPECT_CALL(*mock_provider, provider_id()).WillRepeatedly(ReturnRef(mock_provider->_id));
+        EXPECT_CALL(*mock_provider, is_available()).WillRepeatedly(Return(true));
+
+        provider_registry = std::make_unique<provider::ProviderRegistry>();
+        provider_registry->add_provider("test_provider", mock_provider);
+
+        // Real supervisor so the health endpoint returns actual policy data
+        supervisor = std::make_unique<provider::ProviderSupervisor>();
+        runtime::RestartPolicyConfig policy;
+        policy.enabled = true;
+        policy.max_attempts = 3;
+        policy.backoff_ms = {100, 500, 2000};
+        policy.timeout_ms = 5000;
+        supervisor->register_provider("test_provider", policy);
+
+        runtime::HttpConfig http_config;
+        http_config.enabled = true;
+        http_config.bind = "127.0.0.1";
+        http_config.port = 9998;  // Distinct port from HttpHandlersTest (9999)
+        http_config.cors_allowed_origins = {"*"};
+
+        server = std::make_unique<HttpServer>(http_config, 100, *registry, *state_cache, *call_router,
+                                              *provider_registry, supervisor.get());
+
+        std::string error;
+        ASSERT_TRUE(server->start(error)) << "Failed to start HTTP server: " << error;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+        client = std::make_unique<httplib::Client>("http://127.0.0.1:9998");
+        client->set_connection_timeout(1, 0);
+    }
+
+    void TearDown() override {
+        client.reset();
+        server->stop();
+        server.reset();
+    }
+
+    std::unique_ptr<registry::DeviceRegistry> registry;
+    std::unique_ptr<state::StateCache> state_cache;
+    std::unique_ptr<control::CallRouter> call_router;
+    std::shared_ptr<MockProviderHandle> mock_provider;
+    std::unique_ptr<provider::ProviderRegistry> provider_registry;
+    std::unique_ptr<provider::ProviderSupervisor> supervisor;
+    std::unique_ptr<HttpServer> server;
+    std::unique_ptr<httplib::Client> client;
+};
+
+TEST_F(HttpHandlersProvidersHealthTest, ResponseSucceeds) {
+    auto res = client->Get("/v0/providers/health");
+    ASSERT_TRUE(res) << "Request failed";
+    EXPECT_EQ(200, res->status);
+    auto json = nlohmann::json::parse(res->body);
+    EXPECT_EQ("OK", json["status"]["code"]);
+    ASSERT_TRUE(json["providers"].is_array());
+    ASSERT_EQ(1u, json["providers"].size());
+    EXPECT_EQ("test_provider", json["providers"][0]["provider_id"]);
+}
+
+TEST_F(HttpHandlersProvidersHealthTest, SupervisionIsAlwaysAnObject) {
+    auto res = client->Get("/v0/providers/health");
+    ASSERT_TRUE(res);
+    auto json = nlohmann::json::parse(res->body);
+    const auto& provider = json["providers"][0];
+
+    ASSERT_TRUE(provider.contains("supervision"));
+    ASSERT_TRUE(provider["supervision"].is_object());
+    EXPECT_EQ("AVAILABLE", provider["state"]);
+}
+
+TEST_F(HttpHandlersProvidersHealthTest, SupervisionContainsAllRequiredKeys) {
+    auto res = client->Get("/v0/providers/health");
+    ASSERT_TRUE(res);
+    auto json = nlohmann::json::parse(res->body);
+    const auto& sup = json["providers"][0]["supervision"];
+
+    EXPECT_TRUE(sup.contains("enabled"));
+    EXPECT_TRUE(sup.contains("attempt_count"));
+    EXPECT_TRUE(sup.contains("max_attempts"));
+    EXPECT_TRUE(sup.contains("crash_detected"));
+    EXPECT_TRUE(sup.contains("circuit_open"));
+    EXPECT_TRUE(sup.contains("next_restart_in_ms"));
+
+    EXPECT_TRUE(sup["enabled"].is_boolean());
+    EXPECT_TRUE(sup["attempt_count"].is_number_integer());
+    EXPECT_TRUE(sup["max_attempts"].is_number_integer());
+    EXPECT_TRUE(sup["crash_detected"].is_boolean());
+    EXPECT_TRUE(sup["circuit_open"].is_boolean());
+    EXPECT_TRUE(sup["next_restart_in_ms"].is_null() || sup["next_restart_in_ms"].is_number_integer());
+}
+
+TEST_F(HttpHandlersProvidersHealthTest, SupervisionReflectsRegisteredPolicy) {
+    auto res = client->Get("/v0/providers/health");
+    ASSERT_TRUE(res);
+    auto json = nlohmann::json::parse(res->body);
+    const auto& sup = json["providers"][0]["supervision"];
+
+    EXPECT_TRUE(sup["enabled"].get<bool>());
+    EXPECT_EQ(3, sup["max_attempts"].get<int>());
+    EXPECT_EQ(0, sup["attempt_count"].get<int>());
+    EXPECT_FALSE(sup["crash_detected"].get<bool>());
+    EXPECT_FALSE(sup["circuit_open"].get<bool>());
+    // Healthy, no crash history: next_restart_in_ms is null
+    EXPECT_TRUE(sup["next_restart_in_ms"].is_null());
+}
+
+TEST_F(HttpHandlersProvidersHealthTest, LastSeenAgoMsIsPresentAndCorrectType) {
+    auto res = client->Get("/v0/providers/health");
+    ASSERT_TRUE(res);
+    auto json = nlohmann::json::parse(res->body);
+    const auto& provider = json["providers"][0];
+
+    ASSERT_TRUE(provider.contains("last_seen_ago_ms"));
+    // null before first heartbeat; integer once heartbeats have been recorded
+    EXPECT_TRUE(provider["last_seen_ago_ms"].is_null() || provider["last_seen_ago_ms"].is_number_integer());
+}
+
+TEST_F(HttpHandlersProvidersHealthTest, UptimeSecondsAndDeviceCountPresent) {
+    auto res = client->Get("/v0/providers/health");
+    ASSERT_TRUE(res);
+    auto json = nlohmann::json::parse(res->body);
+    const auto& provider = json["providers"][0];
+
+    ASSERT_TRUE(provider.contains("uptime_seconds"));
+    EXPECT_TRUE(provider["uptime_seconds"].is_number_integer());
+    ASSERT_TRUE(provider.contains("device_count"));
+    EXPECT_TRUE(provider["device_count"].is_number_integer());
+}
+
+TEST_F(HttpHandlersProvidersHealthTest, DevicesArrayAlwaysPresent) {
+    auto res = client->Get("/v0/providers/health");
+    ASSERT_TRUE(res);
+    auto json = nlohmann::json::parse(res->body);
+    const auto& provider = json["providers"][0];
+
+    ASSERT_TRUE(provider.contains("devices"));
+    EXPECT_TRUE(provider["devices"].is_array());
+}
+
+#else  // ANOLIS_SKIP_HTTP_TESTS
 TEST(HttpHandlersTest, DISABLED_SkippedUnderThreadSanitizer) {
     // This test exists to document that HttpHandlersTest suite is disabled
     // under TSAN due to cpp-httplib incompatibility. All 19 HTTP handler

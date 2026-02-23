@@ -5,6 +5,7 @@
 #include "errors.hpp"
 #include "events/event_emitter.hpp"
 #include "logging/logger.hpp"
+#include "provider/provider_supervisor.hpp"
 
 namespace anolis {
 namespace http {
@@ -20,7 +21,7 @@ constexpr int kStatusInternal = 500;
 
 HttpServer::HttpServer(const runtime::HttpConfig &config, int polling_interval_ms, registry::DeviceRegistry &registry,
                        state::StateCache &state_cache, control::CallRouter &call_router,
-                       provider::ProviderRegistry &provider_registry,
+                       provider::ProviderRegistry &provider_registry, provider::ProviderSupervisor *supervisor,
                        std::shared_ptr<events::EventEmitter> event_emitter, automation::ModeManager *mode_manager,
                        automation::ParameterManager *parameter_manager, automation::BTRuntime *bt_runtime)
     : config_(config),
@@ -29,6 +30,7 @@ HttpServer::HttpServer(const runtime::HttpConfig &config, int polling_interval_m
       state_cache_(state_cache),
       call_router_(call_router),
       provider_registry_(provider_registry),
+      supervisor_(supervisor),
       parameter_manager_(parameter_manager),
       event_emitter_(std::move(event_emitter)),
       mode_manager_(mode_manager),

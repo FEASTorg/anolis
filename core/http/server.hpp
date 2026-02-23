@@ -41,6 +41,9 @@ class ModeManager;
 class ParameterManager;
 class BTRuntime;
 }  // namespace automation
+namespace provider {
+class ProviderSupervisor;
+}  // namespace provider
 }  // namespace anolis
 
 namespace anolis {
@@ -74,6 +77,7 @@ public:
      * @param state_cache State cache for reading device state
      * @param call_router Call router for executing device functions
      * @param provider_registry Provider registry for call execution
+     * @param supervisor Provider supervisor for crash/restart/uptime state (optional)
      * @param event_emitter Event emitter for SSE streaming
      * @param mode_manager Mode manager for automation control (optional)
      * @param parameter_manager Parameter manager for runtime parameters (optional)
@@ -81,7 +85,7 @@ public:
      */
     HttpServer(const runtime::HttpConfig &config, int polling_interval_ms, registry::DeviceRegistry &registry,
                state::StateCache &state_cache, control::CallRouter &call_router,
-               provider::ProviderRegistry &provider_registry,
+               provider::ProviderRegistry &provider_registry, provider::ProviderSupervisor *supervisor = nullptr,
                std::shared_ptr<events::EventEmitter> event_emitter = nullptr,
                automation::ModeManager *mode_manager = nullptr,
                automation::ParameterManager *parameter_manager = nullptr, automation::BTRuntime *bt_runtime = nullptr);
@@ -128,6 +132,7 @@ private:
     state::StateCache &state_cache_;
     control::CallRouter &call_router_;
     provider::ProviderRegistry &provider_registry_;
+    provider::ProviderSupervisor *supervisor_;         // optional: nullptr when supervision disabled
     automation::ParameterManager *parameter_manager_;  // optional
     std::shared_ptr<events::EventEmitter> event_emitter_;
     automation::ModeManager *mode_manager_;  // optional

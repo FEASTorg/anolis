@@ -5,7 +5,8 @@
 #include "../../automation/mode_manager.hpp"
 #include "../../automation/parameter_manager.hpp"
 #include "../../logging/logger.hpp"
-#include "../../provider/i_provider_handle.hpp"  // Need provider definition for handle_get_runtime_status
+#include "../../provider/i_provider_handle.hpp"    // Need provider definition for handle_get_runtime_status
+#include "../../provider/provider_supervisor.hpp"  // For ProviderSupervisionSnapshot
 #include "../../registry/device_registry.hpp"
 #include "../json.hpp"
 #include "../server.hpp"
@@ -410,6 +411,13 @@ void HttpServer::handle_get_automation_status(const httplib::Request &, httplib:
 //=============================================================================
 void HttpServer::handle_get_providers_health(const httplib::Request &, httplib::Response &res) {
     using namespace std::chrono;
+    using SupervisionSnapshot = provider::ProviderSupervisor::ProviderSupervisionSnapshot;
+
+    // Collect all supervision snapshots once (thread-safe copy).
+    std::unordered_map<std::string, SupervisionSnapshot> snapshots;
+    if (supervisor_) {
+        snapshots = supervisor_->get_all_snapshots();
+    }
 
     nlohmann::json providers_json = nlohmann::json::array();
 
@@ -462,13 +470,43 @@ void HttpServer::handle_get_providers_health(const httplib::Request &, httplib::
                                     {"staleness_ms", staleness_ms}});
         }
 
-        // Note: We don't track provider uptime or last_seen currently
-        // These would require additional infrastructure
+        // Build provider-level timing fields and supervision block.
+        // supervision is always emitted as an object, never null.
+        nlohmann::json last_seen_ago_ms_json = nullptr;
+        int64_t uptime_seconds = 0;
+        nlohmann::json supervision_json;
+
+        auto snap_it = snapshots.find(provider_id);
+        if (snap_it != snapshots.end()) {
+            const auto &snap = snap_it->second;
+
+            // last_seen_ago_ms: null before first heartbeat, otherwise duration.
+            last_seen_ago_ms_json = snap.last_seen_ago_ms.has_value() ? nlohmann::json(snap.last_seen_ago_ms.value())
+                                                                      : nlohmann::json(nullptr);
+
+            // uptime_seconds forced to 0 when UNAVAILABLE (process may have crashed).
+            uptime_seconds = is_available ? snap.uptime_seconds : 0;
+
+            supervision_json = {{"enabled", snap.supervision_enabled},
+                                {"attempt_count", snap.attempt_count},
+                                {"max_attempts", snap.max_attempts},
+                                {"crash_detected", snap.crash_detected},
+                                {"circuit_open", snap.circuit_open},
+                                {"next_restart_in_ms", snap.next_restart_in_ms.has_value()
+                                                           ? nlohmann::json(snap.next_restart_in_ms.value())
+                                                           : nlohmann::json(nullptr)}};
+        } else {
+            // No supervisor or provider not yet registered: emit zeroed supervision.
+            supervision_json = {{"enabled", false},        {"attempt_count", 0},    {"max_attempts", 0},
+                                {"crash_detected", false}, {"circuit_open", false}, {"next_restart_in_ms", nullptr}};
+        }
+
         providers_json.push_back({{"provider_id", provider_id},
                                   {"state", state},
-                                  {"last_seen_ms", 0},    // Not implemented yet
-                                  {"uptime_seconds", 0},  // Not implemented yet
+                                  {"last_seen_ago_ms", last_seen_ago_ms_json},
+                                  {"uptime_seconds", uptime_seconds},
                                   {"device_count", devices.size()},
+                                  {"supervision", supervision_json},
                                   {"devices", devices_json}});
     }
 

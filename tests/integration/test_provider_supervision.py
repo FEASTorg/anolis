@@ -18,7 +18,6 @@ Usage:
 
 import argparse
 import os
-import re
 import sys
 import time
 from dataclasses import dataclass
@@ -26,6 +25,12 @@ from pathlib import Path
 from typing import List, Optional
 
 from test_fixtures import RuntimeFixture
+from test_helpers import (
+    assert_http_available,
+    assert_provider_available,
+    get_provider_health_entry,
+    wait_for_supervision_state,
+)
 
 
 @dataclass
@@ -44,6 +49,7 @@ class SupervisionTester:
         self.timeout = timeout
         self.results: List[TestResult] = []
         self.fixture: Optional[RuntimeFixture] = None
+        self.base_url = "http://localhost:8080"
 
     def setup(self) -> bool:
         """Create test config and validate paths."""
@@ -75,6 +81,11 @@ class SupervisionTester:
         fixture_config = Path(__file__).parent / "fixtures" / "provider-sim-default.yaml"
 
         config = {
+            "http": {
+                "enabled": True,
+                "bind": "127.0.0.1",
+                "port": 8080,
+            },
             "providers": [
                 {
                     "id": "provider-sim",
@@ -116,10 +127,10 @@ class SupervisionTester:
             print(f"ERROR: Failed to start runtime: {e}")
             return False
 
-        # Wait for runtime to start
-        capture = self.fixture.get_output_capture()
-        if not capture or not capture.wait_for_marker("Initialization complete", timeout=10.0):
-            print("ERROR: Runtime failed to initialize")
+        # Wait for HTTP server to respond — API-based readiness check.
+        if not assert_http_available(self.base_url, timeout=10.0):
+            print("ERROR: Runtime HTTP server did not become available")
+            capture = self.fixture.get_output_capture()
             if capture:
                 print(f"  Output:\n{capture.get_all_output()}")
             return False
@@ -142,80 +153,44 @@ class SupervisionTester:
         output_tail = self.capture.get_recent_output(tail_lines)
         return TestResult(name, False, f"{message}\nOutput tail:\n{output_tail}")
 
-    def _pattern_count(self, pattern: str) -> int:
-        """Count regex matches in currently captured output."""
-        if self.capture is None:
-            return 0
-        return len(re.findall(pattern, self.capture.get_all_output()))
-
-    def _wait_for_new_pattern(self, pattern: str, previous_count: int, timeout: float):
-        """Wait for a new regex match that appears after previous_count matches."""
-        if self.capture is None:
-            return None
-
-        regex = re.compile(pattern)
-        deadline = time.time() + timeout
-        while time.time() < deadline:
-            matches = list(regex.finditer(self.capture.get_all_output()))
-            if len(matches) > previous_count:
-                return matches[previous_count]
-            time.sleep(0.05)
-
-        return None
-
-    def _wait_for_new_marker(self, marker: str, previous_count: int, timeout: float) -> bool:
-        """Wait for marker occurrence count to increase past previous_count."""
-        if self.capture is None:
-            return False
-
-        deadline = time.time() + timeout
-        while time.time() < deadline:
-            if self.capture.get_all_output().count(marker) > previous_count:
-                return True
-            time.sleep(0.05)
-
-        return False
-
     def test_automatic_restart(self) -> TestResult:
         """Test that provider restarts automatically after crash."""
         print("\n[TEST] Automatic Restart")
 
-        # Create config with 2s crash, 3 attempts, short backoffs
         config_dict = self.create_config(crash_after=2.0, max_attempts=3, backoff_ms=[200, 500, 1000])
 
         try:
-            # Start runtime
             if not self.start_runtime(config_dict):
                 return TestResult("automatic_restart", False, "Failed to start runtime")
 
-            if self.capture is None:
-                return TestResult("automatic_restart", False, "OutputCapture not available")
+            # Wait for provider to be initially available.
+            if not assert_provider_available(self.base_url, "provider-sim", timeout=10.0):
+                return self._fail_with_output("automatic_restart", "Provider not available at startup")
 
-            # Wait for initial provider start
-            if not self.capture.wait_for_marker("Registered provider 'provider-sim'", timeout=10.0):
-                return self._fail_with_output("automatic_restart", "Provider not registered")
-
-            # Wait for provider chaos crash banner (deterministic marker from provider stderr)
-            if not self.capture.wait_for_marker("CRASHING NOW (exit 42)", timeout=8.0):
+            # Wait for the provider chaos crash banner (provider stderr — acceptable trigger,
+            # not a pass/fail oracle; just advances timing certainty).
+            if self.capture and not self.capture.wait_for_marker("CRASHING NOW (exit 42)", timeout=8.0):
                 return self._fail_with_output("automatic_restart", "No provider crash detected")
 
-            # Wait for restart attempt
-            if not self.capture.wait_for_marker("Attempting to restart provider: provider-sim", timeout=4.0):
-                return self._fail_with_output("automatic_restart", "No restart attempt logged")
+            # API oracle: supervisor recorded a crash attempt.
+            if not wait_for_supervision_state(
+                self.base_url,
+                "provider-sim",
+                lambda entry: entry["supervision"]["attempt_count"] >= 1,
+                timeout=6.0,
+            ):
+                return self._fail_with_output("automatic_restart", "Supervisor did not record a crash attempt")
 
-            # Wait for successful restart
-            if not self.capture.wait_for_marker("Provider restarted successfully", timeout=5.0):
-                return self._fail_with_output("automatic_restart", "Provider failed to restart")
+            # API oracle: provider recovered — AVAILABLE and attempt_count reset to 0.
+            if not wait_for_supervision_state(
+                self.base_url,
+                "provider-sim",
+                lambda entry: entry["state"] == "AVAILABLE" and entry["supervision"]["attempt_count"] == 0,
+                timeout=10.0,
+            ):
+                return self._fail_with_output("automatic_restart", "Provider did not recover")
 
-            # Wait for recovery message
-            if not self.capture.wait_for_marker("recovered successfully", timeout=4.0):
-                return self._fail_with_output("automatic_restart", "No recovery message")
-
-            return TestResult(
-                "automatic_restart",
-                True,
-                "Provider restarted automatically after crash",
-            )
+            return TestResult("automatic_restart", True, "Provider restarted automatically after crash")
 
         finally:
             self.stop_runtime()
@@ -223,118 +198,124 @@ class SupervisionTester:
     def test_backoff_timing(self) -> TestResult:
         """Test that exponential backoff delays are correct.
 
-        Note: Since provider recovers successfully, we only test first backoff.
+        Validates:
+        - max_attempts configuration is correctly exposed via API
+        - Wall-clock time from UNAVAILABLE→AVAILABLE transition is consistent with
+          the configured first backoff (500 ms ± generous tolerance for CI)
         """
         print("\n[TEST] Backoff Timing")
 
-        # Create config with 1s crash, backoffs: 500ms, 1000ms, 2000ms
         config_dict = self.create_config(crash_after=1.0, max_attempts=3, backoff_ms=[500, 1000, 2000])
 
         try:
             if not self.start_runtime(config_dict):
                 return TestResult("backoff_timing", False, "Failed to start runtime")
 
-            if self.capture is None:
-                return TestResult("backoff_timing", False, "OutputCapture not available")
+            # Wait for provider to be initially available.
+            if not assert_provider_available(self.base_url, "provider-sim", timeout=10.0):
+                return self._fail_with_output("backoff_timing", "Provider not available at startup")
 
-            # Wait for registration
-            if not self.capture.wait_for_marker("Registered provider 'provider-sim'", timeout=10.0):
-                return self._fail_with_output("backoff_timing", "Provider not registered")
+            # Use provider crash banner as timing trigger only (provider stderr, not runtime oracle).
+            if self.capture and not self.capture.wait_for_marker("CRASHING NOW (exit 42)", timeout=6.0):
+                return self._fail_with_output("backoff_timing", "No provider crash detected")
 
-            # Wait for first crash and validate parsed policy fields from log
-            crash_pattern = r"crashed \(attempt 1/(\d+), retry in (\d+)ms\)"
-            crash_count_before = self._pattern_count(crash_pattern)
-            restart_marker = "Attempting to restart provider: provider-sim"
-            restart_count_before = self.capture.get_all_output().count(restart_marker)
+            # API oracle: confirm max_attempts reflects configured policy.
+            entry = get_provider_health_entry(self.base_url, "provider-sim")
+            if entry is None:
+                return self._fail_with_output("backoff_timing", "Could not query provider health")
 
-            crash_match = self._wait_for_new_pattern(crash_pattern, crash_count_before, timeout=6.0)
-            if not crash_match:
-                return self._fail_with_output("backoff_timing", "First crash not logged")
-
-            expected_attempts = 3
-            expected_backoff_ms = 500
-            actual_attempts = int(crash_match.group(1))
-            actual_backoff_ms = int(crash_match.group(2))
-            if actual_attempts != expected_attempts or actual_backoff_ms != expected_backoff_ms:
+            actual_max = entry["supervision"]["max_attempts"]
+            if actual_max != 3:
                 return self._fail_with_output(
                     "backoff_timing",
-                    f"Unexpected restart policy in crash log: attempt 1/{actual_attempts}, retry in "
-                    f"{actual_backoff_ms}ms (expected 1/{expected_attempts}, {expected_backoff_ms}ms)",
+                    f"Unexpected max_attempts in supervision: {actual_max} (expected 3)",
                 )
 
-            crash1_time = time.time()
-            if not self._wait_for_new_marker(restart_marker, restart_count_before, timeout=6.0):
-                return self._fail_with_output("backoff_timing", "First restart not attempted")
-            restart1_time = time.time()
+            # Measure wall-clock between UNAVAILABLE and next AVAILABLE transition.
+            # This captures: detection-lag + backoff-wait + process-restart-time.
+            if not wait_for_supervision_state(
+                self.base_url,
+                "provider-sim",
+                lambda e: e["state"] == "UNAVAILABLE",
+                timeout=6.0,
+            ):
+                return self._fail_with_output("backoff_timing", "Provider did not go UNAVAILABLE after crash")
+            t_unavailable = time.time()
 
-            # Check first backoff (~500ms, allow generous tolerance on shared CI)
-            first_backoff = (restart1_time - crash1_time) * 1000
-            if not (100 <= first_backoff <= 2500):
+            if not wait_for_supervision_state(
+                self.base_url,
+                "provider-sim",
+                lambda e: e["state"] == "AVAILABLE",
+                timeout=10.0,
+            ):
+                return self._fail_with_output("backoff_timing", "Provider did not recover")
+            t_available = time.time()
+
+            elapsed_ms = (t_available - t_unavailable) * 1000
+
+            # Lower bound: backoff must have elapsed (minus detection overhead).
+            # Upper bound: generous — shared CI runners can be slow.
+            if not (100 <= elapsed_ms <= 3500):
                 return self._fail_with_output(
                     "backoff_timing",
-                    f"First backoff incorrect: {first_backoff:.0f}ms (expected ~500ms)",
+                    f"UNAVAILABLE→AVAILABLE transition took {elapsed_ms:.0f}ms (expected 100–3500ms, ~500ms backoff)",
                 )
 
-            # Wait for recovery
-            if not self.capture.wait_for_marker("recovered successfully", timeout=6.0):
-                return self._fail_with_output("backoff_timing", "Recovery not detected")
-
-            return TestResult("backoff_timing", True, f"Backoff timing correct: {first_backoff:.0f}ms")
+            return TestResult("backoff_timing", True, f"Backoff timing correct: {elapsed_ms:.0f}ms")
 
         finally:
             self.stop_runtime()
 
     def test_circuit_breaker(self) -> TestResult:
-        """Test that circuit breaker opens after max attempts.
+        """Test that circuit breaker opens after max_attempts consecutive crashes.
 
-        Note: Since our provider successfully recovers after restarts, we verify that
-        the crash counter resets properly on recovery (not testing circuit opening).
+        Uses crash_after=0.1s with poll_interval=200ms so the provider crashes before
+        the first successful poll, preventing record_success from resetting attempt_count.
+        After max_attempts+1 crashes the circuit breaker opens and no further restarts occur.
         """
         print("\n[TEST] Circuit Breaker")
 
-        # Create config with 1s crash, only 2 attempts, short backoffs
-        config_dict = self.create_config(crash_after=1.0, max_attempts=2, backoff_ms=[200, 500])
+        # crash_after=0.1s < poll_interval=0.2s: provider never polled successfully,
+        # attempt_count accumulates until circuit opens.
+        config_dict = self.create_config(crash_after=0.1, max_attempts=2, backoff_ms=[100, 200])
 
         try:
             if not self.start_runtime(config_dict):
                 return TestResult("circuit_breaker", False, "Failed to start runtime")
 
-            if self.capture is None:
-                return TestResult("circuit_breaker", False, "OutputCapture not available")
+            # API oracle: wait for circuit breaker to open.
+            if not wait_for_supervision_state(
+                self.base_url,
+                "provider-sim",
+                lambda entry: entry["supervision"]["circuit_open"] is True,
+                timeout=15.0,
+            ):
+                return self._fail_with_output("circuit_breaker", "Circuit breaker did not open")
 
-            # Wait for provider to start
-            if not self.capture.wait_for_marker("Provider provider-sim started", timeout=10.0):
-                return self._fail_with_output("circuit_breaker", "Provider not started")
+            # Verify final supervision state.
+            entry = get_provider_health_entry(self.base_url, "provider-sim")
+            if entry is None:
+                return self._fail_with_output("circuit_breaker", "Failed to query provider health after circuit open")
 
-            # Wait for first crash and validate policy-specific attempt/backoff
-            crash_pattern = r"crashed \(attempt 1/(\d+), retry in (\d+)ms\)"
-            crash_count_before = self._pattern_count(crash_pattern)
-            first_crash = self._wait_for_new_pattern(crash_pattern, crash_count_before, timeout=6.0)
-            if not first_crash:
-                return self._fail_with_output("circuit_breaker", "First crash not detected")
-
-            expected_attempts = 2
-            expected_backoff_ms = 200
-            actual_attempts = int(first_crash.group(1))
-            actual_backoff_ms = int(first_crash.group(2))
-            if actual_attempts != expected_attempts or actual_backoff_ms != expected_backoff_ms:
+            if entry["state"] != "UNAVAILABLE":
                 return self._fail_with_output(
                     "circuit_breaker",
-                    f"Unexpected restart policy in crash log: attempt 1/{actual_attempts}, retry in "
-                    f"{actual_backoff_ms}ms (expected 1/{expected_attempts}, {expected_backoff_ms}ms)",
+                    f"Expected UNAVAILABLE after circuit open, got {entry['state']}",
                 )
 
-            # Wait for successful recovery
-            if not self.capture.wait_for_marker("recovered successfully", timeout=6.0):
-                return self._fail_with_output("circuit_breaker", "Recovery not detected")
+            attempt_count = entry["supervision"]["attempt_count"]
+            if attempt_count < 3:  # max_attempts=2 → circuit opens on 3rd crash
+                return self._fail_with_output(
+                    "circuit_breaker",
+                    f"Expected attempt_count >= 3 when circuit opens, got {attempt_count}",
+                )
 
-            # Wait for second crash (must be a new occurrence after recovery)
-            second_crash_marker = "crashed (attempt 1/2"
-            second_crash_count_before = self.capture.get_all_output().count(second_crash_marker)
-            if not self._wait_for_new_marker(second_crash_marker, second_crash_count_before, timeout=8.0):
-                return self._fail_with_output("circuit_breaker", "Second crash not detected")
-
-            return TestResult("circuit_breaker", True, "Crash counter resets properly after recovery")
+            return TestResult(
+                "circuit_breaker",
+                True,
+                f"Circuit breaker opened after {attempt_count} attempts (next_restart_in_ms: "
+                f"{entry['supervision']['next_restart_in_ms']})",
+            )
 
         finally:
             self.stop_runtime()
@@ -343,40 +324,47 @@ class SupervisionTester:
         """Test that devices are rediscovered after provider restart."""
         print("\n[TEST] Device Rediscovery")
 
-        # Create config with 2s crash
         config_dict = self.create_config(crash_after=2.0, max_attempts=3, backoff_ms=[200, 500, 1000])
 
         try:
             if not self.start_runtime(config_dict):
                 return TestResult("device_rediscovery", False, "Failed to start runtime")
 
-            if self.capture is None:
-                return TestResult("device_rediscovery", False, "OutputCapture not available")
+            # API oracle: wait for provider to be initially AVAILABLE with devices.
+            if not assert_provider_available(self.base_url, "provider-sim", timeout=10.0):
+                return self._fail_with_output("device_rediscovery", "Provider not available at startup")
 
-            # Wait for initial device discovery
-            if not self.capture.wait_for_marker("Registered: provider-sim/tempctl0", timeout=10.0):
-                return self._fail_with_output("device_rediscovery", "Initial device not discovered")
+            # Use provider crash banner as timing trigger only.
+            if self.capture and not self.capture.wait_for_marker("CRASHING NOW (exit 42)", timeout=8.0):
+                return self._fail_with_output("device_rediscovery", "No provider crash detected")
 
-            # Wait for crash
-            if not self.capture.wait_for_marker("crashed (attempt 1/3", timeout=5.0):
-                return self._fail_with_output("device_rediscovery", "No crash detected")
+            # API oracle: provider goes UNAVAILABLE after crash.
+            if not wait_for_supervision_state(
+                self.base_url,
+                "provider-sim",
+                lambda entry: entry["state"] == "UNAVAILABLE",
+                timeout=6.0,
+            ):
+                return self._fail_with_output("device_rediscovery", "Provider did not go UNAVAILABLE after crash")
 
-            # Wait for device clearing
-            if not self.capture.wait_for_marker("Clearing devices for provider: provider-sim", timeout=4.0):
-                return self._fail_with_output("device_rediscovery", "Devices not cleared before restart")
+            # API oracle: provider recovers and is AVAILABLE again (devices rediscovered).
+            if not wait_for_supervision_state(
+                self.base_url,
+                "provider-sim",
+                lambda entry: entry["state"] == "AVAILABLE" and entry["supervision"]["attempt_count"] == 0,
+                timeout=12.0,
+            ):
+                return self._fail_with_output("device_rediscovery", "Provider did not recover after restart")
 
-            # Wait for restart
-            if not self.capture.wait_for_marker("Provider restarted successfully", timeout=5.0):
-                return self._fail_with_output("device_rediscovery", "Provider failed to restart")
-
-            # Wait for device rediscovery
-            if not self.capture.wait_for_marker("Registered: provider-sim/tempctl0", timeout=4.0):
-                return self._fail_with_output("device_rediscovery", "Device not rediscovered after restart")
+            # Confirm devices are present post-recovery.
+            entry = get_provider_health_entry(self.base_url, "provider-sim")
+            if entry is None or entry.get("device_count", 0) == 0:
+                return self._fail_with_output("device_rediscovery", "No devices reported after recovery")
 
             return TestResult(
                 "device_rediscovery",
                 True,
-                "Devices rediscovered after successful restart",
+                f"Devices rediscovered after restart (device_count={entry['device_count']})",
             )
 
         finally:

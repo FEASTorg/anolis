@@ -323,6 +323,11 @@ class RuntimeFixture:
         """Get the runtime process group ID, or None if not started."""
         return self.process_info.process_group_id if self.process_info else None
 
+    @property
+    def base_url(self) -> str:
+        """Base URL for the runtime HTTP API (e.g. 'http://localhost:8080')."""
+        return f"http://localhost:{self.http_port}"
+
     def get_output_capture(self) -> Optional[OutputCapture]:
         """Get the output capture instance for log inspection."""
         return self.capture

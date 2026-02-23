@@ -90,6 +90,88 @@ Get runtime status, mode, and provider health.
 
 ---
 
+### GET /v0/providers/health
+
+Get detailed health, timing, and supervision state for all providers.
+
+**Response:**
+
+```json
+{
+  "status": { "code": "OK", "message": "ok" },
+  "providers": [
+    {
+      "provider_id": "sim0",
+      "state": "AVAILABLE",
+      "device_count": 4,
+      "last_seen_ago_ms": 312,
+      "uptime_seconds": 47,
+      "supervision": {
+        "enabled": true,
+        "attempt_count": 0,
+        "max_attempts": 3,
+        "crash_detected": false,
+        "circuit_open": false,
+        "next_restart_in_ms": null
+      },
+      "devices": [
+        {
+          "device_id": "tempctl0",
+          "health": "OK",
+          "last_poll_ms": 1708704000312,
+          "staleness_ms": 312
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Provider-level fields:**
+
+| Field              | Type            | Description                                                                                                                      |
+| ------------------ | --------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `state`            | string          | `AVAILABLE` or `UNAVAILABLE`                                                                                                     |
+| `device_count`     | integer         | Number of devices registered under this provider                                                                                 |
+| `last_seen_ago_ms` | integer or null | Milliseconds since the last confirmed healthy heartbeat. Counts up while UNAVAILABLE. `null` before the very first healthy poll. |
+| `uptime_seconds`   | integer         | Seconds since the first confirmed healthy heartbeat of the current process instance. `0` when UNAVAILABLE or before first poll.  |
+| `supervision`      | object          | Supervision state block — always present, never null (see below).                                                                |
+| `devices`          | array           | Per-device health entries for this provider.                                                                                     |
+
+**`supervision` object fields:**
+
+| Field                | Type            | Description                                                                                   |
+| -------------------- | --------------- | --------------------------------------------------------------------------------------------- |
+| `enabled`            | boolean         | `true` if a restart policy is configured for this provider                                    |
+| `attempt_count`      | integer         | Current consecutive restart attempts since last recovery. Resets to 0 on successful recovery. |
+| `max_attempts`       | integer         | Maximum restart attempts before circuit breaker opens (from config)                           |
+| `crash_detected`     | boolean         | `true` while a crash is actively being processed (cleared after restart attempt begins)       |
+| `circuit_open`       | boolean         | `true` when `max_attempts` has been exceeded — no further restarts will be attempted          |
+| `next_restart_in_ms` | integer or null | Countdown to next restart attempt (see semantics table below)                                 |
+
+**`next_restart_in_ms` semantics:**
+
+| State                                   | Value                           | How to distinguish                                   |
+| --------------------------------------- | ------------------------------- | ---------------------------------------------------- |
+| Healthy — no crash history              | `null`                          | `circuit_open: false`, `attempt_count: 0`            |
+| In backoff window — restart pending     | positive integer (ms remaining) | `attempt_count > 0`, `circuit_open: false`           |
+| Restart eligible now                    | `0`                             | Backoff elapsed; restart attempt imminent            |
+| Circuit open — no further restarts ever | `null`                          | `circuit_open: true` disambiguates from healthy null |
+
+> **Note:** `null` appears in both the healthy state and the circuit-open state. Always read `circuit_open` to distinguish them.
+
+**Device health values:**
+
+| `health`      | Description                                   |
+| ------------- | --------------------------------------------- |
+| `OK`          | State polled within the last 2 seconds        |
+| `WARNING`     | State is 2–5 seconds old                      |
+| `STALE`       | State is older than 5 seconds                 |
+| `UNAVAILABLE` | Provider is UNAVAILABLE; no polling occurring |
+| `UNKNOWN`     | No state data for this device yet             |
+
+---
+
 ### GET /v0/mode
 
 Get current automation mode and manual gating policy.
@@ -555,4 +637,10 @@ curl -s -X POST http://127.0.0.1:8080/v0/call \
 
 ```bash
 curl -s http://127.0.0.1:8080/v0/runtime/status | jq
+```
+
+### Get provider health and supervision state
+
+```bash
+curl -s http://127.0.0.1:8080/v0/providers/health | jq
 ```

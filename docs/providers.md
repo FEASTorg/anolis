@@ -137,6 +137,49 @@ After `max_attempts` consecutive crashes, the circuit breaker opens:
 
 The circuit breaker resets when the provider successfully recovers.
 
+### Supervision Observability
+
+The runtime exposes real-time supervision state for every provider via `GET /v0/providers/health`.
+
+**Key fields per provider:**
+
+| Field              | Description                                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------------------ |
+| `last_seen_ago_ms` | Milliseconds since the last healthy poll. Counts up while UNAVAILABLE. `null` before first poll. |
+| `uptime_seconds`   | Seconds since the first healthy poll of the current process instance. `0` when UNAVAILABLE.      |
+| `supervision`      | Supervision block — always an object, never null (even when policy is disabled).                 |
+
+**Supervision state at each lifecycle stage:**
+
+| Stage                       | `state`       | `attempt_count`  | `circuit_open` | `next_restart_in_ms`         |
+| --------------------------- | ------------- | ---------------- | -------------- | ---------------------------- |
+| Running normally            | `AVAILABLE`   | `0`              | `false`        | `null`                       |
+| Crashed, in backoff         | `UNAVAILABLE` | `>= 1`           | `false`        | positive integer (countdown) |
+| Restart eligible now        | `UNAVAILABLE` | `>= 1`           | `false`        | `0`                          |
+| circuit open (max exceeded) | `UNAVAILABLE` | `> max_attempts` | `true`         | `null`                       |
+| Recovered after crash       | `AVAILABLE`   | `0`              | `false`        | `null`                       |
+
+**Distinguishing the two `null` cases for `next_restart_in_ms`:**
+
+`next_restart_in_ms` is `null` in two situations: healthy (no crash) and circuit-open (no more restarts).
+Always read `circuit_open` to tell them apart.
+
+**Example — polling supervision from a script:**
+
+```bash
+# Wait until provider is available
+until curl -sf http://127.0.0.1:8080/v0/providers/health | \
+    jq -e '.providers[] | select(.provider_id=="sim0") | .state == "AVAILABLE"' > /dev/null; do
+  sleep 0.5
+done
+
+# Check if circuit is open
+curl -s http://127.0.0.1:8080/v0/providers/health | \
+    jq '.providers[] | select(.provider_id=="sim0") | .supervision'
+```
+
+See [HTTP API Reference — GET /v0/providers/health](http-api.md#get-v0providershealth) for the full field reference including `next_restart_in_ms` disambiguation.
+
 ### Backoff Strategy
 
 The `backoff_ms` array defines delays before each restart attempt:

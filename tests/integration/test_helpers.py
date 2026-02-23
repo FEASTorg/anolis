@@ -18,6 +18,87 @@ from typing import Any, Callable, Dict, List, Optional, cast
 import requests
 
 
+def get_provider_health_entry(base_url: str, provider_id: str, timeout: float = 5.0) -> Optional[Dict[str, Any]]:
+    """
+    Fetch the full provider health entry from /v0/providers/health.
+
+    Args:
+        base_url: Base URL of runtime HTTP server
+        provider_id: Provider ID to look up
+        timeout: Request timeout in seconds
+
+    Returns:
+        Full provider health dict (containing state, supervision, devices, etc.)
+        or None if the request fails or provider not found.
+    """
+    try:
+        resp = requests.get(f"{base_url}/v0/providers/health", timeout=timeout)
+        resp.raise_for_status()
+        for entry in resp.json().get("providers", []):
+            if entry.get("provider_id") == provider_id:
+                return cast(Dict[str, Any], entry)
+    except (requests.exceptions.RequestException, ValueError, KeyError):
+        pass
+    return None
+
+
+def get_provider_supervision(base_url: str, provider_id: str, timeout: float = 5.0) -> Optional[Dict[str, Any]]:
+    """
+    Fetch just the supervision block for a provider from /v0/providers/health.
+
+    Args:
+        base_url: Base URL of runtime HTTP server
+        provider_id: Provider ID to look up
+        timeout: Request timeout in seconds
+
+    Returns:
+        The supervision sub-dict (enabled, attempt_count, max_attempts, crash_detected,
+        circuit_open, next_restart_in_ms) or None if request fails or provider not found.
+    """
+    entry = get_provider_health_entry(base_url, provider_id, timeout)
+    if entry is not None:
+        return cast(Optional[Dict[str, Any]], entry.get("supervision"))
+    return None
+
+
+def wait_for_supervision_state(
+    base_url: str,
+    provider_id: str,
+    predicate: Callable[[Dict[str, Any]], bool],
+    timeout: float = 15.0,
+) -> bool:
+    """
+    Poll /v0/providers/health until predicate(provider_entry) returns True or timeout.
+
+    The predicate receives the full provider health entry dict, so it can inspect
+    both top-level fields (state, last_seen_ago_ms, uptime_seconds) and the nested
+    supervision block (e.g. entry["supervision"]["attempt_count"]).
+
+    Args:
+        base_url: Base URL of runtime HTTP server
+        provider_id: Provider ID to poll
+        predicate: Callable taking the full provider health entry dict; returns True
+                   when the desired state has been reached.
+        timeout: Maximum wait in seconds
+
+    Returns:
+        True if predicate satisfied before timeout, False otherwise
+    """
+
+    def check() -> bool:
+        entry = get_provider_health_entry(base_url, provider_id)
+        if entry is None:
+            return False
+        return predicate(entry)
+
+    return wait_for_condition(
+        check,
+        timeout=timeout,
+        interval=0.2,
+        description=f"supervision state for provider '{provider_id}'",
+    )
+
+
 def wait_for_condition(
     condition_func: Callable[[], bool],
     timeout: float = 5.0,

@@ -251,6 +251,7 @@ bool Runtime::init_http(std::string &error) {
         LOG_INFO("[Runtime] Creating HTTP server");
         http_server_ = std::make_unique<http::HttpServer>(
             config_.http, config_.polling.interval_ms, *registry_, *state_cache_, *call_router_, provider_registry_,
+            supervisor_.get(),         // Pass supervisor for provider timing/health snapshots
             event_emitter_,            // Pass event emitter for SSE
             mode_manager_.get(),       // Pass mode manager (nullptr if automation disabled)
             parameter_manager_.get(),  // Pass parameter manager (nullptr if automation disabled)
@@ -378,6 +379,10 @@ void Runtime::run() {
                 if (supervisor_->get_attempt_count(id) > 0) {
                     supervisor_->record_success(id);
                 }
+                // Record healthy heartbeat for timing/observability.
+                // Called after record_success so process_start_time is fresh on the
+                // first heartbeat after a restart.
+                supervisor_->record_heartbeat(id);
             }
         }
     }
