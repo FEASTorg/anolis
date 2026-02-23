@@ -178,7 +178,8 @@ curl -s http://127.0.0.1:8080/v0/providers/health | \
     jq '.providers[] | select(.provider_id=="sim0") | .supervision'
 ```
 
-See [HTTP API Reference — GET /v0/providers/health](http-api.md#get-v0providershealth) for the full field reference including `next_restart_in_ms` disambiguation.
+See [HTTP API Reference - GET /v0/providers/health](http-api.md#get-v0providershealth)
+for the full field reference including `next_restart_in_ms` disambiguation.
 
 ### Backoff Strategy
 
