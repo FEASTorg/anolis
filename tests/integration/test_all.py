@@ -50,20 +50,34 @@ def get_repo_root() -> Path:
 def find_runtime_path() -> Optional[Path]:
     """Find the runtime executable."""
     repo_root = get_repo_root()
+    exe_names = ["anolis-runtime.exe", "anolis-runtime"]
+    build_root = repo_root / "build"
 
-    # Check common build locations
-    candidates = [
-        repo_root / "build" / "core" / "Release" / "anolis-runtime.exe",
-        repo_root / "build" / "core" / "Release" / "anolis-runtime",
-        repo_root / "build" / "core" / "Debug" / "anolis-runtime.exe",
-        repo_root / "build" / "core" / "Debug" / "anolis-runtime",
-        repo_root / "build" / "core" / "anolis-runtime.exe",
-        repo_root / "build" / "core" / "anolis-runtime",
-    ]
+    # 1️⃣ First: deterministic direct checks (flat build layout)
+    for config in ["Release", "Debug", "RelWithDebInfo", "MinSizeRel"]:
+        for name in exe_names:
+            candidate = build_root / "core" / config / name
+            if candidate.exists():
+                return candidate
 
-    for path in candidates:
-        if path.exists():
-            return path
+    for name in exe_names:
+        candidate = build_root / "core" / name
+        if candidate.exists():
+            return candidate
+
+    # 2️⃣ Second: support preset-style folders like:
+    # build/dev-windows-release/core/Release/anolis-runtime.exe
+    if build_root.exists():
+        for name in exe_names:
+            for pattern in [
+                f"**/core/Release/{name}",
+                f"**/core/Debug/{name}",
+                f"**/core/RelWithDebInfo/{name}",
+                f"**/core/MinSizeRel/{name}",
+            ]:
+                for match in build_root.glob(pattern):
+                    if match.is_file():
+                        return match
 
     return None
 
@@ -111,27 +125,46 @@ def find_provider_path() -> Optional[Path]:
     """Find the provider-sim executable."""
     repo_root = get_repo_root()
 
-    # Check multiple locations:
-    # 1. Sibling repo (local dev setup)
-    # 2. Inside workspace (CI setup)
-    candidates = [
+    exe_names = ["anolis-provider-sim.exe", "anolis-provider-sim"]
+
+    # Build roots to search
+    build_roots = [
         # Sibling repo (local dev)
-        repo_root.parent / "anolis-provider-sim" / "build" / "Release" / "anolis-provider-sim.exe",
-        repo_root.parent / "anolis-provider-sim" / "build" / "Release" / "anolis-provider-sim",
-        repo_root.parent / "anolis-provider-sim" / "build" / "Debug" / "anolis-provider-sim.exe",
-        repo_root.parent / "anolis-provider-sim" / "build" / "Debug" / "anolis-provider-sim",
-        repo_root.parent / "anolis-provider-sim" / "build" / "anolis-provider-sim.exe",
-        repo_root.parent / "anolis-provider-sim" / "build" / "anolis-provider-sim",
+        repo_root.parent / "anolis-provider-sim" / "build",
         # Inside workspace (CI)
-        repo_root / "anolis-provider-sim" / "build" / "Release" / "anolis-provider-sim.exe",
-        repo_root / "anolis-provider-sim" / "build" / "Release" / "anolis-provider-sim",
-        repo_root / "anolis-provider-sim" / "build" / "anolis-provider-sim.exe",
-        repo_root / "anolis-provider-sim" / "build" / "anolis-provider-sim",
+        repo_root / "anolis-provider-sim" / "build",
     ]
 
-    for path in candidates:
-        if path.exists():
-            return path
+    # 1️⃣ First: preserve existing deterministic direct checks
+    for build_root in build_roots:
+        for config in ["Release", "Debug", "RelWithDebInfo", "MinSizeRel"]:
+            for name in exe_names:
+                candidate = build_root / config / name
+                if candidate.exists():
+                    return candidate
+
+        for name in exe_names:
+            candidate = build_root / name
+            if candidate.exists():
+                return candidate
+
+    # 2️⃣ Second: support preset-style folders like:
+    # build/ci-windows-release/Release/anolis-provider-sim.exe
+    for build_root in build_roots:
+        if not build_root.exists():
+            continue
+
+        for name in exe_names:
+            # Match any nested Release/Debug folder
+            for pattern in [
+                f"**/Release/{name}",
+                f"**/Debug/{name}",
+                f"**/RelWithDebInfo/{name}",
+                f"**/MinSizeRel/{name}",
+            ]:
+                for match in build_root.glob(pattern):
+                    if match.is_file():
+                        return match
 
     return None
 

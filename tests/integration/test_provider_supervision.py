@@ -258,7 +258,7 @@ class SupervisionTester:
             if not (100 <= elapsed_ms <= 3500):
                 return self._fail_with_output(
                     "backoff_timing",
-                    f"UNAVAILABLE→AVAILABLE transition took {elapsed_ms:.0f}ms (expected 100–3500ms, ~500ms backoff)",
+                    f"UNAVAILABLE->AVAILABLE transition took {elapsed_ms:.0f}ms (expected 100-3500ms, ~500ms backoff)",
                 )
 
             return TestResult("backoff_timing", True, f"Backoff timing correct: {elapsed_ms:.0f}ms")
