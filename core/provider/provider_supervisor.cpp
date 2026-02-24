@@ -89,6 +89,9 @@ bool ProviderSupervisor::record_crash(const std::string &provider_id) {
     }
 
     state.attempt_count++;
+    // Crash ends the current process uptime window. The next healthy heartbeat
+    // after restart will establish a fresh process_start_time.
+    state.process_start_time = std::chrono::steady_clock::time_point{};
 
     if (state.attempt_count > policy.max_attempts) {
         state.circuit_open = true;
@@ -150,8 +153,32 @@ void ProviderSupervisor::record_success(const std::string &provider_id) {
     state.circuit_open = false;
     state.crash_detected = false;
     state.next_restart_time = std::chrono::steady_clock::time_point{};
-    // Reset process_start_time so the next record_heartbeat begins a fresh uptime measurement.
-    state.process_start_time = std::chrono::steady_clock::time_point{};
+}
+
+bool ProviderSupervisor::should_mark_recovered(const std::string &provider_id) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto policy_it = policies_.find(provider_id);
+    auto state_it = states_.find(provider_id);
+
+    if (policy_it == policies_.end() || state_it == states_.end()) {
+        return false;
+    }
+
+    const auto &policy = policy_it->second;
+    const auto &state = state_it->second;
+
+    if (!policy.enabled || state.circuit_open || state.attempt_count == 0) {
+        return false;
+    }
+
+    if (state.process_start_time == std::chrono::steady_clock::time_point{}) {
+        return false;
+    }
+
+    const auto now = std::chrono::steady_clock::now();
+    const auto stable_for =
+        std::chrono::duration_cast<std::chrono::milliseconds>(now - state.process_start_time).count();
+    return stable_for >= policy.success_reset_ms;
 }
 
 bool ProviderSupervisor::mark_crash_detected(const std::string &provider_id) {
@@ -194,8 +221,7 @@ void ProviderSupervisor::record_heartbeat(const std::string &provider_id) {
     auto &state = state_it->second;
     auto now = std::chrono::steady_clock::now();
 
-    // Set process_start_time on the first heartbeat after initial start or after a restart.
-    // record_success resets this to the zero time_point, so this condition catches both cases.
+    // Set process_start_time on the first heartbeat after initial start or after a crash/restart.
     if (state.process_start_time == std::chrono::steady_clock::time_point{}) {
         state.process_start_time = now;
     }

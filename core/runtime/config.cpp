@@ -141,6 +141,10 @@ bool validate_config(const RuntimeConfig &config, std::string &error) {
                 error = "Provider '" + provider.id + "' restart policy timeout_ms must be >= 1000ms";
                 return false;
             }
+            if (provider.restart_policy.success_reset_ms < 0) {
+                error = "Provider '" + provider.id + "' restart policy success_reset_ms must be >= 0";
+                return false;
+            }
         }
     }
 
@@ -315,6 +319,9 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
 
                     if (rp["timeout_ms"]) {
                         provider.restart_policy.timeout_ms = rp["timeout_ms"].as<int>();
+                    }
+                    if (rp["success_reset_ms"]) {
+                        provider.restart_policy.success_reset_ms = rp["success_reset_ms"].as<int>();
                     }
                 }
 

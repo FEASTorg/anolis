@@ -5,7 +5,7 @@
  * Tests:
  * - get_snapshot returns nullopt for unknown providers
  * - record_heartbeat populates last_seen_ago_ms
- * - record_success resets attempt_count and process_start_time (uptime)
+ * - recovery reset semantics (attempt_count reset after stability window)
  * - next_restart_in_ms semantics across all four states (healthy, backoff, eligible, circuit-open)
  * - get_all_snapshots collects all registered providers
  * - Concurrent reads and writes do not race (run under TSAN in CI)
@@ -32,6 +32,7 @@ runtime::RestartPolicyConfig make_enabled_policy(int max_attempts = 3, std::vect
     policy.max_attempts = max_attempts;
     policy.backoff_ms = backoff_ms;
     policy.timeout_ms = 5000;
+    policy.success_reset_ms = 1000;
     return policy;
 }
 
@@ -95,7 +96,7 @@ TEST(ProviderSupervisorTest, HeartbeatDoesNotAffectUnknownProvider) {
 }
 
 // ---------------------------------------------------------------------------
-// record_success resets attempt_count and process_start_time (uptime)
+// Recovery reset semantics
 // ---------------------------------------------------------------------------
 
 TEST(ProviderSupervisorTest, RecordSuccessResetsAttemptCount) {
@@ -117,34 +118,32 @@ TEST(ProviderSupervisorTest, RecordSuccessResetsAttemptCount) {
     }
 }
 
-TEST(ProviderSupervisorTest, RecordSuccessResetsProcessStartTime) {
+TEST(ProviderSupervisorTest, CrashResetsProcessStartTimeForRecoveryWindow) {
     ProviderSupervisor sup;
-    sup.register_provider("prov", make_enabled_policy());
+    auto policy = make_enabled_policy();
+    policy.success_reset_ms = 200;
+    sup.register_provider("prov", policy);
 
-    // Start a heartbeat cycle → uptime counting
+    // Establish initial healthy heartbeat and let it age past recovery window.
     sup.record_heartbeat("prov");
-    {
-        auto snap = sup.get_snapshot("prov");
-        ASSERT_TRUE(snap.has_value());
-        EXPECT_GE(snap->uptime_seconds, int64_t{0});
-    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
 
-    // record_success clears process_start_time
-    sup.record_success("prov");
-    {
-        auto snap = sup.get_snapshot("prov");
-        ASSERT_TRUE(snap.has_value());
-        // uptime_seconds is 0 until next heartbeat because process_start_time was cleared
-        EXPECT_EQ(int64_t{0}, snap->uptime_seconds);
-    }
-
-    // New heartbeat restarts the uptime clock
+    // Crash must reset process_start_time so a fresh heartbeat starts a new window.
+    sup.record_crash("prov");
     sup.record_heartbeat("prov");
-    {
-        auto snap = sup.get_snapshot("prov");
-        ASSERT_TRUE(snap.has_value());
-        EXPECT_GE(snap->uptime_seconds, int64_t{0});
-    }
+    EXPECT_FALSE(sup.should_mark_recovered("prov"));
+}
+
+TEST(ProviderSupervisorTest, ShouldMarkRecoveredAfterStabilityWindow) {
+    ProviderSupervisor sup;
+    auto policy = make_enabled_policy();
+    policy.success_reset_ms = 0;
+    sup.register_provider("prov", policy);
+
+    sup.record_crash("prov");
+    sup.record_heartbeat("prov");
+
+    EXPECT_TRUE(sup.should_mark_recovered("prov"));
 }
 
 TEST(ProviderSupervisorTest, RecordSuccessCloseCircuitBreaker) {

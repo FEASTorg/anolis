@@ -16,6 +16,7 @@ struct RestartPolicyConfig {
     int max_attempts = 3;                          // Max restart attempts before giving up
     std::vector<int> backoff_ms{100, 1000, 5000};  // Exponential backoff schedule (ms)
     int timeout_ms = 30000;                        // Timeout for restart attempt (30s default)
+    int success_reset_ms = 1000;                   // Healthy duration required before resetting crash attempts
 };
 
 struct ProviderConfig {

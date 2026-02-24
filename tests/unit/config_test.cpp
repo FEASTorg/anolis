@@ -403,6 +403,7 @@ providers:
       max_attempts: 3
       backoff_ms: [100, 1000, 5000]
       timeout_ms: 30000
+      success_reset_ms: 1200
 
 logging:
   level: info
@@ -423,6 +424,7 @@ logging:
     EXPECT_EQ(rp.backoff_ms[1], 1000);
     EXPECT_EQ(rp.backoff_ms[2], 5000);
     EXPECT_EQ(rp.timeout_ms, 30000);
+    EXPECT_EQ(rp.success_reset_ms, 1200);
 }
 
 TEST_F(ConfigTest, RestartPolicyDefaults) {
@@ -452,6 +454,7 @@ logging:
     EXPECT_EQ(rp.max_attempts, 3);
     ASSERT_EQ(rp.backoff_ms.size(), 3);
     EXPECT_EQ(rp.timeout_ms, 30000);
+    EXPECT_EQ(rp.success_reset_ms, 1000);
 }
 
 TEST_F(ConfigTest, RestartPolicyBackoffMismatch) {
@@ -768,6 +771,36 @@ logging:
     EXPECT_FALSE(load_config(config_path, config, error));
     EXPECT_FALSE(error.empty());
     EXPECT_NE(error.find("timeout_ms must be >= 1000ms"), std::string::npos);
+}
+
+TEST_F(ConfigTest, RestartPolicyNegativeSuccessResetWindow) {
+    std::string config_content = R"(
+runtime:
+
+http:
+  enabled: false
+
+providers:
+  - id: test_provider
+    command: /path/to/provider
+    restart_policy:
+      enabled: true
+      max_attempts: 1
+      backoff_ms: [100]
+      timeout_ms: 30000
+      success_reset_ms: -1
+
+logging:
+  level: info
+)";
+
+    std::string config_path = create_config_file("restart_policy_negative_success_reset.yaml", config_content);
+    RuntimeConfig config;
+    std::string error;
+
+    EXPECT_FALSE(load_config(config_path, config, error));
+    EXPECT_FALSE(error.empty());
+    EXPECT_NE(error.find("success_reset_ms must be >= 0"), std::string::npos);
 }
 
 TEST_F(ConfigTest, StartupTimeoutTooLow) {

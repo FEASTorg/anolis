@@ -46,10 +46,13 @@ public:
     // Returns false if max attempts exceeded (circuit breaker opens)
     bool record_crash(const std::string &provider_id);
 
-    // Record successful restart - resets attempt count and closes circuit breaker.
-    // Resets process_start_time to zero so the next record_heartbeat begins a fresh
-    // uptime measurement.
+    // Record stable recovery - resets attempt count and closes circuit breaker.
+    // process_start_time is preserved so uptime reflects the current process instance.
     void record_success(const std::string &provider_id);
+
+    // Check whether the provider has remained healthy long enough after a restart
+    // to reset crash attempts.
+    bool should_mark_recovered(const std::string &provider_id) const;
 
     // Check if circuit breaker is open (max attempts exceeded)
     bool is_circuit_open(const std::string &provider_id) const;
@@ -86,7 +89,7 @@ private:
         bool circuit_open = false;                                // True when max attempts exceeded
         bool crash_detected = false;                              // True if we're currently handling a crash
         std::chrono::steady_clock::time_point next_restart_time;  // Earliest time for next restart
-        // Set on first record_heartbeat after start/restart; reset to {} by record_success.
+        // Set on first record_heartbeat after start/restart; reset to {} by record_crash.
         std::chrono::steady_clock::time_point process_start_time;
         // Updated by record_heartbeat every healthy loop iteration.
         std::chrono::steady_clock::time_point last_healthy_time;

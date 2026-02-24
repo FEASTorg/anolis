@@ -368,21 +368,19 @@ void Runtime::run() {
                     LOG_INFO("[Runtime] Attempting to restart provider: " << id);
                     if (restart_provider(id, provider_config)) {
                         LOG_INFO("[Runtime] Provider restarted successfully: " << id);
-                        supervisor_->record_success(id);
                     } else {
                         LOG_ERROR("[Runtime] Failed to restart provider: " << id);
                         // Don't mark crash detected - will retry on next iteration
                     }
                 }
             } else {
-                // Provider is healthy - ensure supervisor knows about recovery
-                if (supervisor_->get_attempt_count(id) > 0) {
+                // Provider is healthy: record heartbeat for timing/observability.
+                supervisor_->record_heartbeat(id);
+                // Reset attempts only after the provider has remained healthy for the
+                // configured stability window (avoids clearing crash streak too early).
+                if (supervisor_->should_mark_recovered(id)) {
                     supervisor_->record_success(id);
                 }
-                // Record healthy heartbeat for timing/observability.
-                // Called after record_success so process_start_time is fresh on the
-                // first heartbeat after a restart.
-                supervisor_->record_heartbeat(id);
             }
         }
     }
