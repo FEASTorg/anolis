@@ -6,7 +6,8 @@
  * - get_snapshot returns nullopt for unknown providers
  * - record_heartbeat populates last_seen_ago_ms
  * - recovery reset semantics (attempt_count reset after stability window)
- * - next_restart_in_ms semantics across all four states (healthy, backoff, eligible, circuit-open)
+ * - next_restart_in_ms semantics across all
+ * four states (healthy, backoff, eligible, circuit-open)
  * - get_all_snapshots collects all registered providers
  * - Concurrent reads and writes do not race (run under TSAN in CI)
  */
