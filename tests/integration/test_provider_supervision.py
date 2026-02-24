@@ -29,7 +29,6 @@ from test_helpers import (
     assert_http_available,
     assert_provider_available,
     get_provider_health_entry,
-    wait_for_supervision_state,
 )
 
 
@@ -123,6 +122,9 @@ class SupervisionTester:
                 print("ERROR: Failed to start runtime")
                 return False
 
+            # Use fixture-provided base URL (avoids hard-coded host/port assumptions).
+            self.base_url = self.fixture.base_url
+
         except Exception as e:
             print(f"ERROR: Failed to start runtime: {e}")
             return False
@@ -145,13 +147,92 @@ class SupervisionTester:
             except Exception:
                 pass  # Cleanup error, ignore
 
-    def _fail_with_output(self, name: str, message: str, tail_lines: int = 200) -> TestResult:
+    def _sample_provider_health(self) -> dict:
+        """Capture a compact provider health snapshot for debug timelines."""
+        ts = time.time()
+        entry = get_provider_health_entry(self.base_url, "provider-sim", timeout=1.0)
+        if entry is None:
+            return {
+                "t": ts,
+                "present": False,
+                "state": "MISSING",
+                "attempt_count": None,
+                "crash_detected": None,
+                "circuit_open": None,
+                "max_attempts": None,
+                "next_restart_in_ms": None,
+                "uptime_seconds": None,
+                "device_count": None,
+            }
+
+        supervision = entry.get("supervision") or {}
+        return {
+            "t": ts,
+            "present": True,
+            "state": entry.get("state"),
+            "attempt_count": supervision.get("attempt_count"),
+            "crash_detected": supervision.get("crash_detected"),
+            "circuit_open": supervision.get("circuit_open"),
+            "max_attempts": supervision.get("max_attempts"),
+            "next_restart_in_ms": supervision.get("next_restart_in_ms"),
+            "uptime_seconds": entry.get("uptime_seconds"),
+            "device_count": entry.get("device_count"),
+        }
+
+    def _wait_for_snapshot_predicate(self, predicate, timeout: float, interval: float = 0.1):
+        """
+        Poll provider health until predicate(snapshot) is true.
+        Returns (matched: bool, snapshots: list[dict]).
+        """
+        snapshots = []
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            snap = self._sample_provider_health()
+            snapshots.append(snap)
+            if predicate(snap):
+                return True, snapshots
+            time.sleep(interval)
+        return False, snapshots
+
+    def _format_health_snapshots(self, snapshots: List[dict], tail: int = 40) -> str:
+        """Format compact health timeline for failure diagnostics."""
+        if not snapshots:
+            return "(no health snapshots captured)"
+        start_t = snapshots[0]["t"]
+        lines = []
+        for snap in snapshots[-tail:]:
+            dt_ms = int((snap["t"] - start_t) * 1000)
+            lines.append(
+                f"+{dt_ms:5d}ms "
+                f"present={snap['present']} "
+                f"state={snap['state']} "
+                f"attempt={snap['attempt_count']} "
+                f"crash={snap['crash_detected']} "
+                f"circuit={snap['circuit_open']} "
+                f"max={snap['max_attempts']} "
+                f"next={snap['next_restart_in_ms']} "
+                f"uptime={snap['uptime_seconds']} "
+                f"devices={snap['device_count']}"
+            )
+        return "\n".join(lines)
+
+    def _fail_with_output(
+        self,
+        name: str,
+        message: str,
+        tail_lines: int = 200,
+        health_snapshots: Optional[List[dict]] = None,
+    ) -> TestResult:
         """Build a failure result with recent runtime output context."""
+        extra = ""
+        if health_snapshots:
+            extra = "\nHealth timeline tail:\n" + self._format_health_snapshots(health_snapshots)
+
         if self.capture is None:
-            return TestResult(name, False, message)
+            return TestResult(name, False, message + extra)
 
         output_tail = self.capture.get_recent_output(tail_lines)
-        return TestResult(name, False, f"{message}\nOutput tail:\n{output_tail}")
+        return TestResult(name, False, f"{message}{extra}\nOutput tail:\n{output_tail}")
 
     def test_automatic_restart(self) -> TestResult:
         """Test that provider restarts automatically after crash."""
@@ -169,26 +250,34 @@ class SupervisionTester:
 
             # Wait for the provider chaos crash banner (provider stderr — acceptable trigger,
             # not a pass/fail oracle; just advances timing certainty).
-            if self.capture and not self.capture.wait_for_marker("CRASHING NOW (exit 42)", timeout=8.0):
-                return self._fail_with_output("automatic_restart", "No provider crash detected")
+            if self.capture:
+                self.capture.wait_for_marker("CRASHING NOW (exit 42)", timeout=8.0)
 
-            # API oracle: supervisor recorded a crash attempt.
-            if not wait_for_supervision_state(
-                self.base_url,
-                "provider-sim",
-                lambda entry: entry["supervision"]["attempt_count"] >= 1,
-                timeout=6.0,
-            ):
-                return self._fail_with_output("automatic_restart", "Supervisor did not record a crash attempt")
+            # API oracle: provider must go down (UNAVAILABLE or temporarily missing from health list during restart).
+            went_down, down_snaps = self._wait_for_snapshot_predicate(
+                lambda s: (not s["present"]) or s["state"] == "UNAVAILABLE",
+                timeout=8.0,
+                interval=0.05,
+            )
+            if not went_down:
+                return self._fail_with_output(
+                    "automatic_restart",
+                    "Provider never observed down after crash",
+                    health_snapshots=down_snaps,
+                )
 
             # API oracle: provider recovered — AVAILABLE and attempt_count reset to 0.
-            if not wait_for_supervision_state(
-                self.base_url,
-                "provider-sim",
-                lambda entry: entry["state"] == "AVAILABLE" and entry["supervision"]["attempt_count"] == 0,
+            recovered, rec_snaps = self._wait_for_snapshot_predicate(
+                lambda s: s["present"] and s["state"] == "AVAILABLE" and s["attempt_count"] == 0,
                 timeout=10.0,
-            ):
-                return self._fail_with_output("automatic_restart", "Provider did not recover")
+                interval=0.05,
+            )
+            if not recovered:
+                return self._fail_with_output(
+                    "automatic_restart",
+                    "Provider did not recover",
+                    health_snapshots=rec_snaps,
+                )
 
             return TestResult("automatic_restart", True, "Provider restarted automatically after crash")
 
@@ -216,8 +305,8 @@ class SupervisionTester:
                 return self._fail_with_output("backoff_timing", "Provider not available at startup")
 
             # Use provider crash banner as timing trigger only (provider stderr, not runtime oracle).
-            if self.capture and not self.capture.wait_for_marker("CRASHING NOW (exit 42)", timeout=6.0):
-                return self._fail_with_output("backoff_timing", "No provider crash detected")
+            if self.capture:
+                self.capture.wait_for_marker("CRASHING NOW (exit 42)", timeout=6.0)
 
             # API oracle: confirm max_attempts reflects configured policy.
             entry = get_provider_health_entry(self.base_url, "provider-sim")
@@ -233,22 +322,30 @@ class SupervisionTester:
 
             # Measure wall-clock between UNAVAILABLE and next AVAILABLE transition.
             # This captures: detection-lag + backoff-wait + process-restart-time.
-            if not wait_for_supervision_state(
-                self.base_url,
-                "provider-sim",
-                lambda e: e["state"] == "UNAVAILABLE",
-                timeout=6.0,
-            ):
-                return self._fail_with_output("backoff_timing", "Provider did not go UNAVAILABLE after crash")
+            went_down, down_snaps = self._wait_for_snapshot_predicate(
+                lambda s: (not s["present"]) or s["state"] == "UNAVAILABLE",
+                timeout=8.0,
+                interval=0.05,
+            )
+            if not went_down:
+                return self._fail_with_output(
+                    "backoff_timing",
+                    "Provider did not go down after crash",
+                    health_snapshots=down_snaps,
+                )
             t_unavailable = time.time()
 
-            if not wait_for_supervision_state(
-                self.base_url,
-                "provider-sim",
-                lambda e: e["state"] == "AVAILABLE",
+            recovered, rec_snaps = self._wait_for_snapshot_predicate(
+                lambda s: s["present"] and s["state"] == "AVAILABLE",
                 timeout=10.0,
-            ):
-                return self._fail_with_output("backoff_timing", "Provider did not recover")
+                interval=0.05,
+            )
+            if not recovered:
+                return self._fail_with_output(
+                    "backoff_timing",
+                    "Provider did not recover",
+                    health_snapshots=rec_snaps,
+                )
             t_available = time.time()
 
             elapsed_ms = (t_available - t_unavailable) * 1000
@@ -284,13 +381,29 @@ class SupervisionTester:
                 return TestResult("circuit_breaker", False, "Failed to start runtime")
 
             # API oracle: wait for circuit breaker to open.
-            if not wait_for_supervision_state(
-                self.base_url,
-                "provider-sim",
-                lambda entry: entry["supervision"]["circuit_open"] is True,
+            saw_crash, crash_snaps = self._wait_for_snapshot_predicate(
+                lambda s: s["present"] and ((s["attempt_count"] or 0) >= 1 or s["crash_detected"] is True),
+                timeout=12.0,
+                interval=0.05,
+            )
+            if not saw_crash:
+                return self._fail_with_output(
+                    "circuit_breaker",
+                    "No crash-attempt state was observed before circuit-open check",
+                    health_snapshots=crash_snaps,
+                )
+
+            opened, circuit_snaps = self._wait_for_snapshot_predicate(
+                lambda s: s["present"] and s["circuit_open"] is True,
                 timeout=15.0,
-            ):
-                return self._fail_with_output("circuit_breaker", "Circuit breaker did not open")
+                interval=0.05,
+            )
+            if not opened:
+                return self._fail_with_output(
+                    "circuit_breaker",
+                    "Circuit breaker did not open",
+                    health_snapshots=crash_snaps + circuit_snaps,
+                )
 
             # Verify final supervision state.
             entry = get_provider_health_entry(self.base_url, "provider-sim")
@@ -335,26 +448,34 @@ class SupervisionTester:
                 return self._fail_with_output("device_rediscovery", "Provider not available at startup")
 
             # Use provider crash banner as timing trigger only.
-            if self.capture and not self.capture.wait_for_marker("CRASHING NOW (exit 42)", timeout=8.0):
-                return self._fail_with_output("device_rediscovery", "No provider crash detected")
+            if self.capture:
+                self.capture.wait_for_marker("CRASHING NOW (exit 42)", timeout=8.0)
 
-            # API oracle: provider goes UNAVAILABLE after crash.
-            if not wait_for_supervision_state(
-                self.base_url,
-                "provider-sim",
-                lambda entry: entry["state"] == "UNAVAILABLE",
-                timeout=6.0,
-            ):
-                return self._fail_with_output("device_rediscovery", "Provider did not go UNAVAILABLE after crash")
+            # API oracle: provider goes down after crash (UNAVAILABLE or temporarily missing during restart).
+            went_down, down_snaps = self._wait_for_snapshot_predicate(
+                lambda s: (not s["present"]) or s["state"] == "UNAVAILABLE",
+                timeout=8.0,
+                interval=0.05,
+            )
+            if not went_down:
+                return self._fail_with_output(
+                    "device_rediscovery",
+                    "Provider did not go down after crash",
+                    health_snapshots=down_snaps,
+                )
 
             # API oracle: provider recovers and is AVAILABLE again (devices rediscovered).
-            if not wait_for_supervision_state(
-                self.base_url,
-                "provider-sim",
-                lambda entry: entry["state"] == "AVAILABLE" and entry["supervision"]["attempt_count"] == 0,
+            recovered, rec_snaps = self._wait_for_snapshot_predicate(
+                lambda s: s["present"] and s["state"] == "AVAILABLE" and s["attempt_count"] == 0,
                 timeout=12.0,
-            ):
-                return self._fail_with_output("device_rediscovery", "Provider did not recover after restart")
+                interval=0.05,
+            )
+            if not recovered:
+                return self._fail_with_output(
+                    "device_rediscovery",
+                    "Provider did not recover after restart",
+                    health_snapshots=rec_snaps,
+                )
 
             # Confirm devices are present post-recovery.
             entry = get_provider_health_entry(self.base_url, "provider-sim")
