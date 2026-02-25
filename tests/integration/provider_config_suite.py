@@ -47,7 +47,7 @@ def create_unknown_type_config() -> Path:
     return Path(path)
 
 
-def test_missing_config_required(runtime_path: Path, provider_path: Path, port: int) -> bool:
+def test_missing_config_required(runtime_path: Path, provider_path: Path, port: int) -> None:
     """Test that provider requires --config argument."""
     print("\n=== TEST: Missing --config Argument ===")
 
@@ -69,14 +69,10 @@ def test_missing_config_required(runtime_path: Path, provider_path: Path, port: 
     fixture = RuntimeFixture(runtime_path, provider_path, config_dict=config)
 
     try:
-        if not fixture.start():
-            print("  [FAIL] Runtime failed to start")
-            return False
+        assert fixture.start(), "Runtime failed to start"
 
         capture = fixture.get_output_capture()
-        if not capture:
-            print("  [FAIL] No output capture available")
-            return False
+        assert capture is not None, "No output capture available"
 
         # Wait a moment for provider to exit (provider launched by runtime)
         time.sleep(3)
@@ -89,28 +85,22 @@ def test_missing_config_required(runtime_path: Path, provider_path: Path, port: 
         has_config_error = "FATAL" in output and "config" in output.lower()
         has_provider_died = "Provider exited" in output or "Provider died" in output
 
-        if has_config_error or has_provider_died:
-            print("  [PASS] Provider failed to start without --config")
-            print("  [PASS] Error message found in output")
-            return True
-        else:
-            print("  [FAIL] Expected provider to fail without config")
-        return False
+        assert has_config_error or has_provider_died, "Expected provider to fail without config"
+        print("  [PASS] Provider failed to start without --config")
+        print("  [PASS] Error message found in output")
 
     finally:
         fixture.cleanup()
 
 
-def test_default_config_loads(runtime_path: Path, provider_path: Path, port: int) -> bool:
+def test_default_config_loads(runtime_path: Path, provider_path: Path, port: int) -> None:
     """Test that default fixture config loads correctly."""
     print("\n=== TEST: Default Configuration ===")
     base_url = f"http://localhost:{port}"
 
     config_path = get_fixture_path("provider-sim-default.yaml")
 
-    if not config_path.exists():
-        print(f"  [FAIL] Fixture config not found: {config_path}")
-        return False
+    assert config_path.exists(), f"Fixture config not found: {config_path}"
 
     print(f"  Using config: {config_path.name}")
 
@@ -131,25 +121,17 @@ def test_default_config_loads(runtime_path: Path, provider_path: Path, port: int
     fixture = RuntimeFixture(runtime_path, provider_path, config_dict=config)
 
     try:
-        if not fixture.start():
-            print("  [FAIL] Runtime failed to start")
-            return False
+        assert fixture.start(), "Runtime failed to start"
 
         capture = fixture.get_output_capture()
-        if not capture:
-            print("  [FAIL] No output capture available")
-            return False
+        assert capture is not None, "No output capture available"
 
         # Wait for runtime to become ready
-        if not capture.wait_for_marker("Runtime Ready", timeout=15):
-            print("  [FAIL] Runtime did not become ready")
-            return False
+        assert capture.wait_for_marker("Runtime Ready", timeout=15), "Runtime did not become ready"
 
         # Query devices via HTTP API
         resp = requests.get(f"{base_url}/v0/devices", timeout=5)
-        if resp.status_code != 200:
-            print(f"  [FAIL] HTTP request failed: {resp.status_code}")
-            return False
+        assert resp.status_code == 200, f"HTTP request failed: {resp.status_code}"
 
         data = resp.json()
         devices = data.get("devices", [])
@@ -159,34 +141,24 @@ def test_default_config_loads(runtime_path: Path, provider_path: Path, port: int
         # Expected: tempctl0, motorctl0, relayio0, analogsensor0, chaos_control
         expected = {"tempctl0", "motorctl0", "relayio0", "analogsensor0", "chaos_control"}
 
-        if set(device_ids) == expected:
-            print(f"  [PASS] All {len(expected)} devices loaded correctly")
-            for dev_id in sorted(device_ids):
-                print(f"    - {dev_id}")
-            return True
-        else:
-            missing = expected - set(device_ids)
-            extra = set(device_ids) - expected
-            if missing:
-                print(f"  [FAIL] Missing devices: {missing}")
-            if extra:
-                print(f"  [FAIL] Unexpected devices: {extra}")
-            return False
+        actual = set(device_ids)
+        assert actual == expected, f"Device set mismatch. expected={expected} actual={actual}"
+        print(f"  [PASS] All {len(expected)} devices loaded correctly")
+        for dev_id in sorted(device_ids):
+            print(f"    - {dev_id}")
 
     finally:
         fixture.cleanup()
 
 
-def test_multi_device_config(runtime_path: Path, provider_path: Path, port: int) -> bool:
+def test_multi_device_config(runtime_path: Path, provider_path: Path, port: int) -> None:
     """Test multi-device configuration with 2 tempctl instances."""
     print("\n=== TEST: Multi-Device Configuration (2x tempctl) ===")
     base_url = f"http://localhost:{port}"
 
     config_path = get_fixture_path("provider-multi-tempctl.yaml")
 
-    if not config_path.exists():
-        print(f"  [FAIL] Fixture config not found: {config_path}")
-        return False
+    assert config_path.exists(), f"Fixture config not found: {config_path}"
 
     print(f"  Using config: {config_path.name}")
 
@@ -207,25 +179,17 @@ def test_multi_device_config(runtime_path: Path, provider_path: Path, port: int)
     fixture = RuntimeFixture(runtime_path, provider_path, config_dict=config)
 
     try:
-        if not fixture.start():
-            print("  [FAIL] Runtime failed to start")
-            return False
+        assert fixture.start(), "Runtime failed to start"
 
         capture = fixture.get_output_capture()
-        if not capture:
-            print("  [FAIL] No output capture available")
-            return False
+        assert capture is not None, "No output capture available"
 
         # Wait for runtime to become ready
-        if not capture.wait_for_marker("Runtime Ready", timeout=15):
-            print("  [FAIL] Runtime did not become ready")
-            return False
+        assert capture.wait_for_marker("Runtime Ready", timeout=15), "Runtime did not become ready"
 
         # Query devices
         resp = requests.get(f"{base_url}/v0/devices", timeout=5)
-        if resp.status_code != 200:
-            print(f"  [FAIL] HTTP request failed: {resp.status_code}")
-            return False
+        assert resp.status_code == 200, f"HTTP request failed: {resp.status_code}"
 
         data = resp.json()
         devices = data.get("devices", [])
@@ -235,40 +199,30 @@ def test_multi_device_config(runtime_path: Path, provider_path: Path, port: int)
         # Expected: tempctl0, tempctl1, motorctl0, chaos_control
         expected = {"tempctl0", "tempctl1", "motorctl0", "chaos_control"}
 
-        if set(device_ids) != expected:
-            print(f"  [FAIL] Expected {expected}, got {set(device_ids)}")
-            return False
+        assert set(device_ids) == expected, f"Expected {expected}, got {set(device_ids)}"
 
         print(f"  [PASS] All {len(expected)} devices loaded")
         for dev_id in sorted(device_ids):
             print(f"    - {dev_id}")
 
         # Verify both tempctl devices are functional
-        all_functional = True
         for dev_id in ["tempctl0", "tempctl1"]:
             resp = requests.get(f"{base_url}/v0/state/sim0/{dev_id}", timeout=5)
-            if resp.status_code == 200:
-                print(f"  [PASS] {dev_id} is functional")
-            else:
-                print(f"  [FAIL] {dev_id} returned status {resp.status_code}")
-                all_functional = False
-
-        return all_functional
+            assert resp.status_code == 200, f"{dev_id} returned status {resp.status_code}"
+            print(f"  [PASS] {dev_id} is functional")
 
     finally:
         fixture.cleanup()
 
 
-def test_minimal_config(runtime_path: Path, provider_path: Path, port: int) -> bool:
+def test_minimal_config(runtime_path: Path, provider_path: Path, port: int) -> None:
     """Test minimal configuration with single device."""
     print("\n=== TEST: Minimal Configuration (Single Device) ===")
     base_url = f"http://localhost:{port}"
 
     config_path = get_fixture_path("provider-minimal.yaml")
 
-    if not config_path.exists():
-        print(f"  [FAIL] Fixture config not found: {config_path}")
-        return False
+    assert config_path.exists(), f"Fixture config not found: {config_path}"
 
     print(f"  Using config: {config_path.name}")
 
@@ -289,25 +243,17 @@ def test_minimal_config(runtime_path: Path, provider_path: Path, port: int) -> b
     fixture = RuntimeFixture(runtime_path, provider_path, config_dict=config)
 
     try:
-        if not fixture.start():
-            print("  [FAIL] Runtime failed to start")
-            return False
+        assert fixture.start(), "Runtime failed to start"
 
         capture = fixture.get_output_capture()
-        if not capture:
-            print("  [FAIL] No output capture available")
-            return False
+        assert capture is not None, "No output capture available"
 
         # Wait for runtime to become ready
-        if not capture.wait_for_marker("Runtime Ready", timeout=15):
-            print("  [FAIL] Runtime did not become ready")
-            return False
+        assert capture.wait_for_marker("Runtime Ready", timeout=15), "Runtime did not become ready"
 
         # Query devices
         resp = requests.get(f"{base_url}/v0/devices", timeout=5)
-        if resp.status_code != 200:
-            print(f"  [FAIL] HTTP request failed: {resp.status_code}")
-            return False
+        assert resp.status_code == 200, f"HTTP request failed: {resp.status_code}"
 
         data = resp.json()
         devices = data.get("devices", [])
@@ -317,20 +263,16 @@ def test_minimal_config(runtime_path: Path, provider_path: Path, port: int) -> b
         # Expected: only tempctl0 + chaos_control
         expected = {"tempctl0", "chaos_control"}
 
-        if set(device_ids) == expected:
-            print("  [PASS] Minimal config loaded (2 devices)")
-            for dev_id in sorted(device_ids):
-                print(f"    - {dev_id}")
-            return True
-        else:
-            print(f"  [FAIL] Expected {expected}, got {set(device_ids)}")
-            return False
+        assert set(device_ids) == expected, f"Expected {expected}, got {set(device_ids)}"
+        print("  [PASS] Minimal config loaded (2 devices)")
+        for dev_id in sorted(device_ids):
+            print(f"    - {dev_id}")
 
     finally:
         fixture.cleanup()
 
 
-def test_invalid_yaml_handling(runtime_path: Path, provider_path: Path, port: int) -> bool:
+def test_invalid_yaml_handling(runtime_path: Path, provider_path: Path, port: int) -> None:
     """Test provider handling of invalid YAML syntax."""
     print("\n=== TEST: Invalid YAML Syntax ===")
 
@@ -356,29 +298,22 @@ def test_invalid_yaml_handling(runtime_path: Path, provider_path: Path, port: in
         fixture = RuntimeFixture(runtime_path, provider_path, config_dict=config)
 
         try:
-            if not fixture.start():
-                print("  [FAIL] Runtime failed to start")
-                return False
+            assert fixture.start(), "Runtime failed to start"
 
             # Wait for provider to exit with error
             time.sleep(3)
 
             # Check output for provider failure
             capture = fixture.get_output_capture()
-            if not capture:
-                print("  [FAIL] No output capture available")
-                return False
+            assert capture is not None, "No output capture available"
 
             output = capture.get_all_output()
 
             # Provider should have died due to bad YAML
-            if "Provider exited" in output or "Provider died" in output or "Failed to load" in output:
-                print("  [PASS] Provider exited with error (expected)")
-                return True
-            else:
-                print("  [FAIL] Expected provider to fail with invalid YAML")
-                print(f"  Output sample: {output[:300]}")
-                return False
+            assert "Provider exited" in output or "Provider died" in output or "Failed to load" in output, (
+                f"Expected provider to fail with invalid YAML. Output sample: {output[:300]}"
+            )
+            print("  [PASS] Provider exited with error (expected)")
 
         finally:
             fixture.cleanup()
@@ -386,7 +321,7 @@ def test_invalid_yaml_handling(runtime_path: Path, provider_path: Path, port: in
         config_path.unlink(missing_ok=True)
 
 
-def test_unknown_device_type(runtime_path: Path, provider_path: Path, port: int) -> bool:
+def test_unknown_device_type(runtime_path: Path, provider_path: Path, port: int) -> None:
     """Test that unknown device types cause provider to fail fast at startup."""
     print("\n=== TEST: Unknown Device Type (Fail-Fast) ===")
 
@@ -412,26 +347,20 @@ def test_unknown_device_type(runtime_path: Path, provider_path: Path, port: int)
         fixture = RuntimeFixture(runtime_path, provider_path, config_dict=config)
 
         try:
-            if not fixture.start():
-                print("  [FAIL] Runtime failed to start")
-                return False
+            assert fixture.start(), "Runtime failed to start"
 
             capture = fixture.get_output_capture()
-            if not capture:
-                print("  [FAIL] No output capture available")
-                return False
+            assert capture is not None, "No output capture available"
 
             # Provider should fail to start with unknown device type
             # Check for error message in output
             if capture.wait_for_marker("unknown device type", timeout=5):
                 print("  [PASS] Provider failed fast with unknown device type error")
-                return True
-            elif capture.wait_for_marker("Runtime Ready", timeout=5):
-                print("  [FAIL] Provider started successfully (should have failed fast)")
-                return False
             else:
+                assert not capture.wait_for_marker("Runtime Ready", timeout=5), (
+                    "Provider started successfully (should have failed fast)"
+                )
                 print("  [PASS] Provider process exited (fail-fast behavior)")
-                return True
 
         finally:
             fixture.cleanup()

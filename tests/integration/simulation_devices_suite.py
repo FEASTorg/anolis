@@ -23,7 +23,7 @@ from tests.support.api_helpers import wait_for_condition
 REQUEST_TIMEOUT_S = 5.0
 
 
-def test_device_discovery(base_url: str):
+def test_device_discovery(base_url: str) -> None:
     """Test that all 5 devices are discovered."""
     print("\n=== TEST: Device Discovery ===")
     resp = requests.get(f"{base_url}/v0/devices", timeout=REQUEST_TIMEOUT_S)
@@ -43,13 +43,10 @@ def test_device_discovery(base_url: str):
         if device_id in found_devices:
             print(f"  [PASS] {device_id}")
         else:
-            print(f"  [FAIL] MISSING: {device_id}")
-            return False
-
-    return True
+            raise AssertionError(f"MISSING device: {device_id}")
 
 
-def test_relayio0(base_url: str):
+def test_relayio0(base_url: str) -> None:
     """Test relayio0 device with boolean relay/GPIO signals."""
     print("\n=== TEST: relayio0 Device (Bool Signals) ===")
 
@@ -60,8 +57,7 @@ def test_relayio0(base_url: str):
 
     relay1_before = next((s for s in state["values"] if s["signal_id"] == "relay_ch1_state"), None)
     if not relay1_before:
-        print("  [FAIL] Could not find relay_ch1_state signal")
-        return False
+        raise AssertionError("Could not find relay_ch1_state signal")
     print(f"  relay_ch1_state: {relay1_before['value']['bool']}")
 
     # Toggle relay
@@ -75,8 +71,7 @@ def test_relayio0(base_url: str):
     result = resp.json()
 
     if result["status"]["code"] != "OK":
-        print(f"  [FAIL] Function call failed: {result['status']['message']}")
-        return False
+        raise AssertionError(f"Function call failed: {result['status']['message']}")
 
     # Verify state changed (wait for poll)
     def check_relay():
@@ -92,18 +87,13 @@ def test_relayio0(base_url: str):
     relay1_after = next((s for s in state["values"] if s["signal_id"] == "relay_ch1_state"), None)
 
     if not relay1_after:
-        print("  [FAIL] Could not find relay_ch1_state signal after toggle")
-        return False
+        raise AssertionError("Could not find relay_ch1_state signal after toggle")
 
-    if relay1_after["value"]["bool"]:
-        print("  [PASS] Relay toggled successfully")
-        return True
-    else:
-        print("  [FAIL] Relay did not toggle")
-        return False
+    assert relay1_after["value"]["bool"], "Relay did not toggle"
+    print("  [PASS] Relay toggled successfully")
 
 
-def test_analogsensor0(base_url: str):
+def test_analogsensor0(base_url: str) -> None:
     """Test analogsensor0 device with double voltage signals and quality states."""
     print("\n=== TEST: analogsensor0 Device (Double Signals + Quality) ===")
 
@@ -115,11 +105,9 @@ def test_analogsensor0(base_url: str):
     quality = next((s for s in state["values"] if s["signal_id"] == "sensor_quality"), None)
 
     if not voltage_ch1:
-        print("  [FAIL] Could not find voltage_ch1 signal")
-        return False
+        raise AssertionError("Could not find voltage_ch1 signal")
     if not quality:
-        print("  [FAIL] Could not find sensor_quality signal")
-        return False
+        raise AssertionError("Could not find sensor_quality signal")
 
     print(f"  voltage_ch1: {voltage_ch1['value']['double']:.2f}V")
     print(f"  sensor_quality: {quality['value']['string']}")
@@ -134,8 +122,7 @@ def test_analogsensor0(base_url: str):
     resp = requests.post(f"{base_url}/v0/call", json=call_body, timeout=REQUEST_TIMEOUT_S)
     result = resp.json()
     if result["status"]["code"] != "OK":
-        print(f"  [FAIL] inject_noise failed: {result['status']['message']}")
-        return False
+        raise AssertionError(f"inject_noise failed: {result['status']['message']}")
 
     # Current analog sensor model degrades quality over longer time windows (30s+).
     # Keep this suite fast: verify contract and data flow instead of waiting for long drift.
@@ -146,14 +133,12 @@ def test_analogsensor0(base_url: str):
     quality_after = next((s for s in state["values"] if s["signal_id"] == "sensor_quality"), None)
 
     if not quality_after:
-        print("  [FAIL] Could not find sensor_quality signal after noise")
-        return False
+        raise AssertionError("Could not find sensor_quality signal after noise")
 
     quality_value = quality_after["value"]["string"]
     print(f"  sensor_quality after noise: {quality_value}")
     if quality_value not in ["GOOD", "NOISY", "FAULT"]:
-        print(f"  [FAIL] Unexpected quality value: {quality_value}")
-        return False
+        raise AssertionError(f"Unexpected quality value: {quality_value}")
 
     # Confirm samples remain dynamic after enabling noise.
     samples: list[float] = []
@@ -162,8 +147,7 @@ def test_analogsensor0(base_url: str):
         state = resp.json()
         reading = next((s for s in state["values"] if s["signal_id"] == "voltage_ch1"), None)
         if not reading:
-            print("  [FAIL] Missing voltage_ch1 during sampling")
-            return False
+            raise AssertionError("Missing voltage_ch1 during sampling")
         samples.append(float(reading["value"]["double"]))
         time.sleep(0.2)
 
@@ -180,14 +164,12 @@ def test_analogsensor0(base_url: str):
     )
 
     if len(set(samples)) <= 1:
-        print("  [FAIL] voltage_ch1 samples did not change after noise enable")
-        return False
+        raise AssertionError("voltage_ch1 samples did not change after noise enable")
 
     print("  [PASS] inject_noise accepted and analog readings remained dynamic")
-    return True
 
 
-def test_fault_injection_clear(base_url: str):
+def test_fault_injection_clear(base_url: str) -> None:
     """Test clear_faults function."""
     print("\n=== TEST: Fault Injection - clear_faults ===")
 
@@ -200,15 +182,11 @@ def test_fault_injection_clear(base_url: str):
     resp = requests.post(f"{base_url}/v0/call", json=call_body, timeout=REQUEST_TIMEOUT_S)
     result = resp.json()
 
-    if result["status"]["code"] == "OK":
-        print("  [PASS] clear_faults succeeded")
-        return True
-    else:
-        print(f"  [FAIL] clear_faults failed: {result['status']['message']}")
-        return False
+    assert result["status"]["code"] == "OK", f"clear_faults failed: {result['status']['message']}"
+    print("  [PASS] clear_faults succeeded")
 
 
-def test_fault_injection_device_unavailable(base_url: str):
+def test_fault_injection_device_unavailable(base_url: str) -> None:
     """Test inject_device_unavailable function."""
     print("\n=== TEST: Fault Injection - inject_device_unavailable ===")
 
@@ -238,7 +216,9 @@ def test_fault_injection_device_unavailable(base_url: str):
         values = resp.json().get("values", [])
         return len(values) < baseline_values
 
-    wait_for_condition(device_unavailable, timeout=2.0, description="device unavailable state")
+    assert wait_for_condition(device_unavailable, timeout=2.0, description="device unavailable state"), (
+        "Device did not enter unavailable state"
+    )
 
     print("  [PASS] inject_device_unavailable called (check runtime logs for errors)")
 
@@ -248,13 +228,13 @@ def test_fault_injection_device_unavailable(base_url: str):
         values = resp.json().get("values", [])
         return len(values) >= baseline_values
 
-    wait_for_condition(device_restored, timeout=3.0, description="device restoration")
+    assert wait_for_condition(device_restored, timeout=3.0, description="device restoration"), (
+        "Device did not recover after unavailable fault"
+    )
     test_fault_injection_clear(base_url)
 
-    return True
 
-
-def test_fault_injection_call_latency(base_url: str):
+def test_fault_injection_call_latency(base_url: str) -> None:
     """Test inject_call_latency function."""
     print("\n=== TEST: Fault Injection - inject_call_latency ===")
 
@@ -289,15 +269,11 @@ def test_fault_injection_call_latency(base_url: str):
     # Clear faults
     test_fault_injection_clear(base_url)
 
-    if elapsed >= 0.9:
-        print("  [PASS] Latency injection working")
-        return True
-    else:
-        print("  [FAIL] No latency detected")
-        return False
+    assert elapsed >= 0.9, f"No latency detected (elapsed={elapsed:.2f}s)"
+    print("  [PASS] Latency injection working")
 
 
-def test_fault_injection_call_failure(base_url: str):
+def test_fault_injection_call_failure(base_url: str) -> None:
     """Test inject_call_failure function."""
     print("\n=== TEST: Fault Injection - inject_call_failure ===")
 
@@ -330,9 +306,5 @@ def test_fault_injection_call_failure(base_url: str):
     # Clear faults
     test_fault_injection_clear(base_url)
 
-    if result["status"]["code"] != "OK":
-        print(f"  [PASS] Call failed as expected: {result['status']['message']}")
-        return True
-    else:
-        print("  [FAIL] Call succeeded when it should have failed")
-        return False
+    assert result["status"]["code"] != "OK", "Call succeeded when it should have failed"
+    print(f"  [PASS] Call failed as expected: {result['status']['message']}")

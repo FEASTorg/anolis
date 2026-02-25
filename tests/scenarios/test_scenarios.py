@@ -53,8 +53,7 @@ def _run_case(case_cls, runtime_factory, provider_exe: Path, unique_port: int):
 
     try:
         scenario.setup()
-        result = scenario.run()
-        assert result.passed, "Scenario returned a failed result object; raise AssertionError directly in run()"
+        scenario.run()
     finally:
         try:
             scenario.cleanup()

@@ -279,15 +279,6 @@ class HttpGatewayTester:
         except requests.exceptions.Timeout:
             pass
 
-    def run_tests(self) -> bool:
-        """Backwards-compatible monolithic runner."""
-        for _, check in HTTP_CHECKS:
-            try:
-                check(self)
-            except AssertionError:
-                return False
-        return True
-
 
 HttpCheck = Tuple[str, Callable[[HttpGatewayTester], None]]
 

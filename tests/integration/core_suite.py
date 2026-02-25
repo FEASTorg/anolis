@@ -87,15 +87,6 @@ class CoreFeatureTester:
             assert self.fixture.is_running(), "Runtime process exited unexpectedly during stability window"
             time.sleep(0.1)
 
-    def run_tests(self) -> bool:
-        """Backwards-compatible monolithic runner."""
-        for _, check in CORE_CHECKS:
-            try:
-                check(self)
-            except AssertionError:
-                return False
-        return True
-
 
 CoreCheck = Tuple[str, Callable[[CoreFeatureTester], None]]
 

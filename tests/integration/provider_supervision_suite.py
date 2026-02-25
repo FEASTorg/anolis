@@ -14,9 +14,8 @@ Tests:
 """
 
 import time
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, NoReturn, Optional, Tuple
 
 from tests.support.api_helpers import (
     assert_http_available,
@@ -24,13 +23,6 @@ from tests.support.api_helpers import (
     get_provider_health_entry,
 )
 from tests.support.runtime_fixture import RuntimeFixture
-
-
-@dataclass
-class TestResult:
-    name: str
-    passed: bool
-    message: str = ""
 
 
 class SupervisionTester:
@@ -210,19 +202,19 @@ class SupervisionTester:
         message: str,
         tail_lines: int = 200,
         health_snapshots: Optional[List[dict]] = None,
-    ) -> TestResult:
-        """Build a failure result with recent runtime output context."""
+    ) -> NoReturn:
+        """Raise an assertion with recent runtime output context."""
         extra = ""
         if health_snapshots:
             extra = "\nHealth timeline tail:\n" + self._format_health_snapshots(health_snapshots)
 
         if self.capture is None:
-            return TestResult(name, False, message + extra)
+            raise AssertionError(f"{name}: {message}{extra}")
 
         output_tail = self.capture.get_recent_output(tail_lines)
-        return TestResult(name, False, f"{message}{extra}\nOutput tail:\n{output_tail}")
+        raise AssertionError(f"{name}: {message}{extra}\nOutput tail:\n{output_tail}")
 
-    def test_automatic_restart(self) -> TestResult:
+    def test_automatic_restart(self) -> None:
         """Test that provider restarts automatically after crash."""
         print("\n[TEST] Automatic Restart")
 
@@ -230,11 +222,11 @@ class SupervisionTester:
 
         try:
             if not self.start_runtime(config_dict):
-                return TestResult("automatic_restart", False, "Failed to start runtime")
+                self._fail_with_output("automatic_restart", "Failed to start runtime")
 
             # Wait for provider to be initially available.
             if not assert_provider_available(self.base_url, "provider-sim", timeout=10.0):
-                return self._fail_with_output("automatic_restart", "Provider not available at startup")
+                self._fail_with_output("automatic_restart", "Provider not available at startup")
 
             # Wait for the provider chaos crash banner (provider stderr — acceptable trigger,
             # not a pass/fail oracle; just advances timing certainty).
@@ -249,7 +241,7 @@ class SupervisionTester:
                 interval=0.05,
             )
             if not crash_seen:
-                return self._fail_with_output(
+                self._fail_with_output(
                     "automatic_restart",
                     "Provider crash/restart state was not observed",
                     health_snapshots=crash_snaps,
@@ -265,21 +257,19 @@ class SupervisionTester:
                 interval=0.05,
             )
             if not recovered:
-                return self._fail_with_output(
+                self._fail_with_output(
                     "automatic_restart",
                     "Provider did not recover",
                     health_snapshots=rec_snaps,
                 )
 
-            msg = "Provider restarted automatically after crash"
             if not down_observed:
-                msg += " (transient down not observed in sampled health window)"
-            return TestResult("automatic_restart", True, msg)
+                print("  [INFO] automatic_restart: transient down not observed in sampled health window")
 
         finally:
             self.stop_runtime()
 
-    def test_backoff_timing(self) -> TestResult:
+    def test_backoff_timing(self) -> None:
         """Test that exponential backoff delays are correct.
 
         Validates:
@@ -294,11 +284,11 @@ class SupervisionTester:
 
         try:
             if not self.start_runtime(config_dict):
-                return TestResult("backoff_timing", False, "Failed to start runtime")
+                self._fail_with_output("backoff_timing", "Failed to start runtime")
 
             # Wait for provider to be initially available.
             if not assert_provider_available(self.base_url, "provider-sim", timeout=10.0):
-                return self._fail_with_output("backoff_timing", "Provider not available at startup")
+                self._fail_with_output("backoff_timing", "Provider not available at startup")
 
             # Use provider crash banner as timing trigger only (provider stderr, not runtime oracle).
             if self.capture:
@@ -307,11 +297,11 @@ class SupervisionTester:
             # API oracle: confirm max_attempts reflects configured policy.
             entry = get_provider_health_entry(self.base_url, "provider-sim")
             if entry is None:
-                return self._fail_with_output("backoff_timing", "Could not query provider health")
+                self._fail_with_output("backoff_timing", "Could not query provider health")
 
             actual_max = entry["supervision"]["max_attempts"]
             if actual_max != 3:
-                return self._fail_with_output(
+                self._fail_with_output(
                     "backoff_timing",
                     f"Unexpected max_attempts in supervision: {actual_max} (expected 3)",
                 )
@@ -324,7 +314,7 @@ class SupervisionTester:
                 interval=0.05,
             )
             if not crash_seen:
-                return self._fail_with_output(
+                self._fail_with_output(
                     "backoff_timing",
                     "Provider crash-attempt state was not observed after crash",
                     health_snapshots=crash_snaps,
@@ -332,7 +322,7 @@ class SupervisionTester:
 
             # Verify restart scheduling metadata is available while handling crash.
             if crash_snaps[-1].get("next_restart_in_ms") is None:
-                return self._fail_with_output(
+                self._fail_with_output(
                     "backoff_timing",
                     "Crash-attempt state missing next_restart_in_ms metadata",
                     health_snapshots=crash_snaps,
@@ -346,7 +336,7 @@ class SupervisionTester:
                 interval=0.05,
             )
             if not recovered:
-                return self._fail_with_output(
+                self._fail_with_output(
                     "backoff_timing",
                     "Provider did not recover",
                     health_snapshots=crash_snaps + rec_snaps,
@@ -358,18 +348,18 @@ class SupervisionTester:
             # Lower bound: include configured first backoff (500ms) plus minimal restart work.
             # Upper bound: generous for shared CI runners and restart/discovery overhead.
             if not (200 <= elapsed_ms <= 7000):
-                return self._fail_with_output(
+                self._fail_with_output(
                     "backoff_timing",
                     f"Crash-attempt->stable-recovery transition took {elapsed_ms:.0f}ms (expected 200-7000ms)",
                     health_snapshots=crash_snaps + rec_snaps,
                 )
 
-            return TestResult("backoff_timing", True, f"Backoff/recovery timing correct: {elapsed_ms:.0f}ms")
+            print(f"  [INFO] backoff_timing: crash-attempt->stable-recovery {elapsed_ms:.0f}ms")
 
         finally:
             self.stop_runtime()
 
-    def test_circuit_breaker(self) -> TestResult:
+    def test_circuit_breaker(self) -> None:
         """Test that circuit breaker opens after max_attempts consecutive crashes.
 
         Uses crash_after=0.1s and a long success_reset_ms window so rapid crash loops
@@ -391,7 +381,7 @@ class SupervisionTester:
 
         try:
             if not self.start_runtime(config_dict):
-                return TestResult("circuit_breaker", False, "Failed to start runtime")
+                self._fail_with_output("circuit_breaker", "Failed to start runtime")
 
             # API oracle: wait for circuit breaker to open.
             saw_crash, crash_snaps = self._wait_for_snapshot_predicate(
@@ -400,7 +390,7 @@ class SupervisionTester:
                 interval=0.05,
             )
             if not saw_crash:
-                return self._fail_with_output(
+                self._fail_with_output(
                     "circuit_breaker",
                     "No crash-attempt state was observed before circuit-open check",
                     health_snapshots=crash_snaps,
@@ -412,7 +402,7 @@ class SupervisionTester:
                 interval=0.05,
             )
             if not opened:
-                return self._fail_with_output(
+                self._fail_with_output(
                     "circuit_breaker",
                     "Circuit breaker did not open",
                     health_snapshots=crash_snaps + circuit_snaps,
@@ -421,32 +411,30 @@ class SupervisionTester:
             # Verify final supervision state.
             entry = get_provider_health_entry(self.base_url, "provider-sim")
             if entry is None:
-                return self._fail_with_output("circuit_breaker", "Failed to query provider health after circuit open")
+                self._fail_with_output("circuit_breaker", "Failed to query provider health after circuit open")
 
             if entry["state"] != "UNAVAILABLE":
-                return self._fail_with_output(
+                self._fail_with_output(
                     "circuit_breaker",
                     f"Expected UNAVAILABLE after circuit open, got {entry['state']}",
                 )
 
             attempt_count = entry["supervision"]["attempt_count"]
             if attempt_count < 3:  # max_attempts=2 → circuit opens on 3rd crash
-                return self._fail_with_output(
+                self._fail_with_output(
                     "circuit_breaker",
                     f"Expected attempt_count >= 3 when circuit opens, got {attempt_count}",
                 )
 
-            return TestResult(
-                "circuit_breaker",
-                True,
-                f"Circuit breaker opened after {attempt_count} attempts (next_restart_in_ms: "
-                f"{entry['supervision']['next_restart_in_ms']})",
+            print(
+                "  [INFO] circuit_breaker: opened after "
+                f"{attempt_count} attempts (next_restart_in_ms={entry['supervision']['next_restart_in_ms']})"
             )
 
         finally:
             self.stop_runtime()
 
-    def test_device_rediscovery(self) -> TestResult:
+    def test_device_rediscovery(self) -> None:
         """Test that devices are rediscovered after provider restart."""
         print("\n[TEST] Device Rediscovery")
 
@@ -454,11 +442,11 @@ class SupervisionTester:
 
         try:
             if not self.start_runtime(config_dict):
-                return TestResult("device_rediscovery", False, "Failed to start runtime")
+                self._fail_with_output("device_rediscovery", "Failed to start runtime")
 
             # API oracle: wait for provider to be initially AVAILABLE with devices.
             if not assert_provider_available(self.base_url, "provider-sim", timeout=10.0):
-                return self._fail_with_output("device_rediscovery", "Provider not available at startup")
+                self._fail_with_output("device_rediscovery", "Provider not available at startup")
 
             # Use provider crash banner as timing trigger only.
             if self.capture:
@@ -471,7 +459,7 @@ class SupervisionTester:
                 interval=0.05,
             )
             if not went_down:
-                return self._fail_with_output(
+                self._fail_with_output(
                     "device_rediscovery",
                     "Provider did not go down after crash",
                     health_snapshots=down_snaps,
@@ -496,22 +484,19 @@ class SupervisionTester:
                 interval=0.05,
             )
             if not recovered:
-                return self._fail_with_output(
+                self._fail_with_output(
                     "device_rediscovery",
                     "Provider did not recover with rediscovered devices",
                     health_snapshots=rec_snaps,
                 )
 
-            return TestResult(
-                "device_rediscovery",
-                True,
-                f"Devices rediscovered after restart (device_count={rec_snaps[-1].get('device_count', 0)})",
-            )
+            print(f"  [INFO] device_rediscovery: recovered with device_count={rec_snaps[-1].get('device_count', 0)}")
 
         finally:
             self.stop_runtime()
 
-SupervisionCheck = Tuple[str, Callable[[SupervisionTester], TestResult]]
+
+SupervisionCheck = Tuple[str, Callable[[SupervisionTester], None]]
 
 SUPERVISION_CHECKS: List[SupervisionCheck] = [
     ("automatic_restart", SupervisionTester.test_automatic_restart),

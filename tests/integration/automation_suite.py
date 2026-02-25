@@ -27,29 +27,20 @@ from tests.support.api_helpers import assert_http_available, wait_for_condition
 from tests.support.runtime_fixture import RuntimeFixture
 
 
-class Colors:
-    GREEN = "\033[92m"
-    RED = "\033[91m"
-    YELLOW = "\033[93m"
-    BLUE = "\033[94m"
-    END = "\033[0m"
-    BOLD = "\033[1m"
+def log_test(_name: str) -> None:
+    """No-op test marker retained to keep legacy check bodies compact."""
 
 
-def log_test(name: str):
-    print(f"\n{Colors.BLUE}[TEST]{Colors.END} {name}")
+def log_pass(_message: str) -> None:
+    """No-op pass marker retained to keep legacy check bodies compact."""
 
 
-def log_pass(message: str):
-    print(f"  {Colors.GREEN}[OK]{Colors.END} {message}")
-
-
-def log_fail(message: str):
+def log_fail(message: str) -> None:
     raise AssertionError(message)
 
 
-def log_info(message: str):
-    print(f"  {Colors.YELLOW}[INFO]{Colors.END} {message}")
+def log_info(_message: str) -> None:
+    """No-op info marker retained to keep legacy check bodies compact."""
 
 
 class AutomationTester:
@@ -548,12 +539,6 @@ class AutomationTester:
             log_fail(f"Request exception: {e}")
             self.set_mode("MANUAL")
             return False
-
-    def run_tests(self) -> bool:
-        """Backwards-compatible runner."""
-        for _, check in AUTOMATION_CHECKS:
-            check(self)
-        return True
 
 
 AutomationCheck = Tuple[str, Callable[[AutomationTester], bool]]

@@ -70,7 +70,7 @@ def test_http_suite(
 @pytest.mark.integration
 @pytest.mark.timeout(360)
 @pytest.mark.parametrize(
-    ("check_name", "check_fn"),
+    ("_check_name", "check_fn"),
     AUTOMATION_CHECKS,
     ids=[name for name, _ in AUTOMATION_CHECKS],
 )
@@ -79,13 +79,13 @@ def test_automation_suite(
     provider_exe: Path,
     integration_timeout: float,
     unique_port: int,
-    check_name: str,
+    _check_name: str,
     check_fn,
 ) -> None:
     tester = AutomationTester(runtime_exe, provider_exe, port=unique_port, timeout=integration_timeout)
     try:
         assert tester.start_runtime(), "Automation runtime failed to start"
-        assert check_fn(tester), f"Automation check failed: {check_name}"
+        check_fn(tester)
     finally:
         tester.cleanup()
 
@@ -93,7 +93,7 @@ def test_automation_suite(
 @pytest.mark.integration
 @pytest.mark.timeout(360)
 @pytest.mark.parametrize(
-    ("check_name", "check_fn"),
+    ("_check_name", "check_fn"),
     SUPERVISION_CHECKS,
     ids=[name for name, _ in SUPERVISION_CHECKS],
 )
@@ -102,12 +102,11 @@ def test_provider_supervision_suite(
     provider_exe: Path,
     integration_timeout: float,
     unique_port: int,
-    check_name: str,
+    _check_name: str,
     check_fn,
 ) -> None:
     tester = SupervisionTester(runtime_exe, provider_exe, integration_timeout, port=unique_port)
-    result = check_fn(tester)
-    assert result.passed, f"{check_name} failed: {result.message}"
+    check_fn(tester)
 
 
 @pytest.mark.integration
@@ -124,7 +123,7 @@ def test_provider_supervision_suite(
     ],
 )
 def test_provider_config_suite(runtime_exe: Path, provider_exe: Path, unique_port: int, check) -> None:
-    assert check(runtime_exe, provider_exe, unique_port), f"{check.__name__} failed"
+    check(runtime_exe, provider_exe, unique_port)
 
 
 @pytest.mark.integration
@@ -139,7 +138,7 @@ def test_provider_config_suite(runtime_exe: Path, provider_exe: Path, unique_por
     ],
 )
 def test_process_cleanup_suite(runtime_exe: Path, provider_exe: Path, unique_port: int, check) -> None:
-    assert check(runtime_exe, provider_exe, unique_port), f"{check.__name__} failed"
+    check(runtime_exe, provider_exe, unique_port)
 
 
 @pytest.mark.integration
@@ -153,8 +152,7 @@ def test_process_cleanup_suite(runtime_exe: Path, provider_exe: Path, unique_por
     ids=["sigint", "sigterm"],
 )
 def test_signal_handling_suite(runtime_exe: Path, provider_exe: Path, unique_port: int, sig, name) -> None:
-    result = signal_handling_suite.test_signal_handling(str(runtime_exe), str(provider_exe), sig, name, unique_port)
-    assert result.passed, f"{name} failed: {result.message}"
+    signal_handling_suite.test_signal_handling(str(runtime_exe), str(provider_exe), sig, name, unique_port)
 
 
 @pytest.mark.integration
@@ -173,14 +171,14 @@ def test_signal_handling_suite(runtime_exe: Path, provider_exe: Path, unique_por
 )
 def test_simulation_devices_suite(runtime_factory, unique_port: int, check) -> None:
     fixture = runtime_factory(port=unique_port)
-    assert check(fixture.base_url), f"{check.__name__} failed"
+    check(fixture.base_url)
 
 
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_signal_fault_injection_suite(runtime_factory, unique_port: int) -> None:
     fixture = runtime_factory(port=unique_port)
-    assert signal_fault_injection_suite.test_signal_fault_injection(fixture.base_url)
+    signal_fault_injection_suite.test_signal_fault_injection(fixture.base_url)
 
 
 @pytest.mark.integration
