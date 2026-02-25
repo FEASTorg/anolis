@@ -22,6 +22,8 @@ from typing import Any, cast
 
 import requests
 
+from tests.support.api_helpers import wait_for_condition
+
 REQUEST_TIMEOUT_S = 5.0
 
 
@@ -37,29 +39,21 @@ def _find_signal(state: dict[str, Any], candidates: list[str]) -> dict[str, Any]
 def test_signal_fault_injection(base_url: str) -> None:
     """Test that signal fault injection overrides signal quality to FAULT."""
 
-    print("=== Signal Fault Injection Test ===\n")
-
     # Step 1: Read baseline signal value
-    print("1. Reading baseline signal value...")
     response = requests.get(f"{base_url}/v0/state/sim0/tempctl0", timeout=REQUEST_TIMEOUT_S)
     if response.status_code != 200:
         raise AssertionError(f"Could not read device state: {response.status_code}")
 
     state = response.json()
-    target_signal_candidates = ["tc1_temp", "temp_pv"]
+    # Prefer temp_pv where available (older model path), fall back to tc1_temp.
+    target_signal_candidates = ["temp_pv", "tc1_temp"]
     baseline_signal = _find_signal(state, target_signal_candidates)
     if not baseline_signal:
         signal_ids = [s.get("signal_id", "<missing>") for s in state.get("values", [])]
         raise AssertionError(f"Could not find expected temperature signal. Available signals: {signal_ids}")
     target_signal_id = baseline_signal["signal_id"]
 
-    print(f"   Baseline: {target_signal_id} = {baseline_signal['value']}, quality = {baseline_signal['quality']}")
-
-    if baseline_signal["quality"] != "OK":
-        print(f"WARN: Baseline quality is not OK: {baseline_signal['quality']}")
-
     # Step 2: Inject signal fault
-    print("\n2. Injecting signal fault for temp_pv (5 seconds)...")
     response = requests.post(
         f"{base_url}/v0/call",
         json={
@@ -82,31 +76,25 @@ def test_signal_fault_injection(base_url: str) -> None:
     if result.get("status", {}).get("code") != "OK":
         raise AssertionError(f"inject_signal_fault call failed: {result}")
 
-    print(f"   Fault injected successfully for signal: {target_signal_id}")
+    # Step 3: Wait for FAULT quality to propagate through polling/cache layers.
+    latest_quality: str | None = None
 
-    # Step 3: Read signal value immediately - should be FAULT quality
-    print("\n3. Reading signal value (should be FAULT)...")
-    time.sleep(0.2)  # Brief delay for fault to apply
+    def fault_visible() -> bool:
+        nonlocal latest_quality
+        resp = requests.get(f"{base_url}/v0/state/sim0/tempctl0", timeout=REQUEST_TIMEOUT_S)
+        if resp.status_code != 200:
+            return False
+        current_state = resp.json()
+        signal = _find_signal(current_state, [target_signal_id])
+        if not signal:
+            return False
+        latest_quality = cast(str, signal.get("quality"))
+        return latest_quality == "FAULT"
 
-    response = requests.get(f"{base_url}/v0/state/sim0/tempctl0", timeout=REQUEST_TIMEOUT_S)
-    if response.status_code != 200:
-        raise AssertionError(f"Could not read device state: {response.status_code}")
+    if not wait_for_condition(fault_visible, timeout=3.0, interval=0.1, description="signal quality FAULT"):
+        raise AssertionError(f"Signal quality should become FAULT, got: {latest_quality}")
 
-    state = response.json()
-    faulted_signal = _find_signal(state, [target_signal_id])
-    if not faulted_signal:
-        raise AssertionError(f"Could not find {target_signal_id} signal")
-
-    print(f"   Faulted: {target_signal_id} = {faulted_signal['value']}, quality = {faulted_signal['quality']}")
-
-    # CRITICAL CHECK: Quality should be FAULT
-    if faulted_signal["quality"] != "FAULT":
-        raise AssertionError(f"Signal quality should be FAULT, got: {faulted_signal['quality']}")
-
-    print("   [PASS] Quality correctly set to FAULT")
-
-    # Step 4: Verify value is frozen (doesn't change)
-    print("\n4. Verifying value is frozen...")
+    # Step 4: Verify quality remains FAULT while fault is active
     time.sleep(1.0)
 
     response = requests.get(f"{base_url}/v0/state/sim0/tempctl0", timeout=REQUEST_TIMEOUT_S)
@@ -115,17 +103,10 @@ def test_signal_fault_injection(base_url: str) -> None:
     if not frozen_signal:
         raise AssertionError(f"Could not find {target_signal_id} signal after 1s")
 
-    print(f"   Frozen: {target_signal_id} = {frozen_signal['value']}, quality = {frozen_signal['quality']}")
-
     if frozen_signal["quality"] != "FAULT":
         raise AssertionError(f"Quality should still be FAULT after 1s, got: {frozen_signal['quality']}")
 
-    # Note: We don't strictly verify value freeze since temp_pv might legitimately not change
-    # The key is that quality remains FAULT
-    print("   [PASS] Quality remains FAULT (value frozen)")
-
     # Step 5: Clear faults and verify recovery
-    print("\n5. Clearing faults...")
     response = requests.post(
         f"{base_url}/v0/call",
         json={
@@ -140,23 +121,20 @@ def test_signal_fault_injection(base_url: str) -> None:
     if response.status_code != 200:
         raise AssertionError(f"Could not clear faults: {response.status_code}")
 
-    print("   Faults cleared")
+    # Step 6: Wait for quality to recover to OK.
+    latest_quality = None
 
-    # Step 6: Verify signal quality returns to OK
-    print("\n6. Verifying signal quality recovered...")
-    time.sleep(0.5)
+    def quality_recovered() -> bool:
+        nonlocal latest_quality
+        resp = requests.get(f"{base_url}/v0/state/sim0/tempctl0", timeout=REQUEST_TIMEOUT_S)
+        if resp.status_code != 200:
+            return False
+        current_state = resp.json()
+        signal = _find_signal(current_state, [target_signal_id])
+        if not signal:
+            return False
+        latest_quality = cast(str, signal.get("quality"))
+        return latest_quality == "OK"
 
-    response = requests.get(f"{base_url}/v0/state/sim0/tempctl0", timeout=REQUEST_TIMEOUT_S)
-    state = response.json()
-    recovered_signal = _find_signal(state, [target_signal_id])
-    if not recovered_signal:
-        raise AssertionError(f"Could not find {target_signal_id} signal after clearing faults")
-
-    print(f"   Recovered: {target_signal_id} = {recovered_signal['value']}, quality = {recovered_signal['quality']}")
-
-    if recovered_signal["quality"] != "OK":
-        raise AssertionError(f"Quality should be OK after clearing faults, got: {recovered_signal['quality']}")
-
-    print("   [PASS] Quality recovered to OK")
-
-    print("\n=== PASS: Signal fault injection working correctly ===\n")
+    if not wait_for_condition(quality_recovered, timeout=3.0, interval=0.1, description="signal quality OK"):
+        raise AssertionError(f"Quality should recover to OK after clearing faults, got: {latest_quality}")

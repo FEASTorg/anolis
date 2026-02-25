@@ -34,7 +34,7 @@ class SupervisionTester:
         self.timeout = timeout
         self.port = port
         self.fixture: Optional[RuntimeFixture] = None
-        self.base_url = f"http://localhost:{port}"
+        self.base_url = f"http://127.0.0.1:{port}"
 
     @property
     def capture(self):
@@ -86,38 +86,24 @@ class SupervisionTester:
 
         return config
 
-    def start_runtime(self, config_dict: dict) -> bool:
+    def start_runtime(self, config_dict: dict) -> None:
         """Start runtime with given config."""
-        print("  Starting runtime with RuntimeFixture")
+        self.fixture = RuntimeFixture(
+            self.runtime_path,
+            self.provider_sim_path,
+            http_port=self.port,
+            config_dict=config_dict,
+        )
 
-        try:
-            self.fixture = RuntimeFixture(
-                self.runtime_path,
-                self.provider_sim_path,
-                http_port=self.port,
-                config_dict=config_dict,
-            )
-
-            if not self.fixture.start():
-                print("ERROR: Failed to start runtime")
-                return False
-
-            # Use fixture-provided base URL (avoids hard-coded host/port assumptions).
-            self.base_url = self.fixture.base_url
-
-        except Exception as e:
-            print(f"ERROR: Failed to start runtime: {e}")
-            return False
+        assert self.fixture.start(), "Failed to start runtime"
+        # Use fixture-provided base URL (avoids hard-coded host/port assumptions).
+        self.base_url = self.fixture.base_url
 
         # Wait for HTTP server to respond — API-based readiness check.
         if not assert_http_available(self.base_url, timeout=10.0):
-            print("ERROR: Runtime HTTP server did not become available")
             capture = self.fixture.get_output_capture()
-            if capture:
-                print(f"  Output:\n{capture.get_all_output()}")
-            return False
-
-        return True
+            output_tail = capture.get_recent_output(120) if capture else "(no output capture)"
+            raise AssertionError(f"Runtime HTTP server did not become available\nOutput tail:\n{output_tail}")
 
     def stop_runtime(self):
         """Stop runtime gracefully."""
@@ -221,8 +207,7 @@ class SupervisionTester:
         config_dict = self.create_config(crash_after=2.0, max_attempts=3, backoff_ms=[200, 500, 1000])
 
         try:
-            if not self.start_runtime(config_dict):
-                self._fail_with_output("automatic_restart", "Failed to start runtime")
+            self.start_runtime(config_dict)
 
             # Wait for provider to be initially available.
             if not assert_provider_available(self.base_url, "provider-sim", timeout=10.0):
@@ -252,7 +237,7 @@ class SupervisionTester:
 
             # API oracle: provider recovered — AVAILABLE and attempt_count reset to 0.
             recovered, rec_snaps = self._wait_for_snapshot_predicate(
-                lambda s: s["present"] and s["state"] == "AVAILABLE" and s["attempt_count"] == 0,
+                lambda s: s["present"] and s["state"] == "AVAILABLE" and s["crash_detected"] is False and (s["next_restart_in_ms"] == 0 or s["next_restart_in_ms"] is None),
                 timeout=10.0,
                 interval=0.05,
             )
@@ -283,8 +268,7 @@ class SupervisionTester:
         config_dict = self.create_config(crash_after=1.0, max_attempts=3, backoff_ms=[500, 1000, 2000])
 
         try:
-            if not self.start_runtime(config_dict):
-                self._fail_with_output("backoff_timing", "Failed to start runtime")
+            self.start_runtime(config_dict)
 
             # Wait for provider to be initially available.
             if not assert_provider_available(self.base_url, "provider-sim", timeout=10.0):
@@ -331,7 +315,7 @@ class SupervisionTester:
             t_crash_state = crash_snaps[-1]["t"]
 
             recovered, rec_snaps = self._wait_for_snapshot_predicate(
-                lambda s: s["present"] and s["state"] == "AVAILABLE" and s["attempt_count"] == 0,
+                lambda s: s["present"] and s["state"] == "AVAILABLE" and s["crash_detected"] is False and (s["next_restart_in_ms"] == 0 or s["next_restart_in_ms"] is None),
                 timeout=10.0,
                 interval=0.05,
             )
@@ -380,8 +364,7 @@ class SupervisionTester:
         )
 
         try:
-            if not self.start_runtime(config_dict):
-                self._fail_with_output("circuit_breaker", "Failed to start runtime")
+            self.start_runtime(config_dict)
 
             # API oracle: wait for circuit breaker to open.
             saw_crash, crash_snaps = self._wait_for_snapshot_predicate(
@@ -441,8 +424,7 @@ class SupervisionTester:
         config_dict = self.create_config(crash_after=2.0, max_attempts=3, backoff_ms=[200, 500, 1000])
 
         try:
-            if not self.start_runtime(config_dict):
-                self._fail_with_output("device_rediscovery", "Failed to start runtime")
+            self.start_runtime(config_dict)
 
             # API oracle: wait for provider to be initially AVAILABLE with devices.
             if not assert_provider_available(self.base_url, "provider-sim", timeout=10.0):

@@ -14,7 +14,11 @@ from tests.integration import (
     signal_handling_suite,
     simulation_devices_suite,
 )
-from tests.integration.automation_suite import AUTOMATION_CHECKS, AutomationTester
+from tests.integration.automation_suite import (
+    AUTOMATION_CHECKS,
+    AutomationTester,
+    assert_automation_disabled_returns_unavailable,
+)
 from tests.integration.concurrency_stress_suite import StressTestRunner
 from tests.integration.core_suite import CORE_CHECKS, CoreFeatureTester
 from tests.integration.http_suite import HTTP_CHECKS, HttpGatewayTester
@@ -84,10 +88,26 @@ def test_automation_suite(
 ) -> None:
     tester = AutomationTester(runtime_exe, provider_exe, port=unique_port, timeout=integration_timeout)
     try:
-        assert tester.start_runtime(), "Automation runtime failed to start"
+        tester.start_runtime()
         check_fn(tester)
     finally:
         tester.cleanup()
+
+
+@pytest.mark.integration
+@pytest.mark.timeout(360)
+def test_automation_disabled_mode_api(
+    runtime_exe: Path,
+    provider_exe: Path,
+    integration_timeout: float,
+    unique_port: int,
+) -> None:
+    assert_automation_disabled_returns_unavailable(
+        runtime_exe,
+        provider_exe,
+        port=unique_port,
+        timeout=integration_timeout,
+    )
 
 
 @pytest.mark.integration
@@ -187,6 +207,5 @@ def test_signal_fault_injection_suite(runtime_factory, unique_port: int) -> None
 @pytest.mark.timeout(900)
 def test_concurrency_stress_suite(runtime_exe: Path, provider_exe: Path, unique_port: int) -> None:
     runner = StressTestRunner(runtime_exe, provider_exe, num_clients=10, http_port=unique_port)
-    assert runner.setup(), "Stress test setup failed"
-    result = runner.run_stress_test(num_restarts=100)
-    assert result.success, result.message
+    runner.setup()
+    runner.run_stress_test(num_restarts=100)

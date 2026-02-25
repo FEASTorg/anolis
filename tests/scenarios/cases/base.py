@@ -9,7 +9,6 @@ Provides common infrastructure for validation scenarios:
 """
 
 import time
-from dataclasses import dataclass
 from typing import Any, Dict, List
 
 import requests
@@ -40,17 +39,6 @@ from tests.support.api_helpers import (
 )
 
 
-@dataclass
-class ScenarioResult:
-    """Result of a scenario execution"""
-
-    name: str
-    passed: bool
-    duration_seconds: float
-    message: str = ""
-    details: str = ""
-
-
 class ScenarioBase:
     """
     Base class for validation scenarios.
@@ -67,18 +55,17 @@ class ScenarioBase:
         Initialize scenario with runtime base URL.
 
         Args:
-            base_url: Base URL of anolis runtime (e.g., "http://localhost:8080")
+            base_url: Base URL of anolis runtime (e.g., "http://127.0.0.1:8080")
         """
         self.base_url = base_url.rstrip("/")
         self.name = self.__class__.__name__
-        self.start_time = 0.0
 
-    def run(self) -> ScenarioResult:
+    def run(self) -> None:
         """
         Execute the scenario. Must be implemented by subclass.
 
-        Returns:
-            ScenarioResult with pass/fail status and diagnostics
+        Raises:
+            AssertionError on validation failure.
         """
         raise NotImplementedError(f"{self.name} must implement run()")
 
@@ -270,26 +257,3 @@ class ScenarioBase:
                 pass
             time.sleep(interval)
         return False
-
-
-def create_result(scenario: ScenarioBase, passed: bool, message: str = "", details: str = "") -> ScenarioResult:
-    """
-    Create a ScenarioResult for a scenario.
-
-    Args:
-        scenario: Scenario instance
-        passed: Whether scenario passed
-        message: Short summary message
-        details: Detailed information about failure
-
-    Returns:
-        ScenarioResult instance
-    """
-    duration = time.time() - scenario.start_time
-    return ScenarioResult(
-        name=scenario.name,
-        passed=passed,
-        duration_seconds=duration,
-        message=message,
-        details=details,
-    )

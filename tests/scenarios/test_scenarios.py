@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import time
 from pathlib import Path
 
 import pytest
@@ -49,7 +48,6 @@ def _run_case(case_cls, runtime_factory, provider_exe: Path, unique_port: int):
     policy = "OVERRIDE" if case_cls is OverridePolicy else "BLOCK"
     fixture = runtime_factory(config_dict=_scenario_config(provider_exe, unique_port, policy), port=unique_port)
     scenario = case_cls(fixture.base_url)
-    scenario.start_time = time.time()
 
     try:
         scenario.setup()

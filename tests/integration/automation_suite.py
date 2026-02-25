@@ -1,49 +1,19 @@
-"""
-Anolis Automation Layer Integration Test
+"""Automation integration checks (pytest-oriented)."""
 
-This script validates automation functionality:
-- Mode state machine (MANUAL, AUTO, IDLE, FAULT)
-- Mode transitions (valid and invalid)
-- Manual/auto contention policy (BLOCK/OVERRIDE)
-- BT execution gating by mode
-- Mode change events in telemetry
-- HTTP API for mode control
-
-
-Prerequisites:
-    - Runtime and provider executables must be built
-    - Automation enabled in config
-"""
+from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, cast
+from typing import Any, Callable, Dict, List, Tuple, cast
 
 import requests
 
-# Import shared test helpers (API-based assertions)
 from tests.support.api_helpers import assert_http_available, wait_for_condition
-
-# Import RuntimeFixture for process management
 from tests.support.runtime_fixture import RuntimeFixture
 
 
-def log_test(_name: str) -> None:
-    """No-op test marker retained to keep legacy check bodies compact."""
-
-
-def log_pass(_message: str) -> None:
-    """No-op pass marker retained to keep legacy check bodies compact."""
-
-
-def log_fail(message: str) -> None:
-    raise AssertionError(message)
-
-
-def log_info(_message: str) -> None:
-    """No-op info marker retained to keep legacy check bodies compact."""
-
-
 class AutomationTester:
+    """Automation API check harness."""
+
     def __init__(
         self,
         runtime_path: Path | str,
@@ -58,10 +28,7 @@ class AutomationTester:
         self.timeout = timeout
         self.repo_root = Path(__file__).resolve().parents[2]
 
-        # Get provider config path
         fixture_config = Path(__file__).parent / "fixtures" / "provider-sim-default.yaml"
-
-        # Create config dict for RuntimeFixture
         config = {
             "runtime": {},
             "http": {"enabled": True, "bind": "127.0.0.1", "port": port},
@@ -107,7 +74,6 @@ class AutomationTester:
             "logging": {"level": "info"},
         }
 
-        # Create RuntimeFixture with custom config
         self.fixture = RuntimeFixture(
             Path(runtime_path),
             Path(provider_path),
@@ -115,346 +81,152 @@ class AutomationTester:
             config_dict=config,
         )
 
-    def start_runtime(self) -> bool:
-        """Start runtime process"""
-        log_info(f"Starting runtime: {self.fixture.runtime_path}")
-        if not self.fixture.start():
-            raise RuntimeError("Failed to start runtime")
+    def start_runtime(self) -> None:
+        assert self.fixture.start(), "Failed to start runtime"
 
-        # Wait for HTTP endpoint to be up
         if not assert_http_available(self.base_url, timeout=min(self.timeout, 30.0)):
             capture = self.fixture.get_output_capture()
-            output_tail = capture.get_recent_output(80) if capture else "(no output capture)"
+            output_tail = capture.get_recent_output(120) if capture else "(no output capture)"
             if not self.fixture.is_running():
-                raise RuntimeError(f"Runtime process terminated\n{output_tail}")
-            raise RuntimeError(f"Runtime HTTP endpoint did not become available\n{output_tail}")
+                raise AssertionError(f"Runtime process terminated\n{output_tail}")
+            raise AssertionError(f"Runtime HTTP endpoint did not become available\n{output_tail}")
 
-        log_pass("Runtime started successfully")
-        return True
-
-    def cleanup(self):
-        """Clean up resources"""
+    def cleanup(self) -> None:
         self.fixture.cleanup()
 
-    def get_mode(self) -> Optional[Dict[str, Any]]:
-        """Get current mode via HTTP API"""
+    def get_mode(self) -> Dict[str, Any]:
         try:
             resp = requests.get(f"{self.base_url}/v0/mode", timeout=2)
-            return cast(Dict[str, Any], resp.json())
-        except requests.RequestException:
-            return None
+        except requests.RequestException as err:
+            raise AssertionError(f"GET /v0/mode failed: {err}") from err
+        return cast(Dict[str, Any], resp.json())
 
-    def set_mode(self, mode: str) -> Optional[Dict[str, Any]]:
-        """Set mode via HTTP API"""
+    def set_mode(self, mode: str) -> Dict[str, Any]:
         try:
             resp = requests.post(f"{self.base_url}/v0/mode", json={"mode": mode}, timeout=2)
-            return cast(Dict[str, Any], resp.json())
-        except requests.RequestException:
-            return None
+        except requests.RequestException as err:
+            raise AssertionError(f"POST /v0/mode failed for mode={mode}: {err}") from err
+        return cast(Dict[str, Any], resp.json())
 
-    def test_get_mode_when_automation_enabled(self) -> bool:
-        """Test GET /v0/mode returns current mode"""
-        log_test("GET /v0/mode when automation enabled")
+    def _wait_for_mode(self, expected_mode: str, timeout: float = 3.0) -> None:
+        ok = wait_for_condition(
+            lambda: self.get_mode().get("mode") == expected_mode,
+            timeout=timeout,
+            description=f"mode {expected_mode}",
+        )
+        assert ok, f"Expected mode {expected_mode}, got {self.get_mode()}"
 
+    def test_get_mode_when_automation_enabled(self) -> None:
         result = self.get_mode()
-        if not result:
-            log_fail("Failed to get mode")
-            return False
+        assert "mode" in result, f"Response missing mode: {result}"
+        assert result["mode"] == "IDLE", f"Expected IDLE safe default, got {result['mode']}"
 
-        if "mode" not in result:
-            log_fail("Response missing 'mode' field")
-            return False
-
-        if result["mode"] != "IDLE":
-            log_fail(f"Expected mode IDLE (safe default), got {result['mode']}")
-            return False
-
-        log_pass(f"Current mode: {result['mode']} (safe default)")
-        return True
-
-    def test_mode_transition_manual_to_auto(self) -> bool:
-        """Test valid transition: IDLE -> MANUAL -> AUTO"""
-        log_test("Mode transition: IDLE -> MANUAL -> AUTO")
-
-        # Runtime starts in IDLE, transition to MANUAL first
+    def test_mode_transition_manual_to_auto(self) -> None:
         result = self.set_mode("MANUAL")
-        if not result or result.get("mode") != "MANUAL":
-            log_fail(f"Failed to transition to MANUAL, got {result}")
-            return False
+        assert result.get("mode") == "MANUAL", f"Failed to transition to MANUAL: {result}"
 
-        # Now transition MANUAL -> AUTO
         result = self.set_mode("AUTO")
-        if not result:
-            log_fail("Failed to set mode")
-            return False
+        assert result.get("mode") == "AUTO", f"Expected AUTO, got {result}"
 
-        if result.get("mode") != "AUTO":
-            log_fail(f"Expected AUTO, got {result.get('mode')}")
-            return False
-
-        log_pass("Transitioned: IDLE -> MANUAL -> AUTO")
-        return True
-
-    def test_mode_transition_auto_to_manual(self) -> bool:
-        """Test valid transition: AUTO -> MANUAL"""
-        log_test("Mode transition: AUTO -> MANUAL")
-
-        # First go to AUTO
-        self.set_mode("AUTO")
-        wait_for_condition(lambda: (self.get_mode() or {}).get("mode") == "AUTO", description="mode AUTO")
-
-        # Then back to MANUAL
-        result = self.set_mode("MANUAL")
-        if not result:
-            log_fail("Failed to set mode")
-            return False
-
-        if result.get("mode") != "MANUAL":
-            log_fail(f"Expected MANUAL, got {result.get('mode')}")
-            return False
-
-        log_pass("Transitioned to MANUAL")
-        return True
-
-    def test_mode_transition_manual_to_idle(self) -> bool:
-        """Test valid transition: MANUAL -> IDLE"""
-        log_test("Mode transition: MANUAL -> IDLE")
-
-        # Ensure we're in MANUAL
+    def test_mode_transition_auto_to_manual(self) -> None:
         self.set_mode("MANUAL")
-        wait_for_condition(lambda: (self.get_mode() or {}).get("mode") == "MANUAL", description="mode MANUAL")
+        self._wait_for_mode("MANUAL")
+
+        self.set_mode("AUTO")
+        self._wait_for_mode("AUTO")
+
+        result = self.set_mode("MANUAL")
+        assert result.get("mode") == "MANUAL", f"Expected MANUAL, got {result}"
+
+    def test_mode_transition_manual_to_idle(self) -> None:
+        self.set_mode("MANUAL")
+        self._wait_for_mode("MANUAL")
 
         result = self.set_mode("IDLE")
-        if not result:
-            log_fail("Failed to set mode")
-            return False
+        assert result.get("mode") == "IDLE", f"Expected IDLE, got {result}"
 
-        if result.get("mode") != "IDLE":
-            log_fail(f"Expected IDLE, got {result.get('mode')}")
-            return False
-
-        log_pass("Transitioned to IDLE")
-        return True
-
-    def test_mode_transition_to_fault(self) -> bool:
-        """Test valid transition: Any -> FAULT"""
-        log_test("Mode transition: MANUAL -> FAULT")
-
-        # Ensure we're in MANUAL
+    def test_mode_transition_to_fault(self) -> None:
         self.set_mode("MANUAL")
-        wait_for_condition(lambda: (self.get_mode() or {}).get("mode") == "MANUAL", description="mode MANUAL")
+        self._wait_for_mode("MANUAL")
 
         result = self.set_mode("FAULT")
-        if not result:
-            log_fail("Failed to set mode")
-            return False
+        assert result.get("mode") == "FAULT", f"Expected FAULT, got {result}"
 
-        if result.get("mode") != "FAULT":
-            log_fail(f"Expected FAULT, got {result.get('mode')}")
-            return False
-
-        log_pass("Transitioned to FAULT")
-        return True
-
-    def test_invalid_transition_fault_to_auto(self) -> bool:
-        """Test invalid transition: FAULT -> AUTO (should be rejected)"""
-        log_test("Invalid transition: FAULT -> AUTO")
-
-        # Go to FAULT first
+    def test_invalid_transition_fault_to_auto(self) -> None:
         self.set_mode("FAULT")
-        wait_for_condition(lambda: (self.get_mode() or {}).get("mode") == "FAULT", description="mode FAULT")
+        self._wait_for_mode("FAULT")
 
         result = self.set_mode("AUTO")
-        if not result:
-            log_fail("Request failed completely")
-            return False
+        status = cast(Dict[str, Any], result.get("status", {}))
+        assert status.get("code") == "FAILED_PRECONDITION", (
+            f"Expected FAILED_PRECONDITION for FAULT->AUTO, got {result}"
+        )
 
-        # Should get error status
-        if "status" in result and result["status"].get("code") == "FAILED_PRECONDITION":
-            log_pass("Transition correctly rejected")
-            return True
-
-        log_fail(f"Expected FAILED_PRECONDITION error, got: {result}")
-        return False
-
-    def test_recovery_path_fault_to_manual_to_auto(self) -> bool:
-        """Test recovery path: FAULT -> MANUAL -> AUTO"""
-        log_test("Recovery path: FAULT -> MANUAL -> AUTO")
-
-        # Go to FAULT
+    def test_recovery_path_fault_to_manual_to_auto(self) -> None:
         self.set_mode("FAULT")
-        wait_for_condition(lambda: (self.get_mode() or {}).get("mode") == "FAULT", description="mode FAULT")
+        self._wait_for_mode("FAULT")
 
-        # Recover through MANUAL
-        result1 = self.set_mode("MANUAL")
-        if not result1 or result1.get("mode") != "MANUAL":
-            log_fail("Failed to recover to MANUAL")
-            return False
-        log_info("Recovered to MANUAL")
+        result = self.set_mode("MANUAL")
+        assert result.get("mode") == "MANUAL", f"Failed to recover to MANUAL: {result}"
 
-        # Then go to AUTO
-        result2 = self.set_mode("AUTO")
-        if not result2 or result2.get("mode") != "AUTO":
-            log_fail("Failed to transition to AUTO")
-            return False
+        result = self.set_mode("AUTO")
+        assert result.get("mode") == "AUTO", f"Failed MANUAL->AUTO after recovery: {result}"
 
-        log_pass("Successfully recovered: FAULT -> MANUAL -> AUTO")
-        return True
-
-    def test_invalid_mode_string(self) -> bool:
-        """Test invalid mode string rejection"""
-        log_test("Invalid mode string: INVALID")
-
+    def test_invalid_mode_string(self) -> None:
         result = self.set_mode("INVALID")
-        if not result:
-            log_fail("Request failed completely")
-            return False
+        status = cast(Dict[str, Any], result.get("status", {}))
+        assert status.get("code") == "INVALID_ARGUMENT", f"Expected INVALID_ARGUMENT, got {result}"
 
-        if "status" in result and result["status"].get("code") == "INVALID_ARGUMENT":
-            log_pass("Invalid mode correctly rejected")
-            return True
-
-        log_fail(f"Expected INVALID_ARGUMENT error, got: {result}")
-        return False
-
-    def test_get_parameters(self) -> bool:
-        """Test GET /v0/parameters returns declared parameters"""
-        log_test("GET /v0/parameters")
-
+    def test_get_parameters(self) -> None:
         try:
             resp = requests.get(f"{self.base_url}/v0/parameters", timeout=2)
-            if resp.status_code != 200:
-                log_fail(f"Expected 200 OK, got {resp.status_code}")
-                return False
-            body = resp.json()
-            if "parameters" not in body:
-                log_fail("Response missing 'parameters' field")
-                return False
-            # Basic sanity: check temp_setpoint exists
-            names = [p.get("name") for p in body.get("parameters", [])]
-            if "temp_setpoint" not in names:
-                log_fail("Expected 'temp_setpoint' in parameters")
-                return False
-            log_pass("Parameters listed")
-            return True
-        except requests.RequestException as e:
-            log_fail(f"Request exception: {e}")
-            return False
+        except requests.RequestException as err:
+            raise AssertionError(f"GET /v0/parameters failed: {err}") from err
 
-    def test_update_parameter_valid(self) -> bool:
-        """Test POST /v0/parameters valid update"""
-        log_test("POST /v0/parameters (valid)")
+        assert resp.status_code == 200, f"Expected 200 from /v0/parameters, got {resp.status_code}: {resp.text}"
 
+        body = cast(Dict[str, Any], resp.json())
+        assert "parameters" in body, f"Response missing 'parameters': {body}"
+
+        names = [entry.get("name") for entry in cast(List[Dict[str, Any]], body.get("parameters", []))]
+        assert "temp_setpoint" in names, f"Expected temp_setpoint in parameters, got {names}"
+
+    def test_update_parameter_valid(self) -> None:
         try:
             resp = requests.post(
                 f"{self.base_url}/v0/parameters",
                 json={"name": "temp_setpoint", "value": 30.0},
                 timeout=2,
             )
-            if resp.status_code != 200:
-                log_fail(f"Expected 200 OK, got {resp.status_code} - {resp.text}")
-                return False
-            body = resp.json()
-            val = body.get("parameter", {}).get("value")
-            if val != 30.0:
-                log_fail(f"Expected updated value 30.0, got {val}")
-                return False
-            log_pass("Parameter updated successfully")
-            return True
-        except requests.RequestException as e:
-            log_fail(f"Request exception: {e}")
-            return False
+        except requests.RequestException as err:
+            raise AssertionError(f"POST /v0/parameters failed: {err}") from err
 
-    def test_update_parameter_out_of_range(self) -> bool:
-        """Test POST /v0/parameters rejects out-of-range value"""
-        log_test("POST /v0/parameters (out-of-range)")
+        assert resp.status_code == 200, f"Expected 200 from valid parameter update, got {resp.status_code}: {resp.text}"
 
+        body = cast(Dict[str, Any], resp.json())
+        value = body.get("parameter", {}).get("value")
+        assert value == 30.0, f"Expected updated value 30.0, got {value}"
+
+    def test_update_parameter_out_of_range(self) -> None:
         try:
             resp = requests.post(
                 f"{self.base_url}/v0/parameters",
                 json={"name": "temp_setpoint", "value": 100.0},
                 timeout=2,
             )
-            # Expect 400 with INVALID_ARGUMENT
-            if resp.status_code == 200:
-                log_fail("Expected rejection but got 200 OK")
-                return False
-            body = resp.json()
-            if "status" in body and body["status"].get("code") == "INVALID_ARGUMENT":
-                log_pass("Out-of-range correctly rejected")
-                return True
-            log_fail(f"Expected INVALID_ARGUMENT, got: {body}")
-            return False
-        except requests.RequestException as e:
-            log_fail(f"Request exception: {e}")
-            return False
+        except requests.RequestException as err:
+            raise AssertionError(f"POST /v0/parameters failed: {err}") from err
 
-    def test_automation_disabled_returns_unavailable(self) -> bool:
-        """Test that mode endpoints return UNAVAILABLE when automation disabled"""
-        log_test("Mode API when automation disabled")
+        assert resp.status_code != 200, "Expected out-of-range parameter update to be rejected"
 
-        # Stop current runtime
-        self.fixture.cleanup()
-        wait_for_condition(
-            lambda: not self.fixture.is_running(),
-            timeout=2.0,
-            description="runtime stop",
-        )
+        body = cast(Dict[str, Any], resp.json())
+        status = cast(Dict[str, Any], body.get("status", {}))
+        assert status.get("code") == "INVALID_ARGUMENT", f"Expected INVALID_ARGUMENT, got {body}"
 
-        # Create new fixture with automation disabled
-        import copy
-
-        if not self.fixture.config_dict:
-            log_fail("No config_dict available")
-            return False
-
-        disabled_config = copy.deepcopy(self.fixture.config_dict)
-        disabled_config["automation"]["enabled"] = False
-
-        temp_fixture = RuntimeFixture(
-            self.fixture.runtime_path,
-            self.fixture.provider_path,
-            http_port=self.port,
-            config_dict=disabled_config,
-        )
-
-        try:
-            if not temp_fixture.start():
-                log_fail("Failed to start runtime with automation disabled")
-                return False
-
-            # Wait for HTTP to be up
-            if not assert_http_available(self.base_url, timeout=10.0):
-                log_fail("HTTP endpoint did not become available")
-                return False
-
-            # Try to get mode
-            result = self.get_mode()
-            if not result:
-                log_fail("Request failed completely")
-                return False
-
-            if "status" in result and result["status"].get("code") == "UNAVAILABLE":
-                log_pass("Correctly returned UNAVAILABLE")
-                return True
-
-            log_fail(f"Expected UNAVAILABLE error, got: {result}")
-            return False
-
-        finally:
-            temp_fixture.cleanup()
-            # Restart main fixture for remaining tests
-            self.start_runtime()
-
-    def test_idle_blocks_control_operations(self) -> bool:
-        """Test that control operations (device calls) are blocked in IDLE mode"""
-        log_test("IDLE mode blocks control operations")
-
-        # Transition to IDLE
+    def test_idle_blocks_control_operations(self) -> None:
         self.set_mode("IDLE")
-        wait_for_condition(lambda: (self.get_mode() or {}).get("mode") == "IDLE", description="mode IDLE")
+        self._wait_for_mode("IDLE")
 
-        # Attempt device call - should be blocked
         try:
             resp = requests.post(
                 f"{self.base_url}/v0/call",
@@ -462,86 +234,45 @@ class AutomationTester:
                     "provider_id": "sim0",
                     "device_id": "tempctl0",
                     "function_id": 3,
-                    "args": {"relay_index": {"type": "int64", "int64": 1}, "state": {"type": "bool", "bool": True}},
+                    "args": {
+                        "relay_index": {"type": "int64", "int64": 1},
+                        "state": {"type": "bool", "bool": True},
+                    },
                 },
                 timeout=5,
             )
+        except requests.RequestException as err:
+            raise AssertionError(f"Control operation request failed in IDLE: {err}") from err
 
-            body = resp.json()
+        body = cast(Dict[str, Any], resp.json())
+        status = cast(Dict[str, Any], body.get("status", {}))
+        blocked_by_status = status.get("code") == "FAILED_PRECONDITION"
 
-            # Call should fail with FAILED_PRECONDITION
-            status = body.get("status", {})
+        result = cast(Dict[str, Any], body.get("result", {}))
+        result_failed = result.get("success") is False
+        error_message = str(result.get("error_message", "")).lower()
+        blocked_by_result = result_failed and ("idle" in error_message or "block" in error_message)
 
-            if status.get("code") == "FAILED_PRECONDITION":
-                log_pass("Control operation correctly blocked in IDLE")
-                # Restore MANUAL mode for following tests
-                self.set_mode("MANUAL")
-                return True
+        assert blocked_by_status or blocked_by_result, f"Control operation should be blocked in IDLE, got: {body}"
 
-            if body.get("result", {}).get("success") is False:
-                # Also acceptable if call failed with appropriate error
-                error_msg = body.get("result", {}).get("error_message", "")
-                if "IDLE" in error_msg or "blocked" in error_msg.lower():
-                    log_pass("Control operation blocked with error message")
-                    self.set_mode("MANUAL")
-                    return True
-
-            log_fail(f"Control operation should be blocked in IDLE, got: {body}")
-            self.set_mode("MANUAL")
-            return False
-
-        except requests.RequestException as e:
-            log_fail(f"Request exception: {e}")
-            self.set_mode("MANUAL")
-            return False
-
-    def test_idle_allows_read_operations(self) -> bool:
-        """Test that read-only operations (status, state queries) work in IDLE mode"""
-        log_test("IDLE mode allows read-only operations")
-
-        # Transition to IDLE
+    def test_idle_allows_read_operations(self) -> None:
         self.set_mode("IDLE")
-        wait_for_condition(lambda: (self.get_mode() or {}).get("mode") == "IDLE", description="mode IDLE")
+        self._wait_for_mode("IDLE")
 
-        try:
-            # Test 1: Get runtime status
-            resp = requests.get(f"{self.base_url}/v0/runtime/status", timeout=5)
-            if resp.status_code != 200:
-                log_fail(f"Status query failed in IDLE: {resp.status_code}")
-                self.set_mode("MANUAL")
-                return False
+        status_resp = requests.get(f"{self.base_url}/v0/runtime/status", timeout=5)
+        assert status_resp.status_code == 200, f"Runtime status query failed in IDLE: {status_resp.status_code}"
 
-            # Test 2: Get device list
-            resp = requests.get(f"{self.base_url}/v0/devices", timeout=5)
-            if resp.status_code != 200:
-                log_fail(f"Device list query failed in IDLE: {resp.status_code}")
-                self.set_mode("MANUAL")
-                return False
+        devices_resp = requests.get(f"{self.base_url}/v0/devices", timeout=5)
+        assert devices_resp.status_code == 200, f"Device list query failed in IDLE: {devices_resp.status_code}"
 
-            # Test 3: Get device state
-            resp = requests.get(f"{self.base_url}/v0/state/sim0/tempctl0", timeout=5)
-            if resp.status_code != 200:
-                log_fail(f"State query failed in IDLE: {resp.status_code}")
-                self.set_mode("MANUAL")
-                return False
+        state_resp = requests.get(f"{self.base_url}/v0/state/sim0/tempctl0", timeout=5)
+        assert state_resp.status_code == 200, f"State query failed in IDLE: {state_resp.status_code}"
 
-            body = resp.json()
-            if "values" not in body:
-                log_fail("State query missing values in IDLE")
-                self.set_mode("MANUAL")
-                return False
-
-            log_pass("Read-only operations work in IDLE")
-            self.set_mode("MANUAL")
-            return True
-
-        except requests.RequestException as e:
-            log_fail(f"Request exception: {e}")
-            self.set_mode("MANUAL")
-            return False
+        state_body = cast(Dict[str, Any], state_resp.json())
+        assert "values" in state_body, f"State query missing values in IDLE: {state_body}"
 
 
-AutomationCheck = Tuple[str, Callable[[AutomationTester], bool]]
+AutomationCheck = Tuple[str, Callable[[AutomationTester], None]]
 
 AUTOMATION_CHECKS: List[AutomationCheck] = [
     ("get_mode_when_automation_enabled", AutomationTester.test_get_mode_when_automation_enabled),
@@ -557,5 +288,27 @@ AUTOMATION_CHECKS: List[AutomationCheck] = [
     ("get_parameters", AutomationTester.test_get_parameters),
     ("update_parameter_valid", AutomationTester.test_update_parameter_valid),
     ("update_parameter_out_of_range", AutomationTester.test_update_parameter_out_of_range),
-    ("automation_disabled_returns_unavailable", AutomationTester.test_automation_disabled_returns_unavailable),
 ]
+
+
+def assert_automation_disabled_returns_unavailable(
+    runtime_path: Path,
+    provider_path: Path,
+    port: int,
+    timeout: float = 30.0,
+) -> None:
+    """Validate mode APIs surface UNAVAILABLE when automation is disabled."""
+    tester = AutomationTester(
+        runtime_path,
+        provider_path,
+        port=port,
+        timeout=timeout,
+        automation_enabled=False,
+    )
+    try:
+        tester.start_runtime()
+        result = tester.get_mode()
+        status = cast(Dict[str, Any], result.get("status", {}))
+        assert status.get("code") == "UNAVAILABLE", f"Expected UNAVAILABLE when automation disabled, got {result}"
+    finally:
+        tester.cleanup()

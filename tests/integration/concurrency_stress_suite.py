@@ -20,27 +20,13 @@ This test is designed to expose data races in:
 import os
 import threading
 import time
-from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 
 import requests
 
-from tests.support.api_helpers import wait_for_condition
+from tests.support.api_helpers import assert_http_available
 from tests.support.runtime_fixture import RuntimeFixture
-
-
-@dataclass
-class StressTestResult:
-    success: bool
-    message: str
-    restart_count: int = 0
-    http_requests: int = 0
-    errors: Optional[List[str]] = None
-
-    def __post_init__(self):
-        if self.errors is None:
-            self.errors = []
 
 
 class ConcurrentHTTPClient:
@@ -111,24 +97,17 @@ class StressTestRunner:
     def __init__(self, runtime_path: Path, provider_path: Path, num_clients: int = 10, http_port: int = 8080):
         self.num_clients = num_clients
         self.http_port = http_port
-        self.base_url = f"http://localhost:{http_port}"
+        self.base_url = f"http://127.0.0.1:{http_port}"
         self.http_clients: List[ConcurrentHTTPClient] = []
         self.config_dict: Optional[dict] = None
         self.fixture: Optional[RuntimeFixture] = None
         self.runtime_path = runtime_path
         self.provider_path = provider_path
 
-    def setup(self) -> bool:
+    def setup(self) -> None:
         """Validate paths and prepare test environment."""
-        if not self.runtime_path.exists():
-            print(f"ERROR: Runtime not found: {self.runtime_path}")
-            return False
-
-        if not self.provider_path.exists():
-            print(f"ERROR: Provider not found: {self.provider_path}")
-            return False
-
-        return True
+        assert self.runtime_path.exists(), f"Runtime not found: {self.runtime_path}"
+        assert self.provider_path.exists(), f"Provider not found: {self.provider_path}"
 
     def create_config(self) -> dict:
         """Create test configuration as dict for RuntimeFixture."""
@@ -157,50 +136,22 @@ class StressTestRunner:
 
         return config
 
-    def start_runtime(self, config_dict: dict) -> bool:
+    def start_runtime(self, config_dict: dict) -> None:
         """Start runtime process."""
-        print("  Starting runtime with RuntimeFixture")
+        # Set environment for better TSAN output
+        env = os.environ.copy()
+        if "TSAN_OPTIONS" not in env:
+            env["TSAN_OPTIONS"] = "halt_on_error=1"
+            os.environ["TSAN_OPTIONS"] = "halt_on_error=1"
 
-        try:
-            # Set environment for better TSAN output
-            env = os.environ.copy()
-            if "TSAN_OPTIONS" not in env:
-                env["TSAN_OPTIONS"] = "halt_on_error=1"
-                os.environ["TSAN_OPTIONS"] = "halt_on_error=1"
-
-            self.fixture = RuntimeFixture(
-                self.runtime_path,
-                self.provider_path,
-                http_port=self.http_port,
-                config_dict=config_dict,
-            )
-
-            if not self.fixture.start():
-                print("ERROR: Failed to start runtime via RuntimeFixture")
-                return False
-
-        except Exception as e:
-            print(f"ERROR: Failed to start runtime: {e}")
-            return False
-
-        # Wait for runtime to become ready (poll with 15s timeout)
-        print("  Waiting for runtime to initialize...")
-
-        def check_runtime_ready():
-            try:
-                response = requests.get(f"{self.base_url}/v0/runtime/status", timeout=2.0)
-                return response.status_code == 200
-            except Exception:
-                return False
-
-        if not wait_for_condition(check_runtime_ready, timeout=15.0, interval=0.5, description="runtime ready"):
-            print("ERROR: Runtime not responsive after 15 seconds")
-            if not self.fixture.is_running():
-                print("  Runtime process crashed during startup")
-            return False
-
-        print("  Runtime is ready")
-        return True
+        self.fixture = RuntimeFixture(
+            self.runtime_path,
+            self.provider_path,
+            http_port=self.http_port,
+            config_dict=config_dict,
+        )
+        assert self.fixture.start(), "Failed to start runtime via RuntimeFixture"
+        assert assert_http_available(self.base_url, timeout=15.0), "Runtime not responsive after startup"
 
     def start_http_clients(self):
         """Start concurrent HTTP client threads."""
@@ -237,7 +188,7 @@ class StressTestRunner:
             except Exception as e:
                 print(f"  Warning during runtime shutdown: {e}")
 
-    def run_stress_test(self, num_restarts: int = 100) -> StressTestResult:
+    def run_stress_test(self, num_restarts: int = 100) -> None:
         """Run the main stress test loop."""
         print(f"\n[STRESS TEST] {num_restarts} restarts with {self.num_clients} concurrent HTTP clients")
 
@@ -246,8 +197,7 @@ class StressTestRunner:
 
         try:
             # Start runtime
-            if not self.start_runtime(config_dict):
-                return StressTestResult(success=False, message="Failed to start runtime")
+            self.start_runtime(config_dict)
 
             # Start HTTP clients
             self.start_http_clients()
@@ -272,11 +222,7 @@ class StressTestRunner:
 
                 # Check if runtime is still alive
                 if self.fixture and not self.fixture.is_running():
-                    return StressTestResult(
-                        success=False,
-                        message=f"Runtime crashed during stress test at restart {i}",
-                        restart_count=i,
-                    )
+                    raise AssertionError(f"Runtime crashed during stress test at restart {i}")
 
             elapsed = time.time() - start_time
             print(f"  Completed {num_restarts} restarts in {elapsed:.1f}s ({num_restarts / elapsed:.1f} restarts/sec)")
@@ -295,27 +241,9 @@ class StressTestRunner:
             # Check if runtime is still responsive
             try:
                 response = requests.get(f"{self.base_url}/v0/runtime/status", timeout=2.0)
-                if response.status_code >= 500:
-                    return StressTestResult(
-                        success=False,
-                        message="Runtime unresponsive after stress test",
-                        restart_count=successful_restarts,
-                        http_requests=total_requests,
-                    )
+                assert response.status_code < 500, "Runtime unresponsive after stress test"
             except Exception as e:
-                return StressTestResult(
-                    success=False,
-                    message=f"Runtime unresponsive after stress test: {e}",
-                    restart_count=successful_restarts,
-                    http_requests=total_requests,
-                )
-
-            return StressTestResult(
-                success=True,
-                message="Stress test completed successfully",
-                restart_count=successful_restarts,
-                http_requests=total_requests,
-            )
+                raise AssertionError(f"Runtime unresponsive after stress test: {e}") from e
 
         finally:
             # Cleanup

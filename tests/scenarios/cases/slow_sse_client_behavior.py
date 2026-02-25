@@ -17,116 +17,101 @@ that the runtime remains responsive even under load/slow conditions.
 import threading
 import time
 
-from .base import ScenarioBase, ScenarioResult, create_result
+from .base import ScenarioBase
 
 
 class SlowSseClientBehavior(ScenarioBase):
     """Slow SSE consumer doesn't block runtime."""
 
-    def run(self) -> ScenarioResult:
+    def run(self) -> None:
         """Execute slow SSE client scenario."""
-        try:
-            # Step 1: Verify baseline responsiveness
+        # Step 1: Verify baseline responsiveness
+        start = time.time()
+        self.get_runtime_status()
+        baseline_latency = time.time() - start
+
+        self.assert_true(
+            baseline_latency < 3.0,
+            f"Baseline latency too high: {baseline_latency}s",
+        )
+
+        # Step 2: Perform rapid operations while monitoring responsiveness
+        # Simulate load by making many concurrent state queries
+        operation_count = 10
+        latencies = []
+
+        for i in range(operation_count):
             start = time.time()
-            self.get_runtime_status()
-            baseline_latency = time.time() - start
 
-            self.assert_true(
-                baseline_latency < 3.0,
-                f"Baseline latency too high: {baseline_latency}s",
-            )
+            # Mix of different operations
+            if i % 3 == 0:
+                self.get_devices()
+            elif i % 3 == 1:
+                self.get_state("sim0", "tempctl0")
+            else:
+                self.get_state("sim0", "motorctl0")
 
-            # Step 2: Perform rapid operations while monitoring responsiveness
-            # Simulate load by making many concurrent state queries
-            operation_count = 10
-            latencies = []
+            latency = time.time() - start
+            latencies.append(latency)
 
-            for i in range(operation_count):
-                start = time.time()
+            # Small delay to avoid overwhelming
+            time.sleep(0.05)
 
-                # Mix of different operations
-                if i % 3 == 0:
-                    self.get_devices()
-                elif i % 3 == 1:
-                    self.get_state("sim0", "tempctl0")
-                else:
-                    self.get_state("sim0", "motorctl0")
+        # Step 3: Verify latencies remain reasonable
+        avg_latency = sum(latencies) / len(latencies)
+        max_latency = max(latencies)
 
-                latency = time.time() - start
-                latencies.append(latency)
+        self.assert_true(
+            avg_latency < 3.0,
+            f"Average latency too high under load: {avg_latency}s",
+        )
 
-                # Small delay to avoid overwhelming
-                time.sleep(0.05)
+        self.assert_true(max_latency < 5.0, f"Max latency too high: {max_latency}s")
 
-            # Step 3: Verify latencies remain reasonable
-            avg_latency = sum(latencies) / len(latencies)
-            max_latency = max(latencies)
+        # Step 4: Verify function calls still work with good responsiveness
+        start = time.time()
+        result = self.call_function("sim0", "relayio0", "set_relay_ch1", {"enabled": True})
+        call_latency = time.time() - start
 
-            self.assert_true(
-                avg_latency < 3.0,
-                f"Average latency too high under load: {avg_latency}s",
-            )
+        self.assert_equal(result["status"], "OK", "Function call should succeed under load")
+        self.assert_true(call_latency < 5.0, f"Function call latency too high: {call_latency}s")
 
-            self.assert_true(max_latency < 5.0, f"Max latency too high: {max_latency}s")
+        # Step 5: Test concurrent access from multiple "clients"
+        # Simulate by making parallel requests
+        results = []
+        errors = []
 
-            # Step 4: Verify function calls still work with good responsiveness
-            start = time.time()
-            result = self.call_function("sim0", "relayio0", "set_relay_ch1", {"enabled": True})
-            call_latency = time.time() - start
+        def make_request(device_id, request_id):
+            try:
+                state = self.get_state("sim0", device_id)
+                results.append((request_id, "success", state))
+            except Exception as e:
+                errors.append((request_id, str(e)))
 
-            self.assert_equal(result["status"], "OK", "Function call should succeed under load")
-            self.assert_true(call_latency < 5.0, f"Function call latency too high: {call_latency}s")
+        # Launch multiple concurrent requests
+        threads = []
+        devices = ["tempctl0", "motorctl0", "relayio0", "analogsensor0"]
+        for i, device in enumerate(devices):
+            t = threading.Thread(target=make_request, args=(device, i))
+            threads.append(t)
+            t.start()
 
-            # Step 5: Test concurrent access from multiple "clients"
-            # Simulate by making parallel requests
-            results = []
-            errors = []
+        # Wait for all to complete
+        for t in threads:
+            t.join(timeout=5.0)
 
-            def make_request(device_id, request_id):
-                try:
-                    state = self.get_state("sim0", device_id)
-                    results.append((request_id, "success", state))
-                except Exception as e:
-                    errors.append((request_id, str(e)))
+        # Step 6: Verify all concurrent requests succeeded
+        self.assert_equal(len(errors), 0, f"Concurrent requests failed: {errors}")
 
-            # Launch multiple concurrent requests
-            threads = []
-            devices = ["tempctl0", "motorctl0", "relayio0", "analogsensor0"]
-            for i, device in enumerate(devices):
-                t = threading.Thread(target=make_request, args=(device, i))
-                threads.append(t)
-                t.start()
+        self.assert_equal(
+            len(results),
+            len(devices),
+            f"Not all concurrent requests completed: {len(results)}/{len(devices)}",
+        )
 
-            # Wait for all to complete
-            for t in threads:
-                t.join(timeout=5.0)
+        # Step 7: Verify runtime is still responsive after load
+        start = time.time()
+        self.get_runtime_status()
+        final_latency = time.time() - start
 
-            # Step 6: Verify all concurrent requests succeeded
-            self.assert_equal(len(errors), 0, f"Concurrent requests failed: {errors}")
-
-            self.assert_equal(
-                len(results),
-                len(devices),
-                f"Not all concurrent requests completed: {len(results)}/{len(devices)}",
-            )
-
-            # Step 7: Verify runtime is still responsive after load
-            start = time.time()
-            self.get_runtime_status()
-            final_latency = time.time() - start
-
-            self.assert_true(final_latency < 3.0, f"Post-load latency too high: {final_latency}s")
-
-            return create_result(
-                self,
-                True,
-                (
-                    "Slow client behavior validated: runtime responsive under load "
-                    f"(avg: {avg_latency:.3f}s, max: {max_latency:.3f}s)"
-                ),
-            )
-
-        except AssertionError:
-            raise
-        except Exception:
-            raise
+        self.assert_true(final_latency < 3.0, f"Post-load latency too high: {final_latency}s")

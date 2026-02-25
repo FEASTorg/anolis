@@ -325,8 +325,8 @@ class RuntimeFixture:
 
     @property
     def base_url(self) -> str:
-        """Base URL for the runtime HTTP API (e.g. 'http://localhost:8080')."""
-        return f"http://localhost:{self.http_port}"
+        """Base URL for the runtime HTTP API (e.g. 'http://127.0.0.1:8080')."""
+        return f"http://127.0.0.1:{self.http_port}"
 
     def get_output_capture(self) -> Optional[OutputCapture]:
         """Get the output capture instance for log inspection."""
