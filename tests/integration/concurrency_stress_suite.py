@@ -85,8 +85,7 @@ class ConcurrentHTTPClient:
                 self.error_count += 1
                 time.sleep(0.1)
 
-            except Exception as e:
-                print(f"[Client {self.client_id}] Unexpected error: {e}")
+            except Exception:
                 self.error_count += 1
                 time.sleep(0.1)
 
@@ -155,7 +154,6 @@ class StressTestRunner:
 
     def start_http_clients(self):
         """Start concurrent HTTP client threads."""
-        print(f"  Starting {self.num_clients} concurrent HTTP clients...")
         for i in range(self.num_clients):
             client = ConcurrentHTTPClient(client_id=i, base_url=self.base_url)
             client.start()
@@ -185,13 +183,11 @@ class StressTestRunner:
         if self.fixture:
             try:
                 self.fixture.cleanup()
-            except Exception as e:
-                print(f"  Warning during runtime shutdown: {e}")
+            except Exception:
+                pass
 
     def run_stress_test(self, num_restarts: int = 100) -> None:
         """Run the main stress test loop."""
-        print(f"\n[STRESS TEST] {num_restarts} restarts with {self.num_clients} concurrent HTTP clients")
-
         # Setup
         config_dict = self.create_config()
 
@@ -203,19 +199,9 @@ class StressTestRunner:
             self.start_http_clients()
 
             # Main stress loop: trigger restarts
-            print(f"  Starting {num_restarts} restart cycles...")
-            successful_restarts = 0
-            start_time = time.time()
-
             for i in range(num_restarts):
-                if i > 0 and i % 10 == 0:
-                    elapsed = time.time() - start_time
-                    rate = i / elapsed
-                    print(f"    Progress: {i}/{num_restarts} restarts ({rate:.1f} restarts/sec)")
-
                 # Trigger restart
-                if self.trigger_provider_restart():
-                    successful_restarts += 1
+                self.trigger_provider_restart()
 
                 # Small delay between restarts
                 time.sleep(0.1)
@@ -224,19 +210,11 @@ class StressTestRunner:
                 if self.fixture and not self.fixture.is_running():
                     raise AssertionError(f"Runtime crashed during stress test at restart {i}")
 
-            elapsed = time.time() - start_time
-            print(f"  Completed {num_restarts} restarts in {elapsed:.1f}s ({num_restarts / elapsed:.1f} restarts/sec)")
-
             # Let clients finish pending requests
             time.sleep(1.0)
 
             # Stop clients and collect stats
             self.stop_http_clients()
-
-            total_requests = sum(c.request_count for c in self.http_clients)
-            total_errors = sum(c.error_count for c in self.http_clients)
-
-            print(f"  HTTP clients made {total_requests} successful requests ({total_errors} errors)")
 
             # Check if runtime is still responsive
             try:

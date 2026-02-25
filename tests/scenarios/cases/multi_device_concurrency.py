@@ -29,7 +29,7 @@ class MultiDeviceConcurrency(ScenarioBase):
 
         expected_devices = ["tempctl0", "motorctl0", "relayio0", "analogsensor0"]
         for expected in expected_devices:
-            self.assert_in(expected, device_ids, f"Device {expected} not found")
+            assert expected in device_ids, f"Device {expected} not found"
 
         # Step 2: Concurrent state polling from all devices
         poll_results = {}
@@ -60,20 +60,14 @@ class MultiDeviceConcurrency(ScenarioBase):
             t.join(timeout=5.0)
 
         # Verify all polls succeeded
-        self.assert_equal(len(poll_errors), 0, f"Concurrent polls failed: {poll_errors}")
-
-        self.assert_equal(
-            len(poll_results),
-            len(expected_devices),
-            f"Not all devices polled: {len(poll_results)}/{len(expected_devices)}",
+        assert len(poll_errors) == 0, f"Concurrent polls failed: {poll_errors}"
+        assert len(poll_results) == len(expected_devices), (
+            f"Not all devices polled: {len(poll_results)}/{len(expected_devices)}"
         )
 
         # Verify all devices returned signals
         for device_id, result in poll_results.items():
-            self.assert_true(
-                result["signal_count"] > 0,
-                f"Device {device_id} returned no signals",
-            )
+            assert result["signal_count"] > 0, f"Device {device_id} returned no signals"
 
         # Step 3: Concurrent function calls to multiple devices
         call_results: Dict[str, Dict[str, Any]] = {}
@@ -112,14 +106,11 @@ class MultiDeviceConcurrency(ScenarioBase):
             t.join(timeout=5.0)
 
         # Verify all calls succeeded
-        self.assert_equal(len(call_errors), 0, f"Concurrent function calls failed: {call_errors}")
+        assert len(call_errors) == 0, f"Concurrent function calls failed: {call_errors}"
 
         for device_id, result in call_results.items():
             success = result.get("success")
-            self.assert_true(
-                bool(success),
-                f"Function call to {device_id} failed: {result.get('status')}",
-            )
+            assert bool(success), f"Function call to {device_id} failed: {result.get('status')}"
 
         # Step 4: Verify all state changes were applied
         self.sleep(0.3)  # Allow state to propagate
@@ -131,7 +122,7 @@ class MultiDeviceConcurrency(ScenarioBase):
             if sig.get("signal_id") == "relay1_state":
                 relay1_state = sig.get("value")
                 break
-        self.assert_equal(relay1_state, True, "tempctl0 relay1 not updated")
+        assert relay1_state is True, "tempctl0 relay1 not updated"
 
         # Check motorctl0 duty
         state = self.get_state("sim0", "motorctl0")
@@ -140,9 +131,8 @@ class MultiDeviceConcurrency(ScenarioBase):
             if sig.get("signal_id") == "motor1_duty":
                 motor1_duty = sig.get("value")
                 break
-        self.assert_true(
-            motor1_duty is not None and abs(motor1_duty - 0.5) < 0.01,
-            f"motorctl0 duty not updated: expected 0.5, got {motor1_duty}",
+        assert motor1_duty is not None and abs(motor1_duty - 0.5) < 0.01, (
+            f"motorctl0 duty not updated: expected 0.5, got {motor1_duty}"
         )
 
         # Check relayio0 states
@@ -154,8 +144,8 @@ class MultiDeviceConcurrency(ScenarioBase):
                 relay_ch1 = sig.get("value")
             elif sig.get("signal_id") == "relay_ch2_state":
                 relay_ch2 = sig.get("value")
-        self.assert_equal(relay_ch1, True, "relayio0 ch1 not updated")
-        self.assert_equal(relay_ch2, False, "relayio0 ch2 not updated")
+        assert relay_ch1 is True, "relayio0 ch1 not updated"
+        assert relay_ch2 is False, "relayio0 ch2 not updated"
 
         # Step 5: Rapid sequential operations to stress test
         rapid_count = 20
@@ -176,12 +166,6 @@ class MultiDeviceConcurrency(ScenarioBase):
                 rapid_errors.append((i, str(e)))
 
         # Should have no errors under rapid sequential load
-        self.assert_equal(
-            len(rapid_errors),
-            0,
-            f"Rapid sequential operations failed: {rapid_errors}",
-        )
+        assert len(rapid_errors) == 0, f"Rapid sequential operations failed: {rapid_errors}"
 
-        # Calculate average latencies
-        avg_poll_latency = sum(float(r["latency"]) for r in poll_results.values()) / len(poll_results)
-        avg_call_latency = sum(float(r["latency"]) for r in call_results.values()) / len(call_results)
+        # Aggregate latency metrics are intentionally not asserted here; this scenario validates correctness.

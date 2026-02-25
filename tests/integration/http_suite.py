@@ -25,8 +25,9 @@ class HttpGatewayTester:
     def cleanup(self) -> None:
         self.fixture.cleanup()
 
-    def start_runtime(self) -> bool:
-        return self.fixture.start()
+    def start_runtime(self) -> None:
+        if not self.fixture.start():
+            raise AssertionError("Runtime failed to start\n" + self._output_tail())
 
     def _output_tail(self, lines: int = 80) -> str:
         capture = self.fixture.get_output_capture()

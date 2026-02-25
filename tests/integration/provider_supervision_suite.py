@@ -237,7 +237,12 @@ class SupervisionTester:
 
             # API oracle: provider recovered — AVAILABLE and attempt_count reset to 0.
             recovered, rec_snaps = self._wait_for_snapshot_predicate(
-                lambda s: s["present"] and s["state"] == "AVAILABLE" and s["crash_detected"] is False and (s["next_restart_in_ms"] == 0 or s["next_restart_in_ms"] is None),
+                lambda s: (
+                    s["present"]
+                    and s["state"] == "AVAILABLE"
+                    and s["crash_detected"] is False
+                    and (s["next_restart_in_ms"] == 0 or s["next_restart_in_ms"] is None)
+                ),
                 timeout=10.0,
                 interval=0.05,
             )
@@ -315,7 +320,12 @@ class SupervisionTester:
             t_crash_state = crash_snaps[-1]["t"]
 
             recovered, rec_snaps = self._wait_for_snapshot_predicate(
-                lambda s: s["present"] and s["state"] == "AVAILABLE" and s["crash_detected"] is False and (s["next_restart_in_ms"] == 0 or s["next_restart_in_ms"] is None),
+                lambda s: (
+                    s["present"]
+                    and s["state"] == "AVAILABLE"
+                    and s["crash_detected"] is False
+                    and (s["next_restart_in_ms"] == 0 or s["next_restart_in_ms"] is None)
+                ),
                 timeout=10.0,
                 interval=0.05,
             )

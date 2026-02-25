@@ -3,7 +3,6 @@ Scenario Base Class
 
 Provides common infrastructure for validation scenarios:
 - HTTP API helpers
-- Assertion utilities
 - State verification
 - Cleanup helpers
 """
@@ -46,7 +45,7 @@ class ScenarioBase:
     Each scenario should:
     1. Inherit from ScenarioBase
     2. Implement run() method
-    3. Use assertion helpers for validation
+    3. Use direct asserts for validation
     4. Clean up state in cleanup() or use try/finally
     """
 
@@ -133,26 +132,6 @@ class ScenarioBase:
     def wait_for_mode(self, expected_mode: str, timeout: float = 5.0) -> bool:
         """Wait for runtime to reach expected mode."""
         return api_assert_mode(self.base_url, expected_mode, timeout)
-
-    # -----------------------------
-    # Assertion Helpers
-    # -----------------------------
-
-    def assert_equal(self, actual: Any, expected: Any, message: str = ""):
-        """Assert that actual equals expected."""
-        assert actual == expected, message or f"Expected {expected}, got {actual}"
-
-    def assert_true(self, condition: bool, message: str = ""):
-        """Assert that condition is True."""
-        assert condition, message or "Condition is False"
-
-    def assert_false(self, condition: bool, message: str = ""):
-        """Assert that condition is False."""
-        assert not condition, message or "Condition is True"
-
-    def assert_in(self, item: Any, collection: Any, message: str = ""):
-        """Assert that item is in collection."""
-        assert item in collection, message or f"{item} not in {collection}"
 
     def assert_device_exists(self, provider: str, device: str):
         """Assert that a device exists."""
@@ -252,8 +231,8 @@ class ScenarioBase:
             try:
                 if condition_func():
                     return True
-            except Exception:
-                # Swallow transient errors while polling
+            except (requests.RequestException, RuntimeError):
+                # Swallow transient network/API errors while polling.
                 pass
             time.sleep(interval)
         return False

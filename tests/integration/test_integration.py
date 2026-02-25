@@ -42,7 +42,7 @@ def test_core_suite(
 ) -> None:
     tester = CoreFeatureTester(runtime_exe, provider_exe, timeout=integration_timeout, port=unique_port)
     try:
-        assert tester.start_runtime(), "Core runtime failed to start"
+        tester.start_runtime()
         check_fn(tester)
     finally:
         tester.cleanup()
@@ -65,7 +65,7 @@ def test_http_suite(
 ) -> None:
     tester = HttpGatewayTester(runtime_exe, provider_exe, port=unique_port, timeout=integration_timeout)
     try:
-        assert tester.start_runtime(), "HTTP runtime failed to start"
+        tester.start_runtime()
         check_fn(tester)
     finally:
         tester.cleanup()

@@ -21,7 +21,7 @@ class PreconditionEnforcement(ScenarioBase):
 
         # Step 1.1: Set tempctl0 to closed-loop mode
         result = self.call_function("sim0", "tempctl0", "set_mode", {"mode": "closed"})
-        self.assert_equal(result["status"], "OK", "Failed to set mode to closed")
+        assert result["status"] == "OK", "Failed to set mode to closed"
 
         self.sleep(0.1)  # Allow state to update
 
@@ -32,78 +32,63 @@ class PreconditionEnforcement(ScenarioBase):
             if sig.get("signal_id") == "control_mode":
                 mode_signal = sig.get("value")
                 break
-        self.assert_equal(mode_signal, "closed", "Mode not set to closed")
+        assert mode_signal == "closed", "Mode not set to closed"
 
         # Step 1.3: Attempt to call set_relay - should fail precondition
         result = self.call_function("sim0", "tempctl0", "set_relay", {"relay_index": 1, "state": True})
 
         # Should return FAILED_PRECONDITION status
-        self.assert_true(
-            result.get("status") in ["FAILED_PRECONDITION", "PRECONDITION_FAILED"],
-            f"Expected FAILED_PRECONDITION, got {result.get('status')}",
+        assert result.get("status") == "FAILED_PRECONDITION", (
+            f"Expected FAILED_PRECONDITION, got {result.get('status')}"
         )
 
         # Step 1.4: Set back to open mode
         result = self.call_function("sim0", "tempctl0", "set_mode", {"mode": "open"})
-        self.assert_equal(result["status"], "OK", "Failed to set mode back to open")
+        assert result["status"] == "OK", "Failed to set mode back to open"
 
         self.sleep(0.1)
 
         # Step 1.5: Now set_relay should succeed
         result = self.call_function("sim0", "tempctl0", "set_relay", {"relay_index": 1, "state": False})
-        self.assert_equal(result["status"], "OK", "set_relay should succeed in open mode")
+        assert result["status"] == "OK", "set_relay should succeed in open mode"
 
         # Test 2: analogsensor0 - calibrate_channel blocked when quality != "GOOD"
+        def quality_value() -> str | None:
+            state = self.get_state("sim0", "analogsensor0")
+            for sig in state["signals"]:
+                if sig.get("signal_id") == "sensor_quality":
+                    value = sig.get("value")
+                    return value if isinstance(value, str) else None
+            return None
 
-        # Step 2.1: Enable noise injection to degrade quality
-        result = self.call_function("sim0", "analogsensor0", "inject_noise", {"enabled": True})
-        self.assert_equal(result["status"], "OK", "Failed to enable noise injection")
-
-        # Step 2.2: Wait for quality to degrade (takes 30s for NOISY, we'll just check it's not GOOD)
-        # For this test, we'll just verify the precondition check logic, not wait for degradation
-        # Instead, let's test with GOOD quality first (should succeed), then with bad quality
-
-        # First, ensure quality is GOOD (noise off)
+        # Establish known baseline quality.
         result = self.call_function("sim0", "analogsensor0", "inject_noise", {"enabled": False})
-        self.assert_equal(result["status"], "OK", "Failed to disable noise")
+        assert result["status"] == "OK", "Failed to disable noise before calibration checks"
 
-        self.sleep(0.1)
+        try:
+            good_ready = self.poll_until(lambda: quality_value() == "GOOD", timeout=5.0, interval=0.2)
+            assert good_ready, f"Expected sensor_quality to settle at GOOD, got {quality_value()}"
 
-        # Step 2.3: Get current quality
-        state = self.get_state("sim0", "analogsensor0")
-        quality_signal = None
-        for sig in state["signals"]:
-            if sig.get("signal_id") == "sensor_quality":
-                quality_signal = sig.get("value")
-                break
-
-        # Step 2.4: If quality is GOOD, calibration should succeed
-        if quality_signal == "GOOD":
+            # Quality GOOD -> calibration allowed.
             result = self.call_function("sim0", "analogsensor0", "calibrate_channel", {"channel": 1})
-            self.assert_equal(
-                result["status"],
-                "OK",
-                "calibrate_channel should succeed when quality is GOOD",
+            assert result["status"] == "OK", "calibrate_channel should succeed when quality is GOOD"
+
+            # Enable noise and wait for degraded quality.
+            result = self.call_function("sim0", "analogsensor0", "inject_noise", {"enabled": True})
+            assert result["status"] == "OK", "Failed to enable noise injection"
+
+            degraded_ready = self.poll_until(
+                lambda: quality_value() in {"NOISY", "FAULT"},
+                timeout=35.0,
+                interval=0.5,
             )
+            assert degraded_ready, f"Expected sensor_quality to degrade to NOISY/FAULT, got {quality_value()}"
 
-        # Step 2.5: Now enable noise and wait a bit for quality to potentially degrade
-        result = self.call_function("sim0", "analogsensor0", "inject_noise", {"enabled": True})
-        self.sleep(0.5)  # Short wait to see if quality degrades quickly
-
-        state = self.get_state("sim0", "analogsensor0")
-        quality_signal = None
-        for sig in state["signals"]:
-            if sig.get("signal_id") == "sensor_quality":
-                quality_signal = sig.get("value")
-                break
-
-        # If quality degraded, calibration should fail
-        if quality_signal in ["NOISY", "FAULT"]:
+            # Non-GOOD quality -> calibration blocked.
             result = self.call_function("sim0", "analogsensor0", "calibrate_channel", {"channel": 1})
-            self.assert_true(
-                result.get("status") in ["FAILED_PRECONDITION", "PRECONDITION_FAILED"],
-                f"Expected FAILED_PRECONDITION when quality={quality_signal}, got {result.get('status')}",
+            assert result.get("status") == "FAILED_PRECONDITION", (
+                f"Expected FAILED_PRECONDITION when quality={quality_value()}, got {result.get('status')}"
             )
-
-        # Cleanup: disable noise
-        self.call_function("sim0", "analogsensor0", "inject_noise", {"enabled": False})
+        finally:
+            cleanup = self.call_function("sim0", "analogsensor0", "inject_noise", {"enabled": False})
+            assert cleanup["status"] == "OK", "Failed to disable noise during cleanup"

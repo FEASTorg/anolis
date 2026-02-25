@@ -25,8 +25,9 @@ class CoreFeatureTester:
         self.base_url = f"http://127.0.0.1:{port}"
         self.fixture = RuntimeFixture(runtime_path, provider_path, http_port=port)
 
-    def start_runtime(self) -> bool:
-        return self.fixture.start()
+    def start_runtime(self) -> None:
+        if not self.fixture.start():
+            raise AssertionError("Runtime failed to start\n" + self._output_tail())
 
     def cleanup(self) -> None:
         self.fixture.cleanup()

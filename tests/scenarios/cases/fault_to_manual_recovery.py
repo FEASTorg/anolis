@@ -25,7 +25,7 @@ class FaultToManualRecovery(ScenarioBase):
 
         # Step 2: Verify tempctl0 is accessible
         state = self.get_state("sim0", "tempctl0")
-        self.assert_in("signals", state, "tempctl0 should be accessible initially")
+        assert "signals" in state, "tempctl0 should be accessible initially"
 
         # Step 3: Inject device unavailable fault for tempctl0 (5 seconds)
         result = self.call_function(
@@ -34,35 +34,20 @@ class FaultToManualRecovery(ScenarioBase):
             "inject_device_unavailable",
             {"device_id": "tempctl0", "duration_ms": 5000},
         )
-        self.assert_equal(result["status"], "OK", "Failed to inject device unavailable fault")
+        assert result["status"] == "OK", "Failed to inject device unavailable fault"
 
         # Step 4: Verify device becomes unavailable
         self.sleep(0.2)
 
-        # Try to read device state - should fail or return empty
-        try:
-            state = self.get_state("sim0", "tempctl0")
-            # If we get a response, check if it's empty or indicates unavailability
-            signals = state.get("signals", [])
-            if len(signals) > 0:
-                # Device still responding - fault injection may not be working as expected
-                # This is acceptable for this test - we're primarily testing fault mode transition
-                pass
-        except Exception:
-            # Expected - device is unavailable
-            pass
-
-        # Step 5: Check if runtime mode changed (may transition to FAULT mode on device errors)
-        # Note: This depends on runtime implementation - it may or may not auto-transition
+        # Step 5: Runtime remains responsive and mode stays valid during fault window.
         status = self.get_runtime_status()
-
-        # If runtime has fault detection, it might be in FAULT mode now
-        # Otherwise it might still be in MANUAL
-        # Both are acceptable behaviors for this scenario
+        assert status.get("mode") in {"MANUAL", "FAULT"}, (
+            f"Expected mode MANUAL or FAULT during device fault, got: {status.get('mode')}"
+        )
 
         # Step 6: Clear the fault
         result = self.call_function("sim0", "chaos_control", "clear_faults", {})
-        self.assert_equal(result["status"], "OK", "Failed to clear faults")
+        assert result["status"] == "OK", "Failed to clear faults"
 
         # Step 7: Verify device is accessible again.
         # Recovery is asynchronous through provider supervision + state cache polling.
@@ -71,14 +56,14 @@ class FaultToManualRecovery(ScenarioBase):
             timeout=5.0,
             interval=0.2,
         )
-        self.assert_true(recovered, "tempctl0 should return signals after recovery")
+        assert recovered, "tempctl0 should return signals after recovery"
 
         state = self.get_state("sim0", "tempctl0")
-        self.assert_in("signals", state, "tempctl0 should be accessible after clearing fault")
+        assert "signals" in state, "tempctl0 should be accessible after clearing fault"
 
         # Step 8: Perform manual recovery action - call a function to verify control works
         result = self.call_function("sim0", "tempctl0", "set_relay", {"relay_index": 1, "state": True})
-        self.assert_equal(result["status"], "OK", "Manual control should work after recovery")
+        assert result["status"] == "OK", "Manual control should work after recovery"
 
         # Step 9: Verify state change took effect.
         relay_updated = self.poll_until(
@@ -89,12 +74,9 @@ class FaultToManualRecovery(ScenarioBase):
             timeout=3.0,
             interval=0.1,
         )
-        self.assert_true(relay_updated, "Relay state should be updated after manual control")
+        assert relay_updated, "Relay state should be updated after manual control"
 
         # Step 10: Verify runtime is in operational mode (MANUAL or AUTO acceptable)
         status = self.get_runtime_status()
         final_mode = status.get("mode")
-        self.assert_true(
-            final_mode in ["MANUAL", "AUTO"],
-            f"Runtime should be in operational mode, got {final_mode}",
-        )
+        assert final_mode in ["MANUAL", "AUTO"], f"Runtime should be in operational mode, got {final_mode}"

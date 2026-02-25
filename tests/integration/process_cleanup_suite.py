@@ -11,7 +11,6 @@ Validates that RuntimeFixture provides safe, scoped process cleanup:
 
 from __future__ import annotations
 
-import time
 from pathlib import Path
 
 from tests.support.runtime_fixture import RuntimeFixture, verify_process_cleanup
@@ -37,6 +36,7 @@ def test_scoped_cleanup(runtime_path: Path, provider_path: Path, port: int) -> N
         pid = fixture.get_pid()
         pgid = fixture.get_pgid()
         assert pid is not None, "Could not get PID after start"
+        assert pgid is not None, "Could not get process group ID after start"
         assert fixture.is_running(), "Process not running after start"
 
         fixture.cleanup()
@@ -126,8 +126,6 @@ def test_graceful_vs_force_kill(runtime_path: Path, provider_path: Path, port: i
     pid = fixture.get_pid()
     assert pid is not None, "Could not get PID after start"
 
-    start_time = time.time()
     fixture.cleanup()
-    cleanup_duration = time.time() - start_time
 
     assert verify_process_cleanup(pid, timeout=3.0), "Process still running after cleanup"

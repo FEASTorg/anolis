@@ -98,7 +98,6 @@ def test_default_config_loads(runtime_path: Path, provider_path: Path, port: int
 
     assert config_path.exists(), f"Fixture config not found: {config_path}"
 
-
     config = {
         "runtime": {},
         "http": {"enabled": True, "bind": "127.0.0.1", "port": port},
@@ -149,7 +148,6 @@ def test_multi_device_config(runtime_path: Path, provider_path: Path, port: int)
     config_path = get_fixture_path("provider-multi-tempctl.yaml")
 
     assert config_path.exists(), f"Fixture config not found: {config_path}"
-
 
     config = {
         "runtime": {},
@@ -206,7 +204,6 @@ def test_minimal_config(runtime_path: Path, provider_path: Path, port: int) -> N
 
     assert config_path.exists(), f"Fixture config not found: {config_path}"
 
-
     config = {
         "runtime": {},
         "http": {"enabled": True, "bind": "127.0.0.1", "port": port},
@@ -255,7 +252,6 @@ def test_invalid_yaml_handling(runtime_path: Path, provider_path: Path, port: in
     config_path = create_invalid_yaml_config()
 
     try:
-
         config = {
             "runtime": {},
             "http": {"enabled": True, "bind": "127.0.0.1", "port": port},
@@ -301,7 +297,6 @@ def test_unknown_device_type(runtime_path: Path, provider_path: Path, port: int)
     config_path = create_unknown_type_config()
 
     try:
-
         config = {
             "runtime": {},
             "http": {"enabled": True, "bind": "127.0.0.1", "port": port},
