@@ -36,8 +36,13 @@ class FaultToManualRecovery(ScenarioBase):
         )
         assert result["status"] == "OK", "Failed to inject device unavailable fault"
 
-        # Step 4: Verify device becomes unavailable
-        self.sleep(0.2)
+        # Step 4: Verify device becomes unavailable after fault injection.
+        faulted = self.poll_until(
+            lambda: len(self.get_state("sim0", "tempctl0").get("signals", [])) == 0,
+            timeout=3.0,
+            interval=0.1,
+        )
+        assert faulted, "tempctl0 should be unavailable (no signals) after fault injection"
 
         # Step 5: Runtime remains responsive and mode stays valid during fault window.
         status = self.get_runtime_status()

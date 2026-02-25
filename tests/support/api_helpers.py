@@ -121,8 +121,8 @@ def wait_for_condition(
         try:
             if condition_func():
                 return True
-        except Exception:
-            # Condition check failed, keep retrying
+        except (requests.exceptions.RequestException, ValueError, KeyError):
+            # Swallow transient HTTP/parsing errors; let programming errors propagate.
             pass
         time.sleep(interval)
     return False

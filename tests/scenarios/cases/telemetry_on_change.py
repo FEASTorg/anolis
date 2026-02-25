@@ -65,10 +65,10 @@ class TelemetryOnChange(ScenarioBase):
         sse_thread.start()
 
         try:
-            # Allow stream setup and clear any initial backlog before assertions.
+            # Allow stream setup and any initial server-side snapshot events to arrive.
             self.sleep(1.0)
             with events_lock:
-                telemetry_events.clear()
+                pre_quiescence_count = len(telemetry_events)
 
             # Step 1: Get initial state.
             initial_state = self.get_state("sim0", "relayio0")
@@ -94,12 +94,13 @@ class TelemetryOnChange(ScenarioBase):
 
                 self.sleep(0.1)
 
-            # No change period should produce no relay_ch1_state telemetry events.
+            # No change period should produce no new relay_ch1_state telemetry events
+            # beyond any initial backlog accumulated before the quiescence window.
             self.sleep(0.5)
             with events_lock:
-                unchanged_events = len(telemetry_events)
+                unchanged_events = len(telemetry_events) - pre_quiescence_count
             assert unchanged_events == 0, (
-                f"Expected no telemetry events during unchanged polling, saw {unchanged_events}"
+                f"Expected no new telemetry events during unchanged polling, saw {unchanged_events}"
             )
 
             # Step 3: Make an actual change - toggle relay.
@@ -137,7 +138,7 @@ class TelemetryOnChange(ScenarioBase):
 
             # Step 6: Poll again without changes; no additional relay_ch1 events expected.
             with events_lock:
-                telemetry_events.clear()
+                pre_postchange_count = len(telemetry_events)
             for i in range(3):
                 state = self.get_state("sim0", "relayio0")
                 ch1_value = None
@@ -151,7 +152,7 @@ class TelemetryOnChange(ScenarioBase):
 
             self.sleep(0.5)
             with events_lock:
-                post_change_events = len(telemetry_events)
+                post_change_events = len(telemetry_events) - pre_postchange_count
             assert post_change_events == 0, (
                 f"Expected no new telemetry events without further changes, saw {post_change_events}"
             )

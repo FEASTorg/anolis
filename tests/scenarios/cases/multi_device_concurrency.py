@@ -32,21 +32,24 @@ class MultiDeviceConcurrency(ScenarioBase):
             assert expected in device_ids, f"Device {expected} not found"
 
         # Step 2: Concurrent state polling from all devices
-        poll_results = {}
-        poll_errors = []
+        results_lock = threading.Lock()
+        poll_results: Dict[str, Any] = {}
+        poll_errors: list[tuple[str, str]] = []
 
         def poll_device(device_id: str) -> None:
             try:
                 start = time.time()
                 state = self.get_state("sim0", device_id)
                 latency = time.time() - start
-                poll_results[device_id] = {
-                    "success": True,
-                    "latency": latency,
-                    "signal_count": len(state.get("signals", [])),
-                }
+                with results_lock:
+                    poll_results[device_id] = {
+                        "success": True,
+                        "latency": latency,
+                        "signal_count": len(state.get("signals", [])),
+                    }
             except Exception as e:
-                poll_errors.append((device_id, str(e)))
+                with results_lock:
+                    poll_errors.append((device_id, str(e)))
 
         # Launch concurrent polls
         threads = []
@@ -71,20 +74,22 @@ class MultiDeviceConcurrency(ScenarioBase):
 
         # Step 3: Concurrent function calls to multiple devices
         call_results: Dict[str, Dict[str, Any]] = {}
-        call_errors = []
+        call_errors: list[tuple[str, str, str]] = []
 
-        def call_device_function(device_id: str, function_name: str, args: Dict[str, Any]) -> None:
+        def _invoke_concurrent(device_id: str, function_name: str, args: Dict[str, Any]) -> None:
             try:
                 start = time.time()
                 result = self.call_function("sim0", device_id, function_name, args)
                 latency = time.time() - start
-                call_results[device_id] = {
-                    "success": result.get("status") == "OK",
-                    "latency": latency,
-                    "status": result.get("status"),
-                }
+                with results_lock:
+                    call_results[device_id] = {
+                        "success": result.get("status") == "OK",
+                        "latency": latency,
+                        "status": result.get("status"),
+                    }
             except Exception as e:
-                call_errors.append((device_id, function_name, str(e)))
+                with results_lock:
+                    call_errors.append((device_id, function_name, str(e)))
 
         # Define concurrent function calls
         concurrent_calls = [
@@ -97,7 +102,7 @@ class MultiDeviceConcurrency(ScenarioBase):
         # Launch concurrent function calls
         threads = []
         for device_id, function_name, args in concurrent_calls:
-            t = threading.Thread(target=call_device_function, args=(device_id, function_name, args))
+            t = threading.Thread(target=_invoke_concurrent, args=(device_id, function_name, args))
             threads.append(t)
             t.start()
 

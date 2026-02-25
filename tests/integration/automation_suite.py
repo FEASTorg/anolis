@@ -82,7 +82,10 @@ class AutomationTester:
         )
 
     def start_runtime(self) -> None:
-        assert self.fixture.start(), "Failed to start runtime"
+        if not self.fixture.start():
+            capture = self.fixture.get_output_capture()
+            output_tail = capture.get_recent_output(80) if capture else "(no output capture)"
+            raise AssertionError(f"Failed to start runtime process\n{output_tail}")
 
         if not assert_http_available(self.base_url, timeout=min(self.timeout, 30.0)):
             capture = self.fixture.get_output_capture()
@@ -124,6 +127,7 @@ class AutomationTester:
     def test_mode_transition_manual_to_auto(self) -> None:
         result = self.set_mode("MANUAL")
         assert result.get("mode") == "MANUAL", f"Failed to transition to MANUAL: {result}"
+        self._wait_for_mode("MANUAL")
 
         result = self.set_mode("AUTO")
         assert result.get("mode") == "AUTO", f"Expected AUTO, got {result}"
@@ -246,14 +250,9 @@ class AutomationTester:
 
         body = cast(Dict[str, Any], resp.json())
         status = cast(Dict[str, Any], body.get("status", {}))
-        blocked_by_status = status.get("code") == "FAILED_PRECONDITION"
-
-        result = cast(Dict[str, Any], body.get("result", {}))
-        result_failed = result.get("success") is False
-        error_message = str(result.get("error_message", "")).lower()
-        blocked_by_result = result_failed and ("idle" in error_message or "block" in error_message)
-
-        assert blocked_by_status or blocked_by_result, f"Control operation should be blocked in IDLE, got: {body}"
+        assert status.get("code") == "FAILED_PRECONDITION", (
+            f"Expected FAILED_PRECONDITION for control call in IDLE mode, got: {body}"
+        )
 
     def test_idle_allows_read_operations(self) -> None:
         self.set_mode("IDLE")
