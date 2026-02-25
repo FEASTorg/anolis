@@ -15,7 +15,6 @@ Prerequisites:
     - Automation enabled in config
 """
 
-import os
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, cast
 
@@ -46,7 +45,7 @@ def log_pass(message: str):
 
 
 def log_fail(message: str):
-    print(f"  {Colors.RED}[FAIL]{Colors.END} {message}")
+    raise AssertionError(message)
 
 
 def log_info(message: str):
@@ -66,10 +65,7 @@ class AutomationTester:
         self.port = port
         self.base_url = f"http://127.0.0.1:{port}"
         self.timeout = timeout
-        # script (integration) -> tests -> root
-        self.repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-        self.tests_passed = 0
-        self.tests_failed = 0
+        self.repo_root = Path(__file__).resolve().parents[2]
 
         # Get provider config path
         fixture_config = Path(__file__).parent / "fixtures" / "provider-sim-default.yaml"
@@ -90,7 +86,7 @@ class AutomationTester:
             "telemetry": {"enabled": False},
             "automation": {
                 "enabled": automation_enabled,
-                "behavior_tree": os.path.join(self.repo_root, "behaviors", "demo.xml"),
+                "behavior_tree": str(self.repo_root / "behaviors" / "demo.xml"),
                 "tick_rate_hz": 10,
                 "manual_gating_policy": manual_gating_policy,
                 "parameters": [
@@ -154,8 +150,7 @@ class AutomationTester:
         try:
             resp = requests.get(f"{self.base_url}/v0/mode", timeout=2)
             return cast(Dict[str, Any], resp.json())
-        except requests.RequestException as e:
-            log_fail(f"Request exception: {e}")
+        except requests.RequestException:
             return None
 
     def set_mode(self, mode: str) -> Optional[Dict[str, Any]]:
@@ -163,8 +158,7 @@ class AutomationTester:
         try:
             resp = requests.post(f"{self.base_url}/v0/mode", json={"mode": mode}, timeout=2)
             return cast(Dict[str, Any], resp.json())
-        except requests.RequestException as e:
-            log_fail(f"Request failed: {e}")
+        except requests.RequestException:
             return None
 
     def test_get_mode_when_automation_enabled(self) -> bool:
@@ -556,29 +550,10 @@ class AutomationTester:
             return False
 
     def run_tests(self) -> bool:
-        """Run all automation tests"""
-        print(f"\n{Colors.BOLD}=== Anolis Automation Tests ==={Colors.END}\n")
-
-        tests = [check for _, check in AUTOMATION_CHECKS]
-
-        for test in tests:
-            try:
-                if test(self):
-                    self.tests_passed += 1
-                else:
-                    self.tests_failed += 1
-            except Exception as e:
-                log_fail(f"Exception: {e}")
-                self.tests_failed += 1
-
-        # Summary
-        total = self.tests_passed + self.tests_failed
-        print(f"\n{Colors.BOLD}=== Test Summary ==={Colors.END}")
-        print(f"Total: {total}")
-        print(f"{Colors.GREEN}Passed: {self.tests_passed}{Colors.END}")
-        print(f"{Colors.RED}Failed: {self.tests_failed}{Colors.END}")
-
-        return self.tests_failed == 0
+        """Backwards-compatible runner."""
+        for _, check in AUTOMATION_CHECKS:
+            check(self)
+        return True
 
 
 AutomationCheck = Tuple[str, Callable[[AutomationTester], bool]]

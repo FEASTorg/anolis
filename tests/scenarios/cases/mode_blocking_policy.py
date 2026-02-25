@@ -40,13 +40,9 @@ class ModeBlockingPolicy(ScenarioBase):
                 # In AUTO mode with BLOCK policy, the call should either:
                 # - Return HTTP error (403/409), or
                 # - Return status != "OK"
-                if result.get("status") == "OK":
-                    return create_result(
-                        self,
-                        False,
-                        "Mode blocking failed",
-                        "Manual function call succeeded in AUTO mode when it should be blocked",
-                    )
+                assert result.get("status") != "OK", (
+                    "Manual function call succeeded in AUTO mode when it should be blocked"
+                )
 
             except Exception as e:
                 # If we get an HTTP error, that's expected for blocking
@@ -76,7 +72,7 @@ class ModeBlockingPolicy(ScenarioBase):
                 "Mode blocking policy validated: AUTO mode blocks manual calls, MANUAL allows them",
             )
 
-        except AssertionError as e:
-            return create_result(self, False, "Assertion failed", str(e))
-        except Exception as e:
-            return create_result(self, False, f"Exception: {type(e).__name__}", str(e))
+        except AssertionError:
+            raise
+        except Exception:
+            raise

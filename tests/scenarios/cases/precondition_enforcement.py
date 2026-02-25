@@ -115,7 +115,7 @@ class PreconditionEnforcement(ScenarioBase):
                 "Precondition enforcement validated: blocked when preconditions not met, allowed when satisfied",
             )
 
-        except AssertionError as e:
-            return create_result(self, False, "Assertion failed", str(e))
-        except Exception as e:
-            return create_result(self, False, f"Exception: {type(e).__name__}", str(e))
+        except AssertionError:
+            raise
+        except Exception:
+            raise

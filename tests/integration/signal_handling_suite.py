@@ -29,7 +29,11 @@ class TestResult:
 
 
 def test_signal_handling(
-    runtime_path: str, provider_path: str, test_signal: signal.Signals, signal_name: str
+    runtime_path: str,
+    provider_path: str,
+    test_signal: signal.Signals,
+    signal_name: str,
+    port: int = 8765,
 ) -> TestResult:
     """
     Test that runtime responds to signal and shuts down cleanly.
@@ -43,7 +47,7 @@ def test_signal_handling(
     # Create config dict
     config = {
         "runtime": {},
-        "http": {"enabled": True, "bind": "127.0.0.1", "port": 8765},
+        "http": {"enabled": True, "bind": "127.0.0.1", "port": port},
         "providers": [
             {
                 "id": "sim",
@@ -61,7 +65,7 @@ def test_signal_handling(
     fixture = RuntimeFixture(
         Path(runtime_path),
         Path(provider_path),
-        http_port=8765,
+        http_port=port,
         config_dict=config,
     )
 

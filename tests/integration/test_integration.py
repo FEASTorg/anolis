@@ -18,7 +18,7 @@ from tests.integration.automation_suite import AUTOMATION_CHECKS, AutomationTest
 from tests.integration.concurrency_stress_suite import StressTestRunner
 from tests.integration.core_suite import CORE_CHECKS, CoreFeatureTester
 from tests.integration.http_suite import HTTP_CHECKS, HttpGatewayTester
-from tests.integration.provider_supervision_suite import SupervisionTester
+from tests.integration.provider_supervision_suite import SUPERVISION_CHECKS, SupervisionTester
 
 
 @pytest.mark.integration
@@ -92,12 +92,22 @@ def test_automation_suite(
 
 @pytest.mark.integration
 @pytest.mark.timeout(360)
+@pytest.mark.parametrize(
+    ("check_name", "check_fn"),
+    SUPERVISION_CHECKS,
+    ids=[name for name, _ in SUPERVISION_CHECKS],
+)
 def test_provider_supervision_suite(
-    runtime_exe: Path, provider_exe: Path, integration_timeout: float, unique_port: int
+    runtime_exe: Path,
+    provider_exe: Path,
+    integration_timeout: float,
+    unique_port: int,
+    check_name: str,
+    check_fn,
 ) -> None:
     tester = SupervisionTester(runtime_exe, provider_exe, integration_timeout, port=unique_port)
-    result = tester.run_tests()
-    assert result == 0, "Provider supervision suite reported failures"
+    result = check_fn(tester)
+    assert result.passed, f"{check_name} failed: {result.message}"
 
 
 @pytest.mark.integration
@@ -142,8 +152,8 @@ def test_process_cleanup_suite(runtime_exe: Path, provider_exe: Path, unique_por
     ],
     ids=["sigint", "sigterm"],
 )
-def test_signal_handling_suite(runtime_exe: Path, provider_exe: Path, sig, name) -> None:
-    result = signal_handling_suite.test_signal_handling(str(runtime_exe), str(provider_exe), sig, name)
+def test_signal_handling_suite(runtime_exe: Path, provider_exe: Path, unique_port: int, sig, name) -> None:
+    result = signal_handling_suite.test_signal_handling(str(runtime_exe), str(provider_exe), sig, name, unique_port)
     assert result.passed, f"{name} failed: {result.message}"
 
 

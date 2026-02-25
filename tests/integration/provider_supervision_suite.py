@@ -16,7 +16,7 @@ Tests:
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
+from typing import Callable, List, Optional, Tuple
 
 from tests.support.api_helpers import (
     assert_http_available,
@@ -41,23 +41,8 @@ class SupervisionTester:
         self.provider_sim_path = provider_sim_path
         self.timeout = timeout
         self.port = port
-        self.results: List[TestResult] = []
         self.fixture: Optional[RuntimeFixture] = None
         self.base_url = f"http://localhost:{port}"
-
-    def setup(self) -> bool:
-        """Create test config and validate paths."""
-        # Validate runtime exists
-        if not self.runtime_path.exists():
-            print(f"ERROR: Runtime not found: {self.runtime_path}")
-            return False
-
-        # Validate provider-sim exists
-        if not self.provider_sim_path.exists():
-            print(f"ERROR: Provider-sim not found: {self.provider_sim_path}")
-            return False
-
-        return True
 
     @property
     def capture(self):
@@ -526,46 +511,11 @@ class SupervisionTester:
         finally:
             self.stop_runtime()
 
-    def run_tests(self) -> int:
-        """Run all supervision tests."""
-        if not self.setup():
-            return 1
+SupervisionCheck = Tuple[str, Callable[[SupervisionTester], TestResult]]
 
-        # Run each test
-        tests = [
-            self.test_automatic_restart,
-            self.test_backoff_timing,
-            self.test_circuit_breaker,
-            self.test_device_rediscovery,
-        ]
-
-        for test_fn in tests:
-            try:
-                result = test_fn()
-                self.results.append(result)
-
-                if result.passed:
-                    print(f"  [PASS] {result.message}")
-                else:
-                    print(f"  [FAIL] {result.message}")
-            except Exception as e:
-                print(f"  [EXCEPTION] {e}")
-                self.results.append(TestResult(test_fn.__name__, False, f"Exception: {e}"))
-
-        # Print summary
-        print("\n" + "=" * 70)
-        print("SUMMARY")
-        print("=" * 70)
-
-        passed = sum(1 for r in self.results if r.passed)
-        total = len(self.results)
-
-        for result in self.results:
-            status = "[PASS]" if result.passed else "[FAIL]"
-            print(f"{status}: {result.name}")
-            if not result.passed and result.message:
-                print(f"       {result.message}")
-
-        print(f"\nTotal: {passed}/{total} passed")
-
-        return 0 if passed == total else 1
+SUPERVISION_CHECKS: List[SupervisionCheck] = [
+    ("automatic_restart", SupervisionTester.test_automatic_restart),
+    ("backoff_timing", SupervisionTester.test_backoff_timing),
+    ("circuit_breaker", SupervisionTester.test_circuit_breaker),
+    ("device_rediscovery", SupervisionTester.test_device_rediscovery),
+]

@@ -49,22 +49,10 @@ class ModeSafety(ScenarioBase):
                 # Call should return non-OK status (FAILED_PRECONDITION expected)
                 status = result.get("status", "")
 
-                if status == "OK":
-                    return create_result(
-                        self,
-                        False,
-                        "IDLE enforcement failed",
-                        "Control operation succeeded in IDLE mode when it should be blocked",
-                    )
+                assert status != "OK", "Control operation succeeded in IDLE mode when it should be blocked"
 
                 # Check if status indicates blocking (FAILED_PRECONDITION is expected)
-                if status != "FAILED_PRECONDITION":
-                    return create_result(
-                        self,
-                        False,
-                        "IDLE enforcement unclear",
-                        f"Expected FAILED_PRECONDITION, got: {status}",
-                    )
+                assert status == "FAILED_PRECONDITION", f"Expected FAILED_PRECONDITION, got: {status}"
 
                 # Got expected FAILED_PRECONDITION - control operation properly blocked
 
@@ -106,5 +94,5 @@ class ModeSafety(ScenarioBase):
                 "Mode safety enforcement validated: IDLE blocks control ops, read-only allowed, MANUAL enables control",
             )
 
-        except AssertionError as e:
-            return create_result(self, False, "Assertion failed", str(e))
+        except AssertionError:
+            raise
