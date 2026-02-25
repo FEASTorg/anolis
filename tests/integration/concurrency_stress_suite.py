@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Concurrency Stress Test for ThreadSanitizer
 
@@ -16,13 +15,9 @@ This test is designed to expose data races in:
 - State cache poll config updates during concurrent polling
 - HTTP handlers accessing shared state
 
-Usage:
-    python tests/integration/test_concurrency_stress.py [--runtime PATH] [--provider PATH]
 """
 
-import argparse
 import os
-import sys
 import threading
 import time
 from dataclasses import dataclass
@@ -30,8 +25,9 @@ from pathlib import Path
 from typing import List, Optional
 
 import requests
-from test_fixtures import RuntimeFixture
-from test_helpers import wait_for_condition
+
+from tests.support.api_helpers import wait_for_condition
+from tests.support.runtime_fixture import RuntimeFixture
 
 
 @dataclass
@@ -325,93 +321,3 @@ class StressTestRunner:
             # Cleanup
             self.stop_http_clients()
             self.stop_runtime()
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Concurrency stress test with ThreadSanitizer")
-    parser.add_argument("--runtime", type=Path, help="Path to anolis-runtime binary")
-    parser.add_argument("--provider", type=Path, help="Path to provider binary")
-    parser.add_argument("--restarts", type=int, help="Number of restart cycles (overrides --stress-level)")
-    parser.add_argument("--clients", type=int, help="Number of concurrent HTTP clients (overrides --stress-level)")
-    parser.add_argument(
-        "--stress-level",
-        type=str,
-        default="moderate",
-        choices=["light", "moderate", "heavy"],
-        help="Stress test intensity level (default: moderate)",
-    )
-    parser.add_argument("--timeout", type=float, default=60.0, help="Test timeout in seconds")
-    parser.add_argument("--port", type=int, default=8080, help="HTTP port (default: 8080)")
-
-    args = parser.parse_args()
-
-    # Define stress levels
-    STRESS_LEVELS = {
-        "light": {"restarts": 10, "clients": 2},
-        "moderate": {"restarts": 50, "clients": 5},
-        "heavy": {"restarts": 100, "clients": 10},
-    }
-
-    # Use explicit values if provided, otherwise use stress level
-    level_config = STRESS_LEVELS[args.stress_level]
-    num_restarts = args.restarts if args.restarts is not None else level_config["restarts"]
-    num_clients = args.clients if args.clients is not None else level_config["clients"]
-
-    # Determine paths
-    if args.runtime:
-        runtime_path = args.runtime
-    else:
-        runtime_path = Path("build/core/anolis-runtime")
-        if sys.platform == "win32":
-            runtime_path = Path("build/core/Release/anolis-runtime.exe")
-
-    if args.provider:
-        provider_path = args.provider
-    else:
-        provider_path = Path("../anolis-provider-sim/build/anolis-provider-sim")
-        if sys.platform == "win32":
-            provider_path = Path("../anolis-provider-sim/build/Release/anolis-provider-sim.exe")
-
-    print("=" * 80)
-    print("CONCURRENCY STRESS TEST FOR THREADSANITIZER")
-    print("=" * 80)
-    print(f"Runtime:       {runtime_path}")
-    print(f"Provider:      {provider_path}")
-    print(f"Stress Level:  {args.stress_level}")
-    print(f"Restarts:      {num_restarts}")
-    print(f"Clients:       {num_clients}")
-    print(f"HTTP Port:     {args.port}")
-    print("=" * 80)
-
-    # Run test
-    runner = StressTestRunner(runtime_path, provider_path, num_clients=num_clients, http_port=args.port)
-
-    if not runner.setup():
-        print("\n[ERROR] Setup failed")
-        return 1
-
-    result = runner.run_stress_test(num_restarts=num_restarts)
-
-    print("\n" + "=" * 80)
-    if result.success:
-        print("[PASS] STRESS TEST PASSED")
-        print(f"   - Completed {result.restart_count} restarts")
-        print(f"   - HTTP clients made {result.http_requests} requests")
-        print("   - No crashes, no data races, no deadlocks")
-        print("=" * 80)
-        return 0
-    else:
-        print("[FAIL] STRESS TEST FAILED")
-        print(f"   - {result.message}")
-        print(f"   - Restarts completed: {result.restart_count}")
-        print(f"   - HTTP requests: {result.http_requests}")
-        if result.errors:
-            print("   - Errors:")
-            for error in result.errors:
-                print(f"     - {error}")
-        print("=" * 80)
-        return 1
-
-
-if __name__ == "__main__":
-    sys.exit(main())

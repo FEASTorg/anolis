@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Provider Supervision Integration Test
 
@@ -12,24 +11,19 @@ Tests:
 4. Devices rediscovered after successful restart
 5. Supervisor state resets on recovery
 
-Usage:
-    python tests/integration/test_provider_supervision.py [--runtime PATH] [--provider-sim PATH]
 """
 
-import argparse
-import os
-import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 
-from test_fixtures import RuntimeFixture
-from test_helpers import (
+from tests.support.api_helpers import (
     assert_http_available,
     assert_provider_available,
     get_provider_health_entry,
 )
+from tests.support.runtime_fixture import RuntimeFixture
 
 
 @dataclass
@@ -42,13 +36,14 @@ class TestResult:
 class SupervisionTester:
     """Test harness for provider supervision integration tests."""
 
-    def __init__(self, runtime_path: Path, provider_sim_path: Path, timeout: float = 60.0):
+    def __init__(self, runtime_path: Path, provider_sim_path: Path, timeout: float = 60.0, port: int = 8080):
         self.runtime_path = runtime_path
         self.provider_sim_path = provider_sim_path
         self.timeout = timeout
+        self.port = port
         self.results: List[TestResult] = []
         self.fixture: Optional[RuntimeFixture] = None
-        self.base_url = "http://localhost:8080"
+        self.base_url = f"http://localhost:{port}"
 
     def setup(self) -> bool:
         """Create test config and validate paths."""
@@ -89,7 +84,7 @@ class SupervisionTester:
             "http": {
                 "enabled": True,
                 "bind": "127.0.0.1",
-                "port": 8080,
+                "port": self.port,
             },
             "providers": [
                 {
@@ -122,6 +117,7 @@ class SupervisionTester:
             self.fixture = RuntimeFixture(
                 self.runtime_path,
                 self.provider_sim_path,
+                http_port=self.port,
                 config_dict=config_dict,
             )
 
@@ -573,111 +569,3 @@ class SupervisionTester:
         print(f"\nTotal: {passed}/{total} passed")
 
         return 0 if passed == total else 1
-
-
-def find_executable(name: str, search_paths: List[Path]) -> Optional[Path]:
-    """Find executable in search paths."""
-    for search_path in search_paths:
-        if search_path.exists():
-            if search_path.is_file():
-                return search_path
-            # Search in directory
-            for pattern in [
-                name,
-                f"{name}.exe",
-                f"Release/{name}.exe",
-                f"Debug/{name}.exe",
-            ]:
-                candidate = search_path / pattern
-                if candidate.exists():
-                    return candidate
-    return None
-
-
-def main():
-    # -------------------------------------------------------------------------
-    # ThreadSanitizer (TSAN) and Timing Test Detection
-    # -------------------------------------------------------------------------
-    # This test validates supervision timing contracts (backoff delays,
-    # crash detection windows) that are tuned for production performance.
-    # TSAN adds 5-20x slowdown to process operations that breaks these:
-    #   - Provider processes take >1s to spawn (vs <50ms normally)
-    #   - IPC timeouts trigger before handshakes complete
-    #   - Backoff delays don't match wall-clock time due to TSAN overhead
-    #
-    # Skip conditions:
-    #   - ANOLIS_SKIP_TIMING_TESTS=1: Explicit timing test skip flag
-    #   - ANOLIS_TSAN=1 or TSAN_OPTIONS set: TSAN environment detected
-    #
-    # TSAN's purpose is race detection (validated by unit tests), not
-    # timing precision. Functional correctness is verified without TSAN.
-    # -------------------------------------------------------------------------
-    skip_timing = os.environ.get("ANOLIS_SKIP_TIMING_TESTS") == "1"
-    tsan_env = os.environ.get("ANOLIS_TSAN") == "1" or bool(os.environ.get("TSAN_OPTIONS"))
-
-    if skip_timing or tsan_env:
-        print("=" * 70)
-        print("SKIPPING: Provider supervision test")
-        print("=" * 70)
-        if skip_timing:
-            print("Reason: ANOLIS_SKIP_TIMING_TESTS=1")
-        else:
-            print("Reason: TSAN detected (TSAN_OPTIONS/ANOLIS_TSAN)")
-            print("        TSAN adds 5-20x slowdown that breaks timing assumptions")
-        print("")
-        print("Race detection: Covered by unit tests under TSAN")
-        print("Functional correctness: Validated without TSAN overhead")
-        print("=" * 70)
-        return 0
-
-    parser = argparse.ArgumentParser(description="Provider Supervision Integration Test")
-    parser.add_argument("--runtime", type=Path, help="Path to anolis runtime executable")
-    parser.add_argument("--provider-sim", type=Path, help="Path to anolis-provider-sim executable")
-    parser.add_argument("--provider", dest="provider_sim", type=Path, help=argparse.SUPPRESS)
-    parser.add_argument("--timeout", type=float, default=60.0, help="Test timeout in seconds")
-    args = parser.parse_args()
-
-    # Find runtime
-    if args.runtime:
-        runtime_path = args.runtime
-    else:
-        search_paths = [
-            Path("build/core/Release/anolis-runtime.exe"),
-            Path("build/core/Debug/anolis-runtime.exe"),
-            Path("build/anolis-runtime"),
-            Path("../build/core/Release/anolis-runtime.exe"),
-        ]
-        runtime_path = find_executable("anolis-runtime", search_paths)
-
-    if not runtime_path or not runtime_path.exists():
-        print("ERROR: Runtime not found. Use --runtime to specify path")
-        return 1
-
-    # Find provider-sim
-    if args.provider_sim:
-        provider_sim_path = args.provider_sim
-    else:
-        search_paths = [
-            Path("../anolis-provider-sim/build/Release/anolis-provider-sim.exe"),
-            Path("../anolis-provider-sim/build/Debug/anolis-provider-sim.exe"),
-            Path("../../anolis-provider-sim/build/Release/anolis-provider-sim.exe"),
-        ]
-        provider_sim_path = find_executable("anolis-provider-sim", search_paths)
-
-    if not provider_sim_path or not provider_sim_path.exists():
-        print("ERROR: Provider-sim not found. Use --provider-sim to specify path")
-        return 1
-
-    print("=" * 70)
-    print("PROVIDER SUPERVISION INTEGRATION TEST")
-    print("=" * 70)
-    print(f"Runtime: {runtime_path}")
-    print(f"Provider-Sim: {provider_sim_path}")
-    print(f"Timeout: {args.timeout}s")
-
-    tester = SupervisionTester(runtime_path, provider_sim_path, args.timeout)
-    return tester.run_tests()
-
-
-if __name__ == "__main__":
-    sys.exit(main())

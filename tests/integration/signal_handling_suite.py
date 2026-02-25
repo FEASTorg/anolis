@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Signal Handling Integration Test
 
@@ -11,20 +10,15 @@ Tests:
 3. No hangs or crashes during signal handling
 4. Shutdown completes within reasonable timeout
 
-Usage:
-    python tests/integration/test_signal_handling.py [--runtime PATH] [--provider PATH]
 """
 
-import argparse
-import os
 import signal
 import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
-from test_fixtures import RuntimeFixture
+from tests.support.runtime_fixture import RuntimeFixture
 
 
 @dataclass
@@ -32,25 +26,6 @@ class TestResult:
     name: str
     passed: bool
     message: str = ""
-
-
-def find_executable(name: str, hints: list[str]) -> Optional[str]:
-    """Find executable by name, checking hints first."""
-    # Check hints
-    for hint in hints:
-        if not hint:
-            continue
-        path = Path(hint)
-        if path.exists() and path.is_file():
-            return str(path)
-
-    # Check PATH
-    for path_dir in os.environ.get("PATH", "").split(os.pathsep):
-        candidate = Path(path_dir) / name
-        if candidate.exists():
-            return str(candidate)
-
-    return None
 
 
 def test_signal_handling(
@@ -102,8 +77,13 @@ def test_signal_handling(
 
         # Wait for runtime to become ready
         if not capture.wait_for_marker("Runtime Ready", timeout=15):
+            output_tail = capture.get_recent_output(80)
             fixture.cleanup()
-            return TestResult(signal_name, False, "Runtime did not become ready within 15s")
+            return TestResult(
+                signal_name,
+                False,
+                f"Runtime did not become ready within 15s\nOutput tail:\n{output_tail}",
+            )
 
         # Wait a bit for stability
         time.sleep(0.5)
@@ -161,96 +141,3 @@ def test_signal_handling(
         return TestResult(signal_name, False, f"Exception: {e}")
     finally:
         fixture.cleanup()
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Test runtime signal handling")
-    parser.add_argument("--runtime", help="Path to anolis-runtime executable")
-    parser.add_argument("--provider", help="Path to provider executable")
-    parser.add_argument("--timeout", type=float, default=60.0, help="Test timeout in seconds")
-    args = parser.parse_args()
-
-    # Find executables
-    runtime_hints = [
-        args.runtime if args.runtime else "",
-        "build/core/Release/anolis-runtime.exe",
-        "build/core/Debug/anolis-runtime.exe",
-        "build/core/anolis-runtime",
-    ]
-
-    provider_hints = [
-        args.provider if args.provider else "",
-        "../anolis-provider-sim/build/Release/anolis-provider-sim.exe",
-        "../anolis-provider-sim/build/Debug/anolis-provider-sim.exe",
-        "../anolis-provider-sim/build/anolis-provider-sim",
-    ]
-
-    runtime_path = find_executable("anolis-runtime", runtime_hints)
-    provider_path = find_executable("anolis-provider-sim", provider_hints)
-
-    if not runtime_path:
-        print("ERROR: Could not find anolis-runtime executable")
-        print("  Tried:", [h for h in runtime_hints if h])
-        return 1
-
-    if not provider_path:
-        print("ERROR: Could not find anolis-provider-sim executable")
-        print("  Tried:", [h for h in provider_hints if h])
-        return 1
-
-    print("=" * 60)
-    print("  Signal Handling Integration Tests")
-    print("=" * 60)
-    print(f"\nUsing runtime: {runtime_path}")
-    print(f"Using provider: {provider_path}\n")
-
-    # Run tests
-    tests = []
-
-    if sys.platform == "win32":
-        # On Windows, both SIGINT and SIGTERM map to CTRL_BREAK_EVENT
-        tests = [
-            (signal.SIGINT, "SIGINT (Ctrl+C)"),
-            (signal.SIGTERM, "SIGTERM (graceful)"),
-        ]
-    else:
-        # On Unix, test actual signals
-        tests = [
-            (signal.SIGINT, "SIGINT (Ctrl+C)"),
-            (signal.SIGTERM, "SIGTERM (kill)"),
-        ]
-
-    results = []
-    for sig, description in tests:
-        print(f"Testing {description}...")
-        result = test_signal_handling(runtime_path, provider_path, sig, description)
-        results.append(result)
-        status = "[PASS]" if result.passed else "[FAIL]"
-        print(f"  {status} {result.name}")
-        if result.message:
-            print(f"      {result.message}")
-        print()
-
-    # Summary
-    passed = sum(1 for r in results if r.passed)
-    total = len(results)
-
-    print("=" * 60)
-    print(f"  Test Summary: {passed}/{total} passed")
-    print("=" * 60)
-
-    if passed == total:
-        print("\n  [PASS] ALL TESTS PASSED")
-        print("  Signal handling validation verified!")
-        return 0
-    else:
-        print("\n  [FAIL] SOME TESTS FAILED")
-        print("\n  Failed tests:")
-        for r in results:
-            if not r.passed:
-                print(f"    - {r.name}: {r.message}")
-        return 1
-
-
-if __name__ == "__main__":
-    sys.exit(main())

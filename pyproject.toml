@@ -1,5 +1,4 @@
-# This is strictly a configuration file for Ruff, not
-# meant to be a general python project configuration file. 
+# Tooling configuration for Ruff and pytest.
 [tool.ruff]
 line-length = 120
 target-version = "py310"
@@ -13,3 +12,14 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+
+[tool.pytest.ini_options]
+testpaths = ["tests/integration", "tests/scenarios"]
+addopts = "--strict-markers -ra"
+markers = [
+  "integration: integration tests that run against runtime/provider processes",
+  "scenario: operator-style scenario validation tests",
+  "stress: high-load tests not required in default CI lane",
+  "slow: long-running tests not required in default CI lane",
+]
+norecursedirs = ["tests_old", "build", ".venv", "vcpkg_installed"]

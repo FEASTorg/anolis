@@ -163,40 +163,18 @@ bash ./scripts/test.sh --preset dev-release   # Linux/macOS
 
 ### Validation & Acceptance Testing
 
-Run full acceptance test suite (11 scenarios):
+Run pytest integration/scenario suites directly:
 
 ```bash
-python tests/scenarios/run_scenarios.py
+# Integration suites (non-stress)
+python -m pytest tests/integration/test_integration.py -m "not stress and not slow"
+
+# Scenario suites (non-stress)
+python -m pytest tests/scenarios/test_scenarios.py -m "not stress and not slow"
+
+# Stress/slow coverage
+python -m pytest tests/integration/test_integration.py tests/scenarios/test_scenarios.py -m "stress or slow"
 ```
-
-Generate JSON report:
-
-```bash
-python tests/scenarios/run_scenarios.py --report acceptance-report.json
-```
-
-Run extended stability test (30 minutes):
-
-```bash
-python tests/scenarios/run_scenarios.py --soak --duration 1800
-```
-
-Manual validation workflow:
-
-```bash
-# Start runtime (leave running)
-python tests/scenarios/run_scenarios.py --start-only
-
-# Open browser to http://localhost:8080
-# Follow validation steps in tests/scenarios/OPERATOR_WORKFLOW.md
-
-# Stop runtime when done
-python tests/scenarios/run_scenarios.py --stop
-```
-
-See [tests/scenarios/README.md](tests/scenarios/README.md) for full scenario documentation
-
-See [tests/scenarios/OPERATOR_WORKFLOW.md](tests/scenarios/OPERATOR_WORKFLOW.md) for step-by-step manual validation guide.
 
 Build/dependency/CI governance: [docs/dependencies.md](docs/dependencies.md).
 

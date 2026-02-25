@@ -47,22 +47,22 @@ class OutputCapture:
         self._thread.start()
 
     def _capture_loop(self):
-        """Background thread that reads stderr."""
+        """Background thread that reads merged process output."""
         try:
+            stream = self.process.stdout
+            if stream is None:
+                return
+
             while not self.stop_event.is_set():
                 if self.process.poll() is not None:
                     # Process ended, read remaining output
-                    if self.process.stderr:
-                        remaining = self.process.stderr.read()
-                        if remaining:
-                            for line in remaining.splitlines():
-                                self._add_line(line)
+                    remaining = stream.read()
+                    if remaining:
+                        for line in remaining.splitlines():
+                            self._add_line(line)
                     break
 
-                if self.process.stderr:
-                    line = self.process.stderr.readline()
-                else:
-                    break
+                line = stream.readline()
                 if line:
                     self._add_line(line.rstrip("\n\r"))
         except Exception as e:
@@ -201,8 +201,8 @@ class RuntimeFixture:
             if sys.platform == "win32":
                 process = subprocess.Popen(
                     [str(self.runtime_path), f"--config={self.config_path}"],
-                    stderr=subprocess.PIPE,
                     stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
                     text=True,
                     bufsize=1,
                     creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
@@ -211,8 +211,8 @@ class RuntimeFixture:
             else:
                 process = subprocess.Popen(
                     [str(self.runtime_path), f"--config={self.config_path}"],
-                    stderr=subprocess.PIPE,
                     stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
                     text=True,
                     bufsize=1,
                     start_new_session=True,  # Creates new session, makes process session leader
@@ -356,7 +356,7 @@ class RuntimeFixture:
 
         # Default config
         # Get path to default provider config fixture
-        fixture_config = Path(__file__).parent / "fixtures" / "provider-sim-default.yaml"
+        fixture_config = Path(__file__).parent.parent / "integration" / "fixtures" / "provider-sim-default.yaml"
         fixture_config_str = str(fixture_config).replace("\\", "/")
 
         config_content = f"""

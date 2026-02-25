@@ -77,16 +77,9 @@ bash ./scripts/run.sh --preset dev-release
 bash ./scripts/test.sh --preset dev-release          # Linux/macOS
 .\scripts\test.ps1 -Preset dev-windows-release       # Windows
 
-# Or run integration tests directly
-python tests/integration/test_all.py --timeout=60
-
-# With explicit paths
-python tests/integration/test_all.py \
-  --runtime=build/core/Release/anolis-runtime.exe \
-  --provider=/path/to/anolis-provider-sim
-
-# Run validation scenarios
-python tests/scenarios/run_scenarios.py
+# Or run pytest suites directly
+python -m pytest tests/integration/test_integration.py -m "not stress and not slow"
+python -m pytest tests/scenarios/test_scenarios.py -m "not stress and not slow"
 ```
 
 ## Code Guidelines
@@ -666,10 +659,10 @@ while (running_) {
 
 ### Testing Signal Handling
 
-Signal handling is validated by `tests/integration/test_signal_handling.py`:
+Signal handling is validated by the pytest integration suite:
 
 ```bash
-python tests/integration/test_signal_handling.py
+python -m pytest tests/integration/test_integration.py -k signal_handling
 ```
 
 This test verifies:
@@ -684,7 +677,7 @@ Run with ThreadSanitizer when available to detect data races:
 ```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Debug -DSANITIZER=thread
 cmake --build build
-python tests/integration/test_signal_handling.py --runtime=build/core/anolis-runtime
+python -m pytest tests/integration/test_integration.py -k signal_handling --runtime=build/core/anolis-runtime --provider=/path/to/anolis-provider-sim
 ```
 
 ---
@@ -847,7 +840,7 @@ Tests should verify runtime behavior through the HTTP API, not by parsing log ou
 
 ```python
 # ✅ GOOD: Assert using HTTP API
-from test_helpers import assert_provider_available, assert_device_count
+from tests.support.api_helpers import assert_provider_available, assert_device_count
 
 runtime = RuntimeFixture(
     runtime_path="build/core/anolis-runtime",
@@ -876,7 +869,7 @@ Tests must clean up only their own processes, not globally by name.
 
 ```python
 # ✅ GOOD: Use RuntimeFixture (process-group scoped cleanup)
-from test_fixtures import RuntimeFixture
+from tests.support.runtime_fixture import RuntimeFixture
 
 runtime = RuntimeFixture(runtime_path="...", provider_path="...")
 try:
@@ -904,8 +897,8 @@ subprocess.run(["pkill", "-x", "anolis-runtime"])  # Kills ALL anolis-runtime pr
 #### Test Structure Template
 
 ```python
-from test_fixtures import RuntimeFixture
-from test_helpers import assert_http_available, assert_provider_available
+from tests.support.runtime_fixture import RuntimeFixture
+from tests.support.api_helpers import assert_http_available, assert_provider_available
 
 def test_my_feature():
     """Test description here."""
@@ -940,13 +933,13 @@ if __name__ == "__main__":
 
 ```bash
 # Run all tests
-python tests/integration/test_all.py
+python -m pytest tests/integration/test_integration.py -m "not stress and not slow"
 
-# Run specific test file
-python tests/integration/test_core.py
+# Run scenario suite
+python -m pytest tests/scenarios/test_scenarios.py -m "not stress and not slow"
 
 # Run with custom paths
-python tests/integration/test_core.py \
+python -m pytest tests/integration/test_integration.py \
   --runtime=build/core/anolis-runtime \
   --provider=build/anolis-provider-sim
 ```

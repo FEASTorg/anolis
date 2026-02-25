@@ -598,10 +598,11 @@ Automated tests for automation features:
 
 ```bash
 # Run automation tests
-python tests/integration/test_automation.py
+python -m pytest tests/integration/test_integration.py -k automation_suite
 
-# Test with custom runtime path and port
-python tests/integration/test_automation.py --runtime path/to/anolis-runtime --port 18080
+# Test with custom executable paths
+python -m pytest tests/integration/test_integration.py -k automation_suite \
+  --runtime path/to/anolis-runtime --provider path/to/anolis-provider-sim
 ```
 
 **Test coverage:**

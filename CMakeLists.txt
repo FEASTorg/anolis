@@ -101,47 +101,34 @@ if(BUILD_TESTING)
             message(STATUS "ANOLIS_ENABLE_PYTHON_CTEST=ON but ANOLIS_PROVIDER_SIM_EXE is unset or missing; skipping Python integration test registration")
         else()
             add_test(
-                NAME integration.core_api
+                NAME integration.pytest
                 COMMAND ${Python3_EXECUTABLE}
-                        ${CMAKE_SOURCE_DIR}/tests/integration/test_core.py
+                        -m pytest
+                        ${CMAKE_SOURCE_DIR}/tests/integration/test_integration.py
                         --runtime=$<TARGET_FILE:anolis-runtime>
                         --provider=${ANOLIS_PROVIDER_SIM_EXE}
-                        --timeout=60
-                        --port=18080
+                        -m
+                        "not stress and not slow"
             )
-            set_tests_properties(integration.core_api PROPERTIES
+            set_tests_properties(integration.pytest PROPERTIES
                 WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                TIMEOUT 240
-                ENVIRONMENT "SKIP_STRESS_TESTS=1"
+                TIMEOUT 900
                 LABELS "integration;python;compatibility"
             )
 
             add_test(
-                NAME integration.full_suite
+                NAME scenarios.pytest
                 COMMAND ${Python3_EXECUTABLE}
-                        ${CMAKE_SOURCE_DIR}/tests/integration/test_all.py
+                        -m pytest
+                        ${CMAKE_SOURCE_DIR}/tests/scenarios/test_scenarios.py
                         --runtime=$<TARGET_FILE:anolis-runtime>
                         --provider=${ANOLIS_PROVIDER_SIM_EXE}
-                        --timeout=120
+                        -m
+                        "not stress and not slow"
             )
-            set_tests_properties(integration.full_suite PROPERTIES
+            set_tests_properties(scenarios.pytest PROPERTIES
                 WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                TIMEOUT 480
-                ENVIRONMENT "SKIP_STRESS_TESTS=1"
-                LABELS "integration;python;compatibility"
-            )
-
-            add_test(
-                NAME scenarios.full_suite
-                COMMAND ${Python3_EXECUTABLE}
-                        ${CMAKE_SOURCE_DIR}/tests/scenarios/run_scenarios.py
-                        --runtime=$<TARGET_FILE:anolis-runtime>
-                        --provider=${ANOLIS_PROVIDER_SIM_EXE}
-            )
-            set_tests_properties(scenarios.full_suite PROPERTIES
-                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                TIMEOUT 720
-                ENVIRONMENT "SKIP_STRESS_TESTS=1"
+                TIMEOUT 1200
                 LABELS "integration;python;compatibility;scenarios"
             )
         endif()

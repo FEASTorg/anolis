@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Anolis Automation Layer Integration Test
 
@@ -10,27 +9,23 @@ This script validates automation functionality:
 - Mode change events in telemetry
 - HTTP API for mode control
 
-Usage:
-    python tests/integration/test_automation.py [--runtime PATH] [--provider PATH] [--port PORT]
 
 Prerequisites:
     - Runtime and provider executables must be built
     - Automation enabled in config
 """
 
-import argparse
 import os
-import sys
 from pathlib import Path
-from typing import Any, Dict, Optional, cast
+from typing import Any, Callable, Dict, List, Optional, Tuple, cast
 
 import requests
 
-# Import RuntimeFixture for process management
-from test_fixtures import RuntimeFixture
-
 # Import shared test helpers (API-based assertions)
-from test_helpers import assert_http_available, wait_for_condition
+from tests.support.api_helpers import assert_http_available, wait_for_condition
+
+# Import RuntimeFixture for process management
+from tests.support.runtime_fixture import RuntimeFixture
 
 
 class Colors:
@@ -61,14 +56,16 @@ def log_info(message: str):
 class AutomationTester:
     def __init__(
         self,
-        runtime_path: str,
-        provider_path: str,
+        runtime_path: Path | str,
+        provider_path: Path | str,
         port: int,
+        timeout: float = 30.0,
         automation_enabled: bool = True,
         manual_gating_policy: str = "BLOCK",
     ):
         self.port = port
         self.base_url = f"http://127.0.0.1:{port}"
+        self.timeout = timeout
         # script (integration) -> tests -> root
         self.repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
         self.tests_passed = 0
@@ -84,7 +81,7 @@ class AutomationTester:
             "providers": [
                 {
                     "id": "sim0",
-                    "command": provider_path,
+                    "command": str(provider_path).replace("\\", "/"),
                     "args": ["--config", str(fixture_config).replace("\\", "/")],
                     "timeout_ms": 5000,
                 }
@@ -131,19 +128,22 @@ class AutomationTester:
             config_dict=config,
         )
 
-    def start_runtime(self):
+    def start_runtime(self) -> bool:
         """Start runtime process"""
         log_info(f"Starting runtime: {self.fixture.runtime_path}")
         if not self.fixture.start():
             raise RuntimeError("Failed to start runtime")
 
         # Wait for HTTP endpoint to be up
-        if not assert_http_available(self.base_url, timeout=10.0):
+        if not assert_http_available(self.base_url, timeout=min(self.timeout, 30.0)):
+            capture = self.fixture.get_output_capture()
+            output_tail = capture.get_recent_output(80) if capture else "(no output capture)"
             if not self.fixture.is_running():
-                raise RuntimeError("Runtime process terminated")
-            raise RuntimeError("Runtime HTTP endpoint did not become available")
+                raise RuntimeError(f"Runtime process terminated\n{output_tail}")
+            raise RuntimeError(f"Runtime HTTP endpoint did not become available\n{output_tail}")
 
         log_pass("Runtime started successfully")
+        return True
 
     def cleanup(self):
         """Clean up resources"""
@@ -555,32 +555,15 @@ class AutomationTester:
             self.set_mode("MANUAL")
             return False
 
-    def run_all_tests(self) -> bool:
+    def run_tests(self) -> bool:
         """Run all automation tests"""
         print(f"\n{Colors.BOLD}=== Anolis Automation Tests ==={Colors.END}\n")
 
-        tests = [
-            self.test_get_mode_when_automation_enabled,
-            self.test_mode_transition_manual_to_auto,
-            self.test_mode_transition_auto_to_manual,
-            self.test_mode_transition_manual_to_idle,
-            self.test_idle_blocks_control_operations,
-            self.test_idle_allows_read_operations,
-            self.test_mode_transition_to_fault,
-            self.test_invalid_transition_fault_to_auto,
-            self.test_recovery_path_fault_to_manual_to_auto,
-            self.test_invalid_mode_string,
-            # Parameter tests
-            self.test_get_parameters,
-            self.test_update_parameter_valid,
-            self.test_update_parameter_out_of_range,
-            # Automation disabled test
-            self.test_automation_disabled_returns_unavailable,
-        ]
+        tests = [check for _, check in AUTOMATION_CHECKS]
 
         for test in tests:
             try:
-                if test():
+                if test(self):
                     self.tests_passed += 1
                 else:
                     self.tests_failed += 1
@@ -598,65 +581,21 @@ class AutomationTester:
         return self.tests_failed == 0
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Anolis Automation Tests")
-    parser.add_argument(
-        "--runtime",
-        default="./build/core/Release/anolis-runtime.exe",
-        help="Path to runtime executable",
-    )
-    parser.add_argument(
-        "--provider",
-        default="../anolis-provider-sim/build/Release/anolis-provider-sim.exe",
-        help="Path to provider executable",
-    )
-    parser.add_argument("--port", type=int, default=18080, help="HTTP port to use (default: 18080)")
-    parser.add_argument(
-        "--timeout",
-        type=int,
-        default=120,
-        help="Test timeout in seconds (default: 120)",
-    )
-    args = parser.parse_args()
+AutomationCheck = Tuple[str, Callable[[AutomationTester], bool]]
 
-    # Validate paths
-    if not os.path.exists(args.runtime):
-        print(f"{Colors.RED}Error:{Colors.END} Runtime not found: {args.runtime}")
-        sys.exit(1)
-
-    if not os.path.exists(args.provider):
-        print(f"{Colors.RED}Error:{Colors.END} Provider not found: {args.provider}")
-        sys.exit(1)
-
-    tester = AutomationTester(
-        runtime_path=os.path.abspath(args.runtime),
-        provider_path=os.path.abspath(args.provider),
-        port=args.port,
-    )
-
-    try:
-        # Start runtime
-        tester.start_runtime()
-
-        # Run tests
-        success = tester.run_all_tests()
-
-        if success:
-            print(f"\n{Colors.GREEN}[PASS]{Colors.END} All automation tests passed!\n")
-            sys.exit(0)
-        else:
-            print(f"\n{Colors.RED}[FAIL]{Colors.END} Some tests failed\n")
-            sys.exit(1)
-
-    except KeyboardInterrupt:
-        print("\n\nTest interrupted by user")
-        sys.exit(130)
-    except Exception as e:
-        print(f"\n{Colors.RED}Error:{Colors.END} {e}")
-        sys.exit(1)
-    finally:
-        tester.cleanup()
-
-
-if __name__ == "__main__":
-    main()
+AUTOMATION_CHECKS: List[AutomationCheck] = [
+    ("get_mode_when_automation_enabled", AutomationTester.test_get_mode_when_automation_enabled),
+    ("mode_transition_manual_to_auto", AutomationTester.test_mode_transition_manual_to_auto),
+    ("mode_transition_auto_to_manual", AutomationTester.test_mode_transition_auto_to_manual),
+    ("mode_transition_manual_to_idle", AutomationTester.test_mode_transition_manual_to_idle),
+    ("idle_blocks_control_operations", AutomationTester.test_idle_blocks_control_operations),
+    ("idle_allows_read_operations", AutomationTester.test_idle_allows_read_operations),
+    ("mode_transition_to_fault", AutomationTester.test_mode_transition_to_fault),
+    ("invalid_transition_fault_to_auto", AutomationTester.test_invalid_transition_fault_to_auto),
+    ("recovery_path_fault_to_manual_to_auto", AutomationTester.test_recovery_path_fault_to_manual_to_auto),
+    ("invalid_mode_string", AutomationTester.test_invalid_mode_string),
+    ("get_parameters", AutomationTester.test_get_parameters),
+    ("update_parameter_valid", AutomationTester.test_update_parameter_valid),
+    ("update_parameter_out_of_range", AutomationTester.test_update_parameter_out_of_range),
+    ("automation_disabled_returns_unavailable", AutomationTester.test_automation_disabled_returns_unavailable),
+]

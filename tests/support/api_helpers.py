@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Anolis Integration Test Helpers
 
@@ -355,6 +354,26 @@ def get_devices(base_url: str, timeout: float = 2.0) -> Optional[List[Dict[str, 
     return None
 
 
+def get_all_state(base_url: str, timeout: float = 5.0) -> Dict[str, Any]:
+    """
+    Get full state snapshot from /v0/state.
+
+    Args:
+        base_url: Base URL of runtime HTTP server
+        timeout: Request timeout in seconds
+
+    Returns:
+        Decoded response body
+
+    Raises:
+        requests.HTTPError: if response status is not successful
+        ValueError: if body is not valid JSON
+    """
+    resp = requests.get(f"{base_url}/v0/state", timeout=timeout)
+    resp.raise_for_status()
+    return cast(Dict[str, Any], resp.json())
+
+
 def get_device_state(base_url: str, provider_id: str, device_id: str, timeout: float = 2.0) -> Optional[Dict[str, Any]]:
     """
     Get state for a specific device.
@@ -420,3 +439,130 @@ def set_mode(base_url: str, mode: str, timeout: float = 2.0) -> bool:
         return resp.status_code == 200
     except requests.exceptions.RequestException:
         return False
+
+
+def parse_typed_value(value_obj: Dict[str, Any]) -> Any:
+    """Convert ADPP typed-value object to a plain Python value."""
+    value_type = value_obj.get("type", "")
+    if value_type == "double":
+        return value_obj.get("double")
+    if value_type == "int64":
+        return value_obj.get("int64")
+    if value_type == "uint64":
+        return value_obj.get("uint64")
+    if value_type == "bool":
+        return value_obj.get("bool")
+    if value_type == "string":
+        return value_obj.get("string")
+    return value_obj
+
+
+def normalize_device_state(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Normalize /v0/state/{provider}/{device} response to scenario-friendly shape.
+
+    Input shape uses `values` with typed objects; output uses `signals` with plain values.
+    """
+    signals: List[Dict[str, Any]] = []
+    for raw in data.get("values", []):
+        signal = {
+            "signal_id": raw.get("signal_id"),
+            "quality": raw.get("quality"),
+            "age_ms": raw.get("age_ms"),
+            "timestamp_epoch_ms": raw.get("timestamp_epoch_ms"),
+            "value": parse_typed_value(cast(Dict[str, Any], raw.get("value", {}))),
+        }
+        signals.append(signal)
+
+    return {
+        "provider_id": data.get("provider_id"),
+        "device_id": data.get("device_id"),
+        "quality": data.get("quality"),
+        "signals": signals,
+    }
+
+
+def get_capabilities(
+    base_url: str,
+    provider_id: str,
+    device_id: str,
+    timeout: float = 5.0,
+) -> Dict[str, Any]:
+    """Get device capabilities block from runtime."""
+    resp = requests.get(f"{base_url}/v0/devices/{provider_id}/{device_id}/capabilities", timeout=timeout)
+    resp.raise_for_status()
+    data = cast(Dict[str, Any], resp.json())
+    return cast(Dict[str, Any], data.get("capabilities", data))
+
+
+def get_state(
+    base_url: str,
+    provider_id: str,
+    device_id: str,
+    timeout: float = 5.0,
+) -> Dict[str, Any]:
+    """Get normalized state for one device."""
+    resp = requests.get(f"{base_url}/v0/state/{provider_id}/{device_id}", timeout=timeout)
+    resp.raise_for_status()
+    data = cast(Dict[str, Any], resp.json())
+    return normalize_device_state(data)
+
+
+def call_device_function(
+    base_url: str,
+    provider_id: str,
+    device_id: str,
+    function: Any,
+    args: Dict[str, Any],
+    timeout: float = 20.0,
+) -> Dict[str, Any]:
+    """
+    Call /v0/call with function specified by id or name.
+
+    Args may be plain python values or pre-typed ADPP objects.
+    """
+    if isinstance(function, str):
+        caps = get_capabilities(base_url, provider_id, device_id, timeout=timeout)
+        functions_list = caps.get("functions", [])
+        function_id = None
+        for candidate in functions_list:
+            if candidate.get("name") == function:
+                function_id = candidate.get("function_id")
+                break
+        if function_id is None:
+            available = [candidate.get("name") for candidate in functions_list]
+            raise ValueError(f"Function '{function}' not found in {provider_id}/{device_id}. Available: {available}")
+    else:
+        function_id = int(function)
+
+    typed_args: Dict[str, Dict[str, Any]] = {}
+    for key, value in args.items():
+        if isinstance(value, dict) and "type" in value:
+            typed_args[key] = cast(Dict[str, Any], value)
+        elif isinstance(value, bool):
+            typed_args[key] = {"type": "bool", "bool": value}
+        elif isinstance(value, int):
+            typed_args[key] = {"type": "int64", "int64": value}
+        elif isinstance(value, float):
+            typed_args[key] = {"type": "double", "double": value}
+        elif isinstance(value, str):
+            typed_args[key] = {"type": "string", "string": value}
+        else:
+            raise ValueError(f"Unsupported arg type for '{key}': {type(value)}")
+
+    payload = {
+        "provider_id": provider_id,
+        "device_id": device_id,
+        "function_id": function_id,
+        "args": typed_args,
+    }
+    resp = requests.post(f"{base_url}/v0/call", json=payload, timeout=timeout)
+
+    # Preserve caller control for 4xx status handling.
+    if resp.status_code >= 500:
+        resp.raise_for_status()
+
+    data = cast(Dict[str, Any], resp.json())
+    if isinstance(data.get("status"), dict):
+        data["status"] = data["status"].get("code", data["status"])
+    return data

@@ -91,7 +91,7 @@ class TelemetryOnChange(ScenarioBase):
                 self.assert_equal(
                     ch1_value,
                     new_ch1_state,
-                    f"Signal value inconsistent on post-change poll {i + 1}",
+                    f"Signal value inconsistent on post-change poll {_i + 1}",
                 )
 
                 self.sleep(0.1)

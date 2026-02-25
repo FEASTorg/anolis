@@ -10,22 +10,16 @@ Validates anolis-provider-sim configuration system requirements:
 These tests ensure the provider configuration system works correctly
 before Operator UI integration.
 
-Usage:
-    python tests/integration/test_provider_config.py [--runtime PATH] [--provider PATH]
 """
 
-import argparse
 import os
-import sys
 import tempfile
 import time
 from pathlib import Path
 
 import requests
-from test_all import find_provider_path, find_runtime_path
-from test_fixtures import RuntimeFixture
 
-BASE_URL = "http://localhost:8080"
+from tests.support.runtime_fixture import RuntimeFixture
 
 
 def get_fixture_path(filename: str) -> Path:
@@ -53,14 +47,14 @@ def create_unknown_type_config() -> Path:
     return Path(path)
 
 
-def test_missing_config_required(runtime_path: Path, provider_path: Path) -> bool:
+def test_missing_config_required(runtime_path: Path, provider_path: Path, port: int) -> bool:
     """Test that provider requires --config argument."""
     print("\n=== TEST: Missing --config Argument ===")
 
     # Create runtime config WITHOUT --config argument for provider
     config = {
         "runtime": {},
-        "http": {"enabled": True, "bind": "127.0.0.1", "port": 8080},
+        "http": {"enabled": True, "bind": "127.0.0.1", "port": port},
         "providers": [
             {
                 "id": "sim0",
@@ -107,9 +101,10 @@ def test_missing_config_required(runtime_path: Path, provider_path: Path) -> boo
         fixture.cleanup()
 
 
-def test_default_config_loads(runtime_path: Path, provider_path: Path) -> bool:
+def test_default_config_loads(runtime_path: Path, provider_path: Path, port: int) -> bool:
     """Test that default fixture config loads correctly."""
     print("\n=== TEST: Default Configuration ===")
+    base_url = f"http://localhost:{port}"
 
     config_path = get_fixture_path("provider-sim-default.yaml")
 
@@ -121,7 +116,7 @@ def test_default_config_loads(runtime_path: Path, provider_path: Path) -> bool:
 
     config = {
         "runtime": {},
-        "http": {"enabled": True, "bind": "127.0.0.1", "port": 8080},
+        "http": {"enabled": True, "bind": "127.0.0.1", "port": port},
         "providers": [
             {
                 "id": "sim0",
@@ -151,7 +146,7 @@ def test_default_config_loads(runtime_path: Path, provider_path: Path) -> bool:
             return False
 
         # Query devices via HTTP API
-        resp = requests.get(f"{BASE_URL}/v0/devices", timeout=5)
+        resp = requests.get(f"{base_url}/v0/devices", timeout=5)
         if resp.status_code != 200:
             print(f"  [FAIL] HTTP request failed: {resp.status_code}")
             return False
@@ -182,9 +177,10 @@ def test_default_config_loads(runtime_path: Path, provider_path: Path) -> bool:
         fixture.cleanup()
 
 
-def test_multi_device_config(runtime_path: Path, provider_path: Path) -> bool:
+def test_multi_device_config(runtime_path: Path, provider_path: Path, port: int) -> bool:
     """Test multi-device configuration with 2 tempctl instances."""
     print("\n=== TEST: Multi-Device Configuration (2x tempctl) ===")
+    base_url = f"http://localhost:{port}"
 
     config_path = get_fixture_path("provider-multi-tempctl.yaml")
 
@@ -196,7 +192,7 @@ def test_multi_device_config(runtime_path: Path, provider_path: Path) -> bool:
 
     config = {
         "runtime": {},
-        "http": {"enabled": True, "bind": "127.0.0.1", "port": 8080},
+        "http": {"enabled": True, "bind": "127.0.0.1", "port": port},
         "providers": [
             {
                 "id": "sim0",
@@ -226,7 +222,7 @@ def test_multi_device_config(runtime_path: Path, provider_path: Path) -> bool:
             return False
 
         # Query devices
-        resp = requests.get(f"{BASE_URL}/v0/devices", timeout=5)
+        resp = requests.get(f"{base_url}/v0/devices", timeout=5)
         if resp.status_code != 200:
             print(f"  [FAIL] HTTP request failed: {resp.status_code}")
             return False
@@ -250,7 +246,7 @@ def test_multi_device_config(runtime_path: Path, provider_path: Path) -> bool:
         # Verify both tempctl devices are functional
         all_functional = True
         for dev_id in ["tempctl0", "tempctl1"]:
-            resp = requests.get(f"{BASE_URL}/v0/state/sim0/{dev_id}", timeout=5)
+            resp = requests.get(f"{base_url}/v0/state/sim0/{dev_id}", timeout=5)
             if resp.status_code == 200:
                 print(f"  [PASS] {dev_id} is functional")
             else:
@@ -263,9 +259,10 @@ def test_multi_device_config(runtime_path: Path, provider_path: Path) -> bool:
         fixture.cleanup()
 
 
-def test_minimal_config(runtime_path: Path, provider_path: Path) -> bool:
+def test_minimal_config(runtime_path: Path, provider_path: Path, port: int) -> bool:
     """Test minimal configuration with single device."""
     print("\n=== TEST: Minimal Configuration (Single Device) ===")
+    base_url = f"http://localhost:{port}"
 
     config_path = get_fixture_path("provider-minimal.yaml")
 
@@ -277,7 +274,7 @@ def test_minimal_config(runtime_path: Path, provider_path: Path) -> bool:
 
     config = {
         "runtime": {},
-        "http": {"enabled": True, "bind": "127.0.0.1", "port": 8080},
+        "http": {"enabled": True, "bind": "127.0.0.1", "port": port},
         "providers": [
             {
                 "id": "sim0",
@@ -307,7 +304,7 @@ def test_minimal_config(runtime_path: Path, provider_path: Path) -> bool:
             return False
 
         # Query devices
-        resp = requests.get(f"{BASE_URL}/v0/devices", timeout=5)
+        resp = requests.get(f"{base_url}/v0/devices", timeout=5)
         if resp.status_code != 200:
             print(f"  [FAIL] HTTP request failed: {resp.status_code}")
             return False
@@ -333,7 +330,7 @@ def test_minimal_config(runtime_path: Path, provider_path: Path) -> bool:
         fixture.cleanup()
 
 
-def test_invalid_yaml_handling(runtime_path: Path, provider_path: Path) -> bool:
+def test_invalid_yaml_handling(runtime_path: Path, provider_path: Path, port: int) -> bool:
     """Test provider handling of invalid YAML syntax."""
     print("\n=== TEST: Invalid YAML Syntax ===")
 
@@ -344,7 +341,7 @@ def test_invalid_yaml_handling(runtime_path: Path, provider_path: Path) -> bool:
 
         config = {
             "runtime": {},
-            "http": {"enabled": True, "bind": "127.0.0.1", "port": 8080},
+            "http": {"enabled": True, "bind": "127.0.0.1", "port": port},
             "providers": [
                 {
                     "id": "sim0",
@@ -389,7 +386,7 @@ def test_invalid_yaml_handling(runtime_path: Path, provider_path: Path) -> bool:
         config_path.unlink(missing_ok=True)
 
 
-def test_unknown_device_type(runtime_path: Path, provider_path: Path) -> bool:
+def test_unknown_device_type(runtime_path: Path, provider_path: Path, port: int) -> bool:
     """Test that unknown device types cause provider to fail fast at startup."""
     print("\n=== TEST: Unknown Device Type (Fail-Fast) ===")
 
@@ -400,7 +397,7 @@ def test_unknown_device_type(runtime_path: Path, provider_path: Path) -> bool:
 
         config = {
             "runtime": {},
-            "http": {"enabled": True, "bind": "127.0.0.1", "port": 8080},
+            "http": {"enabled": True, "bind": "127.0.0.1", "port": port},
             "providers": [
                 {
                     "id": "sim0",
@@ -440,80 +437,3 @@ def test_unknown_device_type(runtime_path: Path, provider_path: Path) -> bool:
             fixture.cleanup()
     finally:
         config_path.unlink(missing_ok=True)
-
-
-def main():
-    """Run all provider configuration tests."""
-    parser = argparse.ArgumentParser(description="Provider configuration integration tests")
-    parser.add_argument("--runtime", type=str, help="Path to anolis-runtime executable")
-    parser.add_argument("--provider", type=str, help="Path to anolis-provider-sim executable")
-    parser.add_argument("--timeout", type=float, default=120.0, help="Test timeout in seconds")
-    args = parser.parse_args()
-
-    # Find executables
-    runtime_path = Path(args.runtime) if args.runtime else find_runtime_path()
-    provider_path = Path(args.provider) if args.provider else find_provider_path()
-
-    if not runtime_path or not runtime_path.exists():
-        print(f"ERROR: Runtime not found at {runtime_path}")
-        return 2
-
-    if not provider_path or not provider_path.exists():
-        print(f"ERROR: Provider not found at {provider_path}")
-        return 2
-
-    print("=" * 70)
-    print("PROVIDER CONFIGURATION INTEGRATION TESTS")
-    print("=" * 70)
-    print(f"Runtime: {runtime_path}")
-    print(f"Provider: {provider_path}")
-    print(f"Timeout: {args.timeout}s")
-
-    # Run tests
-    tests = [
-        ("Missing --config Argument", test_missing_config_required),
-        ("Default Configuration", test_default_config_loads),
-        ("Multi-Device Configuration", test_multi_device_config),
-        ("Minimal Configuration", test_minimal_config),
-        ("Invalid YAML Syntax", test_invalid_yaml_handling),
-        ("Unknown Device Type", test_unknown_device_type),
-    ]
-
-    results = []
-    for name, test_func in tests:
-        try:
-            passed = test_func(runtime_path, provider_path)
-            results.append((name, passed))
-        except KeyboardInterrupt:
-            print("\n\nTest interrupted by user")
-            return 1
-        except Exception as e:
-            print(f"  [ERROR] Test failed with exception: {e}")
-            import traceback
-
-            traceback.print_exc()
-            results.append((name, False))
-
-        # Brief pause between tests
-        time.sleep(0.5)
-
-    # Summary
-    print("\n" + "=" * 70)
-    print("TEST SUMMARY")
-    print("=" * 70)
-
-    passed_count = sum(1 for _, passed in results if passed)
-    total_count = len(results)
-
-    for name, passed in results:
-        status = "[PASS]" if passed else "[FAIL]"
-        print(f"{status} {name}")
-
-    print(f"\nTotal: {passed_count}/{total_count} passed")
-    print("=" * 70)
-
-    return 0 if passed_count == total_count else 1
-
-
-if __name__ == "__main__":
-    sys.exit(main())
