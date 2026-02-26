@@ -82,7 +82,12 @@ class AutomationTester:
         )
 
     def start_runtime(self) -> None:
-        if not self.fixture.start():
+        if not self.fixture.start(
+            wait_for_ready=True,
+            provider_id="sim0",
+            min_device_count=1,
+            startup_timeout=min(self.timeout, 30.0),
+        ):
             capture = self.fixture.get_output_capture()
             output_tail = capture.get_recent_output(80) if capture else "(no output capture)"
             raise AssertionError(f"Failed to start runtime process\n{output_tail}")

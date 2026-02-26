@@ -20,6 +20,8 @@ from pathlib import Path
 from queue import Empty, Queue
 from typing import List, Optional
 
+import requests
+
 
 @dataclass
 class ProcessInfo:
@@ -183,9 +185,22 @@ class RuntimeFixture:
         self.capture: Optional[OutputCapture] = None
         self.config_path: Optional[Path] = None
 
-    def start(self) -> bool:
+    def start(
+        self,
+        *,
+        wait_for_ready: bool = False,
+        provider_id: Optional[str] = None,
+        min_device_count: Optional[int] = None,
+        startup_timeout: float = 15.0,
+    ) -> bool:
         """
         Start the runtime process.
+
+        Args:
+            wait_for_ready: If True, block until HTTP/API readiness checks pass.
+            provider_id: Optional provider ID that must be AVAILABLE before success.
+            min_device_count: Optional minimum device count required before success.
+            startup_timeout: Max seconds to wait for readiness when wait_for_ready=True.
 
         Returns:
             True if startup succeeded, False otherwise
@@ -232,11 +247,77 @@ class RuntimeFixture:
             if self.verbose:
                 print(f"[RuntimeFixture] Started runtime PID={process.pid} PGID={pgid}")
 
+            if wait_for_ready and not self.wait_until_ready(
+                provider_id=provider_id,
+                min_device_count=min_device_count,
+                timeout=startup_timeout,
+            ):
+                if self.verbose:
+                    print("[RuntimeFixture] Startup readiness wait timed out or process exited")
+                return False
+
             return True
 
         except Exception as e:
             print(f"[RuntimeFixture] ERROR: Failed to start runtime: {e}")
             return False
+
+    def wait_until_ready(
+        self,
+        *,
+        provider_id: Optional[str] = None,
+        min_device_count: Optional[int] = None,
+        timeout: float = 15.0,
+        interval: float = 0.2,
+    ) -> bool:
+        """
+        Wait until runtime API is responsive and optional provider/device checks pass.
+
+        This is intentionally API-based (not log-marker-based), so tests do not depend
+        on specific log text and are resilient to startup timing variance in CI.
+        """
+        deadline = time.time() + max(timeout, 0.1)
+        while time.time() < deadline:
+            if not self.is_running():
+                return False
+
+            try:
+                status_resp = requests.get(f"{self.base_url}/v0/runtime/status", timeout=1.0)
+                if status_resp.status_code != 200:
+                    time.sleep(interval)
+                    continue
+                status = status_resp.json()
+            except (requests.exceptions.RequestException, ValueError):
+                time.sleep(interval)
+                continue
+
+            if provider_id is not None:
+                providers = status.get("providers", [])
+                provider_ready = any(
+                    entry.get("provider_id") == provider_id and entry.get("state") == "AVAILABLE"
+                    for entry in providers
+                )
+                if not provider_ready:
+                    time.sleep(interval)
+                    continue
+
+            if min_device_count is not None:
+                try:
+                    devices_resp = requests.get(f"{self.base_url}/v0/devices", timeout=1.0)
+                    if devices_resp.status_code != 200:
+                        time.sleep(interval)
+                        continue
+                    devices = devices_resp.json().get("devices", [])
+                    if len(devices) < min_device_count:
+                        time.sleep(interval)
+                        continue
+                except (requests.exceptions.RequestException, ValueError):
+                    time.sleep(interval)
+                    continue
+
+            return True
+
+        return False
 
     def cleanup(self):
         """

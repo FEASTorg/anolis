@@ -195,7 +195,16 @@ def unique_port() -> int:
 def runtime_factory(runtime_exe: Path, provider_exe: Path):
     started: list[RuntimeFixture] = []
 
-    def _start(*, config_dict: dict | None = None, port: int = 8080, verbose: bool = False) -> RuntimeFixture:
+    def _start(
+        *,
+        config_dict: dict | None = None,
+        port: int = 8080,
+        verbose: bool = False,
+        wait_for_ready: bool = True,
+        provider_id: str | None = "sim0",
+        min_device_count: int | None = 1,
+        startup_timeout: float = 20.0,
+    ) -> RuntimeFixture:
         fixture = RuntimeFixture(
             runtime_exe,
             provider_exe,
@@ -203,7 +212,12 @@ def runtime_factory(runtime_exe: Path, provider_exe: Path):
             verbose=verbose,
             config_dict=config_dict,
         )
-        if not fixture.start():
+        if not fixture.start(
+            wait_for_ready=wait_for_ready,
+            provider_id=provider_id if wait_for_ready else None,
+            min_device_count=min_device_count if wait_for_ready else None,
+            startup_timeout=startup_timeout,
+        ):
             capture = fixture.get_output_capture()
             output = capture.get_recent_output(100) if capture else "(no output capture)"
             fixture.cleanup()

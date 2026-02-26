@@ -26,7 +26,12 @@ class CoreFeatureTester:
         self.fixture = RuntimeFixture(runtime_path, provider_path, http_port=port)
 
     def start_runtime(self) -> None:
-        if not self.fixture.start():
+        if not self.fixture.start(
+            wait_for_ready=True,
+            provider_id="sim0",
+            min_device_count=1,
+            startup_timeout=min(self.timeout, 30.0),
+        ):
             raise AssertionError("Runtime failed to start\n" + self._output_tail())
 
     def cleanup(self) -> None:

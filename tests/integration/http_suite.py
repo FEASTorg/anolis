@@ -26,7 +26,12 @@ class HttpGatewayTester:
         self.fixture.cleanup()
 
     def start_runtime(self) -> None:
-        if not self.fixture.start():
+        if not self.fixture.start(
+            wait_for_ready=True,
+            provider_id="sim0",
+            min_device_count=1,
+            startup_timeout=min(self.timeout, 30.0),
+        ):
             raise AssertionError("Runtime failed to start\n" + self._output_tail())
 
     def _output_tail(self, lines: int = 80) -> str:
