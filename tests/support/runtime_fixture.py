@@ -294,8 +294,7 @@ class RuntimeFixture:
             if provider_id is not None:
                 providers = status.get("providers", [])
                 provider_ready = any(
-                    entry.get("provider_id") == provider_id and entry.get("state") == "AVAILABLE"
-                    for entry in providers
+                    entry.get("provider_id") == provider_id and entry.get("state") == "AVAILABLE" for entry in providers
                 )
                 if not provider_ready:
                     time.sleep(interval)
