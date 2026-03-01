@@ -65,10 +65,9 @@ private:
     std::mutex mutex_;
 
     // Timeout for operations
-    int timeout_ms_;           // ADPP operation timeout
-    int hello_timeout_ms_;     // Process liveness check timeout
-    int ready_timeout_ms_;     // Hardware initialization timeout
-    int shutdown_timeout_ms_;  // Provider shutdown timeout
+    int timeout_ms_;        // ADPP operation timeout
+    int hello_timeout_ms_;  // Process liveness check timeout
+    int ready_timeout_ms_;  // Hardware initialization timeout
 
     // Send request and wait for response
     bool send_request(const anolis::deviceprovider::v1::Request &request,

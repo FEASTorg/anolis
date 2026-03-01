@@ -297,7 +297,7 @@ std::unordered_map<std::string, ProviderSupervisor::ProviderSupervisionSnapshot>
     for (const auto &id : ids) {
         auto snap = get_snapshot(id);
         if (snap) {
-            result.emplace(id, std::move(*snap));
+            result.emplace(id, *snap);
         }
     }
 

@@ -16,8 +16,7 @@ ProviderHandle::ProviderHandle(const std::string &provider_id, const std::string
       next_request_id_(1),
       timeout_ms_(timeout_ms),
       hello_timeout_ms_(hello_timeout_ms),
-      ready_timeout_ms_(ready_timeout_ms),
-      shutdown_timeout_ms_(shutdown_timeout_ms) {}
+      ready_timeout_ms_(ready_timeout_ms) {}
 
 bool ProviderHandle::start() {
     LOG_INFO("[" << process_.provider_id() << "] Starting provider");

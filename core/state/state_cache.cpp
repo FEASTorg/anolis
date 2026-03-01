@@ -225,7 +225,10 @@ void StateCache::poll_once(provider::ProviderRegistry &provider_registry) {
         configs_by_provider[config.provider_id].push_back(&config);
     }
 
-    for (const auto &[provider_id, provider_configs] : configs_by_provider) {
+    for (const auto &provider_entry : configs_by_provider) {
+        const auto &provider_id = provider_entry.first;
+        const auto &provider_configs = provider_entry.second;
+
         auto mark_provider_devices_unavailable = [&]() {
             {
                 std::lock_guard<std::mutex> lock(mutex_);

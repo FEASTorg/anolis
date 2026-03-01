@@ -11,6 +11,7 @@
 #include <httplib.h>
 
 #include <chrono>
+#include <iterator>
 
 namespace anolis {
 namespace telemetry {
@@ -94,8 +95,10 @@ void InfluxSink::flush_batch() {
 
                 if (space_available > 0) {
                     size_t to_keep = std::min(space_available, lines_to_write.size());
+                    using IteratorDiff = std::vector<std::string>::difference_type;
+                    const auto keep_end = std::next(lines_to_write.begin(), static_cast<IteratorDiff>(to_keep));
                     retry_buffer_.insert(retry_buffer_.end(), std::make_move_iterator(lines_to_write.begin()),
-                                         std::make_move_iterator(lines_to_write.begin() + to_keep));
+                                         std::make_move_iterator(keep_end));
 
                     // Count dropped events
                     size_t dropped = lines_to_write.size() - to_keep;
@@ -132,8 +135,10 @@ void InfluxSink::flush_batch() {
 
             if (space_available > 0) {
                 size_t to_keep = std::min(space_available, lines_to_write.size());
+                using IteratorDiff = std::vector<std::string>::difference_type;
+                const auto keep_end = std::next(lines_to_write.begin(), static_cast<IteratorDiff>(to_keep));
                 retry_buffer_.insert(retry_buffer_.end(), std::make_move_iterator(lines_to_write.begin()),
-                                     std::make_move_iterator(lines_to_write.begin() + to_keep));
+                                     std::make_move_iterator(keep_end));
 
                 // Count dropped events
                 size_t dropped = lines_to_write.size() - to_keep;
