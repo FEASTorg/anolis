@@ -67,18 +67,21 @@ public:
     void set_event_emitter(const std::shared_ptr<events::EventEmitter> &emitter);
 
     // Initialize the cache (build polling configs from registry)
+    // Must be called before poll_once() or start_polling().
     bool initialize();
 
     // Rebuild polling configs for a provider (called after restart/rediscovery)
     void rebuild_poll_configs(const std::string &provider_id);
 
-    // Start polling thread
+    // Start polling thread.
+    // Requires initialize() to have completed successfully.
     void start_polling(provider::ProviderRegistry &provider_registry);
 
     // Stop polling
     void stop_polling();
 
-    // Poll once (for testing or manual control)
+    // Poll once (for testing or manual control).
+    // Requires initialize() to have completed successfully.
     void poll_once(provider::ProviderRegistry &provider_registry);
 
     // Read API - Thread-safe snapshots
@@ -116,8 +119,17 @@ private:
 
     // Polling control
     std::atomic<bool> polling_active_;
+    std::atomic<bool> initialized_;
+    std::atomic<bool> preinit_poll_warning_emitted_;
     std::thread polling_thread_;
     std::chrono::milliseconds poll_interval_;
+
+    struct ProviderOutageLogState {
+        bool in_outage = false;
+        bool provider_missing = false;
+        std::chrono::steady_clock::time_point last_log_time{};
+    };
+    std::unordered_map<std::string, ProviderOutageLogState> provider_outage_log_state_;
 
     // Helper: Poll single device
     bool poll_device(const std::string &provider_id, const std::string &device_id,

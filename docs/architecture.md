@@ -70,7 +70,9 @@
 
 - Load config (yaml)
 - Launch providers
-- Initialize registry + state cache
+- Initialize state cache polling config (`StateCache::initialize`)
+- Prime one synchronous snapshot (`StateCache::poll_once`)
+- Start background polling only after initialization (`StateCache::start_polling`)
 - Enter main loop
 
 ## Data Flow

@@ -218,8 +218,8 @@ nlohmann::json encode_function_spec(const registry::FunctionSpec &spec) {
         } else if (arg.type() == anolis::deviceprovider::v1::VALUE_TYPE_UINT64) {
             bool has_bounds = arg.min_uint64() != 0 || arg.max_uint64() != 0;
             if (has_bounds) {
-                arg_info["min"] = static_cast<int64_t>(arg.min_uint64());
-                arg_info["max"] = static_cast<int64_t>(arg.max_uint64());
+                arg_info["min"] = arg.min_uint64();
+                arg_info["max"] = arg.max_uint64();
             }
         }
 

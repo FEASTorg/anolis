@@ -15,6 +15,25 @@
 namespace anolis {
 namespace http {
 
+namespace {
+std::string derive_lifecycle_state(bool is_available,
+                                   const provider::ProviderSupervisor::ProviderSupervisionSnapshot &snap) {
+    if (is_available) {
+        return snap.attempt_count > 0 ? "RECOVERING" : "RUNNING";
+    }
+
+    if (snap.circuit_open) {
+        return "CIRCUIT_OPEN";
+    }
+
+    if (snap.crash_detected || snap.attempt_count > 0 || snap.next_restart_in_ms.has_value()) {
+        return "RESTARTING";
+    }
+
+    return "DOWN";
+}
+}  // namespace
+
 //=============================================================================
 // GET /v0/runtime/status
 //=============================================================================
@@ -475,10 +494,12 @@ void HttpServer::handle_get_providers_health(const httplib::Request &, httplib::
         nlohmann::json last_seen_ago_ms_json = nullptr;
         int64_t uptime_seconds = 0;
         nlohmann::json supervision_json;
+        std::string lifecycle_state = is_available ? "RUNNING" : "DOWN";
 
         auto snap_it = snapshots.find(provider_id);
         if (snap_it != snapshots.end()) {
             const auto &snap = snap_it->second;
+            lifecycle_state = derive_lifecycle_state(is_available, snap);
 
             // last_seen_ago_ms: null before first heartbeat, otherwise duration.
             last_seen_ago_ms_json = snap.last_seen_ago_ms.has_value() ? nlohmann::json(snap.last_seen_ago_ms.value())
@@ -503,6 +524,7 @@ void HttpServer::handle_get_providers_health(const httplib::Request &, httplib::
 
         providers_json.push_back({{"provider_id", provider_id},
                                   {"state", state},
+                                  {"lifecycle_state", lifecycle_state},
                                   {"last_seen_ago_ms", last_seen_ago_ms_json},
                                   {"uptime_seconds", uptime_seconds},
                                   {"device_count", devices.size()},

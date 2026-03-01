@@ -140,24 +140,28 @@ The circuit breaker resets when the provider successfully recovers.
 ### Supervision Observability
 
 The runtime exposes real-time supervision state for every provider via `GET /v0/providers/health`.
+`GET /v0/runtime/status` intentionally stays coarse (`AVAILABLE`/`UNAVAILABLE`) for compatibility;
+use `/v0/providers/health` for restart/backoff detail.
 
 **Key fields per provider:**
 
 | Field              | Description                                                                                      |
 | ------------------ | ------------------------------------------------------------------------------------------------ |
+| `lifecycle_state`  | Additive lifecycle signal: `RUNNING`, `RECOVERING`, `RESTARTING`, `CIRCUIT_OPEN`, `DOWN`.      |
 | `last_seen_ago_ms` | Milliseconds since the last healthy poll. Counts up while UNAVAILABLE. `null` before first poll. |
 | `uptime_seconds`   | Seconds since the first healthy poll of the current process instance. `0` when UNAVAILABLE.      |
 | `supervision`      | Supervision block — always an object, never null (even when policy is disabled).                 |
 
 **Supervision state at each lifecycle stage:**
 
-| Stage                       | `state`       | `attempt_count`  | `circuit_open` | `next_restart_in_ms`         |
-| --------------------------- | ------------- | ---------------- | -------------- | ---------------------------- |
-| Running normally            | `AVAILABLE`   | `0`              | `false`        | `null`                       |
-| Crashed, in backoff         | `UNAVAILABLE` | `>= 1`           | `false`        | positive integer (countdown) |
-| Restart eligible now        | `UNAVAILABLE` | `>= 1`           | `false`        | `0`                          |
-| circuit open (max exceeded) | `UNAVAILABLE` | `> max_attempts` | `true`         | `null`                       |
-| Recovered after crash       | `AVAILABLE`   | `0`              | `false`        | `null`                       |
+| Stage                       | `state`       | `lifecycle_state` | `attempt_count`  | `circuit_open` | `next_restart_in_ms`         |
+| --------------------------- | ------------- | ----------------- | ---------------- | -------------- | ---------------------------- |
+| Running normally            | `AVAILABLE`   | `RUNNING`         | `0`              | `false`        | `null`                       |
+| Available but stabilizing   | `AVAILABLE`   | `RECOVERING`      | `> 0`            | `false`        | `0` or `null`                |
+| Crashed, in backoff         | `UNAVAILABLE` | `RESTARTING`      | `>= 1`           | `false`        | positive integer (countdown) |
+| Restart eligible now        | `UNAVAILABLE` | `RESTARTING`      | `>= 1`           | `false`        | `0`                          |
+| Circuit open (max exceeded) | `UNAVAILABLE` | `CIRCUIT_OPEN`    | `> max_attempts` | `true`         | `null`                       |
+| Down (no restart metadata)  | `UNAVAILABLE` | `DOWN`            | `0`              | `false`        | `null`                       |
 
 **Distinguishing the two `null` cases for `next_restart_in_ms`:**
 

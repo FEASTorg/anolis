@@ -220,3 +220,48 @@ TEST_F(StateCacheTest, ConcurrencyStress) {
 
     EXPECT_FALSE(failed);
 }
+
+TEST_F(StateCacheTest, InitializeIsIdempotentAndDoesNotDuplicatePollConfigs) {
+    RegisterMockDevice();
+    state_cache = std::make_unique<state::StateCache>(*registry, 100);
+
+    EXPECT_TRUE(state_cache->initialize());
+    EXPECT_TRUE(state_cache->initialize());
+
+    EXPECT_CALL(*mock_provider, read_signals("dev1", _, _))
+        .Times(1)
+        .WillOnce(Invoke([](const std::string &, const std::vector<std::string> &, ReadSignalsResponse &response) {
+            auto *v = response.add_values();
+            v->set_signal_id("temp");
+            v->mutable_value()->set_double_value(42.0);
+            v->set_quality(anolis::deviceprovider::v1::SignalValue_Quality_QUALITY_OK);
+            return true;
+        }));
+
+    state_cache->poll_once(*provider_registry);
+}
+
+TEST_F(StateCacheTest, MissingProviderMarksCachedDeviceUnavailable) {
+    RegisterMockDevice();
+    state_cache = std::make_unique<state::StateCache>(*registry, 100);
+    EXPECT_TRUE(state_cache->initialize());
+
+    EXPECT_CALL(*mock_provider, read_signals("dev1", _, _))
+        .Times(1)
+        .WillOnce(Invoke([](const std::string &, const std::vector<std::string> &, ReadSignalsResponse &response) {
+            auto *v = response.add_values();
+            v->set_signal_id("temp");
+            v->mutable_value()->set_double_value(25.5);
+            v->set_quality(anolis::deviceprovider::v1::SignalValue_Quality_QUALITY_OK);
+            return true;
+        }));
+
+    state_cache->poll_once(*provider_registry);
+
+    ASSERT_TRUE(provider_registry->remove_provider("sim0"));
+    state_cache->poll_once(*provider_registry);
+
+    auto state = state_cache->get_device_state("sim0/dev1");
+    ASSERT_TRUE(state != nullptr);
+    EXPECT_FALSE(state->provider_available);
+}

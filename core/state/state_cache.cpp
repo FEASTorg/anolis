@@ -1,13 +1,19 @@
 #include "state_cache.hpp"
 
+#include <algorithm>
 #include <cstring>
 #include <thread>
+#include <unordered_map>
 
 #include "events/event_emitter.hpp"
 #include "logging/logger.hpp"
 
 namespace anolis {
 namespace state {
+
+namespace {
+constexpr auto kOutageLogInterval = std::chrono::seconds(30);
+}
 
 // CachedSignalValue methods
 bool CachedSignalValue::is_stale(std::chrono::milliseconds timeout, std::chrono::system_clock::time_point now) const {
@@ -32,13 +38,21 @@ std::chrono::milliseconds CachedSignalValue::age(std::chrono::system_clock::time
 
 // StateCache implementation
 StateCache::StateCache(const registry::DeviceRegistry &registry, int poll_interval_ms)
-    : registry_(registry), event_emitter_(nullptr), polling_active_(false), poll_interval_(poll_interval_ms) {}
+    : registry_(registry),
+      event_emitter_(nullptr),
+      polling_active_(false),
+      initialized_(false),
+      preinit_poll_warning_emitted_(false),
+      poll_interval_(poll_interval_ms) {}
 
 StateCache::~StateCache() { stop_polling(); }
 
 void StateCache::set_event_emitter(const std::shared_ptr<events::EventEmitter> &emitter) { event_emitter_ = emitter; }
 
 bool StateCache::initialize() {
+    std::vector<PollConfig> new_poll_configs;
+    std::unordered_map<std::string, DeviceState> new_device_states;
+
     // Build polling configuration from registry
     auto all_devices = registry_.get_all_devices();  // Returns vector<RegisteredDevice> by value
 
@@ -55,20 +69,26 @@ bool StateCache::initialize() {
         }
 
         if (!config.signal_ids.empty()) {
-            poll_configs_.push_back(config);
+            new_poll_configs.push_back(config);
 
             // Initialize empty device state
             DeviceState state;
             state.device_handle = device.get_handle();
             state.provider_available = true;
             state.last_poll_time = std::chrono::system_clock::now();
-
-            {
-                std::lock_guard<std::mutex> lock(mutex_);
-                device_states_[state.device_handle] = state;
-            }
+            new_device_states[state.device_handle] = std::move(state);
         }
     }
+
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        poll_configs_ = std::move(new_poll_configs);
+        device_states_ = std::move(new_device_states);
+        provider_outage_log_state_.clear();
+    }
+
+    initialized_.store(true, std::memory_order_release);
+    preinit_poll_warning_emitted_.store(false, std::memory_order_relaxed);
     return true;
 }
 
@@ -95,6 +115,7 @@ void StateCache::rebuild_poll_configs(const std::string &provider_id) {
                 ++it;
             }
         }
+        provider_outage_log_state_.erase(provider_id);
     }
 
     // Rebuild poll configs from registry for this provider
@@ -147,6 +168,11 @@ void StateCache::start_polling(provider::ProviderRegistry &provider_registry) {
         return;
     }
 
+    if (!initialized_.load(std::memory_order_acquire)) {
+        LOG_ERROR("[StateCache] start_polling() called before initialize(); refusing to start");
+        return;
+    }
+
     polling_active_ = true;
     LOG_INFO("[StateCache] Polling thread starting");
 
@@ -179,6 +205,13 @@ void StateCache::stop_polling() {
 }
 
 void StateCache::poll_once(provider::ProviderRegistry &provider_registry) {
+    if (!initialized_.load(std::memory_order_acquire)) {
+        if (!preinit_poll_warning_emitted_.exchange(true, std::memory_order_relaxed)) {
+            LOG_WARN("[StateCache] poll_once() called before initialize(); skipping");
+        }
+        return;
+    }
+
     // Copy poll configs to minimize lock duration
     std::vector<PollConfig> configs_copy;
     {
@@ -186,35 +219,107 @@ void StateCache::poll_once(provider::ProviderRegistry &provider_registry) {
         configs_copy = poll_configs_;
     }
 
+    std::unordered_map<std::string, std::vector<const PollConfig *>> configs_by_provider;
+    configs_by_provider.reserve(configs_copy.size());
     for (const auto &config : configs_copy) {
-        // Get provider handle
-        auto provider = provider_registry.get_provider(config.provider_id);
+        configs_by_provider[config.provider_id].push_back(&config);
+    }
+
+    for (const auto &[provider_id, provider_configs] : configs_by_provider) {
+        auto mark_provider_devices_unavailable = [&]() {
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                for (const auto *cfg : provider_configs) {
+                    const std::string handle = cfg->provider_id + "/" + cfg->device_id;
+                    auto state_it = device_states_.find(handle);
+                    if (state_it != device_states_.end()) {
+                        state_it->second.provider_available = false;
+                    }
+                }
+            }
+        };
+
+        auto track_outage_and_maybe_log = [&](bool provider_missing) {
+            const auto now = std::chrono::steady_clock::now();
+            bool should_log = false;
+            bool transitioned = false;
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                auto &state = provider_outage_log_state_[provider_id];
+                transitioned = !state.in_outage || state.provider_missing != provider_missing;
+                const bool interval_elapsed = (state.last_log_time == std::chrono::steady_clock::time_point{}) ||
+                                              (now - state.last_log_time >= kOutageLogInterval);
+
+                if (transitioned || interval_elapsed) {
+                    should_log = true;
+                    state.last_log_time = now;
+                }
+
+                state.in_outage = true;
+                state.provider_missing = provider_missing;
+            }
+
+            if (!should_log) {
+                return;
+            }
+
+            const char *condition = provider_missing ? "not found" : "not available";
+            if (transitioned) {
+                LOG_WARN("[StateCache] Provider " << provider_id << " " << condition
+                                                  << "; polling paused for provider devices");
+            } else {
+                LOG_WARN("[StateCache] Provider " << provider_id << " still " << condition
+                                                  << " (rate-limited warning)");
+            }
+        };
+
+        auto clear_outage_and_maybe_log_recovery = [&]() {
+            bool recovered = false;
+            bool was_missing = false;
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                auto it = provider_outage_log_state_.find(provider_id);
+                if (it != provider_outage_log_state_.end() && it->second.in_outage) {
+                    recovered = true;
+                    was_missing = it->second.provider_missing;
+                    provider_outage_log_state_.erase(it);
+                }
+            }
+            if (recovered) {
+                LOG_INFO("[StateCache] Provider " << provider_id << " recovered from "
+                                                  << (was_missing ? "missing" : "unavailable") << "; resuming polling");
+            }
+        };
+
+        auto provider = provider_registry.get_provider(provider_id);
         if (!provider) {
-            LOG_WARN("[StateCache] Provider " << config.provider_id << " not found");
+            track_outage_and_maybe_log(true);
+            mark_provider_devices_unavailable();
             continue;
         }
 
         if (!provider->is_available()) {
-            LOG_WARN("[StateCache] Provider " << config.provider_id << " not available");
-
-            // Mark device state as unavailable
-            std::string handle = config.provider_id + "/" + config.device_id;
-            {
-                std::lock_guard<std::mutex> lock(mutex_);
-                auto state_it = device_states_.find(handle);
-                if (state_it != device_states_.end()) {
-                    state_it->second.provider_available = false;
-                }
-            }
+            track_outage_and_maybe_log(false);
+            mark_provider_devices_unavailable();
             continue;
         }
 
-        // Poll device
-        poll_device(config.provider_id, config.device_id, config.signal_ids, *provider);
+        clear_outage_and_maybe_log_recovery();
+
+        for (const auto *cfg : provider_configs) {
+            poll_device(cfg->provider_id, cfg->device_id, cfg->signal_ids, *provider);
+        }
     }
 }
 
 void StateCache::poll_device_now(const std::string &device_handle, provider::ProviderRegistry &provider_registry) {
+    if (!initialized_.load(std::memory_order_acquire)) {
+        if (!preinit_poll_warning_emitted_.exchange(true, std::memory_order_relaxed)) {
+            LOG_WARN("[StateCache] poll_device_now() called before initialize(); skipping");
+        }
+        return;
+    }
+
     // Copy poll configs to minimize lock duration
     std::vector<PollConfig> configs_copy;
     {

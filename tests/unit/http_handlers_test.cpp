@@ -16,6 +16,8 @@
 #include <httplib.h>
 
 #include <chrono>
+#include <cstdint>
+#include <limits>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <thread>
@@ -157,6 +159,38 @@ protected:
         registry->discover_provider("test_provider", *mock_provider);
     }
 
+    void RegisterMockDeviceWithUint64ArgRange(const std::string& device_id = "test_device") {
+        EXPECT_CALL(*mock_provider, list_devices(_)).WillOnce(Invoke([device_id](std::vector<Device>& devices) {
+            Device dev;
+            dev.set_device_id(device_id);
+            devices.push_back(dev);
+            return true;
+        }));
+
+        EXPECT_CALL(*mock_provider, describe_device(device_id, _))
+            .WillOnce(Invoke([device_id](const std::string&, DescribeDeviceResponse& response) {
+                auto* device = response.mutable_device();
+                device->set_device_id(device_id);
+
+                auto* caps = response.mutable_capabilities();
+
+                auto* fn = caps->add_functions();
+                fn->set_name("set_counter");
+                fn->set_function_id(200);
+
+                auto* arg = fn->add_args();
+                arg->set_name("counter");
+                arg->set_type(anolis::deviceprovider::v1::VALUE_TYPE_UINT64);
+                arg->set_required(true);
+                arg->set_min_uint64((std::numeric_limits<uint64_t>::max() / 2) + 1);
+                arg->set_max_uint64(std::numeric_limits<uint64_t>::max());
+
+                return true;
+            }));
+
+        registry->discover_provider("test_provider", *mock_provider);
+    }
+
     /**
      * @brief Populate state cache with test data
      *
@@ -255,6 +289,31 @@ TEST_F(HttpHandlersTest, GetDeviceCapabilitiesNotFound) {
     auto json = nlohmann::json::parse(res->body);
     EXPECT_EQ("NOT_FOUND", json["status"]["code"]);
     EXPECT_TRUE(json["status"]["message"].get<std::string>().find("not found") != std::string::npos);
+}
+
+TEST_F(HttpHandlersTest, GetDeviceCapabilitiesPreservesUint64ArgRange) {
+    RegisterMockDeviceWithUint64ArgRange();
+
+    auto res = client->Get("/v0/devices/test_provider/test_device/capabilities");
+
+    ASSERT_TRUE(res);
+    EXPECT_EQ(200, res->status);
+
+    const auto json = nlohmann::json::parse(res->body);
+    ASSERT_TRUE(json.contains("capabilities"));
+    ASSERT_TRUE(json["capabilities"].contains("functions"));
+    ASSERT_EQ(1, json["capabilities"]["functions"].size());
+
+    const auto& args = json["capabilities"]["functions"][0]["args"];
+    ASSERT_TRUE(args.contains("counter"));
+    const auto& counter = args["counter"];
+
+    ASSERT_TRUE(counter.contains("min"));
+    ASSERT_TRUE(counter.contains("max"));
+    EXPECT_TRUE(counter["min"].is_number_unsigned());
+    EXPECT_TRUE(counter["max"].is_number_unsigned());
+    EXPECT_EQ((std::numeric_limits<uint64_t>::max() / 2) + 1, counter["min"].get<uint64_t>());
+    EXPECT_EQ(std::numeric_limits<uint64_t>::max(), counter["max"].get<uint64_t>());
 }
 
 //=============================================================================
@@ -474,6 +533,7 @@ TEST_F(HttpHandlersTest, GetProvidersHealthNullSupervisorShape) {
 
     const auto& provider = json["providers"][0];
     EXPECT_EQ("test_provider", provider["provider_id"]);
+    EXPECT_EQ("RUNNING", provider["lifecycle_state"]);
 
     // supervision is always an object, never null — even when supervisor is nullptr
     ASSERT_TRUE(provider.contains("supervision"));
@@ -509,12 +569,41 @@ TEST_F(HttpHandlersTest, GetRuntimeStatus) {
     EXPECT_TRUE(json["providers"].is_array());
     EXPECT_EQ(1, json["providers"].size());
 
-    auto& provider = json["providers"][0];
+    const auto& provider = json["providers"][0];
     EXPECT_EQ("test_provider", provider["provider_id"]);
-    EXPECT_EQ("AVAILABLE", provider["state"]);
+    ASSERT_TRUE(provider.contains("state"));
+    ASSERT_TRUE(provider["state"].is_string());
+
+    // Compatibility contract: runtime status remains coarse availability only.
+    const std::string state = provider["state"].get<std::string>();
+    EXPECT_TRUE(state == "AVAILABLE" || state == "UNAVAILABLE");
+    EXPECT_EQ("AVAILABLE", state);
     EXPECT_EQ(1, provider["device_count"]);
+    EXPECT_FALSE(provider.contains("supervision"));
 
     EXPECT_EQ(1, json["device_count"]);
+}
+
+TEST_F(HttpHandlersTest, GetRuntimeStatusUsesUnavailableWhenProviderUnavailable) {
+    RegisterMockDevice();
+
+    // Override fixture default to validate the unavailable branch.
+    EXPECT_CALL(*mock_provider, is_available()).WillRepeatedly(Return(false));
+
+    auto res = client->Get("/v0/runtime/status");
+
+    ASSERT_TRUE(res);
+    EXPECT_EQ(200, res->status);
+
+    const auto json = nlohmann::json::parse(res->body);
+    EXPECT_EQ("OK", json["status"]["code"]);
+    ASSERT_TRUE(json["providers"].is_array());
+    ASSERT_EQ(1, json["providers"].size());
+
+    const auto& provider = json["providers"][0];
+    EXPECT_EQ("test_provider", provider["provider_id"]);
+    EXPECT_EQ("UNAVAILABLE", provider["state"]);
+    EXPECT_FALSE(provider.contains("supervision"));
 }
 
 //=============================================================================
@@ -642,13 +731,18 @@ TEST_F(HttpHandlersProvidersHealthTest, SupervisionIsAlwaysAnObject) {
     ASSERT_TRUE(provider.contains("supervision"));
     ASSERT_TRUE(provider["supervision"].is_object());
     EXPECT_EQ("AVAILABLE", provider["state"]);
+    EXPECT_EQ("RUNNING", provider["lifecycle_state"]);
 }
 
 TEST_F(HttpHandlersProvidersHealthTest, SupervisionContainsAllRequiredKeys) {
     auto res = client->Get("/v0/providers/health");
     ASSERT_TRUE(res);
     auto json = nlohmann::json::parse(res->body);
+    const auto& provider = json["providers"][0];
     const auto& sup = json["providers"][0]["supervision"];
+
+    EXPECT_TRUE(provider.contains("lifecycle_state"));
+    EXPECT_TRUE(provider["lifecycle_state"].is_string());
 
     EXPECT_TRUE(sup.contains("enabled"));
     EXPECT_TRUE(sup.contains("attempt_count"));
@@ -677,6 +771,44 @@ TEST_F(HttpHandlersProvidersHealthTest, SupervisionReflectsRegisteredPolicy) {
     EXPECT_FALSE(sup["crash_detected"].get<bool>());
     EXPECT_FALSE(sup["circuit_open"].get<bool>());
     // Healthy, no crash history: next_restart_in_ms is null
+    EXPECT_TRUE(sup["next_restart_in_ms"].is_null());
+    EXPECT_EQ("RUNNING", json["providers"][0]["lifecycle_state"]);
+}
+
+TEST_F(HttpHandlersProvidersHealthTest, LifecycleStateRestartingWhenInBackoff) {
+    ASSERT_TRUE(supervisor->mark_crash_detected("test_provider"));
+    ASSERT_TRUE(supervisor->record_crash("test_provider"));
+    EXPECT_CALL(*mock_provider, is_available()).WillRepeatedly(Return(false));
+
+    auto res = client->Get("/v0/providers/health");
+    ASSERT_TRUE(res);
+    auto json = nlohmann::json::parse(res->body);
+    const auto& provider = json["providers"][0];
+    const auto& sup = provider["supervision"];
+
+    EXPECT_EQ("UNAVAILABLE", provider["state"]);
+    EXPECT_EQ("RESTARTING", provider["lifecycle_state"]);
+    EXPECT_GE(sup["attempt_count"].get<int>(), 1);
+    EXPECT_FALSE(sup["circuit_open"].get<bool>());
+}
+
+TEST_F(HttpHandlersProvidersHealthTest, LifecycleStateCircuitOpenWhenAttemptsExceeded) {
+    ASSERT_TRUE(supervisor->mark_crash_detected("test_provider"));
+    ASSERT_TRUE(supervisor->record_crash("test_provider"));
+    ASSERT_TRUE(supervisor->record_crash("test_provider"));
+    ASSERT_TRUE(supervisor->record_crash("test_provider"));
+    EXPECT_FALSE(supervisor->record_crash("test_provider"));
+    EXPECT_CALL(*mock_provider, is_available()).WillRepeatedly(Return(false));
+
+    auto res = client->Get("/v0/providers/health");
+    ASSERT_TRUE(res);
+    auto json = nlohmann::json::parse(res->body);
+    const auto& provider = json["providers"][0];
+    const auto& sup = provider["supervision"];
+
+    EXPECT_EQ("UNAVAILABLE", provider["state"]);
+    EXPECT_EQ("CIRCUIT_OPEN", provider["lifecycle_state"]);
+    EXPECT_TRUE(sup["circuit_open"].get<bool>());
     EXPECT_TRUE(sup["next_restart_in_ms"].is_null());
 }
 

@@ -22,7 +22,7 @@ void HttpServer::handle_post_call(const httplib::Request &req, httplib::Response
             return;
         }
 
-        // Decode call request
+        // Decode transport payload only; entity/function/arg semantics are validated in CallRouter.
         std::string provider_id, device_id;
         uint32_t function_id;
         std::map<std::string, anolis::deviceprovider::v1::Value> args;

@@ -340,7 +340,8 @@ void Runtime::run() {
     LOG_INFO("[Runtime] Starting main loop");
     running_ = true;
 
-    // Start state cache polling
+    // start_polling() requires initialize() to have run first.
+    // initialize() already primes one synchronous poll_once() snapshot.
     state_cache_->start_polling(provider_registry_);
 
     LOG_INFO("[Runtime] State cache polling active");
