@@ -61,7 +61,7 @@ private:
     std::atomic<bool> session_healthy_{false};
     std::string error_;
     anolis::deviceprovider::v1::Status_Code last_status_code_ = anolis::deviceprovider::v1::Status_Code_CODE_OK;
-    uint32_t next_request_id_;
+    std::atomic<uint32_t> next_request_id_;
     std::mutex mutex_;
 
     // Timeout for operations

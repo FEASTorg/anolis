@@ -71,7 +71,8 @@ public:
 
     // Discovery: Perform Hello -> ListDevices -> DescribeDevice for each device
     // Thread-safe: Uses unique_lock
-    bool discover_provider(const std::string &provider_id, anolis::provider::IProviderHandle &provider);
+    bool discover_provider(const std::string &provider_id, anolis::provider::IProviderHandle &provider,
+                           bool replace_existing = false);
 
     // Lookup - Thread-safe by-value returns
     // Returns copy to prevent dangling pointers when registry is mutated

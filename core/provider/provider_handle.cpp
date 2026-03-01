@@ -68,7 +68,7 @@ bool ProviderHandle::start() {
 
 bool ProviderHandle::hello(anolis::deviceprovider::v1::HelloResponse &response) {
     anolis::deviceprovider::v1::Request request;
-    uint64_t request_id = next_request_id_++;
+    uint64_t request_id = next_request_id_.fetch_add(1, std::memory_order_relaxed);
     request.set_request_id(request_id);
     auto *hello_req = request.mutable_hello();
     hello_req->set_protocol_version("v1");
@@ -91,7 +91,7 @@ bool ProviderHandle::hello(anolis::deviceprovider::v1::HelloResponse &response) 
 
 bool ProviderHandle::wait_ready(anolis::deviceprovider::v1::WaitReadyResponse &response) {
     anolis::deviceprovider::v1::Request request;
-    uint64_t request_id = next_request_id_++;
+    uint64_t request_id = next_request_id_.fetch_add(1, std::memory_order_relaxed);
     request.set_request_id(request_id);
     auto *ready_req = request.mutable_wait_ready();
     ready_req->set_max_wait_ms_hint(ready_timeout_ms_);
@@ -113,7 +113,7 @@ bool ProviderHandle::wait_ready(anolis::deviceprovider::v1::WaitReadyResponse &r
 
 bool ProviderHandle::list_devices(std::vector<anolis::deviceprovider::v1::Device> &devices) {
     anolis::deviceprovider::v1::Request request;
-    uint64_t request_id = next_request_id_++;
+    uint64_t request_id = next_request_id_.fetch_add(1, std::memory_order_relaxed);
     request.set_request_id(request_id);
     request.mutable_list_devices();
 
@@ -137,7 +137,7 @@ bool ProviderHandle::list_devices(std::vector<anolis::deviceprovider::v1::Device
 bool ProviderHandle::describe_device(const std::string &device_id,
                                      anolis::deviceprovider::v1::DescribeDeviceResponse &response) {
     anolis::deviceprovider::v1::Request request;
-    uint64_t request_id = next_request_id_++;
+    uint64_t request_id = next_request_id_.fetch_add(1, std::memory_order_relaxed);
     request.set_request_id(request_id);
     request.mutable_describe_device()->set_device_id(device_id);
 
@@ -158,7 +158,7 @@ bool ProviderHandle::describe_device(const std::string &device_id,
 bool ProviderHandle::read_signals(const std::string &device_id, const std::vector<std::string> &signal_ids,
                                   anolis::deviceprovider::v1::ReadSignalsResponse &response) {
     anolis::deviceprovider::v1::Request request;
-    uint64_t request_id = next_request_id_++;
+    uint64_t request_id = next_request_id_.fetch_add(1, std::memory_order_relaxed);
     request.set_request_id(request_id);
     auto *read_req = request.mutable_read_signals();
     read_req->set_device_id(device_id);
@@ -184,7 +184,7 @@ bool ProviderHandle::call(const std::string &device_id, uint32_t function_id, co
                           const std::map<std::string, anolis::deviceprovider::v1::Value> &args,
                           anolis::deviceprovider::v1::CallResponse &response) {
     anolis::deviceprovider::v1::Request request;
-    uint64_t request_id = next_request_id_++;
+    uint64_t request_id = next_request_id_.fetch_add(1, std::memory_order_relaxed);
     request.set_request_id(request_id);
     auto *call_req = request.mutable_call();
     call_req->set_device_id(device_id);

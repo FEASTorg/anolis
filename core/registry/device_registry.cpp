@@ -1,5 +1,6 @@
 #include "device_registry.hpp"
 
+#include <algorithm>
 #include <iostream>
 
 #include "logging/logger.hpp"
@@ -7,7 +8,8 @@
 namespace anolis {
 namespace registry {
 
-bool DeviceRegistry::discover_provider(const std::string &provider_id, anolis::provider::IProviderHandle &provider) {
+bool DeviceRegistry::discover_provider(const std::string &provider_id, anolis::provider::IProviderHandle &provider,
+                                       bool replace_existing) {
     LOG_INFO("[Registry] Discovering provider: " << provider_id);
 
     // Step 1: ListDevices
@@ -68,13 +70,29 @@ bool DeviceRegistry::discover_provider(const std::string &provider_id, anolis::p
     LOG_INFO("[Registry] Provider " << provider_id << " registered " << new_devices.size() << "/" << device_list.size()
                                     << " devices");
 
-    // Step 3: Insert into registry under lock (fast operation)
+    // Step 3: Commit to registry under lock.
+    // If replace_existing is true, old devices for this provider are removed in
+    // the same critical section so replacement is atomic from registry readers'
+    // perspective (no partial provider device set).
     {
         std::unique_lock<std::shared_mutex> lock(mutex_);
+
+        if (replace_existing) {
+            auto new_end = std::remove_if(
+                devices_.begin(), devices_.end(),
+                [&provider_id](const RegisteredDevice &device) { return device.provider_id == provider_id; });
+            devices_.erase(new_end, devices_.end());
+        }
+
         for (auto &device : new_devices) {
-            std::string handle = device.get_handle();
-            handle_to_index_[handle] = devices_.size();
             devices_.push_back(std::move(device));
+        }
+
+        // Rebuild index so it remains correct after any erase/append sequence.
+        handle_to_index_.clear();
+        handle_to_index_.reserve(devices_.size());
+        for (size_t i = 0; i < devices_.size(); ++i) {
+            handle_to_index_[devices_[i].get_handle()] = i;
         }
     }
 

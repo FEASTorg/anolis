@@ -81,6 +81,74 @@ protected:
 };
 
 // ============================================================================
+// Replacement Semantics Tests (used by two-phase restart flow)
+// ============================================================================
+
+TEST_F(DeviceRegistryConcurrencyTest, DiscoverProviderWithReplaceExistingReplacesProviderInventory) {
+    populate_registry("sim0");
+    ASSERT_EQ(registry->device_count(), 3u);
+
+    auto mock = std::make_shared<StrictMock<MockProviderHandle>>();
+    EXPECT_CALL(*mock, list_devices(_)).WillOnce(Invoke([](std::vector<Device> &devices) {
+        Device dev;
+        dev.set_device_id("replacement0");
+        dev.set_label("Replacement Device");
+        devices.push_back(dev);
+        return true;
+    }));
+    EXPECT_CALL(*mock, describe_device("replacement0", _))
+        .WillOnce(Invoke([](const std::string &, DescribeDeviceResponse &response) {
+            auto *device = response.mutable_device();
+            device->set_device_id("replacement0");
+            device->set_label("Replacement Device");
+
+            auto *caps = response.mutable_capabilities();
+            auto *signal = caps->add_signals();
+            signal->set_signal_id("temp");
+            signal->set_value_type(deviceprovider::v1::VALUE_TYPE_DOUBLE);
+            signal->set_poll_hint_hz(1.0);
+
+            auto *function = caps->add_functions();
+            function->set_function_id(1);
+            function->set_name("reset");
+            return true;
+        }));
+
+    ASSERT_TRUE(registry->discover_provider("sim0", *mock, true));
+    EXPECT_EQ(registry->device_count(), 1u);
+    EXPECT_FALSE(registry->get_device_copy("sim0", "device0").has_value());
+
+    auto replacement = registry->get_device_copy("sim0", "replacement0");
+    ASSERT_TRUE(replacement.has_value());
+    EXPECT_EQ(replacement->provider_id, "sim0");
+}
+
+TEST_F(DeviceRegistryConcurrencyTest, DiscoverProviderReplaceFailureKeepsPreviousInventory) {
+    populate_registry("sim0");
+    ASSERT_EQ(registry->device_count(), 3u);
+    ASSERT_TRUE(registry->get_device_copy("sim0", "device0").has_value());
+
+    auto mock = std::make_shared<StrictMock<MockProviderHandle>>();
+    mock->_err = "describe failed";
+
+    EXPECT_CALL(*mock, list_devices(_)).WillOnce(Invoke([](std::vector<Device> &devices) {
+        Device dev;
+        dev.set_device_id("replacement0");
+        devices.push_back(dev);
+        return true;
+    }));
+    EXPECT_CALL(*mock, describe_device("replacement0", _)).WillOnce(Return(false));
+    EXPECT_CALL(*mock, last_error()).WillOnce(ReturnRef(mock->_err));
+
+    ASSERT_FALSE(registry->discover_provider("sim0", *mock, true));
+
+    // Replacement discovery failure must not mutate existing inventory.
+    EXPECT_EQ(registry->device_count(), 3u);
+    EXPECT_TRUE(registry->get_device_copy("sim0", "device0").has_value());
+    EXPECT_FALSE(registry->get_device_copy("sim0", "replacement0").has_value());
+}
+
+// ============================================================================
 // Concurrency Tests
 // ============================================================================
 

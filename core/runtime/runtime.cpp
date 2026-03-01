@@ -17,12 +17,32 @@ Runtime::~Runtime() { shutdown(); }
 
 bool Runtime::initialize(std::string &error) {
     LOG_INFO("[Runtime] Initializing Anolis Core");
+    const auto startup_begin = std::chrono::steady_clock::now();
+    const int startup_timeout_ms = config_.runtime.startup_timeout_ms;
+
+    auto check_startup_deadline = [&](const char *stage) -> bool {
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - startup_begin).count();
+        if (elapsed_ms < startup_timeout_ms) {
+            return true;
+        }
+
+        error = "Runtime startup timeout exceeded after '" + std::string(stage) + "' (" + std::to_string(elapsed_ms) +
+                "ms >= " + std::to_string(startup_timeout_ms) + "ms)";
+        return false;
+    };
 
     if (!init_core_services(error)) {
         return false;
     }
+    if (!check_startup_deadline("init_core_services")) {
+        return false;
+    }
 
     if (!init_providers(error)) {
+        return false;
+    }
+    if (!check_startup_deadline("init_providers")) {
         return false;
     }
 
@@ -30,19 +50,34 @@ bool Runtime::initialize(std::string &error) {
         error = "State cache initialization failed: " + state_cache_->last_error();
         return false;
     }
+    if (!check_startup_deadline("state_cache.initialize")) {
+        return false;
+    }
 
     // Prime state cache once so initial HTTP calls observe a full snapshot
     state_cache_->poll_once(provider_registry_);
+    if (!check_startup_deadline("state_cache.poll_once")) {
+        return false;
+    }
 
     if (!init_automation(error)) {
+        return false;
+    }
+    if (!check_startup_deadline("init_automation")) {
         return false;
     }
 
     if (!init_http(error)) {
         return false;
     }
+    if (!check_startup_deadline("init_http")) {
+        return false;
+    }
 
     if (!init_telemetry(error)) {
+        return false;
+    }
+    if (!check_startup_deadline("init_telemetry")) {
         return false;
     }
 
@@ -81,8 +116,9 @@ bool Runtime::init_providers(std::string &error) {
         LOG_INFO("[Runtime] Starting provider: " << provider_config.id);
         LOG_DEBUG("[Runtime]   Command: " << provider_config.command);
 
-        auto provider = std::make_shared<provider::ProviderHandle>(provider_config.id, provider_config.command,
-                                                                   provider_config.args, provider_config.timeout_ms);
+        auto provider = std::make_shared<provider::ProviderHandle>(
+            provider_config.id, provider_config.command, provider_config.args, provider_config.timeout_ms,
+            provider_config.hello_timeout_ms, provider_config.ready_timeout_ms, config_.runtime.shutdown_timeout_ms);
 
         if (!provider->start()) {
             error = "Failed to start provider '" + provider_config.id + "': " + provider->last_error();
@@ -421,18 +457,15 @@ bool Runtime::restart_provider(const std::string &provider_id, const ProviderCon
     auto restart_start_time = std::chrono::steady_clock::now();
     int timeout_ms = provider_config.restart_policy.timeout_ms;
 
-    // Remove old provider instance
-    provider_registry_.remove_provider(provider_id);
-
-    // Clear devices from registry
-    registry_->clear_provider_devices(provider_id);
-
     LOG_INFO("[Runtime] Restarting provider: " << provider_id);
     LOG_DEBUG("[Runtime]   Command: " << provider_config.command);
 
-    // Create new provider instance
-    auto provider = std::make_shared<provider::ProviderHandle>(provider_id, provider_config.command,
-                                                               provider_config.args, provider_config.timeout_ms);
+    // Create new provider instance and fully validate it before swapping the
+    // registry entry. If any step fails, leave the existing (unavailable)
+    // provider entry in place so supervision can continue retrying.
+    auto provider = std::make_shared<provider::ProviderHandle>(
+        provider_id, provider_config.command, provider_config.args, provider_config.timeout_ms,
+        provider_config.hello_timeout_ms, provider_config.ready_timeout_ms, config_.runtime.shutdown_timeout_ms);
 
     if (!provider->start()) {
         LOG_ERROR("[Runtime] Failed to start provider '" << provider_id << "': " << provider->last_error());
@@ -451,8 +484,9 @@ bool Runtime::restart_provider(const std::string &provider_id, const ProviderCon
 
     LOG_INFO("[Runtime] Provider " << provider_id << " process started");
 
-    // Rediscover devices
-    if (!registry_->discover_provider(provider_id, *provider)) {
+    // Rediscover devices and atomically replace provider-owned device inventory
+    // only after successful discovery.
+    if (!registry_->discover_provider(provider_id, *provider, true)) {
         LOG_ERROR("[Runtime] Discovery failed for provider '" << provider_id << "': " << registry_->last_error());
         return false;
     }
@@ -470,7 +504,7 @@ bool Runtime::restart_provider(const std::string &provider_id, const ProviderCon
     // Rebuild poll configs for this provider (Sprint 1.3: reconcile changed capabilities)
     state_cache_->rebuild_poll_configs(provider_id);
 
-    // Re-add to provider registry
+    // Swap registry entry only after replacement provider startup + discovery succeeds.
     provider_registry_.add_provider(provider_id, provider);
 
     LOG_INFO("[Runtime] Provider " << provider_id << " restarted and devices rediscovered");
