@@ -177,8 +177,25 @@ bool validate_config(const RuntimeConfig &config, std::string &error) {
                 error = "Parameter missing name";
                 return false;
             }
-            if (param.type != "double" && param.type != "int64" && param.type != "bool" && param.type != "string") {
-                error = "Parameter '" + param.name + "' has invalid type: " + param.type;
+            if (!automation::parameter_value_matches_type(param.type, param.default_value)) {
+                error = "Parameter '" + param.name + "' default value type mismatch: expected " +
+                        std::string(automation::parameter_type_to_string(param.type)) + ", got " +
+                        std::string(automation::parameter_value_type_name(param.default_value));
+                return false;
+            }
+
+            const bool numeric_type =
+                (param.type == automation::ParameterType::DOUBLE || param.type == automation::ParameterType::INT64);
+            if (!numeric_type && (param.min.has_value() || param.max.has_value())) {
+                error = "Parameter '" + param.name + "' min/max constraints require numeric type";
+                return false;
+            }
+            if (param.min.has_value() && param.max.has_value() && param.min.value() > param.max.value()) {
+                error = "Parameter '" + param.name + "' has invalid constraints: min > max";
+                return false;
+            }
+            if (param.type != automation::ParameterType::STRING && !param.allowed_values.empty()) {
+                error = "Parameter '" + param.name + "' allowed_values is only valid for string parameters";
                 return false;
             }
         }
@@ -270,7 +287,7 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
         if (yaml["providers"]) {
             config.providers.clear();  // Ensure idempotent parsing
             for (const auto &provider_node : yaml["providers"]) {
-                ProviderConfig provider;
+                provider::ProviderConfig provider;
 
                 if (provider_node["id"]) {
                     provider.id = provider_node["id"].as<std::string>();
@@ -443,31 +460,66 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
                         param.name = param_node["name"].as<std::string>();
                     }
 
-                    if (param_node["type"]) {
-                        param.type = param_node["type"].as<std::string>();
+                    if (!param_node["type"]) {
+                        error = "Parameter '" + param.name + "' missing type";
+                        return false;
+                    }
+                    {
+                        const std::string type_str = param_node["type"].as<std::string>();
+                        const auto parsed_type = automation::parameter_type_from_string(type_str);
+                        if (!parsed_type.has_value()) {
+                            error = "Parameter '" + param.name + "' has invalid type: " + type_str;
+                            return false;
+                        }
+                        param.type = parsed_type.value();
                     }
 
-                    // Parse default value based on type
+                    // Initialize typed default before overriding from YAML.
+                    switch (param.type) {
+                        case automation::ParameterType::DOUBLE:
+                            param.default_value = 0.0;
+                            break;
+                        case automation::ParameterType::INT64:
+                            param.default_value = int64_t{0};
+                            break;
+                        case automation::ParameterType::BOOL:
+                            param.default_value = false;
+                            break;
+                        case automation::ParameterType::STRING:
+                            param.default_value = std::string{};
+                            break;
+                    }
+
+                    // Parse default value based on typed parameter definition.
                     if (param_node["default"]) {
-                        if (param.type == "double") {
-                            param.double_value = param_node["default"].as<double>();
-                        } else if (param.type == "int64") {
-                            param.int64_value = param_node["default"].as<int64_t>();
-                        } else if (param.type == "bool") {
-                            param.bool_value = param_node["default"].as<bool>();
-                        } else if (param.type == "string") {
-                            param.string_value = param_node["default"].as<std::string>();
+                        try {
+                            switch (param.type) {
+                                case automation::ParameterType::DOUBLE:
+                                    param.default_value = param_node["default"].as<double>();
+                                    break;
+                                case automation::ParameterType::INT64:
+                                    param.default_value = param_node["default"].as<int64_t>();
+                                    break;
+                                case automation::ParameterType::BOOL:
+                                    param.default_value = param_node["default"].as<bool>();
+                                    break;
+                                case automation::ParameterType::STRING:
+                                    param.default_value = param_node["default"].as<std::string>();
+                                    break;
+                            }
+                        } catch (const YAML::Exception &e) {
+                            error =
+                                "Parameter '" + param.name + "' default value parse failed: " + std::string(e.what());
+                            return false;
                         }
                     }
 
                     // Parse constraints (numeric types)
                     if (param_node["min"]) {
-                        param.has_min = true;
-                        param.min_value = param_node["min"].as<double>();
+                        param.min = param_node["min"].as<double>();
                     }
                     if (param_node["max"]) {
-                        param.has_max = true;
-                        param.max_value = param_node["max"].as<double>();
+                        param.max = param_node["max"].as<double>();
                     }
 
                     // Parse allowed_values (string enums)

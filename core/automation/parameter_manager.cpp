@@ -9,12 +9,10 @@ namespace anolis {
 namespace automation {
 
 bool ParameterDef::validate(const ParameterValue &new_value, std::string &error) const {
-    // Type must match
-    const char *expected_type = parameter_type_to_string(type);
-    const char *actual_type = parameter_value_type_name(new_value);
-
-    if (std::string(expected_type) != std::string(actual_type)) {
-        error = "Type mismatch: expected " + std::string(expected_type) + ", got " + std::string(actual_type);
+    // Type must match the declared parameter type exactly.
+    if (!parameter_value_matches_type(type, new_value)) {
+        error = "Type mismatch: expected " + std::string(parameter_type_to_string(type)) + ", got " +
+                std::string(parameter_value_type_name(new_value));
         return false;
     }
 

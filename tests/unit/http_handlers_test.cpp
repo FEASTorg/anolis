@@ -671,7 +671,7 @@ protected:
 
         // Real supervisor so the health endpoint returns actual policy data
         supervisor = std::make_unique<provider::ProviderSupervisor>();
-        runtime::RestartPolicyConfig policy;
+        provider::RestartPolicyConfig policy;
         policy.enabled = true;
         policy.max_attempts = 3;
         policy.backoff_ms = {100, 500, 2000};

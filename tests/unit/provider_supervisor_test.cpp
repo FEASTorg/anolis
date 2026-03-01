@@ -20,15 +20,15 @@
 #include <thread>
 #include <vector>
 
-#include "runtime/config.hpp"
+#include "provider/provider_config.hpp"
 
 using namespace anolis;
 using namespace anolis::provider;
 
 namespace {
 
-runtime::RestartPolicyConfig make_enabled_policy(int max_attempts = 3, std::vector<int> backoff_ms = {100, 200, 500}) {
-    runtime::RestartPolicyConfig policy;
+RestartPolicyConfig make_enabled_policy(int max_attempts = 3, std::vector<int> backoff_ms = {100, 200, 500}) {
+    RestartPolicyConfig policy;
     policy.enabled = true;
     policy.max_attempts = max_attempts;
     policy.backoff_ms = backoff_ms;
@@ -37,8 +37,8 @@ runtime::RestartPolicyConfig make_enabled_policy(int max_attempts = 3, std::vect
     return policy;
 }
 
-runtime::RestartPolicyConfig make_disabled_policy() {
-    runtime::RestartPolicyConfig policy;
+RestartPolicyConfig make_disabled_policy() {
+    RestartPolicyConfig policy;
     policy.enabled = false;
     return policy;
 }

@@ -5,7 +5,7 @@
 namespace anolis {
 namespace provider {
 
-void ProviderSupervisor::register_provider(const std::string &provider_id, const runtime::RestartPolicyConfig &policy) {
+void ProviderSupervisor::register_provider(const std::string &provider_id, const RestartPolicyConfig &policy) {
     std::lock_guard<std::mutex> lock(mutex_);
     policies_[provider_id] = policy;
     states_[provider_id] = RestartState{};

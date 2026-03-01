@@ -7,7 +7,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "../runtime/config.hpp"
+#include "provider_config.hpp"
 
 namespace anolis {
 namespace provider {
@@ -32,7 +32,7 @@ public:
     ProviderSupervisor() = default;
 
     // Register a provider with its restart policy
-    void register_provider(const std::string &provider_id, const runtime::RestartPolicyConfig &policy);
+    void register_provider(const std::string &provider_id, const RestartPolicyConfig &policy);
 
     // Check if a crashed provider should be restarted
     // Returns true if restart is allowed and backoff period has elapsed
@@ -96,7 +96,7 @@ private:
     };
 
     mutable std::mutex mutex_;
-    std::unordered_map<std::string, runtime::RestartPolicyConfig> policies_;
+    std::unordered_map<std::string, RestartPolicyConfig> policies_;
     std::unordered_map<std::string, RestartState> states_;
 };
 

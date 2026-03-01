@@ -1,33 +1,17 @@
 #pragma once
 
+#include <optional>
 #include <string>
 #include <vector>
 
-#include "../automation/mode_manager.hpp"
+#include "../automation/parameter_types.hpp"
+#include "../provider/provider_config.hpp"
 
 namespace anolis {
 namespace runtime {
 
 // Configuration enums
 enum class GatingPolicy { BLOCK, OVERRIDE };
-
-struct RestartPolicyConfig {
-    bool enabled = false;                          // Enable automatic restart on crash
-    int max_attempts = 3;                          // Max restart attempts before giving up
-    std::vector<int> backoff_ms{100, 1000, 5000};  // Exponential backoff schedule (ms)
-    int timeout_ms = 30000;                        // Timeout for restart attempt (30s default)
-    int success_reset_ms = 1000;                   // Healthy duration required before resetting crash attempts
-};
-
-struct ProviderConfig {
-    std::string id;                      // e.g., "sim0"
-    std::string command;                 // Path to provider executable
-    std::vector<std::string> args;       // Command-line arguments
-    int timeout_ms = 5000;               // ADPP operation timeout (default 5s)
-    int hello_timeout_ms = 5000;         // Process liveness check timeout (default 5s)
-    int ready_timeout_ms = 60000;        // Hardware initialization timeout (default 60s)
-    RestartPolicyConfig restart_policy;  // Automatic restart configuration
-};
 
 struct PollingConfig {
     int interval_ms = 500;  // Default 500ms
@@ -74,19 +58,12 @@ struct TelemetryConfig {
 // Parameter definition
 struct ParameterConfig {
     std::string name;
-    std::string type;  // "double", "int64", "bool", "string"
-
-    // Value variants (parsed based on type)
-    double double_value = 0.0;
-    int64_t int64_value = 0;
-    bool bool_value = false;
-    std::string string_value;
+    automation::ParameterType type = automation::ParameterType::DOUBLE;
+    automation::ParameterValue default_value = 0.0;
 
     // Constraints
-    bool has_min = false;
-    double min_value = 0.0;
-    bool has_max = false;
-    double max_value = 0.0;
+    std::optional<double> min;
+    std::optional<double> max;
     std::vector<std::string> allowed_values;  // For string enums
 };
 
@@ -102,7 +79,7 @@ struct AutomationConfig {
 struct RuntimeConfig {
     RuntimeModeConfig runtime;  // Runtime section (IDLE mode hardcoded, not configurable)
     HttpConfig http;
-    std::vector<ProviderConfig> providers;
+    std::vector<provider::ProviderConfig> providers;
     PollingConfig polling;
     TelemetryConfig telemetry;
     LoggingConfig logging;

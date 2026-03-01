@@ -56,7 +56,7 @@ private:
     bool init_telemetry(std::string &error);
 
     // Provider restart helpers
-    bool restart_provider(const std::string &provider_id, const ProviderConfig &provider_config);
+    bool restart_provider(const std::string &provider_id, const provider::ProviderConfig &provider_config);
 
     RuntimeConfig config_;
 

@@ -5,23 +5,12 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
-#include <variant>
 #include <vector>
+
+#include "parameter_types.hpp"
 
 namespace anolis {
 namespace automation {
-
-/**
- * @brief Parameter types supported by automation layer
- *
- * Matches JSON-compatible types for easy serialization/config parsing.
- */
-enum class ParameterType { DOUBLE, INT64, BOOL, STRING };
-
-/**
- * @brief Type-safe parameter value
- */
-using ParameterValue = std::variant<double, int64_t, bool, std::string>;
 
 /**
  * @brief Parameter definition with validation constraints
@@ -45,35 +34,6 @@ struct ParameterDef {
      */
     bool validate(const ParameterValue &new_value, std::string &error) const;
 };
-
-/**
- * @brief Convert ParameterType to string
- */
-inline const char *parameter_type_to_string(ParameterType type) {
-    switch (type) {
-        case ParameterType::DOUBLE:
-            return "double";
-        case ParameterType::INT64:
-            return "int64";
-        case ParameterType::BOOL:
-            return "bool";
-        case ParameterType::STRING:
-            return "string";
-        default:
-            return "unknown";
-    }
-}
-
-/**
- * @brief Get type name for a ParameterValue
- */
-inline const char *parameter_value_type_name(const ParameterValue &v) {
-    if (std::holds_alternative<double>(v)) return "double";
-    if (std::holds_alternative<int64_t>(v)) return "int64";
-    if (std::holds_alternative<bool>(v)) return "bool";
-    if (std::holds_alternative<std::string>(v)) return "string";
-    return "unknown";
-}
 
 /**
  * @brief Parameter change callback

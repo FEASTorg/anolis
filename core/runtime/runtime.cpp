@@ -3,6 +3,7 @@
 #include <chrono>
 #include <thread>
 
+#include "automation/parameter_types.hpp"
 #include "logging/logger.hpp"
 #include "provider/provider_handle.hpp"  // Required for instantiation
 #include "provider/provider_supervisor.hpp"
@@ -160,39 +161,11 @@ bool Runtime::init_automation(std::string &error) {
 
         // Load parameters from config
         for (const auto &param_config : config_.automation.parameters) {
-            automation::ParameterType type;
-            if (param_config.type == "double") {
-                type = automation::ParameterType::DOUBLE;
-            } else if (param_config.type == "int64") {
-                type = automation::ParameterType::INT64;
-            } else if (param_config.type == "bool") {
-                type = automation::ParameterType::BOOL;
-            } else if (param_config.type == "string") {
-                type = automation::ParameterType::STRING;
-            } else {
-                LOG_WARN("[Runtime] Invalid parameter type: " << param_config.type);
-                continue;
-            }
-
-            automation::ParameterValue value;
-            if (param_config.type == "double") {
-                value = param_config.double_value;
-            } else if (param_config.type == "int64") {
-                value = param_config.int64_value;
-            } else if (param_config.type == "bool") {
-                value = param_config.bool_value;
-            } else if (param_config.type == "string") {
-                value = param_config.string_value;
-            }
-
-            std::optional<double> min =
-                param_config.has_min ? std::make_optional(param_config.min_value) : std::nullopt;
-            std::optional<double> max =
-                param_config.has_max ? std::make_optional(param_config.max_value) : std::nullopt;
             std::optional<std::vector<std::string>> allowed =
                 param_config.allowed_values.empty() ? std::nullopt : std::make_optional(param_config.allowed_values);
 
-            if (!parameter_manager_->define(param_config.name, type, value, min, max, allowed)) {
+            if (!parameter_manager_->define(param_config.name, param_config.type, param_config.default_value,
+                                            param_config.min, param_config.max, allowed)) {
                 LOG_WARN("[Runtime] Failed to define parameter: " << param_config.name);
             }
         }
@@ -225,25 +198,11 @@ bool Runtime::init_automation(std::string &error) {
                                                        const automation::ParameterValue &old_value,
                                                        const automation::ParameterValue &new_value) {
             if (event_emitter_) {
-                // Convert values to strings for telemetry
-                auto value_to_string = [](const automation::ParameterValue &v) -> std::string {
-                    if (std::holds_alternative<double>(v)) {
-                        return std::to_string(std::get<double>(v));
-                    } else if (std::holds_alternative<int64_t>(v)) {
-                        return std::to_string(std::get<int64_t>(v));
-                    } else if (std::holds_alternative<bool>(v)) {
-                        return std::get<bool>(v) ? "true" : "false";
-                    } else if (std::holds_alternative<std::string>(v)) {
-                        return std::get<std::string>(v);
-                    }
-                    return "";
-                };
-
                 events::ParameterChangeEvent event;
                 event.event_id = event_emitter_->next_event_id();
                 event.parameter_name = name;
-                event.old_value_str = value_to_string(old_value);
-                event.new_value_str = value_to_string(new_value);
+                event.old_value_str = automation::parameter_value_to_string(old_value);
+                event.new_value_str = automation::parameter_value_to_string(new_value);
                 event.timestamp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                                          std::chrono::system_clock::now().time_since_epoch())
                                          .count();
@@ -453,7 +412,7 @@ void Runtime::shutdown() {
     provider_registry_.clear();
 }
 
-bool Runtime::restart_provider(const std::string &provider_id, const ProviderConfig &provider_config) {
+bool Runtime::restart_provider(const std::string &provider_id, const provider::ProviderConfig &provider_config) {
     // Start timeout clock (timeout starts after backoff completes, when restart attempt begins)
     auto restart_start_time = std::chrono::steady_clock::now();
     int timeout_ms = provider_config.restart_policy.timeout_ms;
