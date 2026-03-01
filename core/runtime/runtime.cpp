@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <thread>
+#include <utility>
 
 #include "automation/parameter_types.hpp"
 #include "logging/logger.hpp"
@@ -244,14 +245,19 @@ bool Runtime::init_http(std::string &error) {
     // Create and start HTTP server if enabled
     if (config_.http.enabled) {
         LOG_INFO("[Runtime] Creating HTTP server");
-        http_server_ = std::make_unique<http::HttpServer>(
-            config_.http, config_.polling.interval_ms, *registry_, *state_cache_, *call_router_, provider_registry_,
-            supervisor_.get(),         // Pass supervisor for provider timing/health snapshots
-            event_emitter_,            // Pass event emitter for SSE
-            mode_manager_.get(),       // Pass mode manager (nullptr if automation disabled)
-            parameter_manager_.get(),  // Pass parameter manager (nullptr if automation disabled)
-            bt_runtime_.get()          // Pass bt_runtime (nullptr if automation disabled)
-        );
+        http::HttpServerDependencies dependencies{
+            *registry_,
+            *state_cache_,
+            *call_router_,
+            provider_registry_,
+            supervisor_.get(),         // optional: supervision snapshots
+            event_emitter_,            // optional: SSE emitter
+            mode_manager_.get(),       // optional: automation mode
+            parameter_manager_.get(),  // optional: runtime parameters
+            bt_runtime_.get()          // optional: automation runtime
+        };
+        http_server_ =
+            std::make_unique<http::HttpServer>(config_.http, config_.polling.interval_ms, std::move(dependencies));
 
         std::string http_error;
         if (!http_server_->start(http_error)) {

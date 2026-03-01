@@ -49,6 +49,18 @@ class ProviderSupervisor;
 namespace anolis {
 namespace http {
 
+struct HttpServerDependencies {
+    registry::DeviceRegistry &registry;
+    state::StateCache &state_cache;
+    control::CallRouter &call_router;
+    provider::ProviderRegistry &provider_registry;
+    provider::ProviderSupervisor *supervisor = nullptr;
+    std::shared_ptr<events::EventEmitter> event_emitter = nullptr;
+    automation::ModeManager *mode_manager = nullptr;
+    automation::ParameterManager *parameter_manager = nullptr;
+    automation::BTRuntime *bt_runtime = nullptr;
+};
+
 /**
  * @brief HTTP server wrapper for Anolis runtime
  *
@@ -71,24 +83,13 @@ public:
     /**
      * @brief Construct HTTP server with references to kernel components
      *
-     * @param config HTTP configuration (bind address, port)
+     * @param config HTTP
+     * configuration (bind address, port)
      * @param polling_interval_ms Polling interval from runtime config
-     * @param registry Device registry for inventory/capabilities
-     * @param state_cache State cache for reading device state
-     * @param call_router Call router for executing device functions
-     * @param provider_registry Provider registry for call execution
-     * @param supervisor Provider supervisor for crash/restart/uptime state (optional)
-     * @param event_emitter Event emitter for SSE streaming
-     * @param mode_manager Mode manager for automation control (optional)
-     * @param parameter_manager Parameter manager for runtime parameters (optional)
-     * @param bt_runtime Behavior tree runtime for automation (optional)
+     *
+     * @param dependencies Aggregated kernel/service dependencies (required + optional pointers)
      */
-    HttpServer(const runtime::HttpConfig &config, int polling_interval_ms, registry::DeviceRegistry &registry,
-               state::StateCache &state_cache, control::CallRouter &call_router,
-               provider::ProviderRegistry &provider_registry, provider::ProviderSupervisor *supervisor = nullptr,
-               std::shared_ptr<events::EventEmitter> event_emitter = nullptr,
-               automation::ModeManager *mode_manager = nullptr,
-               automation::ParameterManager *parameter_manager = nullptr, automation::BTRuntime *bt_runtime = nullptr);
+    HttpServer(const runtime::HttpConfig &config, int polling_interval_ms, HttpServerDependencies dependencies);
 
     ~HttpServer();
 

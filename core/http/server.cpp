@@ -1,6 +1,7 @@
 #include "server.hpp"
 
 #include <algorithm>
+#include <utility>
 
 #include "errors.hpp"
 #include "events/event_emitter.hpp"
@@ -19,22 +20,18 @@ constexpr int kStatusNotFound = 404;
 constexpr int kStatusInternal = 500;
 }  // namespace
 
-HttpServer::HttpServer(const runtime::HttpConfig &config, int polling_interval_ms, registry::DeviceRegistry &registry,
-                       state::StateCache &state_cache, control::CallRouter &call_router,
-                       provider::ProviderRegistry &provider_registry, provider::ProviderSupervisor *supervisor,
-                       std::shared_ptr<events::EventEmitter> event_emitter, automation::ModeManager *mode_manager,
-                       automation::ParameterManager *parameter_manager, automation::BTRuntime *bt_runtime)
+HttpServer::HttpServer(const runtime::HttpConfig &config, int polling_interval_ms, HttpServerDependencies dependencies)
     : config_(config),
       polling_interval_ms_(polling_interval_ms),
-      registry_(registry),
-      state_cache_(state_cache),
-      call_router_(call_router),
-      provider_registry_(provider_registry),
-      supervisor_(supervisor),
-      parameter_manager_(parameter_manager),
-      event_emitter_(std::move(event_emitter)),
-      mode_manager_(mode_manager),
-      bt_runtime_(bt_runtime) {}
+      registry_(dependencies.registry),
+      state_cache_(dependencies.state_cache),
+      call_router_(dependencies.call_router),
+      provider_registry_(dependencies.provider_registry),
+      supervisor_(dependencies.supervisor),
+      parameter_manager_(dependencies.parameter_manager),
+      event_emitter_(std::move(dependencies.event_emitter)),
+      mode_manager_(dependencies.mode_manager),
+      bt_runtime_(dependencies.bt_runtime) {}
 
 HttpServer::~HttpServer() { stop(); }
 

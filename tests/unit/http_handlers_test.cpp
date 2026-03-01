@@ -21,6 +21,7 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <thread>
+#include <utility>
 
 #include "control/call_router.hpp"
 #include "http/server.hpp"
@@ -98,13 +99,11 @@ protected:
         http_config.cors_allowed_origins = {"*"};  // Allow CORS for testing
 
         // Create HTTP server
-        server = std::make_unique<HttpServer>(http_config,
-                                              100,  // polling_interval_ms
-                                              *registry, *state_cache, *call_router, *provider_registry,
-                                              nullptr,  // supervisor (disabled)
-                                              nullptr,  // event_emitter
-                                              nullptr   // mode_manager
-        );
+        HttpServerDependencies dependencies{
+            *registry, *state_cache, *call_router, *provider_registry, nullptr, nullptr, nullptr, nullptr,
+            nullptr  // bt_runtime
+        };
+        server = std::make_unique<HttpServer>(http_config, 100, std::move(dependencies));
 
         // Start server
         std::string error;
@@ -684,8 +683,10 @@ protected:
         http_config.port = 9998;  // Distinct port from HttpHandlersTest (9999)
         http_config.cors_allowed_origins = {"*"};
 
-        server = std::make_unique<HttpServer>(http_config, 100, *registry, *state_cache, *call_router,
-                                              *provider_registry, supervisor.get());
+        HttpServerDependencies dependencies{*registry,        *state_cache, *call_router, *provider_registry,
+                                            supervisor.get(), nullptr,      nullptr,      nullptr,
+                                            nullptr};
+        server = std::make_unique<HttpServer>(http_config, 100, std::move(dependencies));
 
         std::string error;
         ASSERT_TRUE(server->start(error)) << "Failed to start HTTP server: " << error;
