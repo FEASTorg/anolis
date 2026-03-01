@@ -1,13 +1,13 @@
-#include <gtest/gtest.h>
+#include "automation/bt_runtime.hpp"
 
 #include <behaviortree_cpp/basic_types.h>
+#include <gtest/gtest.h>
 
 #include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <string>
 
-#include "automation/bt_runtime.hpp"
 #include "automation/mode_manager.hpp"
 #include "automation/parameter_manager.hpp"
 #include "control/call_router.hpp"
@@ -49,7 +49,8 @@ TEST(BTRuntimeTest, DirectTickUsesTypedServiceContext) {
 
     ASSERT_TRUE(parameter_manager.define("temp_setpoint", anolis::automation::ParameterType::DOUBLE, 25.0));
 
-    anolis::automation::BTRuntime runtime(state_cache, call_router, provider_registry, mode_manager, &parameter_manager);
+    anolis::automation::BTRuntime runtime(state_cache, call_router, provider_registry, mode_manager,
+                                          &parameter_manager);
 
     const std::string xml = R"(<?xml version="1.0"?>
 <root BTCPP_format="4">

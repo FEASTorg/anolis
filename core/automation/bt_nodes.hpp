@@ -135,14 +135,13 @@ private:
  *
  * XML Port Configuration:
  * - param (input): Parameter name
- * - value (output): Parameter value (numeric only: double/int64)
- *
+ * - value (output): Parameter value (numeric only:
+ * double/int64)
  * Returns:
  * - SUCCESS: Parameter read successfully, value written to output
- * - FAILURE: Parameter not found, ParameterManager unavailable, or non-numeric type
- *
- * Example XML:
- * <GetParameter param="temp_setpoint" value="{target_temp}"/>
+ * - FAILURE: Parameter not found, ParameterManager
+ * unavailable, or non-numeric type
+ * Example XML: <GetParameter param="temp_setpoint" value="{target_temp}"/>
  *
  * Note: To use parameter values with CallDevice, construct JSON args using Script nodes
  * or use static values directly in the args attribute.

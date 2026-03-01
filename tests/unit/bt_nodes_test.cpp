@@ -1,12 +1,12 @@
-#include <gtest/gtest.h>
+#include "automation/bt_nodes.hpp"
 
 #include <behaviortree_cpp/blackboard.h>
 #include <behaviortree_cpp/bt_factory.h>
+#include <gtest/gtest.h>
 
 #include <cstdint>
 #include <string>
 
-#include "automation/bt_nodes.hpp"
 #include "automation/bt_services.hpp"
 #include "automation/parameter_manager.hpp"
 #include "control/call_router.hpp"
@@ -20,9 +20,9 @@ std::string make_get_parameter_tree_xml(const std::string& param_name) {
     return std::string(R"(<?xml version="1.0"?>
 <root BTCPP_format="4">
   <BehaviorTree ID="MainTree">
-    <GetParameter param=")")
-        + param_name +
-        R"(" value="{out}"/>
+    <GetParameter param=")") +
+           param_name +
+           R"(" value="{out}"/>
   </BehaviorTree>
 </root>
 )";

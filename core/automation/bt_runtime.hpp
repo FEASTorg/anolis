@@ -169,7 +169,8 @@ private:
 
     /**
      * Populate BT blackboard with typed kernel service references.
-     * Called before ticking to keep direct tick() and threaded mode consistent.
+     * Called before ticking to keep direct
+     * tick() and threaded mode consistent.
      */
     void populate_blackboard();
 

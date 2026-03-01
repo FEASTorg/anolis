@@ -13,7 +13,7 @@ namespace anolis {
 namespace automation {
 
 namespace {
-std::optional<BTServiceContext> read_service_context(const BT::TreeNode& node, const char* node_name) {
+std::optional<BTServiceContext> read_service_context(const BT::TreeNode &node, const char *node_name) {
     const auto blackboard = node.config().blackboard;
     if (!blackboard) {
         LOG_ERROR("[" << node_name << "] Blackboard is null");
@@ -22,7 +22,7 @@ std::optional<BTServiceContext> read_service_context(const BT::TreeNode& node, c
 
     try {
         return blackboard->get<BTServiceContext>(kBTServiceContextKey);
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         LOG_ERROR("[" << node_name << "] Missing/invalid BT service context: " << e.what());
         return std::nullopt;
     }
@@ -374,8 +374,7 @@ BT::NodeStatus GetParameterNode::tick() {
     } else if (std::holds_alternative<int64_t>(param_value)) {
         output_value = static_cast<double>(std::get<int64_t>(param_value));
     } else {
-        LOG_ERROR("[GetParameterNode] Parameter '" << param_name.value()
-                                                   << "' has non-numeric type '"
+        LOG_ERROR("[GetParameterNode] Parameter '" << param_name.value() << "' has non-numeric type '"
                                                    << parameter_value_type_name(param_value) << "'");
         return BT::NodeStatus::FAILURE;
     }
