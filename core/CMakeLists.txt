@@ -81,15 +81,21 @@ target_link_libraries(anolis_registry PUBLIC
 )
 anolis_apply_warnings(anolis_registry)
 
-# Events library (header-only for now)
-add_library(anolis_events INTERFACE)
+# Events library
+add_library(anolis_events STATIC
+    events/event_emitter.cpp
+)
 
-target_include_directories(anolis_events INTERFACE
+target_include_directories(anolis_events PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
-target_include_directories(anolis_events SYSTEM INTERFACE
+target_include_directories(anolis_events SYSTEM PUBLIC
     ${CMAKE_CURRENT_BINARY_DIR}
 )
+target_link_libraries(anolis_events PUBLIC
+    anolis_logging
+)
+anolis_apply_warnings(anolis_events)
 
 # Telemetry library (InfluxDB sink)
 add_library(anolis_telemetry STATIC

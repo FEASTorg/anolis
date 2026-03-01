@@ -20,12 +20,14 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <cstddef>
+#include <cstdint>
 #include <functional>
-#include <iostream>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <queue>
+#include <string>
 #include <unordered_map>
 
 #include "event_types.hpp"
@@ -41,8 +43,7 @@ namespace events {
  */
 class SubscriberQueue {
 public:
-    explicit SubscriberQueue(size_t max_size, const std::string &name = "")
-        : max_size_(max_size), name_(name), dropped_count_(0) {}
+    explicit SubscriberQueue(size_t max_size, const std::string &name = "");
 
     /**
      * @brief Push event to queue (producer side)
@@ -53,49 +54,7 @@ public:
      * @param event Event to push
      * @return true if pushed, false if dropped (queue was full, oldest dropped)
      */
-    bool push(const Event &event) {
-        // Capture state for logging outside lock
-        bool should_log = false;
-        std::string log_name;
-        size_t log_dropped = 0;
-        std::optional<Event> dropped_event;  // Hold dropped event to destroy outside lock
-
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-
-            // If at capacity, drop oldest
-            if (queue_.size() >= max_size_) {
-                // Move out the event BEFORE popping to avoid destructor under lock
-                dropped_event = std::move(queue_.front());
-                queue_.pop();
-                dropped_count_++;
-
-                // Check if we should log (periodically, every 100 drops)
-                if (dropped_count_ % 100 == 1) {
-                    should_log = true;
-                    log_name = name_;
-                    log_dropped = dropped_count_;
-                }
-            }
-
-            queue_.push(event);
-        }  // Release lock before notification
-
-        // Notify outside lock to avoid "hurry up and wait" where notified thread
-        // would immediately block trying to acquire the mutex we still hold
-        cv_.notify_one();
-
-        // Dropped event destructor runs here, outside the lock
-        dropped_event.reset();
-
-        // Log outside critical section to avoid blocking
-        if (should_log) {
-            std::cerr << "[EventEmitter] Queue '" << log_name << "' overflow, dropped " << log_dropped
-                      << " events total\n";
-        }
-
-        return log_dropped == 0 || log_dropped < 100;  // Approximation, safe for caller
-    }
+    bool push(const Event &event);
 
     /**
      * @brief Pop event from queue (consumer side)
@@ -105,79 +64,37 @@ public:
      * @param timeout_ms Max time to wait (0 = non-blocking)
      * @return Event if available, std::nullopt on timeout
      */
-    std::optional<Event> pop(int timeout_ms = 0) {
-        std::optional<Event> event;
-
-        {
-            std::unique_lock<std::mutex> lock(mutex_);
-
-            if (timeout_ms > 0) {
-                cv_.wait_for(lock, std::chrono::milliseconds(timeout_ms),
-                             [this] { return !queue_.empty() || closed_; });
-            }
-
-            if (queue_.empty()) {
-                return std::nullopt;
-            }
-
-            // Move event out while holding lock, but don't pop yet
-            event = std::move(queue_.front());
-            queue_.pop();  // Now safe - front() was already moved
-        }  // Release lock before returning
-
-        // Event destructor (if any) will run outside the lock when event goes out of scope
-        return event;
-    }
+    std::optional<Event> pop(int timeout_ms = 0);
 
     /**
      * @brief Try to pop without blocking
      */
-    std::optional<Event> try_pop() { return pop(0); }
+    std::optional<Event> try_pop();
 
     /**
      * @brief Get current queue size
      */
-    size_t size() const {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return queue_.size();
-    }
+    size_t size() const;
 
     /**
      * @brief Check if queue is empty
      */
-    bool empty() const {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return queue_.empty();
-    }
+    bool empty() const;
 
     /**
      * @brief Get total dropped event count
      */
-    size_t dropped_count() const {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return dropped_count_;
-    }
+    size_t dropped_count() const;
 
     /**
      * @brief Close queue (unblocks waiting consumers)
      */
-    void close() {
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            closed_ = true;
-        }  // Release lock before notification
-
-        // Notify outside lock for same reason as push()
-        cv_.notify_all();
-    }
+    void close();
 
     /**
      * @brief Check if queue is closed
      */
-    bool is_closed() const {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return closed_;
-    }
+    bool is_closed() const;
 
 private:
     const size_t max_size_;
@@ -201,84 +118,51 @@ public:
     using SubscriptionId = uint64_t;
 
     Subscription(SubscriptionId id, std::shared_ptr<SubscriberQueue> queue,
-                 std::function<void(SubscriptionId)> unsubscribe_fn)
-        : id_(id), queue_(std::move(queue)), unsubscribe_fn_(std::move(unsubscribe_fn)) {}
-
-    ~Subscription() { unsubscribe(); }
+                 std::function<void(SubscriptionId)> unsubscribe_fn);
+    ~Subscription();
 
     // Non-copyable (unique ownership)
     Subscription(const Subscription &) = delete;
     Subscription &operator=(const Subscription &) = delete;
 
     // Movable
-    Subscription(Subscription &&other) noexcept
-        : id_(other.id_), queue_(std::move(other.queue_)), unsubscribe_fn_(std::move(other.unsubscribe_fn_)) {
-        other.id_ = 0;
-    }
-
-    Subscription &operator=(Subscription &&other) noexcept {
-        if (this != &other) {
-            unsubscribe();
-            id_ = other.id_;
-            queue_ = std::move(other.queue_);
-            unsubscribe_fn_ = std::move(other.unsubscribe_fn_);
-            other.id_ = 0;
-        }
-        return *this;
-    }
+    Subscription(Subscription &&other) noexcept;
+    Subscription &operator=(Subscription &&other) noexcept;
 
     /**
      * @brief Pop next event (blocks up to timeout_ms)
      */
-    std::optional<Event> pop(int timeout_ms = 100) {
-        if (!queue_) {
-            return std::nullopt;
-        }
-        return queue_->pop(timeout_ms);
-    }
+    std::optional<Event> pop(int timeout_ms = 100);
 
     /**
      * @brief Try pop without blocking
      */
-    std::optional<Event> try_pop() {
-        if (!queue_) {
-            return std::nullopt;
-        }
-        return queue_->try_pop();
-    }
+    std::optional<Event> try_pop();
 
     /**
      * @brief Get subscription ID
      */
-    SubscriptionId id() const { return id_; }
+    SubscriptionId id() const;
 
     /**
      * @brief Check if still subscribed
      */
-    bool is_active() const { return queue_ != nullptr && !queue_->is_closed(); }
+    bool is_active() const;
 
     /**
      * @brief Get queue size
      */
-    size_t queue_size() const { return queue_ ? queue_->size() : 0; }
+    size_t queue_size() const;
 
     /**
      * @brief Get dropped count
      */
-    size_t dropped_count() const { return queue_ ? queue_->dropped_count() : 0; }
+    size_t dropped_count() const;
 
     /**
      * @brief Manually unsubscribe
      */
-    void unsubscribe() {
-        if (id_ != 0 && unsubscribe_fn_) {
-            unsubscribe_fn_(id_);
-            id_ = 0;
-            if (queue_) {
-                queue_->close();
-            }
-        }
-    }
+    void unsubscribe();
 
 private:
     SubscriptionId id_;
@@ -300,49 +184,12 @@ struct EventFilter {
     /**
      * @brief Check if event matches filter
      */
-    bool matches(const Event &event) const {
-        return std::visit(
-            [this](auto &&e) -> bool {
-                using T = std::decay_t<decltype(e)>;
-
-                // Check provider_id filter
-                if (!provider_id.empty()) {
-                    if constexpr (std::is_same_v<T, StateUpdateEvent> || std::is_same_v<T, QualityChangeEvent> ||
-                                  std::is_same_v<T, DeviceAvailabilityEvent>) {
-                        if (e.provider_id != provider_id) {
-                            return false;
-                        }
-                    }
-                }
-
-                // Check device_id filter
-                if (!device_id.empty()) {
-                    if constexpr (std::is_same_v<T, StateUpdateEvent> || std::is_same_v<T, QualityChangeEvent> ||
-                                  std::is_same_v<T, DeviceAvailabilityEvent>) {
-                        if (e.device_id != device_id) {
-                            return false;
-                        }
-                    }
-                }
-
-                // Check signal_id filter (only applies to signal events)
-                if (!signal_id.empty()) {
-                    if constexpr (std::is_same_v<T, StateUpdateEvent> || std::is_same_v<T, QualityChangeEvent>) {
-                        if (e.signal_id != signal_id) {
-                            return false;
-                        }
-                    }
-                }
-
-                return true;
-            },
-            event);
-    }
+    bool matches(const Event &event) const;
 
     /**
      * @brief Create filter that matches all events
      */
-    static EventFilter all() { return EventFilter{}; }
+    static EventFilter all();
 };
 
 /**
@@ -362,11 +209,7 @@ public:
      * @param max_subscribers Maximum concurrent subscribers (0 = unlimited)
      */
     explicit EventEmitter(size_t default_queue_size = 100,
-                          size_t max_subscribers = 32)  // NOLINT(bugprone-easily-swappable-parameters)
-        : default_queue_size_(default_queue_size),
-          max_subscribers_(max_subscribers),
-          next_subscription_id_(1),
-          next_event_id_(1) {}
+                          size_t max_subscribers = 32);  // NOLINT(bugprone-easily-swappable-parameters)
 
     /**
      * @brief Subscribe to events
@@ -379,44 +222,7 @@ public:
      * @return Subscription handle, or nullptr if max subscribers reached
      */
     std::unique_ptr<Subscription> subscribe(const EventFilter &filter = EventFilter::all(), size_t queue_size = 0,
-                                            const std::string &name = "") {
-        // Capture state for logging outside lock
-        SubscriptionId id = 0;
-        size_t subscriber_count = 0;
-        std::shared_ptr<SubscriberQueue> queue;
-        bool rejected = false;
-
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-
-            // Check subscriber limit
-            if (max_subscribers_ > 0 && subscribers_.size() >= max_subscribers_) {
-                rejected = true;
-                subscriber_count = max_subscribers_;
-            } else {
-                id = next_subscription_id_++;
-                auto actual_queue_size = queue_size > 0 ? queue_size : default_queue_size_;
-                queue = std::make_shared<SubscriberQueue>(actual_queue_size, name);
-
-                subscribers_[id] = SubscriberInfo{queue, filter, name};
-                subscriber_count = subscribers_.size();
-            }
-        }  // Release lock before I/O
-
-        // Log outside critical section
-        if (rejected) {
-            std::cerr << "[EventEmitter] Max subscribers (" << subscriber_count
-                      << ") reached, rejecting subscription\n";
-            return nullptr;
-        }
-
-        std::cerr << "[EventEmitter] Subscription " << id << " created" << (name.empty() ? "" : " (" + name + ")")
-                  << ", total subscribers: " << subscriber_count << "\n";
-
-        auto unsubscribe_fn = [this](SubscriptionId sub_id) { this->unsubscribe(sub_id); };
-
-        return std::make_unique<Subscription>(id, std::move(queue), std::move(unsubscribe_fn));
-    }
+                                            const std::string &name = "");
 
     /**
      * @brief Emit event to all subscribers
@@ -426,79 +232,30 @@ public:
      *
      * @param event Event to emit (event_id will be assigned)
      */
-    void emit(Event event) {
-        std::vector<std::shared_ptr<SubscriberQueue>> targets;
-
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-
-            // Assign monotonic event ID
-            uint64_t id = next_event_id_++;
-            std::visit([id](auto &&e) { e.event_id = id; }, event);
-
-            // Snapshot matching subscriber queues
-            for (auto &[sub_id, info] : subscribers_) {
-                if (info.filter.matches(event)) {
-                    targets.push_back(info.queue);
-                }
-            }
-        }  // Release emitter mutex before calling into queues
-
-        // Fan out to all matching subscribers outside lock
-        for (auto &queue : targets) {
-            queue->push(event);
-        }
-    }
+    void emit(Event event);
 
     /**
      * @brief Get next event ID (for external use if needed)
      */
-    uint64_t next_event_id() const { return next_event_id_.load(); }
+    uint64_t next_event_id() const;
 
     /**
      * @brief Get current subscriber count
      */
-    size_t subscriber_count() const {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return subscribers_.size();
-    }
+    size_t subscriber_count() const;
 
     /**
      * @brief Get max subscribers limit
      */
-    size_t max_subscribers() const { return max_subscribers_; }
+    size_t max_subscribers() const;
 
     /**
      * @brief Check if at capacity
      */
-    bool at_capacity() const {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return max_subscribers_ > 0 && subscribers_.size() >= max_subscribers_;
-    }
+    bool at_capacity() const;
 
 private:
-    void unsubscribe(SubscriptionId id) {
-        // Capture state for logging outside lock
-        bool found = false;
-        size_t remaining = 0;
-
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-
-            auto it = subscribers_.find(id);
-            if (it != subscribers_.end()) {
-                it->second.queue->close();
-                subscribers_.erase(it);
-                found = true;
-                remaining = subscribers_.size();
-            }
-        }  // Release lock before I/O
-
-        // Log outside critical section
-        if (found) {
-            std::cerr << "[EventEmitter] Subscription " << id << " removed, remaining: " << remaining << "\n";
-        }
-    }
+    void unsubscribe(SubscriptionId id);
 
     struct SubscriberInfo {
         std::shared_ptr<SubscriberQueue> queue;
