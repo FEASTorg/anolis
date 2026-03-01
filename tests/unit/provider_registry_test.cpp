@@ -190,7 +190,7 @@ TEST_F(ProviderRegistryTest, ConcurrentReaders) {
     std::atomic<int> success_count{0};
 
     for (int t = 0; t < NUM_READERS; ++t) {
-        threads.emplace_back([this, &success_count, READS_PER_THREAD]() {
+        threads.emplace_back([this, &success_count]() {
             for (int i = 0; i < READS_PER_THREAD; ++i) {
                 // Read individual provider
                 auto provider = registry->get_provider("provider0");
@@ -258,7 +258,7 @@ TEST_F(ProviderRegistryTest, ConcurrentReadersAndWriters) {
 
     // Writer threads: add/remove/replace providers
     for (int t = 0; t < NUM_WRITERS; ++t) {
-        threads.emplace_back([this, t, &stop_flag, OPERATIONS_PER_THREAD]() {
+        threads.emplace_back([this, t, &stop_flag]() {
             for (int i = 0; i < OPERATIONS_PER_THREAD; ++i) {
                 std::string provider_id = "writer" + std::to_string(t) + "_" + std::to_string(i % 10);
                 auto mock = create_mock_provider(provider_id);
@@ -317,7 +317,7 @@ TEST_F(ProviderRegistryTest, ProviderRestartSimulation) {
     std::atomic<int> read_successes{0};
 
     // Restart thread: simulates Runtime::restart_provider()
-    std::thread restart_thread([this, &restart_complete, NUM_RESTARTS]() {
+    std::thread restart_thread([this, &restart_complete]() {
         for (int i = 0; i < NUM_RESTARTS; ++i) {
             auto old_mock = create_mock_provider("sim0");
             EXPECT_CALL(*old_mock, is_available()).WillRepeatedly(Return(false));

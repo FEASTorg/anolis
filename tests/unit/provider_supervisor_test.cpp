@@ -18,6 +18,7 @@
 
 #include <chrono>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "provider/provider_config.hpp"
@@ -31,7 +32,7 @@ RestartPolicyConfig make_enabled_policy(int max_attempts = 3, std::vector<int> b
     RestartPolicyConfig policy;
     policy.enabled = true;
     policy.max_attempts = max_attempts;
-    policy.backoff_ms = backoff_ms;
+    policy.backoff_ms = std::move(backoff_ms);
     policy.timeout_ms = 5000;
     policy.success_reset_ms = 1000;
     return policy;
@@ -266,12 +267,11 @@ TEST(ProviderSupervisorTest, ConcurrentReadsAndWritesAreThreadSafe) {
 
     // Writer threads: interleave heartbeats, crash records, and success records
     std::vector<std::thread> writers;
+    writers.reserve(3);
     for (int i = 0; i < 3; ++i) {
-        writers.emplace_back([&sup, i, kIterations]() {
+        writers.emplace_back([&sup, i]() {
             for (int j = 0; j < kIterations; ++j) {
-                if (j % 7 == 0) {
-                    sup.record_heartbeat("prov");
-                } else if (j % 13 == 0) {
+                if (j % 7 != 0 && j % 13 == 0) {
                     // Alternate crash/success to keep state oscillating
                     if (i % 2 == 0) {
                         sup.record_crash("prov");
@@ -287,8 +287,9 @@ TEST(ProviderSupervisorTest, ConcurrentReadsAndWritesAreThreadSafe) {
 
     // Reader threads: take snapshots and get_all_snapshots concurrently
     std::vector<std::thread> readers;
+    readers.reserve(3);
     for (int i = 0; i < 3; ++i) {
-        readers.emplace_back([&sup, kIterations]() {
+        readers.emplace_back([&sup]() {
             for (int j = 0; j < kIterations; ++j) {
                 if (j % 2 == 0) {
                     auto snap = sup.get_snapshot("prov");

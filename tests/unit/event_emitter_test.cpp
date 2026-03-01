@@ -508,9 +508,10 @@ TEST(EventEmitterTest, ConcurrentEmitAndSubscribe) {
 
     std::atomic<int> total_received{0};
     std::vector<std::thread> threads;
+    threads.reserve(NUM_SUBSCRIBERS + 1);
 
     // Emitter thread
-    threads.emplace_back([&emitter, NUM_EVENTS, EMIT_DELAY]() {
+    threads.emplace_back([&emitter, EMIT_DELAY]() {
         for (int i = 0; i < NUM_EVENTS; ++i) {
             emitter.emit(create_test_event("p", "d", "s", static_cast<double>(i)));
             std::this_thread::sleep_for(EMIT_DELAY);
@@ -519,7 +520,7 @@ TEST(EventEmitterTest, ConcurrentEmitAndSubscribe) {
 
     // Multiple subscriber threads
     for (int t = 0; t < NUM_SUBSCRIBERS; ++t) {
-        threads.emplace_back([&emitter, &total_received, POP_TIMEOUT]() {
+        threads.emplace_back([&emitter, &total_received]() {
             auto sub = emitter.subscribe();
             if (sub) {
                 while (auto evt = sub->pop(POP_TIMEOUT)) {

@@ -641,6 +641,7 @@ TEST_F(CallRouterTest, ConcurrentCallsSameProvider) {
     req.function_name = "reset";
 
     std::vector<std::thread> threads;
+    threads.reserve(10);
     std::vector<control::CallResult> results(10);
 
     // Launch 10 threads calling the same provider concurrently
@@ -699,6 +700,7 @@ TEST_F(CallRouterTest, ConcurrentCallsMultipleProviders) {
     EXPECT_CALL(*mock_provider2, call("dev2", 2, "start", _, _)).Times(5).WillRepeatedly(Return(true));
 
     std::vector<std::thread> threads;
+    threads.reserve(10);
     std::vector<control::CallResult> results(10);
 
     // Launch threads alternating between providers
