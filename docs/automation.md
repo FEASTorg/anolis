@@ -476,9 +476,9 @@ Reads a runtime parameter from the ParameterManager.
 
 **Ports:**
 
-| Port  | Type   | Direction | Description     |
-| ----- | ------ | --------- | --------------- |
-| param | string | input     | Parameter name  |
+| Port  | Type   | Direction | Description                    |
+| ----- | ------ | --------- | ------------------------------ |
+| param | string | input     | Parameter name                 |
 | value | double | output    | Parameter value (numeric only) |
 
 **Returns:**

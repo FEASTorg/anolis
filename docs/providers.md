@@ -147,7 +147,7 @@ use `/v0/providers/health` for restart/backoff detail.
 
 | Field              | Description                                                                                      |
 | ------------------ | ------------------------------------------------------------------------------------------------ |
-| `lifecycle_state`  | Additive lifecycle signal: `RUNNING`, `RECOVERING`, `RESTARTING`, `CIRCUIT_OPEN`, `DOWN`.      |
+| `lifecycle_state`  | Additive lifecycle signal: `RUNNING`, `RECOVERING`, `RESTARTING`, `CIRCUIT_OPEN`, `DOWN`.        |
 | `last_seen_ago_ms` | Milliseconds since the last healthy poll. Counts up while UNAVAILABLE. `null` before first poll. |
 | `uptime_seconds`   | Seconds since the first healthy poll of the current process instance. `0` when UNAVAILABLE.      |
 | `supervision`      | Supervision block — always an object, never null (even when policy is disabled).                 |

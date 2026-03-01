@@ -137,7 +137,7 @@ Get detailed health, timing, and supervision state for all providers.
 | Field              | Type            | Description                                                                                                                      |
 | ------------------ | --------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | `state`            | string          | `AVAILABLE` or `UNAVAILABLE`                                                                                                     |
-| `lifecycle_state`  | string          | Additive lifecycle signal: `RUNNING`, `RECOVERING`, `RESTARTING`, `CIRCUIT_OPEN`, or `DOWN`                                    |
+| `lifecycle_state`  | string          | Additive lifecycle signal: `RUNNING`, `RECOVERING`, `RESTARTING`, `CIRCUIT_OPEN`, or `DOWN`                                      |
 | `device_count`     | integer         | Number of devices registered under this provider                                                                                 |
 | `last_seen_ago_ms` | integer or null | Milliseconds since the last confirmed healthy heartbeat. Counts up while UNAVAILABLE. `null` before the very first healthy poll. |
 | `uptime_seconds`   | integer         | Seconds since the first confirmed healthy heartbeat of the current process instance. `0` when UNAVAILABLE or before first poll.  |
@@ -146,13 +146,13 @@ Get detailed health, timing, and supervision state for all providers.
 
 **`lifecycle_state` values:**
 
-| Value          | Meaning                                                                                           |
-| -------------- | ------------------------------------------------------------------------------------------------- |
-| `RUNNING`      | Provider is available with no active restart streak.                                              |
-| `RECOVERING`   | Provider is available but still inside the post-restart stability window (`attempt_count > 0`).  |
-| `RESTARTING`   | Provider is unavailable and supervised restart/backoff is active.                                  |
-| `CIRCUIT_OPEN` | Provider is unavailable and restart attempts are exhausted (`supervision.circuit_open: true`).    |
-| `DOWN`         | Provider is unavailable without active supervised restart metadata.                                |
+| Value          | Meaning                                                                                         |
+| -------------- | ----------------------------------------------------------------------------------------------- |
+| `RUNNING`      | Provider is available with no active restart streak.                                            |
+| `RECOVERING`   | Provider is available but still inside the post-restart stability window (`attempt_count > 0`). |
+| `RESTARTING`   | Provider is unavailable and supervised restart/backoff is active.                               |
+| `CIRCUIT_OPEN` | Provider is unavailable and restart attempts are exhausted (`supervision.circuit_open: true`).  |
+| `DOWN`         | Provider is unavailable without active supervised restart metadata.                             |
 
 **`supervision` object fields:**
 
