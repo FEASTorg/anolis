@@ -5,7 +5,6 @@
 
 #include <chrono>
 #include <fstream>
-#include <iostream>
 #include <thread>
 
 #include "automation/bt_nodes.hpp"
@@ -53,12 +52,9 @@ bool BTRuntime::load_tree(const std::string &path) {
 
     tree_path_ = path;
 
-    // MUST populate blackboard before creating tree!
-    // BT nodes access blackboard during construction/initialization
-    populate_blackboard();
-
     try {
         tree_ = std::make_unique<BT::Tree>(factory_->createTreeFromFile(path));
+        populate_blackboard();
         tree_loaded_ = true;
 
         LOG_INFO("[BTRuntime] BT loaded successfully: " << path);
@@ -119,6 +115,7 @@ BT::NodeStatus BTRuntime::tick() {
         return BT::NodeStatus::FAILURE;
     }
 
+    populate_blackboard();
     return tree_->tickOnce();
 }
 
@@ -138,9 +135,6 @@ void BTRuntime::tick_loop() {
             next_tick += tick_period;
             continue;
         }
-
-        // Populate blackboard with fresh StateCache snapshot
-        populate_blackboard();
 
         // Execute single BT tick
         BT::NodeStatus status = BT::NodeStatus::IDLE;
@@ -209,41 +203,18 @@ void BTRuntime::populate_blackboard() {
         return;
     }
 
-    // Snapshot StateCache before tick
-    // This ensures BT sees consistent state, no mid-tick changes visible
-    //
-    // Critical design notes:
-    // - BT sees tick-consistent snapshot, NOT continuous state
-    // - BT logic is edge-triggered by events, but state visibility is per-tick
-    // - No mid-tick state changes visible to BT nodes
-    // - BT is NOT for hard real-time control; call latency acceptable
-
     auto blackboard = tree_->rootBlackboard();
-
-    // Store CallRouter reference for CallDeviceNode
-    // BT nodes will cast this back to CallRouter* when needed
-    blackboard->set("call_router", static_cast<void *>(&call_router_));
-    // Store StateCache reference for ReadSignalNode
-    // BT nodes will cast this back to StateCache* when needed
-    blackboard->set("state_cache", static_cast<void *>(&state_cache_));
-
-    // Store provider registry reference for CallDeviceNode
-    // CallRouter::execute_call() requires provider registry
-    blackboard->set("provider_registry", static_cast<void *>(&provider_registry_));
-
-    // Store parameter_manager to blackboard
-    if (parameter_manager_ != nullptr) {
-        blackboard->set("parameter_manager", static_cast<void *>(parameter_manager_));
+    if (!blackboard) {
+        LOG_ERROR("[BTRuntime] Cannot populate blackboard, root blackboard is null");
+        return;
     }
 
-    // Note: We pass references, not snapshots, for efficiency.
-    // StateCache's get_signal_value() is already thread-safe.
-    // This is acceptable because:
-    // 1. Polling happens every 500ms, ticks every 100ms (10 Hz)
-    // 2. BT execution is fast compared to poll rate
-    // 3. If a value changes mid-tick, next tick will see the change
-    // 4. BT is for orchestration policy, not hard real-time control
-    // 5. Parameters are READ-ONLY from BT perspective - GetParameterNode queries ParameterManager
+    BTServiceContext services;
+    services.state_cache = &state_cache_;
+    services.call_router = &call_router_;
+    services.provider_registry = &provider_registry_;
+    services.parameter_manager = parameter_manager_;
+    blackboard->set(kBTServiceContextKey, services);
 }
 
 AutomationHealth BTRuntime::get_health() const {

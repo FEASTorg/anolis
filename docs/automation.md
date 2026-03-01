@@ -23,6 +23,23 @@ The automation layer is a **consumer of kernel services**, NOT a replacement for
 
 The BT engine sits **above** the kernel, not beneath it.
 
+### BT Service Context Contract
+
+Custom BT nodes consume a typed blackboard payload populated by `BTRuntime`:
+
+- BlackBoard key: `anolis.bt_service_context`
+- Payload type: `BTServiceContext`
+
+`BTServiceContext` fields:
+
+- `state_cache` (required)
+- `call_router` (required)
+- `provider_registry` (required)
+- `parameter_manager` (optional)
+
+`BTRuntime` refreshes this context before each `tick()` (including direct/test `tick()` calls),
+so threaded and direct tick paths use the same node-service contract.
+
 ---
 
 ## Runtime Modes
@@ -328,7 +345,8 @@ Example (response):
 
 Behavior Trees can access parameters via the `GetParameter` node.
 The node is available in the default node registry and reads a parameter by name from the blackboard using the `param` input port.
-It returns SUCCESS with the value available on the `value` output port.
+It returns SUCCESS with the value available on the `value` output port **only for numeric parameter types** (`double`, `int64`).
+For `bool` and `string` parameters, `GetParameter` returns `FAILURE` by design.
 
 Example:
 
@@ -461,12 +479,12 @@ Reads a runtime parameter from the ParameterManager.
 | Port  | Type   | Direction | Description     |
 | ----- | ------ | --------- | --------------- |
 | param | string | input     | Parameter name  |
-| value | double | output    | Parameter value |
+| value | double | output    | Parameter value (numeric only) |
 
 **Returns:**
 
 - `SUCCESS` — Parameter read successfully
-- `FAILURE` — Parameter not found or ParameterManager unavailable
+- `FAILURE` — Parameter not found, ParameterManager unavailable, or non-numeric parameter type (`bool`/`string`)
 
 **Example:**
 

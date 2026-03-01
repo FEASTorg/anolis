@@ -10,6 +10,8 @@ add_executable(anolis_unit_tests
     call_router_test.cpp
     config_test.cpp
     http_handlers_test.cpp
+    bt_runtime_test.cpp
+    bt_nodes_test.cpp
     mode_manager_test.cpp
     provider_process_test.cpp
     provider_registry_test.cpp

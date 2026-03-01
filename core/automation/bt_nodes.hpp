@@ -3,8 +3,11 @@
 #include <behaviortree_cpp/action_node.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
+
+#include "automation/bt_services.hpp"
 
 namespace anolis {
 
@@ -16,7 +19,6 @@ namespace control {
 class CallRouter;
 }
 namespace provider {
-class IProviderHandle;
 class ProviderRegistry;
 }  // namespace provider
 
@@ -52,7 +54,7 @@ public:
     static BT::PortsList providedPorts();
 
 private:
-    state::StateCache *get_state_cache();
+    std::optional<BTServiceContext> get_services() const;
 };
 
 /**
@@ -86,12 +88,7 @@ public:
     static BT::PortsList providedPorts();
 
 private:
-    // Typed blackboard access helper
-    template <typename T>
-    T *get_service(const std::string &key);
-
-    control::CallRouter *get_call_router();
-    provider::ProviderRegistry *get_provider_registry();
+    std::optional<BTServiceContext> get_services() const;
 };
 
 /**
@@ -128,7 +125,7 @@ public:
     static BT::PortsList providedPorts();
 
 private:
-    state::StateCache *get_state_cache();
+    std::optional<BTServiceContext> get_services() const;
 };
 
 /**
@@ -138,11 +135,11 @@ private:
  *
  * XML Port Configuration:
  * - param (input): Parameter name
- * - value (output): Parameter value (double/int64/bool/string)
+ * - value (output): Parameter value (numeric only: double/int64)
  *
  * Returns:
  * - SUCCESS: Parameter read successfully, value written to output
- * - FAILURE: Parameter not found or ParameterManager unavailable
+ * - FAILURE: Parameter not found, ParameterManager unavailable, or non-numeric type
  *
  * Example XML:
  * <GetParameter param="temp_setpoint" value="{target_temp}"/>
@@ -159,7 +156,7 @@ public:
     static BT::PortsList providedPorts();
 
 private:
-    ParameterManager *get_parameter_manager();
+    std::optional<BTServiceContext> get_services() const;
 };
 
 }  // namespace automation

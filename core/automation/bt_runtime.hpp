@@ -10,6 +10,8 @@
 // BehaviorTree.CPP includes
 #include <behaviortree_cpp/basic_types.h>
 
+#include "automation/bt_services.hpp"
+
 // BehaviorTree.CPP forward declarations
 namespace BT {
 class Tree;
@@ -166,8 +168,8 @@ private:
     void tick_loop();
 
     /**
-     * Populate BT blackboard with StateCache snapshot.
-     * Called before each tick to ensure consistent state view.
+     * Populate BT blackboard with typed kernel service references.
+     * Called before ticking to keep direct tick() and threaded mode consistent.
      */
     void populate_blackboard();
 

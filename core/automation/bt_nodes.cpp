@@ -7,11 +7,27 @@
 #include "automation/parameter_manager.hpp"
 #include "control/call_router.hpp"
 #include "logging/logger.hpp"
-#include "provider/i_provider_handle.hpp"  // Added include
 #include "state/state_cache.hpp"
 
 namespace anolis {
 namespace automation {
+
+namespace {
+std::optional<BTServiceContext> read_service_context(const BT::TreeNode& node, const char* node_name) {
+    const auto blackboard = node.config().blackboard;
+    if (!blackboard) {
+        LOG_ERROR("[" << node_name << "] Blackboard is null");
+        return std::nullopt;
+    }
+
+    try {
+        return blackboard->get<BTServiceContext>(kBTServiceContextKey);
+    } catch (const std::exception& e) {
+        LOG_ERROR("[" << node_name << "] Missing/invalid BT service context: " << e.what());
+        return std::nullopt;
+    }
+}
+}  // namespace
 
 // Helper: Convert protobuf Value to double (for output port)
 static double value_to_double(const anolis::deviceprovider::v1::Value &val) {
@@ -109,9 +125,9 @@ BT::PortsList ReadSignalNode::providedPorts() {
 }
 
 BT::NodeStatus ReadSignalNode::tick() {
-    auto state_cache = get_state_cache();
-    if (state_cache == nullptr) {
-        LOG_ERROR("[ReadSignalNode] StateCache not available in blackboard");
+    const auto services = get_services();
+    if (!services || services->state_cache == nullptr) {
+        LOG_ERROR("[ReadSignalNode] StateCache not available in BT service context");
         return BT::NodeStatus::FAILURE;
     }
 
@@ -125,7 +141,7 @@ BT::NodeStatus ReadSignalNode::tick() {
     }
 
     // Read signal from StateCache
-    auto signal_value = state_cache->get_signal_value(device_handle.value(), signal_id.value());
+    auto signal_value = services->state_cache->get_signal_value(device_handle.value(), signal_id.value());
 
     if (!signal_value) {
         LOG_ERROR("[ReadSignalNode] Signal not found: " << device_handle.value() << "/" << signal_id.value());
@@ -142,18 +158,8 @@ BT::NodeStatus ReadSignalNode::tick() {
     return BT::NodeStatus::SUCCESS;
 }
 
-state::StateCache *ReadSignalNode::get_state_cache() {
-    auto blackboard = config().blackboard;
-    if (blackboard == nullptr) {
-        return nullptr;
-    }
-
-    auto ptr = blackboard->get<void *>("state_cache");
-    if (ptr == nullptr) {
-        return nullptr;
-    }
-
-    return static_cast<state::StateCache *>(ptr);
+std::optional<BTServiceContext> ReadSignalNode::get_services() const {
+    return read_service_context(*this, "ReadSignalNode");
 }
 
 //-----------------------------------------------------------------------------
@@ -175,9 +181,9 @@ BT::PortsList CallDeviceNode::providedPorts() {
 }
 
 BT::NodeStatus CallDeviceNode::tick() {
-    auto call_router = get_call_router();
-    if (call_router == nullptr) {
-        LOG_ERROR("[CallDeviceNode] CallRouter not available in blackboard");
+    const auto services = get_services();
+    if (!services || services->call_router == nullptr) {
+        LOG_ERROR("[CallDeviceNode] CallRouter not available in BT service context");
         setOutput("success", false);
         setOutput("error", "CallRouter not available");
         return BT::NodeStatus::FAILURE;
@@ -244,16 +250,15 @@ BT::NodeStatus CallDeviceNode::tick() {
     }
 
     // Get provider registry from blackboard
-    auto provider_registry = get_provider_registry();
-    if (provider_registry == nullptr) {
-        LOG_ERROR("[CallDeviceNode] ProviderRegistry not available in blackboard");
+    if (services->provider_registry == nullptr) {
+        LOG_ERROR("[CallDeviceNode] ProviderRegistry not available in BT service context");
         setOutput("success", false);
         setOutput("error", "Provider registry not available");
         return BT::NodeStatus::FAILURE;
     }
 
     // Execute call via CallRouter
-    auto result = call_router->execute_call(request, *provider_registry);
+    auto result = services->call_router->execute_call(request, *services->provider_registry);
 
     setOutput("success", result.success);
     setOutput("error", result.error_message);
@@ -267,26 +272,8 @@ BT::NodeStatus CallDeviceNode::tick() {
     return BT::NodeStatus::FAILURE;
 }
 
-// Template implementation for typed blackboard access
-template <typename T>
-T *CallDeviceNode::get_service(const std::string &key) {
-    auto blackboard = config().blackboard;
-    if (blackboard == nullptr) {
-        return nullptr;
-    }
-
-    auto ptr = blackboard->get<void *>(key);
-    if (ptr == nullptr) {
-        return nullptr;
-    }
-
-    return static_cast<T *>(ptr);
-}
-
-control::CallRouter *CallDeviceNode::get_call_router() { return get_service<control::CallRouter>("call_router"); }
-
-provider::ProviderRegistry *CallDeviceNode::get_provider_registry() {
-    return get_service<provider::ProviderRegistry>("provider_registry");
+std::optional<BTServiceContext> CallDeviceNode::get_services() const {
+    return read_service_context(*this, "CallDeviceNode");
 }
 
 //-----------------------------------------------------------------------------
@@ -304,9 +291,9 @@ BT::PortsList CheckQualityNode::providedPorts() {
 }
 
 BT::NodeStatus CheckQualityNode::tick() {
-    auto state_cache = get_state_cache();
-    if (state_cache == nullptr) {
-        LOG_ERROR("[CheckQualityNode] StateCache not available in blackboard");
+    const auto services = get_services();
+    if (!services || services->state_cache == nullptr) {
+        LOG_ERROR("[CheckQualityNode] StateCache not available in BT service context");
         return BT::NodeStatus::FAILURE;
     }
 
@@ -321,7 +308,7 @@ BT::NodeStatus CheckQualityNode::tick() {
     }
 
     // Read signal from StateCache
-    auto signal_value = state_cache->get_signal_value(device_handle.value(), signal_id.value());
+    auto signal_value = services->state_cache->get_signal_value(device_handle.value(), signal_id.value());
 
     if (!signal_value) {
         LOG_ERROR("[CheckQualityNode] Signal not found: " << device_handle.value() << "/" << signal_id.value());
@@ -340,18 +327,8 @@ BT::NodeStatus CheckQualityNode::tick() {
     return BT::NodeStatus::FAILURE;
 }
 
-state::StateCache *CheckQualityNode::get_state_cache() {
-    auto blackboard = config().blackboard;
-    if (blackboard == nullptr) {
-        return nullptr;
-    }
-
-    auto ptr = blackboard->get<void *>("state_cache");
-    if (ptr == nullptr) {
-        return nullptr;
-    }
-
-    return static_cast<state::StateCache *>(ptr);
+std::optional<BTServiceContext> CheckQualityNode::get_services() const {
+    return read_service_context(*this, "CheckQualityNode");
 }
 
 //-----------------------------------------------------------------------------
@@ -363,13 +340,13 @@ GetParameterNode::GetParameterNode(const std::string &name, const BT::NodeConfig
 
 /*static*/ BT::PortsList GetParameterNode::providedPorts() {
     return {BT::InputPort<std::string>("param", "Parameter name"),
-            BT::OutputPort<double>("value", "Parameter value (as double, if applicable)")};
+            BT::OutputPort<double>("value", "Parameter value (numeric only: double or int64)")};
 }
 
 BT::NodeStatus GetParameterNode::tick() {
-    auto parameter_manager = get_parameter_manager();
-    if (!parameter_manager) {
-        LOG_ERROR("[GetParameterNode] ParameterManager not available in blackboard");
+    const auto services = get_services();
+    if (!services || services->parameter_manager == nullptr) {
+        LOG_ERROR("[GetParameterNode] ParameterManager not available in BT service context");
         return BT::NodeStatus::FAILURE;
     }
 
@@ -381,15 +358,14 @@ BT::NodeStatus GetParameterNode::tick() {
     }
 
     // Read parameter value
-    auto value_opt = parameter_manager->get(param_name.value());
+    auto value_opt = services->parameter_manager->get(param_name.value());
     if (!value_opt.has_value()) {
         LOG_ERROR("[GetParameterNode] Parameter not found: " << param_name.value());
         return BT::NodeStatus::FAILURE;
     }
 
-    // Convert value to double for output port
-    // Note: This is a simplification - in reality we'd need type-specific output ports
-    // or a way to handle different types dynamically
+    // Explicit contract: GetParameter exposes numeric values only.
+    // String/bool parameters must be handled by dedicated BT nodes in a future extension.
     double output_value = 0.0;
     const auto &param_value = value_opt.value();
 
@@ -397,11 +373,10 @@ BT::NodeStatus GetParameterNode::tick() {
         output_value = std::get<double>(param_value);
     } else if (std::holds_alternative<int64_t>(param_value)) {
         output_value = static_cast<double>(std::get<int64_t>(param_value));
-    } else if (std::holds_alternative<bool>(param_value)) {
-        output_value = std::get<bool>(param_value) ? 1.0 : 0.0;
-    } else if (std::holds_alternative<std::string>(param_value)) {
-        // Cannot convert string to double, return failure
-        LOG_ERROR("[GetParameterNode] Parameter '" << param_name.value() << "' is a string, cannot convert to double");
+    } else {
+        LOG_ERROR("[GetParameterNode] Parameter '" << param_name.value()
+                                                   << "' has non-numeric type '"
+                                                   << parameter_value_type_name(param_value) << "'");
         return BT::NodeStatus::FAILURE;
     }
 
@@ -412,14 +387,8 @@ BT::NodeStatus GetParameterNode::tick() {
     return BT::NodeStatus::SUCCESS;
 }
 
-ParameterManager *GetParameterNode::get_parameter_manager() {
-    auto blackboard = config().blackboard;
-    if (!blackboard) return nullptr;
-
-    auto ptr = blackboard->get<void *>("parameter_manager");
-    if (!ptr) return nullptr;
-
-    return static_cast<ParameterManager *>(ptr);
+std::optional<BTServiceContext> GetParameterNode::get_services() const {
+    return read_service_context(*this, "GetParameterNode");
 }
 
 }  // namespace automation

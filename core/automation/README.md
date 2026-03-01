@@ -8,7 +8,7 @@ The automation layer is a **consumer of kernel services**, NOT a replacement for
 
 | Constraint                                | Implementation                                               |
 | ----------------------------------------- | ------------------------------------------------------------ |
-| **BT nodes read via StateCache**          | No direct provider access; all state via blackboard snapshot |
+| **BT nodes read via StateCache**          | No direct provider access; state read through typed service context |
 | **BT nodes act via CallRouter**           | All device calls go through validated control path           |
 | **No new provider protocol features**     | Automation uses existing ADPP v0 capabilities                |
 | **No device-specific logic in BT engine** | BT runtime is capability-agnostic                            |
@@ -17,27 +17,31 @@ The automation layer is a **consumer of kernel services**, NOT a replacement for
 
 ### Critical Semantics
 
-- **BT sees tick-consistent snapshot**, NOT continuous state
-- BT logic is edge-triggered by events, but **state visibility is per-tick**
-- **No mid-tick state changes** visible to BT nodes
+- BT nodes consume a typed service context refreshed before every `tick()`
+- Signal reads are live `StateCache` queries (thread-safe), not a copied snapshot
+- State may change between node executions if polling updates occur concurrently
 - BT is **NOT for hard real-time control**; call latency is acceptable
-
-This design prevents incorrect assumptions about "reacting instantly" to mid-tick changes.
 
 ### Blackboard Schema
 
-Populated before each tick in `BTRuntime::populate_blackboard()`:
+Populated in `BTRuntime::populate_blackboard()` before each tick:
 
 ```cpp
-// StateCache reference (BT nodes will query on demand)
-blackboard->set("state_cache", static_cast<void*>(&state_cache_));
-
-// CallRouter reference (for device calls)
-blackboard->set("call_router", static_cast<void*>(&call_router_));
-
-// Parameters
-blackboard->set("parameters", static_cast<void*>(&parameter_manager_));
+BTServiceContext services{
+  .state_cache = &state_cache_,
+  .call_router = &call_router_,
+  .provider_registry = &provider_registry_,
+  .parameter_manager = parameter_manager_,
+};
+blackboard->set(kBTServiceContextKey, services);
 ```
+
+Typed context fields consumed by BT nodes:
+
+- `state_cache` (required): read path for `ReadSignal` and `CheckQuality`
+- `call_router` (required): write path for `CallDevice`
+- `provider_registry` (required): execution dependency for `CallRouter::execute_call`
+- `parameter_manager` (optional): read path for `GetParameter`
 
 **Important:** We pass **references**, not full snapshots, for efficiency.
 StateCache's `get_signal_value()` is thread-safe. This design is acceptable because:
@@ -61,6 +65,7 @@ Base classes for Anolis-specific BT nodes:
 - `ReadSignalNode` - Reads from StateCache via blackboard
 - `CallDeviceNode` - Invokes device function via CallRouter
 - `CheckQualityNode` - Verifies signal quality (OK/STALE/FAULT)
+- `GetParameterNode` - Reads numeric runtime parameters (`double`/`int64`)
 
 All nodes registered with BehaviorTree.CPP factory.
 
