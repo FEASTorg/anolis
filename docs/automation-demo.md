@@ -65,21 +65,15 @@ curl http://127.0.0.1:8080/v0/runtime/status
   "status": {
     "code": "OK"
   },
-  "runtime_mode": "MANUAL",
+  "mode": "MANUAL",
+  "uptime_seconds": 3600,
+  "polling_interval_ms": 500,
+  "device_count": 2,
   "providers": [
     {
-      "id": "sim0",
-      "state": "CONNECTED"
-    }
-  ],
-  "devices": [
-    {
       "provider_id": "sim0",
-      "device_id": "tempctl0"
-    },
-    {
-      "provider_id": "sim0",
-      "device_id": "motorctl0"
+      "state": "AVAILABLE",
+      "device_count": 2
     }
   ]
 }
@@ -88,8 +82,8 @@ curl http://127.0.0.1:8080/v0/runtime/status
 **Observations:**
 
 - Runtime is in `MANUAL` mode (automation not running)
-- Provider `sim0` is connected
-- Two devices are available: `tempctl0` and `motorctl0`
+- Provider `sim0` is `AVAILABLE`
+- `device_count` reports two registered devices for this provider
 
 ## Step 3: Inspect Current Parameters
 

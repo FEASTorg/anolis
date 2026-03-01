@@ -56,7 +56,7 @@ All responses include a `status` object:
 
 ### GET /v0/runtime/status
 
-Get runtime status, mode, and provider health.
+Get runtime status, mode, and provider availability summary.
 
 **Response:**
 
@@ -86,7 +86,11 @@ Get runtime status, mode, and provider health.
 | `polling_interval_ms` | integer | State polling interval                             |
 | `device_count`        | integer | Total devices across all providers                 |
 | `providers`           | array   | Provider status list                               |
-| `providers[].state`   | string  | `AVAILABLE`, `UNAVAILABLE`, `STARTING`, `CRASHED`  |
+| `providers[].state`   | string  | `AVAILABLE` or `UNAVAILABLE`                       |
+
+`/v0/runtime/status` intentionally exposes coarse provider availability only.
+Use [`GET /v0/providers/health`](#get-v0providershealth) for restart/backoff
+details via the `supervision` block.
 
 ---
 
