@@ -92,6 +92,20 @@ TEST_F(CallRouterTest, ExecuteCallSuccess) {
     EXPECT_EQ(result.status_code, anolis::deviceprovider::v1::Status_Code_CODE_OK);
 }
 
+TEST_F(CallRouterTest, ExecuteCallSuccessByFunctionId) {
+    RegisterMockDevice();
+
+    control::CallRequest req;
+    req.device_handle = "sim0/dev1";
+    req.function_id = 1;  // Resolve by ID (HTTP-style path)
+
+    EXPECT_CALL(*mock_provider, call("dev1", 1, "reset", _, _)).WillOnce(Return(true));
+
+    auto result = router->execute_call(req, *provider_registry);
+    EXPECT_TRUE(result.success);
+    EXPECT_EQ(result.status_code, anolis::deviceprovider::v1::Status_Code_CODE_OK);
+}
+
 TEST_F(CallRouterTest, ProviderUnavailable) {
     RegisterMockDevice();
 
@@ -119,6 +133,19 @@ TEST_F(CallRouterTest, InvalidFunction) {
     auto result = router->execute_call(req, *provider_registry);
     EXPECT_FALSE(result.success);
     EXPECT_EQ(result.status_code, anolis::deviceprovider::v1::Status_Code_CODE_NOT_FOUND);
+}
+
+TEST_F(CallRouterTest, InvalidFunctionId) {
+    RegisterMockDevice();  // Has function ID 1
+
+    control::CallRequest req;
+    req.device_handle = "sim0/dev1";
+    req.function_id = 999;  // Not registered
+
+    auto result = router->execute_call(req, *provider_registry);
+    EXPECT_FALSE(result.success);
+    EXPECT_EQ(result.status_code, anolis::deviceprovider::v1::Status_Code_CODE_NOT_FOUND);
+    EXPECT_THAT(result.error_message, HasSubstr("Function ID not found"));
 }
 
 TEST_F(CallRouterTest, PreconditionFailure) {

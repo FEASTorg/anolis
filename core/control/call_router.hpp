@@ -24,7 +24,8 @@ namespace control {
 // Call request - High-level API for executing device functions
 struct CallRequest {
     std::string device_handle;  // "provider_id/device_id"
-    std::string function_name;
+    uint32_t function_id = 0;   // Optional selector used by HTTP API
+    std::string function_name;  // Optional selector used by automation/internal callers
     std::map<std::string, anolis::deviceprovider::v1::Value> args;
     bool is_automated = false;  // true if called from BT automation, false if manual (HTTP/UI)
 };
@@ -69,6 +70,9 @@ private:
     bool validate_device_exists(const std::string &device_handle, std::string &error) const;
     bool validate_function_exists(const registry::RegisteredDevice &device, const std::string &function_name,
                                   const registry::FunctionSpec *&out_spec, std::string &error) const;
+    bool resolve_function_spec(const registry::RegisteredDevice &device, const CallRequest &request,
+                               const registry::FunctionSpec *&out_spec, std::string &out_function_name,
+                               std::string &error) const;
     bool validate_arguments(const registry::FunctionSpec &spec,
                             const std::map<std::string, anolis::deviceprovider::v1::Value> &args,
                             std::string &error) const;

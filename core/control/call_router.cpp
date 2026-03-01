@@ -42,20 +42,6 @@ CallResult CallRouter::execute_call(const CallRequest& request, provider::Provid
         }
     }
 
-    // Validate call
-    std::string validation_error;
-    if (!validate_call(request, validation_error)) {
-        result.error_message = validation_error;
-        if (validation_error.find("not found") != std::string::npos) {
-            result.status_code = anolis::deviceprovider::v1::Status_Code_CODE_NOT_FOUND;
-        } else {
-            result.status_code = anolis::deviceprovider::v1::Status_Code_CODE_INVALID_ARGUMENT;
-        }
-
-        LOG_WARN("[CallRouter] Validation failed: " << validation_error);
-        return result;
-    }
-
     // Parse device handle
     std::string provider_id, device_id;
     if (!parse_device_handle(request.device_handle, provider_id, device_id, result.error_message)) {
@@ -89,13 +75,22 @@ CallResult CallRouter::execute_call(const CallRequest& request, provider::Provid
     const auto& device = device_opt.value();
 
     const registry::FunctionSpec* func_spec = nullptr;
-    auto func_it = device.capabilities.functions_by_id.find(request.function_name);
-    if (func_it == device.capabilities.functions_by_id.end()) {
-        result.error_message = "Function not found: " + request.function_name;
-        result.status_code = anolis::deviceprovider::v1::Status_Code_CODE_NOT_FOUND;
+    std::string resolved_function_name;
+    if (!resolve_function_spec(device, request, func_spec, resolved_function_name, result.error_message)) {
+        if (result.error_message.find("not found") != std::string::npos) {
+            result.status_code = anolis::deviceprovider::v1::Status_Code_CODE_NOT_FOUND;
+        } else {
+            result.status_code = anolis::deviceprovider::v1::Status_Code_CODE_INVALID_ARGUMENT;
+        }
         return result;
     }
-    func_spec = &func_it->second;
+
+    // Validate function arguments after selector resolution.
+    if (!validate_arguments(*func_spec, request.args, result.error_message)) {
+        result.status_code = anolis::deviceprovider::v1::Status_Code_CODE_INVALID_ARGUMENT;
+        LOG_WARN("[CallRouter] Validation failed: " << result.error_message);
+        return result;
+    }
 
     // Per-provider serialization (v0: prevent concurrent calls to same provider)
     // Step 1: Safely get reference to provider's mutex (map access must be synchronized)
@@ -110,7 +105,7 @@ CallResult CallRouter::execute_call(const CallRequest& request, provider::Provid
 
     // Forward call to provider
     anolis::deviceprovider::v1::CallResponse call_response;
-    if (!provider->call(device_id, func_spec->function_id, request.function_name, request.args, call_response)) {
+    if (!provider->call(device_id, func_spec->function_id, resolved_function_name, request.args, call_response)) {
         result.error_message = "Provider call failed: " + provider->last_error();
         result.status_code = provider->last_status_code();
         LOG_ERROR("[CallRouter] Call failed: " << result.error_message << " (Code: " << result.status_code << ")");
@@ -149,9 +144,10 @@ bool CallRouter::validate_call(const CallRequest& request, std::string& error) c
     }
     const auto& device = device_opt.value();
 
-    // Check function exists
+    // Resolve function selector (ID or name)
     const registry::FunctionSpec* func_spec = nullptr;
-    if (!validate_function_exists(device, request.function_name, func_spec, error)) {
+    std::string resolved_function_name;
+    if (!resolve_function_spec(device, request, func_spec, resolved_function_name, error)) {
         return false;
     }
 
@@ -180,6 +176,48 @@ bool CallRouter::validate_function_exists(const registry::RegisteredDevice& devi
         return false;
     }
     out_spec = &it->second;
+    return true;
+}
+
+bool CallRouter::resolve_function_spec(const registry::RegisteredDevice& device, const CallRequest& request,
+                                       const registry::FunctionSpec*& out_spec, std::string& out_function_name,
+                                       std::string& error) const {
+    out_spec = nullptr;
+    out_function_name.clear();
+
+    if (request.function_id != 0) {
+        for (const auto& [name, spec] : device.capabilities.functions_by_id) {
+            if (spec.function_id == request.function_id) {
+                out_spec = &spec;
+                out_function_name = name;
+                break;
+            }
+        }
+
+        if (out_spec == nullptr) {
+            error = "Function ID not found: " + std::to_string(request.function_id);
+            return false;
+        }
+
+        if (!request.function_name.empty() && request.function_name != out_function_name) {
+            error = "Function selector mismatch: function_id " + std::to_string(request.function_id) + " maps to '" +
+                    out_function_name + "', not '" + request.function_name + "'";
+            return false;
+        }
+
+        return true;
+    }
+
+    if (request.function_name.empty()) {
+        error = "Missing function selector (function_id or function_name)";
+        return false;
+    }
+
+    if (!validate_function_exists(device, request.function_name, out_spec, error)) {
+        return false;
+    }
+
+    out_function_name = request.function_name;
     return true;
 }
 

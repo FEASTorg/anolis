@@ -1,7 +1,5 @@
 #include "../../control/call_router.hpp"
 #include "../../logging/logger.hpp"
-#include "../../provider/i_provider_handle.hpp"  // Required for is_available call
-#include "../../registry/device_registry.hpp"
 #include "../json.hpp"
 #include "../server.hpp"
 #include "utils.hpp"
@@ -35,50 +33,10 @@ void HttpServer::handle_post_call(const httplib::Request &req, httplib::Response
             return;
         }
 
-        // Check if provider exists
-        auto provider = provider_registry_.get_provider(provider_id);
-        if (!provider) {
-            send_json(res, StatusCode::NOT_FOUND,
-                      make_error_response(StatusCode::NOT_FOUND, "Provider not found: " + provider_id));
-            return;
-        }
-
-        // Check if provider is available
-        if (!provider->is_available()) {
-            send_json(res, StatusCode::UNAVAILABLE,
-                      make_error_response(StatusCode::UNAVAILABLE, "Provider unavailable: " + provider_id));
-            return;
-        }
-
-        // Look up device to get function name
-        auto device_opt = registry_.get_device_copy(provider_id, device_id);
-        if (!device_opt.has_value()) {
-            send_json(res, StatusCode::NOT_FOUND,
-                      make_error_response(StatusCode::NOT_FOUND, "Device not found: " + provider_id + "/" + device_id));
-            return;
-        }
-        const auto &device = device_opt.value();
-
-        // Find function by ID
-        std::string function_name;
-        for (const auto &[fname, spec] : device.capabilities.functions_by_id) {
-            if (spec.function_id == function_id) {
-                function_name = fname;
-                break;
-            }
-        }
-
-        if (function_name.empty()) {
-            send_json(
-                res, StatusCode::NOT_FOUND,
-                make_error_response(StatusCode::NOT_FOUND, "Function ID not found: " + std::to_string(function_id)));
-            return;
-        }
-
         // Build CallRequest
         control::CallRequest call_request;
-        call_request.device_handle = device.get_handle();
-        call_request.function_name = function_name;
+        call_request.device_handle = provider_id + "/" + device_id;
+        call_request.function_id = function_id;
         call_request.args = args;
 
         // Execute call
