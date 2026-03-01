@@ -10,9 +10,15 @@ Tests:
 3. Circuit breaker opens after max attempts
 4. Devices rediscovered after successful restart
 5. Supervisor state resets on recovery
+6. Failed restart attempts remain supervised and recoverable
+7. Restart timeout policy is behaviorally enforced
+8. Runtime startup timeout is behaviorally enforced
 
 """
 
+import sys
+import tempfile
+import textwrap
 import time
 from pathlib import Path
 from typing import Callable, List, NoReturn, Optional, Tuple
@@ -86,6 +92,15 @@ class SupervisionTester:
 
         return config
 
+    def _default_provider_fixture_config(self) -> str:
+        fixture_config = Path(__file__).parent / "fixtures" / "provider-sim-default.yaml"
+        return str(fixture_config).replace("\\", "/")
+
+    def _write_wrapper_script(self, temp_dir: Path, filename: str, script_body: str) -> Path:
+        script_path = temp_dir / filename
+        script_path.write_text(textwrap.dedent(script_body), encoding="utf-8")
+        return script_path
+
     def start_runtime(self, config_dict: dict) -> None:
         """Start runtime with given config."""
         self.fixture = RuntimeFixture(
@@ -112,6 +127,17 @@ class SupervisionTester:
                 self.fixture.cleanup()
             except Exception:
                 pass  # Cleanup error, ignore
+
+    def _wait_for_runtime_exit(self, timeout: float) -> bool:
+        if self.fixture is None:
+            return True
+
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if not self.fixture.is_running():
+                return True
+            time.sleep(0.05)
+        return False
 
     def _sample_provider_health(self) -> dict:
         """Capture a compact provider health snapshot for failure timelines."""
@@ -427,6 +453,342 @@ class SupervisionTester:
         finally:
             self.stop_runtime()
 
+    def test_failed_restart_attempt_remains_supervised(self) -> None:
+        """Test failed restart continuity: provider remains supervised and later recovers."""
+        print("\n[TEST] Failed Restart Continuity")
+
+        with tempfile.TemporaryDirectory(prefix="anolis-supervision-") as tmp:
+            temp_dir = Path(tmp)
+            counter_path = temp_dir / "attempt_counter.txt"
+            wrapper_path = self._write_wrapper_script(
+                temp_dir,
+                "flaky_provider_wrapper.py",
+                """
+                import os
+                import pathlib
+                import subprocess
+                import sys
+
+                counter_path = pathlib.Path(sys.argv[1])
+                provider_exe = sys.argv[2]
+                provider_config = sys.argv[3]
+
+                try:
+                    attempt = int(counter_path.read_text(encoding="utf-8").strip())
+                except Exception:
+                    attempt = 0
+                attempt += 1
+                counter_path.write_text(str(attempt), encoding="utf-8")
+
+                if attempt == 2:
+                    print("WRAPPER_FAIL_ATTEMPT_2", file=sys.stderr, flush=True)
+                    sys.exit(42)
+
+                args = [provider_exe, "--config", provider_config]
+                if attempt == 1:
+                    # Delay first crash until runtime startup has completed.
+                    args += ["--crash-after", "2.0"]
+
+                proc = subprocess.Popen(args, stdin=sys.stdin.buffer, stdout=sys.stdout.buffer, stderr=sys.stderr)
+                proc.wait()
+                sys.exit(proc.returncode)
+                """,
+            )
+
+            config_dict = {
+                "http": {"enabled": True, "bind": "127.0.0.1", "port": self.port},
+                "providers": [
+                    {
+                        "id": "provider-sim",
+                        "command": sys.executable,
+                        "args": [
+                            str(wrapper_path).replace("\\", "/"),
+                            str(counter_path).replace("\\", "/"),
+                            str(self.provider_sim_path).replace("\\", "/"),
+                            self._default_provider_fixture_config(),
+                        ],
+                        "timeout_ms": 1500,
+                        "restart_policy": {
+                            "enabled": True,
+                            "max_attempts": 4,
+                            "backoff_ms": [150, 300, 600, 1200],
+                            "timeout_ms": 5000,
+                            "success_reset_ms": 0,
+                        },
+                    }
+                ],
+                "polling": {"interval_ms": 200},
+                "logging": {"level": "info"},
+            }
+
+            try:
+                self.start_runtime(config_dict)
+
+                if not assert_provider_available(self.base_url, "provider-sim", timeout=10.0):
+                    self._fail_with_output(
+                        "failed_restart_continuity",
+                        "Provider did not become available before induced crash",
+                    )
+
+                if self.capture:
+                    self.capture.wait_for_marker("WRAPPER_FAIL_ATTEMPT_2", timeout=10.0)
+
+                crash_seen, crash_snaps = self._wait_for_snapshot_predicate(
+                    lambda s: s["present"] and ((s["attempt_count"] or 0) >= 1 or s["crash_detected"] is True),
+                    timeout=8.0,
+                    interval=0.05,
+                )
+                if not crash_seen:
+                    self._fail_with_output(
+                        "failed_restart_continuity",
+                        "Crash handling state was not observed",
+                        health_snapshots=crash_snaps,
+                    )
+
+                # Continuity assertion: failed restart attempts must keep provider visible
+                # as supervised UNAVAILABLE state instead of disappearing from health API.
+                still_supervised, supervised_snaps = self._wait_for_snapshot_predicate(
+                    lambda s: s["present"] and s["state"] == "UNAVAILABLE" and (s["attempt_count"] or 0) >= 1,
+                    timeout=8.0,
+                    interval=0.05,
+                )
+                if not still_supervised:
+                    self._fail_with_output(
+                        "failed_restart_continuity",
+                        "Provider disappeared instead of staying supervised during failed restart",
+                        health_snapshots=crash_snaps + supervised_snaps,
+                    )
+
+                recovered, rec_snaps = self._wait_for_snapshot_predicate(
+                    lambda s: (
+                        s["present"]
+                        and s["state"] == "AVAILABLE"
+                        and (s["device_count"] or 0) > 0
+                        and (s["attempt_count"] or 0) == 0
+                    ),
+                    timeout=15.0,
+                    interval=0.05,
+                )
+                if not recovered:
+                    self._fail_with_output(
+                        "failed_restart_continuity",
+                        "Provider did not recover to AVAILABLE after failed restart attempt",
+                        health_snapshots=crash_snaps + supervised_snaps + rec_snaps,
+                    )
+            finally:
+                self.stop_runtime()
+
+    def test_restart_timeout_enforced(self) -> None:
+        """Test restart timeout policy by forcing a delayed restart attempt."""
+        print("\n[TEST] Restart Timeout Enforcement")
+
+        with tempfile.TemporaryDirectory(prefix="anolis-supervision-") as tmp:
+            temp_dir = Path(tmp)
+            counter_path = temp_dir / "attempt_counter.txt"
+            wrapper_path = self._write_wrapper_script(
+                temp_dir,
+                "timeout_provider_wrapper.py",
+                """
+                import os
+                import pathlib
+                import subprocess
+                import sys
+                import time
+
+                counter_path = pathlib.Path(sys.argv[1])
+                provider_exe = sys.argv[2]
+                provider_config = sys.argv[3]
+
+                try:
+                    attempt = int(counter_path.read_text(encoding="utf-8").strip())
+                except Exception:
+                    attempt = 0
+                attempt += 1
+                counter_path.write_text(str(attempt), encoding="utf-8")
+
+                args = [provider_exe, "--config", provider_config]
+
+                if attempt == 1:
+                    # Delay first crash until runtime startup has completed.
+                    args += ["--crash-after", "2.0"]
+                elif attempt == 2:
+                    print("WRAPPER_DELAY_ATTEMPT_2", file=sys.stderr, flush=True)
+                    time.sleep(2.5)
+
+                proc = subprocess.Popen(args, stdin=sys.stdin.buffer, stdout=sys.stdout.buffer, stderr=sys.stderr)
+                proc.wait()
+                sys.exit(proc.returncode)
+                """,
+            )
+
+            config_dict = {
+                "http": {"enabled": True, "bind": "127.0.0.1", "port": self.port},
+                "providers": [
+                    {
+                        "id": "provider-sim",
+                        "command": sys.executable,
+                        "args": [
+                            str(wrapper_path).replace("\\", "/"),
+                            str(counter_path).replace("\\", "/"),
+                            str(self.provider_sim_path).replace("\\", "/"),
+                            self._default_provider_fixture_config(),
+                        ],
+                        "timeout_ms": 1500,
+                        "restart_policy": {
+                            "enabled": True,
+                            "max_attempts": 4,
+                            "backoff_ms": [100, 200, 300, 400],
+                            "timeout_ms": 1000,
+                            "success_reset_ms": 0,
+                        },
+                    }
+                ],
+                "polling": {"interval_ms": 200},
+                "logging": {"level": "info"},
+            }
+
+            try:
+                self.start_runtime(config_dict)
+
+                if not assert_provider_available(self.base_url, "provider-sim", timeout=10.0):
+                    self._fail_with_output(
+                        "restart_timeout_enforced",
+                        "Provider did not become available before induced crash",
+                    )
+
+                delayed_attempt_seen = False
+                if self.capture:
+                    delayed_attempt_seen = self.capture.wait_for_marker("WRAPPER_DELAY_ATTEMPT_2", timeout=10.0)
+                if not delayed_attempt_seen:
+                    self._fail_with_output(
+                        "restart_timeout_enforced",
+                        "Did not observe delayed restart wrapper attempt",
+                    )
+
+                timeout_seen = False
+                if self.capture:
+                    timeout_seen = self.capture.wait_for_marker(
+                        "Restart timeout exceeded for provider 'provider-sim' after start()",
+                        timeout=15.0,
+                    )
+                if not timeout_seen:
+                    self._fail_with_output(
+                        "restart_timeout_enforced",
+                        "Runtime did not report restart timeout for delayed restart attempt",
+                    )
+
+                recovered, rec_snaps = self._wait_for_snapshot_predicate(
+                    lambda s: (
+                        s["present"]
+                        and s["state"] == "AVAILABLE"
+                        and (s["device_count"] or 0) > 0
+                        and (s["attempt_count"] or 0) == 0
+                    ),
+                    timeout=15.0,
+                    interval=0.05,
+                )
+                if not recovered:
+                    self._fail_with_output(
+                        "restart_timeout_enforced",
+                        "Provider did not recover after restart timeout failure",
+                        health_snapshots=rec_snaps,
+                    )
+            finally:
+                self.stop_runtime()
+
+    def test_startup_timeout_enforced(self) -> None:
+        """Test runtime.startup_timeout_ms by delaying provider startup beyond the deadline."""
+        print("\n[TEST] Startup Timeout Enforcement")
+
+        with tempfile.TemporaryDirectory(prefix="anolis-supervision-") as tmp:
+            temp_dir = Path(tmp)
+            wrapper_path = self._write_wrapper_script(
+                temp_dir,
+                "startup_delay_wrapper.py",
+                """
+                import subprocess
+                import sys
+                import time
+
+                provider_exe = sys.argv[1]
+                provider_config = sys.argv[2]
+
+                print("WRAPPER_STARTUP_DELAY_BEGIN", file=sys.stderr, flush=True)
+                time.sleep(6.0)
+                print("WRAPPER_STARTUP_DELAY_END", file=sys.stderr, flush=True)
+                proc = subprocess.Popen(
+                    [provider_exe, "--config", provider_config],
+                    stdin=sys.stdin.buffer,
+                    stdout=sys.stdout.buffer,
+                    stderr=sys.stderr,
+                )
+                proc.wait()
+                sys.exit(proc.returncode)
+                """,
+            )
+
+            config_dict = {
+                "runtime": {"startup_timeout_ms": 5000},
+                "http": {"enabled": True, "bind": "127.0.0.1", "port": self.port},
+                "providers": [
+                    {
+                        "id": "provider-sim",
+                        "command": sys.executable,
+                        "args": [
+                            str(wrapper_path).replace("\\", "/"),
+                            str(self.provider_sim_path).replace("\\", "/"),
+                            self._default_provider_fixture_config(),
+                        ],
+                        "timeout_ms": 1500,
+                        # Keep hello timeout above runtime.startup_timeout_ms so this
+                        # test validates startup timeout enforcement (not RPC timeout).
+                        "hello_timeout_ms": 12000,
+                        "restart_policy": {
+                            "enabled": True,
+                            "max_attempts": 1,
+                            "backoff_ms": [200],
+                            "timeout_ms": 1000,
+                            "success_reset_ms": 0,
+                        },
+                    }
+                ],
+                "polling": {"interval_ms": 200},
+                "logging": {"level": "info"},
+            }
+
+            self.fixture = RuntimeFixture(
+                self.runtime_path,
+                self.provider_sim_path,
+                http_port=self.port,
+                config_dict=config_dict,
+            )
+
+            try:
+                if not self.fixture.start():
+                    raise AssertionError("Failed to spawn runtime process for startup-timeout test")
+                self.base_url = self.fixture.base_url
+
+                exited = self._wait_for_runtime_exit(timeout=20.0)
+                if not exited:
+                    self._fail_with_output(
+                        "startup_timeout_enforced",
+                        "Runtime did not exit after exceeding startup timeout",
+                    )
+
+                timeout_reported = False
+                if self.capture:
+                    timeout_reported = self.capture.wait_for_marker(
+                        "Runtime startup timeout exceeded",
+                        timeout=2.0,
+                    )
+                if not timeout_reported:
+                    self._fail_with_output(
+                        "startup_timeout_enforced",
+                        "Startup timeout failure was not reported in runtime logs",
+                    )
+            finally:
+                self.stop_runtime()
+
     def test_device_rediscovery(self) -> None:
         """Test that devices are rediscovered after provider restart."""
         print("\n[TEST] Device Rediscovery")
@@ -494,5 +856,8 @@ SUPERVISION_CHECKS: List[SupervisionCheck] = [
     ("automatic_restart", SupervisionTester.test_automatic_restart),
     ("backoff_timing", SupervisionTester.test_backoff_timing),
     ("circuit_breaker", SupervisionTester.test_circuit_breaker),
+    ("failed_restart_continuity", SupervisionTester.test_failed_restart_attempt_remains_supervised),
+    ("restart_timeout_enforced", SupervisionTester.test_restart_timeout_enforced),
+    ("startup_timeout_enforced", SupervisionTester.test_startup_timeout_enforced),
     ("device_rediscovery", SupervisionTester.test_device_rediscovery),
 ]
