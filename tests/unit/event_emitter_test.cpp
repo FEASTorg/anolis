@@ -511,8 +511,8 @@ TEST(EventEmitterTest, ConcurrentEmitAndSubscribe) {
     threads.reserve(NUM_SUBSCRIBERS + 1);
 
     // Emitter thread
-    threads.emplace_back([&emitter, EMIT_DELAY]() {
-        for (int i = 0; i < NUM_EVENTS; ++i) {
+    threads.emplace_back([&emitter, EMIT_DELAY, num_events = NUM_EVENTS]() {
+        for (int i = 0; i < num_events; ++i) {
             emitter.emit(create_test_event("p", "d", "s", static_cast<double>(i)));
             std::this_thread::sleep_for(EMIT_DELAY);
         }
@@ -520,10 +520,10 @@ TEST(EventEmitterTest, ConcurrentEmitAndSubscribe) {
 
     // Multiple subscriber threads
     for (int t = 0; t < NUM_SUBSCRIBERS; ++t) {
-        threads.emplace_back([&emitter, &total_received]() {
+        threads.emplace_back([&emitter, &total_received, pop_timeout = POP_TIMEOUT]() {
             auto sub = emitter.subscribe();
             if (sub) {
-                while (auto evt = sub->pop(POP_TIMEOUT)) {
+                while (auto evt = sub->pop(pop_timeout)) {
                     total_received++;
                 }
             }

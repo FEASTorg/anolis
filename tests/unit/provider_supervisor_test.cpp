@@ -263,14 +263,14 @@ TEST(ProviderSupervisorTest, ConcurrentReadsAndWritesAreThreadSafe) {
     ProviderSupervisor sup;
     sup.register_provider("prov", make_enabled_policy());
 
-    constexpr int kIterations = 300;
+    const int kIterations = 300;
 
     // Writer threads: interleave heartbeats, crash records, and success records
     std::vector<std::thread> writers;
     writers.reserve(3);
     for (int i = 0; i < 3; ++i) {
-        writers.emplace_back([&sup, i]() {
-            for (int j = 0; j < kIterations; ++j) {
+        writers.emplace_back([&sup, i, iterations = kIterations]() {
+            for (int j = 0; j < iterations; ++j) {
                 if (j % 7 != 0 && j % 13 == 0) {
                     // Alternate crash/success to keep state oscillating
                     if (i % 2 == 0) {
@@ -289,8 +289,8 @@ TEST(ProviderSupervisorTest, ConcurrentReadsAndWritesAreThreadSafe) {
     std::vector<std::thread> readers;
     readers.reserve(3);
     for (int i = 0; i < 3; ++i) {
-        readers.emplace_back([&sup]() {
-            for (int j = 0; j < kIterations; ++j) {
+        readers.emplace_back([&sup, iterations = kIterations]() {
+            for (int j = 0; j < iterations; ++j) {
                 if (j % 2 == 0) {
                     auto snap = sup.get_snapshot("prov");
                     (void)snap;
