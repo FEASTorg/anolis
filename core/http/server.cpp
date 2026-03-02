@@ -30,8 +30,13 @@ HttpServer::HttpServer(const runtime::HttpConfig &config, int polling_interval_m
       supervisor_(dependencies.supervisor),
       parameter_manager_(dependencies.parameter_manager),
       event_emitter_(std::move(dependencies.event_emitter)),
-      mode_manager_(dependencies.mode_manager),
-      bt_runtime_(dependencies.bt_runtime) {}
+      mode_manager_(dependencies.mode_manager)
+#if ANOLIS_ENABLE_AUTOMATION
+      ,
+      bt_runtime_(dependencies.bt_runtime)
+#endif
+{
+}
 
 HttpServer::~HttpServer() { stop(); }
 

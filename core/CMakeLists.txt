@@ -16,6 +16,13 @@ if(NOT EXISTS "${ADPP_PROTO_DIR}/protocol.proto")
     )
 endif()
 
+# Generate build config header used by shared headers for feature-flag consistency
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/anolis_build_config.hpp.in
+    ${CMAKE_CURRENT_BINARY_DIR}/anolis_build_config.hpp
+    @ONLY
+)
+
 # Use modern protobuf_generate instead of deprecated protobuf_generate_cpp
 add_library(anolis_proto OBJECT ${ADPP_PROTO_DIR}/protocol.proto)
 target_link_libraries(anolis_proto PUBLIC protobuf::libprotobuf)
@@ -43,6 +50,19 @@ target_include_directories(anolis_logging PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 anolis_apply_warnings(anolis_logging)
+
+# Automation support library (mode/parameter facilities without BehaviorTree dependency)
+add_library(anolis_automation_support STATIC
+    automation/mode_manager.cpp
+    automation/parameter_manager.cpp
+)
+target_include_directories(anolis_automation_support PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(anolis_automation_support PUBLIC
+    anolis_logging
+)
+anolis_apply_warnings(anolis_automation_support)
 
 # Provider host library
 add_library(anolis_provider STATIC
@@ -112,45 +132,6 @@ target_link_libraries(anolis_telemetry PUBLIC
 )
 anolis_apply_warnings(anolis_telemetry)
 
-# Automation library (Behavior Trees)
-find_package(behaviortree_cpp CONFIG REQUIRED)
-
-add_library(anolis_automation STATIC
-    automation/bt_runtime.cpp
-    automation/bt_nodes.cpp
-    automation/mode_manager.cpp
-    automation/parameter_manager.cpp
-)
-
-target_include_directories(anolis_automation PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-target_link_libraries(anolis_automation PUBLIC
-    anolis_state
-    anolis_control
-    BT::behaviortree_cpp
-)
-anolis_apply_warnings(anolis_automation)
-
-# Automation sanity test (lightweight, no gtest)
-add_executable(bt_nodes_sanity
-    automation/bt_nodes_sanity.cpp
-)
-
-if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    target_link_libraries(bt_nodes_sanity PRIVATE
-        $<LINK_GROUP:RESCAN,anolis_automation,anolis_control>
-        BT::behaviortree_cpp
-    )
-else()
-    target_link_libraries(bt_nodes_sanity PRIVATE
-        anolis_automation
-        BT::behaviortree_cpp
-    )
-endif()
-anolis_apply_warnings(bt_nodes_sanity)
-
 # State cache library
 add_library(anolis_state STATIC
     state/state_cache.cpp
@@ -176,6 +157,7 @@ add_library(anolis_control STATIC
 
 target_include_directories(anolis_control PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 target_link_libraries(anolis_control PUBLIC
@@ -183,9 +165,50 @@ target_link_libraries(anolis_control PUBLIC
     anolis_provider
     anolis_registry
     anolis_state
+    anolis_automation_support
     protobuf::libprotobuf
 )
 anolis_apply_warnings(anolis_control)
+
+# Automation library (Behavior Trees)
+if(ANOLIS_ENABLE_AUTOMATION)
+    find_package(behaviortree_cpp CONFIG REQUIRED)
+
+    add_library(anolis_automation STATIC
+        automation/bt_runtime.cpp
+        automation/bt_nodes.cpp
+    )
+
+    target_include_directories(anolis_automation PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    target_link_libraries(anolis_automation PUBLIC
+        anolis_state
+        anolis_control
+        anolis_automation_support
+        BT::behaviortree_cpp
+    )
+    anolis_apply_warnings(anolis_automation)
+
+    # Automation sanity test (lightweight, no gtest)
+    add_executable(bt_nodes_sanity
+        automation/bt_nodes_sanity.cpp
+    )
+
+    if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        target_link_libraries(bt_nodes_sanity PRIVATE
+            $<LINK_GROUP:RESCAN,anolis_automation,anolis_control>
+            BT::behaviortree_cpp
+        )
+    else()
+        target_link_libraries(bt_nodes_sanity PRIVATE
+            anolis_automation
+            BT::behaviortree_cpp
+        )
+    endif()
+    anolis_apply_warnings(bt_nodes_sanity)
+endif()
 
 # HTTP server library
 find_package(httplib CONFIG REQUIRED)
@@ -202,6 +225,7 @@ add_library(anolis_http STATIC
 
 target_include_directories(anolis_http PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 target_link_libraries(anolis_http PUBLIC
@@ -210,11 +234,14 @@ target_link_libraries(anolis_http PUBLIC
     anolis_registry
     anolis_state
     anolis_control
-    anolis_automation
+    anolis_automation_support
     httplib::httplib
     nlohmann_json::nlohmann_json
     protobuf::libprotobuf
 )
+if(ANOLIS_ENABLE_AUTOMATION)
+    target_link_libraries(anolis_http PUBLIC anolis_automation)
+endif()
 anolis_apply_warnings(anolis_http)
 
 # Runtime library (config + bootstrap)
@@ -228,6 +255,7 @@ add_library(anolis_runtime STATIC
 
 target_include_directories(anolis_runtime PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 target_link_libraries(anolis_runtime PUBLIC
@@ -238,10 +266,13 @@ target_link_libraries(anolis_runtime PUBLIC
     anolis_control
     anolis_http
     anolis_telemetry
-    anolis_automation
+    anolis_automation_support
     yaml-cpp::yaml-cpp
     protobuf::libprotobuf
 )
+if(ANOLIS_ENABLE_AUTOMATION)
+    target_link_libraries(anolis_runtime PUBLIC anolis_automation)
+endif()
 anolis_apply_warnings(anolis_runtime)
 
 # Minimal runtime executable

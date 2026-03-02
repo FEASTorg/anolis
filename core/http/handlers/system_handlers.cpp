@@ -1,7 +1,10 @@
 #include <chrono>
 #include <fstream>
 
+#include "anolis_build_config.hpp"
+#if ANOLIS_ENABLE_AUTOMATION
 #include "../../automation/bt_runtime.hpp"
+#endif
 #include "../../automation/mode_manager.hpp"
 #include "../../automation/parameter_manager.hpp"
 #include "../../logging/logger.hpp"
@@ -318,6 +321,7 @@ void HttpServer::handle_post_parameters(const httplib::Request &req, httplib::Re
 // GET /v0/automation/tree - Get loaded behavior tree XML
 //=============================================================================
 void HttpServer::handle_get_automation_tree(const httplib::Request &, httplib::Response &res) {
+#if ANOLIS_ENABLE_AUTOMATION
     // If automation not enabled or bt_runtime not available
     if (bt_runtime_ == nullptr) {
         nlohmann::json response = make_error_response(StatusCode::UNAVAILABLE, "Automation layer not enabled");
@@ -349,12 +353,18 @@ void HttpServer::handle_get_automation_tree(const httplib::Request &, httplib::R
     nlohmann::json response = {{"status", make_status(StatusCode::OK)}, {"tree", xml_content}};
 
     send_json(res, StatusCode::OK, response);
+#else
+    nlohmann::json response =
+        make_error_response(StatusCode::UNAVAILABLE, "Automation layer disabled at build time");
+    send_json(res, StatusCode::UNAVAILABLE, response);
+#endif
 }
 
 //=============================================================================
 // GET /v0/automation/status
 //=============================================================================
 void HttpServer::handle_get_automation_status(const httplib::Request &, httplib::Response &res) {
+#if ANOLIS_ENABLE_AUTOMATION
     // If automation not enabled or bt_runtime not available
     if (bt_runtime_ == nullptr) {
         nlohmann::json response = make_error_response(StatusCode::UNAVAILABLE, "Automation layer not enabled");
@@ -423,6 +433,11 @@ void HttpServer::handle_get_automation_status(const httplib::Request &, httplib:
         {"current_tree", tree_name}};
 
     send_json(res, StatusCode::OK, response);
+#else
+    nlohmann::json response =
+        make_error_response(StatusCode::UNAVAILABLE, "Automation layer disabled at build time");
+    send_json(res, StatusCode::UNAVAILABLE, response);
+#endif
 }
 
 //=============================================================================

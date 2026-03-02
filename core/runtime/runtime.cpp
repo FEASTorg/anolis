@@ -4,7 +4,12 @@
 #include <thread>
 #include <utility>
 
+#if ANOLIS_ENABLE_AUTOMATION
+#include "automation/bt_runtime.hpp"
+#include "automation/mode_manager.hpp"
+#include "automation/parameter_manager.hpp"
 #include "automation/parameter_types.hpp"
+#endif
 #include "logging/logger.hpp"
 #include "provider/provider_handle.hpp"  // Required for instantiation
 #include "provider/provider_supervisor.hpp"
@@ -146,6 +151,7 @@ bool Runtime::init_providers(std::string &error) {
 }
 
 bool Runtime::init_automation(std::string &error) {
+#if ANOLIS_ENABLE_AUTOMATION
     // Create ModeManager and wire to CallRouter if automation enabled
     if (config_.automation.enabled) {
         mode_manager_ = std::make_unique<automation::ModeManager>(automation::RuntimeMode::IDLE);
@@ -239,23 +245,29 @@ bool Runtime::init_automation(std::string &error) {
     }
 
     return true;
+#else
+    (void)error;
+    if (config_.automation.enabled) {
+        LOG_WARN("[Runtime] Automation configured but disabled at build time (ANOLIS_ENABLE_AUTOMATION=OFF)");
+    } else {
+        LOG_INFO("[Runtime] Automation disabled in config");
+    }
+    return true;
+#endif
 }
 
 bool Runtime::init_http(std::string &error) {
     // Create and start HTTP server if enabled
     if (config_.http.enabled) {
         LOG_INFO("[Runtime] Creating HTTP server");
-        http::HttpServerDependencies dependencies{
-            *registry_,
-            *state_cache_,
-            *call_router_,
-            provider_registry_,
-            supervisor_.get(),         // optional: supervision snapshots
-            event_emitter_,            // optional: SSE emitter
-            mode_manager_.get(),       // optional: automation mode
-            parameter_manager_.get(),  // optional: runtime parameters
-            bt_runtime_.get()          // optional: automation runtime
-        };
+        http::HttpServerDependencies dependencies(*registry_, *state_cache_, *call_router_, provider_registry_);
+        dependencies.supervisor = supervisor_.get();  // optional: supervision snapshots
+        dependencies.event_emitter = event_emitter_;  // optional: SSE emitter
+#if ANOLIS_ENABLE_AUTOMATION
+        dependencies.mode_manager = mode_manager_.get();            // optional: automation mode
+        dependencies.parameter_manager = parameter_manager_.get();   // optional: runtime parameters
+        dependencies.bt_runtime = bt_runtime_.get();                 // optional: automation runtime
+#endif
         http_server_ =
             std::make_unique<http::HttpServer>(config_.http, config_.polling.interval_ms, std::move(dependencies));
 
@@ -312,6 +324,7 @@ void Runtime::run() {
     LOG_INFO("[Runtime] State cache polling active");
 
     // Start BT tick loop if automation enabled
+#if ANOLIS_ENABLE_AUTOMATION
     if (bt_runtime_) {
         if (!bt_runtime_->start(config_.automation.tick_rate_hz)) {
             LOG_WARN("[Runtime] BT runtime failed to start");
@@ -319,6 +332,7 @@ void Runtime::run() {
             LOG_INFO("[Runtime] BT runtime started (tick rate: " << config_.automation.tick_rate_hz << " Hz)");
         }
     }
+#endif
 
     LOG_INFO("[Runtime] Press Ctrl+C to exit");
 
@@ -393,10 +407,12 @@ void Runtime::run() {
 
 void Runtime::shutdown() {
     // Stop BT runtime first
+#if ANOLIS_ENABLE_AUTOMATION
     if (bt_runtime_) {
         LOG_INFO("[Runtime] Stopping BT runtime");
         bt_runtime_->stop();
     }
+#endif
 
     // Stop HTTP server
     if (http_server_) {

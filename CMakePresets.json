@@ -71,6 +71,13 @@
       }
     },
     {
+      "name": "ci-linux-release-no-automation",
+      "inherits": "ci-linux-release",
+      "cacheVariables": {
+        "ANOLIS_ENABLE_AUTOMATION": "OFF"
+      }
+    },
+    {
       "name": "ci-linux-arm64-release",
       "inherits": "base",
       "cacheVariables": {
@@ -98,6 +105,13 @@
       "inherits": "base-windows-msvc",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "ci-windows-release-no-automation",
+      "inherits": "ci-windows-release",
+      "cacheVariables": {
+        "ANOLIS_ENABLE_AUTOMATION": "OFF"
       }
     },
     {
@@ -184,6 +198,10 @@
       "configurePreset": "ci-linux-release"
     },
     {
+      "name": "ci-linux-release-no-automation",
+      "configurePreset": "ci-linux-release-no-automation"
+    },
+    {
       "name": "ci-linux-arm64-release",
       "configurePreset": "ci-linux-arm64-release"
     },
@@ -198,6 +216,11 @@
     {
       "name": "ci-windows-release",
       "configurePreset": "ci-windows-release",
+      "configuration": "Release"
+    },
+    {
+      "name": "ci-windows-release-no-automation",
+      "configurePreset": "ci-windows-release-no-automation",
       "configuration": "Release"
     },
     {
@@ -269,6 +292,13 @@
       }
     },
     {
+      "name": "ci-linux-release-no-automation",
+      "configurePreset": "ci-linux-release-no-automation",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
       "name": "ci-linux-arm64-release",
       "configurePreset": "ci-linux-arm64-release",
       "output": {
@@ -285,6 +315,14 @@
     {
       "name": "ci-windows-release",
       "configurePreset": "ci-windows-release",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci-windows-release-no-automation",
+      "configurePreset": "ci-windows-release-no-automation",
       "configuration": "Release",
       "output": {
         "outputOnFailure": true

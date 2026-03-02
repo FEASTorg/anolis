@@ -14,6 +14,7 @@
 #include <thread>
 #include <unordered_map>
 
+#include "anolis_build_config.hpp"
 #include "events/event_types.hpp"
 #include "provider/i_provider_handle.hpp"  // Updated include
 #include "provider/provider_registry.hpp"
@@ -39,7 +40,9 @@ class EventEmitter;
 namespace automation {
 class ModeManager;
 class ParameterManager;
+#if ANOLIS_ENABLE_AUTOMATION
 class BTRuntime;
+#endif
 }  // namespace automation
 namespace provider {
 class ProviderSupervisor;
@@ -54,11 +57,22 @@ struct HttpServerDependencies {
     state::StateCache &state_cache;
     control::CallRouter &call_router;
     provider::ProviderRegistry &provider_registry;
+
+    HttpServerDependencies(registry::DeviceRegistry &registry_ref, state::StateCache &state_cache_ref,
+                           control::CallRouter &call_router_ref,
+                           provider::ProviderRegistry &provider_registry_ref)
+        : registry(registry_ref),
+          state_cache(state_cache_ref),
+          call_router(call_router_ref),
+          provider_registry(provider_registry_ref) {}
+
     provider::ProviderSupervisor *supervisor = nullptr;
     std::shared_ptr<events::EventEmitter> event_emitter = nullptr;
     automation::ModeManager *mode_manager = nullptr;
     automation::ParameterManager *parameter_manager = nullptr;
+#if ANOLIS_ENABLE_AUTOMATION
     automation::BTRuntime *bt_runtime = nullptr;
+#endif
 };
 
 /**
@@ -137,7 +151,9 @@ private:
     automation::ParameterManager *parameter_manager_;  // optional
     std::shared_ptr<events::EventEmitter> event_emitter_;
     automation::ModeManager *mode_manager_;  // optional
+#if ANOLIS_ENABLE_AUTOMATION
     automation::BTRuntime *bt_runtime_;      // optional
+#endif
 
     // SSE client tracking
     std::atomic<int> sse_client_count_{0};

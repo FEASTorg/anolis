@@ -119,6 +119,10 @@ jobs:
             os: ubuntu-24.04
             configure_preset: ci-linux-release-strict
             test_preset: ci-linux-release-strict
+          - lane: Linux Release (Core, no automation)
+            os: ubuntu-24.04
+            configure_preset: ci-linux-release-no-automation
+            test_preset: ci-linux-release-no-automation
           - lane: Linux ARM64 Release (Core, strict)
             os: ubuntu-24.04-arm
             configure_preset: ci-linux-arm64-release-strict
@@ -127,6 +131,10 @@ jobs:
             os: windows-2022
             configure_preset: ci-windows-release-strict
             test_preset: ci-windows-release-strict
+          - lane: Windows Release (Core, no automation)
+            os: windows-2022
+            configure_preset: ci-windows-release-no-automation
+            test_preset: ci-windows-release-no-automation
 
     steps:
       - name: Checkout code

@@ -2,17 +2,13 @@
 
 find_package(GTest CONFIG REQUIRED)
 
-# Test executable
-add_executable(anolis_unit_tests
+set(ANOLIS_UNIT_TEST_SOURCES
     main.cpp
     sanity_test.cpp
     state_cache_test.cpp
     call_router_test.cpp
     config_test.cpp
     http_handlers_test.cpp
-    bt_runtime_test.cpp
-    bt_nodes_test.cpp
-    mode_manager_test.cpp
     parameter_types_test.cpp
     provider_process_test.cpp
     provider_registry_test.cpp
@@ -20,6 +16,19 @@ add_executable(anolis_unit_tests
     device_registry_concurrency_test.cpp
     event_emitter_test.cpp
     influx_sink_test.cpp
+)
+
+if(ANOLIS_ENABLE_AUTOMATION)
+    list(APPEND ANOLIS_UNIT_TEST_SOURCES
+        bt_runtime_test.cpp
+        bt_nodes_test.cpp
+        mode_manager_test.cpp
+    )
+endif()
+
+# Test executable
+add_executable(anolis_unit_tests
+    ${ANOLIS_UNIT_TEST_SOURCES}
 )
 
 target_include_directories(anolis_unit_tests PRIVATE
@@ -36,7 +45,6 @@ target_link_libraries(anolis_unit_tests PRIVATE
     anolis_runtime
     anolis_state
     anolis_control
-    anolis_automation
     anolis_provider
     anolis_registry
     anolis_http
@@ -45,6 +53,9 @@ target_link_libraries(anolis_unit_tests PRIVATE
     anolis_proto
     protobuf::libprotobuf
 )
+if(ANOLIS_ENABLE_AUTOMATION)
+    target_link_libraries(anolis_unit_tests PRIVATE anolis_automation)
+endif()
 anolis_apply_warnings(anolis_unit_tests)
 
 # Register tests. Use PRE_TEST so discovery does not execute during build.

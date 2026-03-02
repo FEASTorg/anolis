@@ -83,6 +83,7 @@ endif()
 
 # Enable testing
 option(BUILD_TESTING "Build unit tests" ON)
+option(ANOLIS_ENABLE_AUTOMATION "Enable automation subsystem (BehaviorTree runtime and BT endpoints)" ON)
 option(ANOLIS_ENABLE_PYTHON_CTEST "Register selected Python integration tests with CTest" OFF)
 set(ANOLIS_PROVIDER_SIM_EXE "" CACHE FILEPATH "Path to anolis-provider-sim executable for compatibility integration tests")
 

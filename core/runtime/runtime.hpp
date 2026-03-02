@@ -4,9 +4,7 @@
 #include <memory>
 #include <unordered_map>
 
-#include "automation/bt_runtime.hpp"
-#include "automation/mode_manager.hpp"
-#include "automation/parameter_manager.hpp"
+#include "anolis_build_config.hpp"
 #include "config.hpp"
 #include "control/call_router.hpp"
 #include "events/event_emitter.hpp"
@@ -19,6 +17,13 @@
 #include "telemetry/influx_sink.hpp"
 
 namespace anolis {
+namespace automation {
+class ModeManager;
+class ParameterManager;
+#if ANOLIS_ENABLE_AUTOMATION
+class BTRuntime;
+#endif
+}  // namespace automation
 namespace runtime {
 
 class Runtime {
@@ -67,9 +72,11 @@ private:
     std::unique_ptr<control::CallRouter> call_router_;
     std::unique_ptr<http::HttpServer> http_server_;
     std::unique_ptr<telemetry::InfluxSink> telemetry_sink_;
+#if ANOLIS_ENABLE_AUTOMATION
     std::unique_ptr<automation::ModeManager> mode_manager_;
     std::unique_ptr<automation::ParameterManager> parameter_manager_;
     std::unique_ptr<automation::BTRuntime> bt_runtime_;
+#endif
     std::unique_ptr<provider::ProviderSupervisor> supervisor_;
 
     std::atomic<bool> running_{false};

@@ -99,10 +99,7 @@ protected:
         http_config.cors_allowed_origins = {"*"};  // Allow CORS for testing
 
         // Create HTTP server
-        HttpServerDependencies dependencies{
-            *registry, *state_cache, *call_router, *provider_registry, nullptr, nullptr, nullptr, nullptr,
-            nullptr  // bt_runtime
-        };
+        HttpServerDependencies dependencies(*registry, *state_cache, *call_router, *provider_registry);
         server = std::make_unique<HttpServer>(http_config, 100, std::move(dependencies));
 
         // Start server
@@ -683,9 +680,8 @@ protected:
         http_config.port = 9998;  // Distinct port from HttpHandlersTest (9999)
         http_config.cors_allowed_origins = {"*"};
 
-        HttpServerDependencies dependencies{*registry,        *state_cache, *call_router, *provider_registry,
-                                            supervisor.get(), nullptr,      nullptr,      nullptr,
-                                            nullptr};
+        HttpServerDependencies dependencies(*registry, *state_cache, *call_router, *provider_registry);
+        dependencies.supervisor = supervisor.get();
         server = std::make_unique<HttpServer>(http_config, 100, std::move(dependencies));
 
         std::string error;

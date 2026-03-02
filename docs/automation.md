@@ -10,6 +10,17 @@ The automation layer adds configurable machine behavior on top of Anolis's stabl
 - **Runtime Modes** — State machine governing when automation runs and how manual control interacts
 - **Parameter System** — Config-tunable setpoints and limits
 
+## Build-Time Flag
+
+BehaviorTree automation can be compiled out with:
+
+```bash
+cmake -DANOLIS_ENABLE_AUTOMATION=OFF ...
+```
+
+When compiled out, BT-specific components are not built (`anolis_automation`, `bt_nodes_sanity`), and BT endpoints
+return `UNAVAILABLE` with a build-time-disabled message.
+
 ## Architecture Constraints
 
 The automation layer is a **consumer of kernel services**, NOT a replacement for core IO:
