@@ -2,7 +2,6 @@
 
 #include <chrono>
 #include <filesystem>
-#include <iostream>
 #include <thread>
 
 #include "logging/logger.hpp"
@@ -20,25 +19,23 @@
 namespace anolis {
 namespace provider {
 
+struct ProviderProcess::Impl {
+#ifdef _WIN32
+    HANDLE process_handle = nullptr;
+#else
+    pid_t pid = -1;
+    int stdin_write_fd = -1;
+    int stdout_read_fd = -1;
+#endif
+};
+
 ProviderProcess::ProviderProcess(const std::string &provider_id, const std::string &executable_path,
                                  const std::vector<std::string> &args, int shutdown_timeout_ms)
     : provider_id_(provider_id),
       executable_path_(executable_path),
       args_(args),
-      shutdown_timeout_ms_(shutdown_timeout_ms)
-#ifdef _WIN32
-      ,
-      process_handle_(nullptr),
-      stdin_read_(nullptr),
-      stdout_write_(nullptr)
-#else
-      ,
-      pid_(-1),
-      stdin_write_fd_(-1),
-      stdout_read_fd_(-1)
-#endif
-{
-}
+      shutdown_timeout_ms_(shutdown_timeout_ms),
+      impl_(std::make_unique<Impl>()) {}
 
 ProviderProcess::~ProviderProcess() { shutdown(); }
 
@@ -138,9 +135,7 @@ bool ProviderProcess::spawn_windows() {
     CloseHandle(pi.hThread);
 
     // Store handles
-    process_handle_ = pi.hProcess;
-    stdin_read_ = NULL;    // We closed this (child owns it)
-    stdout_write_ = NULL;  // We closed this (child owns it)
+    impl_->process_handle = pi.hProcess;
 
     // Give to client
     client_.set_handles(stdin_write_parent, stdout_read_parent);
@@ -165,8 +160,8 @@ bool ProviderProcess::spawn_linux() {
         return false;
     }
 
-    pid_ = fork();
-    if (pid_ < 0) {
+    impl_->pid = fork();
+    if (impl_->pid < 0) {
         error_ = "Fork failed";
         close(stdin_pipe[0]);
         close(stdin_pipe[1]);
@@ -175,7 +170,7 @@ bool ProviderProcess::spawn_linux() {
         return false;
     }
 
-    if (pid_ == 0) {
+    if (impl_->pid == 0) {
         // Child process
         // Redirect stdin
         dup2(stdin_pipe[0], STDIN_FILENO);
@@ -211,34 +206,34 @@ bool ProviderProcess::spawn_linux() {
     close(stdin_pipe[0]);   // Close read end of stdin pipe
     close(stdout_pipe[1]);  // Close write end of stdout pipe
 
-    stdin_write_fd_ = stdin_pipe[1];
-    stdout_read_fd_ = stdout_pipe[0];
+    impl_->stdin_write_fd = stdin_pipe[1];
+    impl_->stdout_read_fd = stdout_pipe[0];
 
-    client_.set_handles(stdin_write_fd_, stdout_read_fd_);
+    client_.set_handles(impl_->stdin_write_fd, impl_->stdout_read_fd);
 
-    LOG_INFO("[" << provider_id_ << "] Process spawned successfully (PID=" << pid_ << ")");
+    LOG_INFO("[" << provider_id_ << "] Process spawned successfully (PID=" << impl_->pid << ")");
     return true;
 }
 #endif
 
 bool ProviderProcess::is_running() const {
 #ifdef _WIN32
-    if (!process_handle_) return false;
+    if (!impl_->process_handle) return false;
     DWORD exit_code;
-    if (!GetExitCodeProcess(process_handle_, &exit_code)) return false;
+    if (!GetExitCodeProcess(impl_->process_handle, &exit_code)) return false;
     return exit_code == STILL_ACTIVE;
 #else
-    if (pid_ <= 0) return false;
+    if (impl_->pid <= 0) return false;
 
     // Use waitpid(WNOHANG) for child liveness. kill(pid, 0) is not sufficient
     // because zombies still "exist" and would be misclassified as running.
     int status = 0;
     while (true) {
-        pid_t result = waitpid(pid_, &status, WNOHANG);
+        pid_t result = waitpid(impl_->pid, &status, WNOHANG);
         if (result == 0) {
             return true;  // Child still running
         }
-        if (result == pid_) {
+        if (result == impl_->pid) {
             return false;  // Child exited (reaped by this call)
         }
         if (result == -1) {
@@ -276,7 +271,7 @@ void ProviderProcess::shutdown() {
         }
     } else {
 #ifndef _WIN32
-        // Normalize pid_ when process already exited before shutdown().
+        // Normalize tracked PID state when process already exited before shutdown().
         wait_for_exit(0);
 #endif
     }
@@ -286,42 +281,42 @@ void ProviderProcess::shutdown() {
     client_.close_stdout();
 
 #ifndef _WIN32
-    stdin_write_fd_ = -1;
-    stdout_read_fd_ = -1;
+    impl_->stdin_write_fd = -1;
+    impl_->stdout_read_fd = -1;
 #endif
 
 #ifdef _WIN32
-    if (process_handle_) {
-        CloseHandle(process_handle_);
-        process_handle_ = nullptr;
+    if (impl_->process_handle) {
+        CloseHandle(impl_->process_handle);
+        impl_->process_handle = nullptr;
     }
 #endif
 }
 
 bool ProviderProcess::wait_for_exit(int timeout_ms) {
 #ifdef _WIN32
-    if (!process_handle_) return true;
-    DWORD result = WaitForSingleObject(process_handle_, timeout_ms);
+    if (!impl_->process_handle) return true;
+    DWORD result = WaitForSingleObject(impl_->process_handle, timeout_ms);
     return result == WAIT_OBJECT_0;
 #else
-    if (pid_ <= 0) {
+    if (impl_->pid <= 0) {
         return true;
     }
 
     auto start = std::chrono::steady_clock::now();
     while (true) {
         int status;
-        pid_t result = waitpid(pid_, &status, WNOHANG);
-        if (result == pid_) {
+        pid_t result = waitpid(impl_->pid, &status, WNOHANG);
+        if (result == impl_->pid) {
             // Process exited
-            pid_ = -1;
+            impl_->pid = -1;
             return true;
         }
         if (result == -1) {
             // Error occurred
             if (errno == ECHILD) {
                 // Process already reaped (shouldn't happen with our fixed is_running, but handle defensively)
-                pid_ = -1;
+                impl_->pid = -1;
                 return true;
             }
             if (errno == EINTR) {
@@ -344,12 +339,12 @@ bool ProviderProcess::wait_for_exit(int timeout_ms) {
 
 void ProviderProcess::force_terminate() {
 #ifdef _WIN32
-    if (process_handle_) {
-        TerminateProcess(process_handle_, 1);
+    if (impl_->process_handle) {
+        TerminateProcess(impl_->process_handle, 1);
     }
 #else
-    if (pid_ > 0) {
-        kill(pid_, SIGKILL);
+    if (impl_->pid > 0) {
+        kill(impl_->pid, SIGKILL);
     }
 #endif
 }

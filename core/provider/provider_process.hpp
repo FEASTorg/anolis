@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "framed_stdio_client.hpp"
 
@@ -43,6 +44,8 @@ public:
     const std::string &last_error() const { return error_; }
 
 private:
+    struct Impl;
+
     std::string provider_id_;
     std::string executable_path_;
     std::vector<std::string> args_;
@@ -50,16 +53,7 @@ private:
     int shutdown_timeout_ms_;
 
     FramedStdioClient client_;
-
-#ifdef _WIN32
-    void *process_handle_;  // HANDLE
-    void *stdin_read_;      // HANDLE (child's stdin read)
-    void *stdout_write_;    // HANDLE (child's stdout write)
-#else
-    pid_t pid_;
-    int stdin_write_fd_;
-    int stdout_read_fd_;
-#endif
+    std::unique_ptr<Impl> impl_;
 
     bool spawn_windows();
     bool spawn_linux();
