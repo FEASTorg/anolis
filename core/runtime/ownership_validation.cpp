@@ -1,8 +1,8 @@
 #include "ownership_validation.hpp"
 
 #include <algorithm>
-#include <charconv>
 #include <cctype>
+#include <charconv>
 #include <iomanip>
 #include <map>
 #include <sstream>
@@ -91,16 +91,16 @@ bool validate_i2c_ownership_claims(const std::vector<registry::RegisteredDevice>
         if (!has_bus_path && !has_i2c_address) {
             if (has_legacy_bus_path || has_legacy_i2c_address) {
                 error = "Device '" + handle + "' uses legacy ownership tags ('" + kLegacyBusPathTag + "', '" +
-                        kLegacyI2cAddressTag + "') without canonical tags ('" + kBusPathTag + "', '" +
-                        kI2cAddressTag + "')";
+                        kLegacyI2cAddressTag + "') without canonical tags ('" + kBusPathTag + "', '" + kI2cAddressTag +
+                        "')";
                 return false;
             }
             continue;
         }
 
         if (has_bus_path != has_i2c_address) {
-            error = "Device '" + handle + "' has incomplete ownership tags; both '" + kBusPathTag +
-                    "' and '" + kI2cAddressTag + "' are required when either is present";
+            error = "Device '" + handle + "' has incomplete ownership tags; both '" + kBusPathTag + "' and '" +
+                    kI2cAddressTag + "' are required when either is present";
             return false;
         }
 
@@ -112,8 +112,8 @@ bool validate_i2c_ownership_claims(const std::vector<registry::RegisteredDevice>
 
         std::string canonical_address;
         if (!parse_i2c_address(address_it->second, canonical_address)) {
-            error = "Device '" + handle + "' has invalid tag '" + kI2cAddressTag + "' value '" + address_it->second +
-                    "'";
+            error =
+                "Device '" + handle + "' has invalid tag '" + kI2cAddressTag + "' value '" + address_it->second + "'";
             return false;
         }
 
