@@ -15,7 +15,7 @@ http:
 providers:
   - id: bread0
     command: ..\anolis-provider-bread\build\dev-windows-release\Release\anolis-provider-bread.exe
-    args: ["--config", "../anolis-provider-ezo/config/mixed-bus/provider-bread.mock.yaml"]
+    args: ["--config", "config/mixed-bus-providers/provider-bread.mock.yaml"]
     timeout_ms: 5000
     hello_timeout_ms: 2000
     ready_timeout_ms: 10000
@@ -27,7 +27,7 @@ providers:
 
   - id: ezo0
     command: ..\anolis-provider-ezo\build\dev-windows-release\Release\anolis-provider-ezo.exe
-    args: ["--config", "../anolis-provider-ezo/config/mixed-bus/provider-ezo.mock.yaml"]
+    args: ["--config", "config/mixed-bus-providers/provider-ezo.mock.yaml"]
     timeout_ms: 5000
     hello_timeout_ms: 2000
     ready_timeout_ms: 10000

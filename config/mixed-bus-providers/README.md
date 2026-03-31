@@ -78,7 +78,7 @@ cmake --build --preset dev-windows-release
 ```powershell
 Set-Location D:\repos_feast\anolis
 Get-NetTCPConnection -LocalPort 18080 -ErrorAction SilentlyContinue
-.\build\dev-windows-release\core\Release\anolis-runtime.exe --config ..\anolis-provider-ezo\config\mixed-bus\anolis-runtime.mixed.win.mock.yaml
+.\build\dev-windows-release\core\Release\anolis-runtime.exe --config .\config\mixed-bus-providers\anolis-runtime.mixed.win.mock.yaml
 ```
 
 ### 2) Validate endpoints (Terminal B)
@@ -110,14 +110,14 @@ RLHT `0x0A`, DCMT `0x14`, DCMT `0x15`, EZO pH `0x63`, EZO DO `0x61`.
 
 ```bash
 cd /path/to/anolis
-./build/dev-release/core/anolis-runtime --config ../anolis-provider-ezo/config/mixed-bus/anolis-runtime.mixed.yaml
+./build/dev-release/core/anolis-runtime --config ./config/mixed-bus-providers/anolis-runtime.mixed.yaml
 ```
 
 ### 2) Validate endpoints (Terminal B)
 
 ```bash
-cd /path/to/anolis-provider-ezo
-./scripts/mixed-bus/check_mixed_bus_http.sh \
+cd /path/to/anolis
+./config/mixed-bus-providers/check_mixed_bus_http.sh \
   --base-url http://127.0.0.1:8080 \
   --expect-providers bread0,ezo0 \
   --min-device-count 5 \

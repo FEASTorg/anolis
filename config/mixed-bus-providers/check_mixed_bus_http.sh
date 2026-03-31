@@ -9,7 +9,7 @@ Usage:
 Options:
   --base-url URL              Runtime base URL (default: http://127.0.0.1:8080)
   --expect-providers CSV      Comma-separated expected provider IDs (default: bread0,ezo0)
-  --min-device-count N        Minimum total device count expected (default: 2)
+  --min-device-count N        Minimum total device count expected (default: 5)
   --allow-unavailable         Do not fail if provider state is UNAVAILABLE
   --capture-dir DIR           Write raw endpoint JSON files and summary into DIR
   -h, --help                  Show this help
@@ -30,7 +30,7 @@ need_cmd() {
 
 BASE_URL="${ANOLIS_BASE_URL:-http://127.0.0.1:8080}"
 EXPECTED_PROVIDERS="${EXPECTED_PROVIDERS:-bread0,ezo0}"
-MIN_DEVICE_COUNT="${MIN_DEVICE_COUNT:-2}"
+MIN_DEVICE_COUNT="${MIN_DEVICE_COUNT:-5}"
 ALLOW_UNAVAILABLE=0
 CAPTURE_DIR=""
 
