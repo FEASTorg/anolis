@@ -8,6 +8,46 @@
 - **Python 3**: test tooling
 - **Git**: source control
 
+## Install Dependencies
+
+Linux (Debian/Ubuntu):
+
+```bash
+sudo apt-get update
+sudo apt-get install -y build-essential cmake ninja-build git curl zip unzip tar pkg-config python3 python3-pip
+```
+
+Windows (PowerShell):
+
+```powershell
+winget install Kitware.CMake
+winget install Ninja-build.Ninja
+winget install Git.Git
+winget install Python.Python.3.12
+```
+
+Install Visual Studio 2022 (or Build Tools) with the `Desktop development with C++` workload.
+
+Install vcpkg (Linux/macOS):
+
+```bash
+git clone https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
+"$HOME/vcpkg/bootstrap-vcpkg.sh"
+echo 'export VCPKG_ROOT="$HOME/vcpkg"' >> ~/.bashrc
+export VCPKG_ROOT="$HOME/vcpkg"
+test -f "$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+```
+
+Install vcpkg (Windows):
+
+```powershell
+git clone https://github.com/microsoft/vcpkg.git $env:USERPROFILE\vcpkg
+& "$env:USERPROFILE\vcpkg\bootstrap-vcpkg.bat"
+[Environment]::SetEnvironmentVariable("VCPKG_ROOT", "$env:USERPROFILE\\vcpkg", "User")
+$env:VCPKG_ROOT = [Environment]::GetEnvironmentVariable("VCPKG_ROOT", "User")
+Test-Path "$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
+```
+
 ## Quick Start (Preset-First)
 
 ```bash

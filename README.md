@@ -130,6 +130,8 @@ Examples:
 
 ### Setup (First Time)
 
+Install host prerequisites (including Ninja and vcpkg) first: [docs/getting-started.md](docs/getting-started.md).
+
 ```bash
 # Clone repositories
 git clone https://github.com/FEASTorg/anolis.git
