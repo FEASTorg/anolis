@@ -9,13 +9,14 @@ import sys
 import threading
 import time
 import webbrowser
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 # Add tools/system-composer/ to sys.path so 'backend' is importable as a package.
 _SC_DIR = str(pathlib.Path(__file__).parent.parent)
 if _SC_DIR not in sys.path:
     sys.path.insert(0, _SC_DIR)
 
+from backend import launcher as launcher_module  # noqa: E402
 from backend import projects as projects_module  # noqa: E402
 
 HOST = "127.0.0.1"
@@ -63,6 +64,8 @@ class _Handler(BaseHTTPRequestHandler):
             name, sub = self._parse_project_path(path)
             if sub is None:
                 self._get_project(name)
+            elif sub == "logs":
+                self._log_stream(name)
             else:
                 self._not_found()
         elif path == "/api/status":
@@ -84,6 +87,14 @@ class _Handler(BaseHTTPRequestHandler):
                 self._rename_project(name)
             elif sub == "duplicate":
                 self._duplicate_project(name)
+            elif sub == "preflight":
+                self._preflight(name)
+            elif sub == "launch":
+                self._launch_project(name)
+            elif sub == "stop":
+                self._stop_project(name)
+            elif sub == "restart":
+                self._restart_project(name)
             else:
                 self._not_found()
         else:
@@ -223,7 +234,67 @@ class _Handler(BaseHTTPRequestHandler):
             self._json(404, {"error": f"Project '{name}' not found"})
 
     def _status(self) -> None:
-        self._json(200, {"version": 1, "active_project": None, "running": False})
+        self._json(200, launcher_module.get_status())
+
+    def _preflight(self, name: str) -> None:
+        err = projects_module.validate_name(name)
+        if err:
+            self._json(400, {"error": err})
+            return
+        try:
+            system = projects_module.get_project(name)
+        except FileNotFoundError:
+            self._json(404, {"error": f"Project '{name}' not found"})
+            return
+        project_dir = projects_module.project_dir(name)
+        result = launcher_module.preflight(name, system, project_dir)
+        self._json(200, result)
+
+    def _launch_project(self, name: str) -> None:
+        err = projects_module.validate_name(name)
+        if err:
+            self._json(400, {"error": err})
+            return
+        try:
+            system = projects_module.get_project(name)
+        except FileNotFoundError:
+            self._json(404, {"error": f"Project '{name}' not found"})
+            return
+        project_dir = projects_module.project_dir(name)
+        try:
+            launcher_module.launch(name, system, project_dir)
+            self._json(200, {"ok": True})
+        except RuntimeError as exc:
+            self._json(409, {"error": str(exc)})
+        except Exception as exc:
+            self._json(500, {"error": str(exc)})
+
+    def _stop_project(self, name: str) -> None:
+        err = projects_module.validate_name(name)
+        if err:
+            self._json(400, {"error": err})
+            return
+        launcher_module.stop()
+        self._json(200, {"ok": True})
+
+    def _restart_project(self, name: str) -> None:
+        err = projects_module.validate_name(name)
+        if err:
+            self._json(400, {"error": err})
+            return
+        project_dir = projects_module.project_dir(name)
+        try:
+            launcher_module.restart(name, project_dir)
+            self._json(200, {"ok": True})
+        except Exception as exc:
+            self._json(500, {"error": str(exc)})
+
+    def _log_stream(self, name: str) -> None:
+        err = projects_module.validate_name(name)
+        if err:
+            self._json(400, {"error": err})
+            return
+        launcher_module.handle_log_stream(self)
 
     def _serve_catalog(self) -> None:
         path = pathlib.Path("tools/system-composer/catalog/providers.json")
@@ -318,7 +389,7 @@ class _Handler(BaseHTTPRequestHandler):
 def main() -> None:
     verify_repo_root()
     projects_module.cleanup_stale_running_files()
-    server = HTTPServer((HOST, PORT), _Handler)
+    server = ThreadingHTTPServer((HOST, PORT), _Handler)
     url = f"http://localhost:{PORT}"
     print(f"Anolis System Composer is running at {url}")
     print("Close this window to stop.")

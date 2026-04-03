@@ -252,17 +252,6 @@ html, body {
 #btn-save:hover    { background: var(--accent-hover); }
 #btn-save:disabled { background: #aaa; cursor: not-allowed; }
 
-#btn-launch {
-  padding: 7px 14px;
-  background: transparent;
-  color: var(--text-muted);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  cursor: not-allowed;
-  font-size: 14px;
-  white-space: nowrap;
-}
-
 /* ---- Modals ---- */
 
 #modal-overlay {
@@ -648,3 +637,120 @@ html, body {
 
 /* Utilities */
 .muted { color: var(--text-muted); }
+
+/* ---- Launch Panel ---- */
+
+#launch-panel {
+  display: none;
+  border-top: 1px solid var(--border);
+  padding: 12px 20px;
+  flex-shrink: 0;
+  background: var(--bg-section);
+}
+#launch-panel.visible { display: block; }
+
+.launch-idle-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.launch-summary {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.preflight-results {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 13px;
+}
+
+.check-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.check-ok   .check-icon { color: var(--success); }
+.check-fail .check-icon { color: var(--danger); }
+.check-skip .check-icon { color: var(--text-muted); }
+.check-name  { font-weight: 500; }
+.check-extra { font-size: 12px; color: var(--text-muted); }
+.check-detail { color: var(--text-muted); }
+.check-hint { color: var(--warning); font-style: italic; }
+
+.launch-running-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.running-label { font-size: 13px; font-weight: 500; }
+
+/* Health badge */
+.health-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 12px;
+}
+.health-badge::before { content: '●'; font-size: 10px; }
+.health-badge.healthy     { background: #dcfce7; color: #15803d; }
+.health-badge.unavailable { background: #fef3c7; color: #92400e; }
+.health-badge.starting    { background: #f3f4f6; color: #6b7280; }
+
+/* ---- Log Pane ---- */
+
+#log-pane {
+  display: none;
+  flex-direction: column;
+  flex: 0 0 220px;
+  min-height: 120px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  background: #0d1117;
+  overflow: hidden;
+}
+#log-pane.visible { display: flex; }
+
+.log-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 4px 12px;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.log-toolbar span {
+  font-size: 11px;
+  color: #8b949e;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.log-toolbar .btn-secondary {
+  margin-left: auto;
+  background: transparent;
+  border-color: #30363d;
+  color: #8b949e;
+}
+.log-toolbar .btn-secondary:hover { background: #21262d; border-color: #8b949e; color: #e6edf3; }
+
+.log-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #e6edf3;
+}
+.log-line { white-space: pre-wrap; word-break: break-all; }
+
