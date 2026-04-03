@@ -3,6 +3,7 @@
 Run with:  python -m pytest tools/system-composer/tests/
 Or standalone: python tools/system-composer/tests/test_validator.py
 """
+
 import json
 import pathlib
 import sys
@@ -17,14 +18,13 @@ TEMPLATES_DIR = pathlib.Path(__file__).parent.parent / "templates"
 
 
 def load_template(name: str) -> dict:
-    return json.loads(
-        (TEMPLATES_DIR / name / "system.json").read_text(encoding="utf-8")
-    )
+    return json.loads((TEMPLATES_DIR / name / "system.json").read_text(encoding="utf-8"))  # type: ignore[no-any-return]
 
 
 # ---------------------------------------------------------------------------
 # Clean templates produce no errors
 # ---------------------------------------------------------------------------
+
 
 def test_clean_sim_is_valid():
     system = load_template("sim-quickstart")
@@ -45,12 +45,11 @@ def test_clean_bioreactor_is_valid():
 # Duplicate provider IDs
 # ---------------------------------------------------------------------------
 
+
 def test_duplicate_provider_id():
     system = load_template("sim-quickstart")
     # Duplicate the first provider entry
-    system["topology"]["runtime"]["providers"].append(
-        dict(system["topology"]["runtime"]["providers"][0])
-    )
+    system["topology"]["runtime"]["providers"].append(dict(system["topology"]["runtime"]["providers"][0]))
     errors = validator.validate_system(system)
     assert any("Duplicate provider IDs" in e for e in errors), errors
 
@@ -58,6 +57,7 @@ def test_duplicate_provider_id():
 # ---------------------------------------------------------------------------
 # Composer port collision
 # ---------------------------------------------------------------------------
+
 
 def test_composer_port_conflict():
     system = load_template("sim-quickstart")
@@ -69,6 +69,7 @@ def test_composer_port_conflict():
 # ---------------------------------------------------------------------------
 # I2C address conflict on the same bus
 # ---------------------------------------------------------------------------
+
 
 def test_shared_bus_address_conflict():
     system = load_template("mixed-bus-mock")
@@ -97,11 +98,10 @@ def test_same_address_different_bus_no_conflict():
 # Provider in runtime list but not in topology
 # ---------------------------------------------------------------------------
 
+
 def test_provider_in_runtime_but_missing_from_topology():
     system = load_template("sim-quickstart")
-    system["topology"]["runtime"]["providers"].append(
-        {"id": "ghost", "kind": "sim", "timeout_ms": 5000}
-    )
+    system["topology"]["runtime"]["providers"].append({"id": "ghost", "kind": "sim", "timeout_ms": 5000})
     errors = validator.validate_system(system)
     assert any("ghost" in e for e in errors), errors
 
@@ -109,6 +109,7 @@ def test_provider_in_runtime_but_missing_from_topology():
 # ---------------------------------------------------------------------------
 # Provider in topology but not in runtime list
 # ---------------------------------------------------------------------------
+
 
 def test_provider_in_topology_missing_from_runtime():
     system = load_template("sim-quickstart")

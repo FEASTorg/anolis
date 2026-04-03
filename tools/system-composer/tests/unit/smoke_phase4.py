@@ -1,6 +1,6 @@
 """Phase 4 smoke test — run from the anolis repo root."""
+
 import json
-import pathlib
 import subprocess
 import sys
 import time
@@ -33,9 +33,7 @@ def post(path, body=None):
 
 
 def delete(path):
-    req = urllib.request.Request(
-        f"http://localhost:3002{path}", method="DELETE"
-    )
+    req = urllib.request.Request(f"http://localhost:3002{path}", method="DELETE")
     with urllib.request.urlopen(req) as r:
         return json.loads(r.read())
 
@@ -79,7 +77,7 @@ try:
         print(f"POST /launch          OK  (ok={ldata.get('ok')})")
     except urllib.error.HTTPError as exc:
         body = json.loads(exc.read())
-        print(f"POST /launch          OK  (expected error: {body.get('error','?')[:60]})")
+        print(f"POST /launch          OK  (expected error: {body.get('error', '?')[:60]})")
 
     # Stop (no-op when nothing running) (task 4.7)
     stop_data, sc = post("/api/projects/smoke-p4/stop")

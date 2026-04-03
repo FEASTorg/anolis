@@ -3,6 +3,7 @@
 Run with:  python -m pytest tools/system-composer/tests/
 Or standalone: python tools/system-composer/tests/test_templates.py
 """
+
 import json
 import pathlib
 import subprocess
@@ -26,12 +27,13 @@ RUNTIME_BIN = _WIN_RUNTIME if sys.platform == "win32" else _LIN_RUNTIME
 
 
 def load_template(name: str) -> dict:
-    return json.loads((TEMPLATES_DIR / name / "system.json").read_text(encoding="utf-8"))
+    return json.loads((TEMPLATES_DIR / name / "system.json").read_text(encoding="utf-8"))  # type: ignore[no-any-return]
 
 
 # ---------------------------------------------------------------------------
 # Template: sim-quickstart
 # ---------------------------------------------------------------------------
+
 
 def test_sim_quickstart_renders():
     system = load_template("sim-quickstart")
@@ -47,9 +49,10 @@ def test_sim_quickstart_check_config():
     if not RUNTIME_BIN.exists():
         try:
             import pytest
+
             pytest.skip(f"Runtime binary not found at {RUNTIME_BIN} — build first")
         except ImportError:
-            print(f"SKIP  test_sim_quickstart_check_config — binary missing")
+            print("SKIP  test_sim_quickstart_check_config — binary missing")
             return
     system = load_template("sim-quickstart")
     outputs = renderer.render(system, "test-cc")
@@ -68,6 +71,7 @@ def test_sim_quickstart_check_config():
 # Template: mixed-bus-mock
 # ---------------------------------------------------------------------------
 
+
 def test_mixed_bus_mock_renders():
     system = load_template("mixed-bus-mock")
     outputs = renderer.render(system, "test-mixed")
@@ -83,6 +87,7 @@ def test_mixed_bus_mock_renders():
 # Template: bioreactor-manual
 # ---------------------------------------------------------------------------
 
+
 def test_bioreactor_manual_renders():
     system = load_template("bioreactor-manual")
     outputs = renderer.render(system, "test-bio")
@@ -97,6 +102,7 @@ def test_bioreactor_manual_renders():
 # ---------------------------------------------------------------------------
 # YAML structural assertions
 # ---------------------------------------------------------------------------
+
 
 def test_runtime_yaml_has_required_sections():
     """Runtime YAML must have 'http' and 'providers' sections."""

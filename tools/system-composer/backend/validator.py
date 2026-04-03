@@ -21,9 +21,7 @@ def validate_system(system: dict) -> list[str]:
 
     # 2. Tool-port vs runtime-port collision
     if runtime.get("http_port") == 3002:
-        errors.append(
-            "Runtime HTTP port 3002 conflicts with the composer's own port."
-        )
+        errors.append("Runtime HTTP port 3002 conflicts with the composer's own port.")
 
     # 3. Duplicate (bus_path, address) ownership across bread + ezo providers
     owned: dict = {}  # (bus_path, addr_int) -> provider_id
@@ -40,8 +38,7 @@ def validate_system(system: dict) -> list[str]:
             key = (bus_path, addr)
             if key in owned:
                 errors.append(
-                    f"I2C address {addr_str} on bus '{bus_path}' is claimed by "
-                    f"both '{owned[key]}' and '{pid}'."
+                    f"I2C address {addr_str} on bus '{bus_path}' is claimed by both '{owned[key]}' and '{pid}'."
                 )
             else:
                 owned[key] = pid
@@ -49,16 +46,12 @@ def validate_system(system: dict) -> list[str]:
     # 4. Provider in runtime list with no matching topology entry
     for p in runtime_providers:
         if p["id"] not in providers:
-            errors.append(
-                f"Provider '{p['id']}' is in the runtime list but has no config entry."
-            )
+            errors.append(f"Provider '{p['id']}' is in the runtime list but has no config entry.")
 
     # 5. Provider in topology with no matching runtime entry
     runtime_ids = {p["id"] for p in runtime_providers}
     for pid in providers:
         if pid not in runtime_ids:
-            errors.append(
-                f"Provider '{pid}' has a config entry but is not in the runtime list."
-            )
+            errors.append(f"Provider '{pid}' has a config entry but is not in the runtime list.")
 
     return errors

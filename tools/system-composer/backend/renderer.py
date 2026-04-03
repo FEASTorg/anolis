@@ -62,9 +62,7 @@ def render(system: dict, project_name: str) -> dict[str, str]:
     provider_list = []
     for p in rt.get("providers", []):
         pid = p["id"]
-        config_arg = (
-            f"systems/{project_name}/providers/{pid}.yaml"
-        )
+        config_arg = f"systems/{project_name}/providers/{pid}.yaml"
         entry: dict = {
             "id": pid,
             "command": paths["providers"][pid]["executable"],
@@ -103,9 +101,7 @@ def render(system: dict, project_name: str) -> dict[str, str]:
     # logging
     runtime_doc["logging"] = {"level": rt.get("log_level", "info")}
 
-    outputs["anolis-runtime.yaml"] = yaml.dump(
-        runtime_doc, default_flow_style=False, sort_keys=False
-    )
+    outputs["anolis-runtime.yaml"] = yaml.dump(runtime_doc, default_flow_style=False, sort_keys=False)
 
     # -------------------------------------------------------------------------
     # Per-provider config files
@@ -125,9 +121,7 @@ def render(system: dict, project_name: str) -> dict[str, str]:
         else:
             continue
 
-        outputs[f"providers/{pid}.yaml"] = yaml.dump(
-            doc, default_flow_style=False, sort_keys=False
-        )
+        outputs[f"providers/{pid}.yaml"] = yaml.dump(doc, default_flow_style=False, sort_keys=False)
 
     return outputs
 
@@ -135,6 +129,7 @@ def render(system: dict, project_name: str) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 # Provider-specific renderers
 # ---------------------------------------------------------------------------
+
 
 def _hex_to_int(addr) -> int:
     """Convert a hex string like '0x0A' or a bare integer to int."""
@@ -188,11 +183,7 @@ def _render_bread(pdata: dict, path_data: dict) -> dict:
         hardware["retry_count"] = pdata["retry_count"]
     doc["hardware"] = hardware
 
-    addresses = [
-        _hex_to_int(dev["address"])
-        for dev in pdata.get("devices", [])
-        if "address" in dev
-    ]
+    addresses = [_hex_to_int(dev["address"]) for dev in pdata.get("devices", []) if "address" in dev]
     doc["discovery"] = {"mode": "manual", "addresses": addresses}
 
     devices = []

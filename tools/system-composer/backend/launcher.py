@@ -18,14 +18,14 @@ _CATALOG_PATH = pathlib.Path("tools/system-composer/catalog/providers.json")
 _SYSTEMS_DIR = pathlib.Path("systems")
 
 _state: dict = {
-    "project": None,    # active project name
-    "process": None,    # subprocess.Popen handle
-    "log_file": None,   # open file handle for latest.log
-    "log_lines": [],    # ring buffer (last 200 lines) for SSE reconnect
+    "project": None,  # active project name
+    "process": None,  # subprocess.Popen handle
+    "log_file": None,  # open file handle for latest.log
+    "log_lines": [],  # ring buffer (last 200 lines) for SSE reconnect
 }
 _state_lock = threading.Lock()
 
-_sse_subscribers: list = []   # list[queue.Queue]
+_sse_subscribers: list = []  # list[queue.Queue]
 _sse_lock = threading.Lock()
 
 _catalog_cache: dict | None = None
@@ -48,6 +48,7 @@ def running_json_path(name: str) -> pathlib.Path:
 # Status
 # ---------------------------------------------------------------------------
 
+
 def get_status() -> dict:
     """Return serialisable status dict for GET /api/status."""
     with _state_lock:
@@ -67,13 +68,16 @@ def get_status() -> dict:
 # Preflight
 # ---------------------------------------------------------------------------
 
+
 def preflight(name: str, system: dict, project_dir: pathlib.Path) -> dict:
     """
     Run preflight checks and return {"ok": bool, "checks": [...]}.
     Re-renders YAML to disk before running binary checks.
     """
-    from backend import renderer      # local import avoids any circular at import time
-    from backend import validator
+    from backend import (
+        renderer,  # local import avoids any circular at import time
+        validator,
+    )
 
     checks: list[dict] = []
     catalog = _load_catalog()
@@ -86,18 +90,24 @@ def preflight(name: str, system: dict, project_dir: pathlib.Path) -> dict:
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_text(content, encoding="utf-8")
     except Exception as exc:
-        checks.append({
-            "name": "Render YAML to disk",
-            "ok": False,
-            "error": str(exc),
-            "hint": None,
-        })
+        checks.append(
+            {
+                "name": "Render YAML to disk",
+                "ok": False,
+                "error": str(exc),
+                "hint": None,
+            }
+        )
         return {"ok": False, "checks": checks}
 
     # Check 1: Runtime binary
     runtime_exe = pathlib.Path(system["paths"]["runtime_executable"])
-    _exists_check(checks, "Runtime binary exists", runtime_exe,
-                  hint=_build_binary_hint(runtime_exe, kind="runtime", repo="anolis", docs="docs/"))
+    _exists_check(
+        checks,
+        "Runtime binary exists",
+        runtime_exe,
+        hint=_build_binary_hint(runtime_exe, kind="runtime", repo="anolis", docs="docs/"),
+    )
 
     # Check 2: Provider binaries
     providers = system.get("topology", {}).get("providers", {})
@@ -107,8 +117,9 @@ def preflight(name: str, system: dict, project_dir: pathlib.Path) -> dict:
         kind_info = catalog.get(kind, {})
         repo = kind_info.get("repo")
         docs = kind_info.get("build_docs")
-        _exists_check(checks, f"Provider {pid} binary exists", exe,
-                      hint=_build_binary_hint(exe, kind=kind, repo=repo, docs=docs))
+        _exists_check(
+            checks, f"Provider {pid} binary exists", exe, hint=_build_binary_hint(exe, kind=kind, repo=repo, docs=docs)
+        )
 
     # Check 3: Output paths writable
     checks.append(_check_writable(project_dir))
@@ -122,18 +133,18 @@ def preflight(name: str, system: dict, project_dir: pathlib.Path) -> dict:
     errors = validator.validate_system(system)
     if errors:
         for err in errors:
-            checks.append({"name": "System-level validation", "ok": False,
-                           "error": err, "hint": None})
+            checks.append({"name": "System-level validation", "ok": False, "error": err, "hint": None})
     else:
-        checks.append({"name": "System-level validation", "ok": True,
-                       "error": None, "hint": None})
+        checks.append({"name": "System-level validation", "ok": True, "error": None, "hint": None})
 
     # Check 5: Runtime --check-config
-    checks.append(_check_config_binary(
-        "Runtime --check-config",
-        runtime_exe,
-        project_dir / "anolis-runtime.yaml",
-    ))
+    checks.append(
+        _check_config_binary(
+            "Runtime --check-config",
+            runtime_exe,
+            project_dir / "anolis-runtime.yaml",
+        )
+    )
 
     # Check 6+: Provider --check-config (only for kinds with check_config_flag)
     for pid, pcfg in providers.items():
@@ -142,9 +153,13 @@ def preflight(name: str, system: dict, project_dir: pathlib.Path) -> dict:
             continue
         exe = pathlib.Path(system["paths"]["providers"][pid]["executable"])
         yaml_path = project_dir / "providers" / f"{pid}.yaml"
-        checks.append(_check_config_binary(
-            f"Provider {pid} --check-config", exe, yaml_path,
-        ))
+        checks.append(
+            _check_config_binary(
+                f"Provider {pid} --check-config",
+                exe,
+                yaml_path,
+            )
+        )
 
     ok = all(c.get("ok") is not False for c in checks)
     return {"ok": ok, "checks": checks}
@@ -158,23 +173,22 @@ def preflight(name: str, system: dict, project_dir: pathlib.Path) -> dict:
 _PRESETS: dict[str, dict[str, str]] = {
     "win32": {
         "runtime": "dev-windows-release",
-        "sim":     "dev-windows-release",
-        "bread":   "dev-linux-hardware-release",
-        "ezo":     "dev-linux-hardware-release",
-        "custom":  "dev-release",
+        "sim": "dev-windows-release",
+        "bread": "dev-linux-hardware-release",
+        "ezo": "dev-linux-hardware-release",
+        "custom": "dev-release",
     },
     "other": {
         "runtime": "dev-release",
-        "sim":     "dev-release",
-        "bread":   "dev-linux-hardware-release",
-        "ezo":     "dev-linux-hardware-release",
-        "custom":  "dev-release",
+        "sim": "dev-release",
+        "bread": "dev-linux-hardware-release",
+        "ezo": "dev-linux-hardware-release",
+        "custom": "dev-release",
     },
 }
 
 
-def _build_binary_hint(exe: pathlib.Path, kind: str,
-                       repo: str | None, docs: str | None) -> str:
+def _build_binary_hint(exe: pathlib.Path, kind: str, repo: str | None, docs: str | None) -> str:
     """Return an actionable build hint for a missing binary."""
     platform_key = "win32" if sys.platform == "win32" else "other"
     preset = _PRESETS.get(platform_key, {}).get(kind, "dev-release")
@@ -210,19 +224,19 @@ def _check_port(port: int) -> dict:
             "error": f"Port {port} is already in use.",
             "hint": "Stop the existing process or change the runtime port in the config.",
         }
-    return {"name": f"Runtime port {port} available", "ok": True,
-            "error": None, "hint": None}
+    return {"name": f"Runtime port {port} available", "ok": True, "error": None, "hint": None}
 
 
-def _exists_check(checks: list, name: str, path: pathlib.Path,
-                  hint: str | None = None) -> None:
+def _exists_check(checks: list, name: str, path: pathlib.Path, hint: str | None = None) -> None:
     exists = path.exists()
-    checks.append({
-        "name": name,
-        "ok": exists,
-        "error": None if exists else f"File not found: {path}",
-        "hint": hint if not exists else None,
-    })
+    checks.append(
+        {
+            "name": name,
+            "ok": exists,
+            "error": None if exists else f"File not found: {path}",
+            "hint": hint if not exists else None,
+        }
+    )
 
 
 def _check_writable(project_dir: pathlib.Path) -> dict:
@@ -242,8 +256,7 @@ def _check_writable(project_dir: pathlib.Path) -> dict:
         }
 
 
-def _check_config_binary(check_name: str, exe: pathlib.Path,
-                         yaml_path: pathlib.Path) -> dict:
+def _check_config_binary(check_name: str, exe: pathlib.Path, yaml_path: pathlib.Path) -> dict:
     if not exe.exists():
         return {"name": check_name, "ok": None, "note": "Binary missing — skipped"}
     if not yaml_path.exists():
@@ -251,7 +264,9 @@ def _check_config_binary(check_name: str, exe: pathlib.Path,
     try:
         result = subprocess.run(
             [str(exe), "--check-config", str(yaml_path)],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if result.returncode == 0:
             return {"name": check_name, "ok": True, "error": None, "hint": None}
@@ -269,6 +284,7 @@ def _check_config_binary(check_name: str, exe: pathlib.Path,
 # ---------------------------------------------------------------------------
 # Launch
 # ---------------------------------------------------------------------------
+
 
 def launch(name: str, system: dict, project_dir: pathlib.Path) -> None:
     """Start the anolis-runtime subprocess."""
@@ -289,7 +305,7 @@ def launch(name: str, system: dict, project_dir: pathlib.Path) -> None:
     # Prepare log file (overwrite)
     log_path = project_dir / "logs" / "latest.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    log_file = open(log_path, "w", buffering=1, encoding="utf-8")  # noqa: WPS515
+    log_file = open(log_path, "w", buffering=1, encoding="utf-8")
 
     # Build command
     runtime_exe = str(system["paths"]["runtime_executable"])
@@ -311,25 +327,24 @@ def launch(name: str, system: dict, project_dir: pathlib.Path) -> None:
         "project": name,
         "started": datetime.now(timezone.utc).isoformat(),
     }
-    (project_dir / "running.json").write_text(
-        json.dumps(running_data), encoding="utf-8"
-    )
+    (project_dir / "running.json").write_text(json.dumps(running_data), encoding="utf-8")
 
     with _state_lock:
-        _state.update({
-            "project": name,
-            "process": proc,
-            "log_file": log_file,
-            "log_lines": [],
-        })
-    threading.Thread(
-        target=_read_logs, args=(proc, log_file), daemon=True
-    ).start()
+        _state.update(
+            {
+                "project": name,
+                "process": proc,
+                "log_file": log_file,
+                "log_lines": [],
+            }
+        )
+    threading.Thread(target=_read_logs, args=(proc, log_file), daemon=True).start()
 
 
 # ---------------------------------------------------------------------------
 # Stop
 # ---------------------------------------------------------------------------
+
 
 def stop() -> None:
     """Gracefully terminate the running process."""
@@ -349,6 +364,7 @@ def stop() -> None:
 # Restart
 # ---------------------------------------------------------------------------
 
+
 def restart(name: str, project_dir: pathlib.Path) -> None:
     """Kill and relaunch using the already-rendered YAML on disk.
 
@@ -361,7 +377,7 @@ def restart(name: str, project_dir: pathlib.Path) -> None:
 
     log_path = project_dir / "logs" / "latest.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    log_file = open(log_path, "w", buffering=1, encoding="utf-8")  # noqa: WPS515
+    log_file = open(log_path, "w", buffering=1, encoding="utf-8")
 
     runtime_exe = str(system["paths"]["runtime_executable"])
     runtime_config = f"systems/{name}/anolis-runtime.yaml"
@@ -381,27 +397,28 @@ def restart(name: str, project_dir: pathlib.Path) -> None:
         "project": name,
         "started": datetime.now(timezone.utc).isoformat(),
     }
-    (project_dir / "running.json").write_text(
-        json.dumps(running_data), encoding="utf-8"
-    )
+    (project_dir / "running.json").write_text(json.dumps(running_data), encoding="utf-8")
 
     with _state_lock:
-        _state.update({
-            "project": name,
-            "process": proc,
-            "log_file": log_file,
-            "log_lines": [],
-        })
-    threading.Thread(
-        target=_read_logs, args=(proc, log_file), daemon=True
-    ).start()
+        _state.update(
+            {
+                "project": name,
+                "process": proc,
+                "log_file": log_file,
+                "log_lines": [],
+            }
+        )
+    threading.Thread(target=_read_logs, args=(proc, log_file), daemon=True).start()
 
 
 # ---------------------------------------------------------------------------
 # Log reader thread
 # ---------------------------------------------------------------------------
 
+
 def _read_logs(proc: subprocess.Popen, log_file) -> None:
+    if proc.stdout is None:
+        return
     for line in proc.stdout:
         log_file.write(line)
         with _state_lock:
@@ -409,7 +426,7 @@ def _read_logs(proc: subprocess.Popen, log_file) -> None:
             if len(_state["log_lines"]) > 200:
                 _state["log_lines"].pop(0)
         _notify_sse_subscribers(line)
-    _notify_sse_subscribers(None)   # sentinel: process stdout closed
+    _notify_sse_subscribers(None)  # sentinel: process stdout closed
     _cleanup_after_exit(proc)
 
 
@@ -446,6 +463,7 @@ def _cleanup_after_exit(proc: subprocess.Popen) -> None:
 # ---------------------------------------------------------------------------
 # SSE log stream
 # ---------------------------------------------------------------------------
+
 
 def handle_log_stream(handler) -> None:
     """Stream log output to the browser via Server-Sent Events.
@@ -487,7 +505,7 @@ def handle_log_stream(handler) -> None:
                     return
                 continue
 
-            if line is None:   # sentinel: process exited
+            if line is None:  # sentinel: process exited
                 try:
                     handler.wfile.write(b"data: [process exited]\n\n")
                     handler.wfile.flush()
@@ -496,9 +514,7 @@ def handle_log_stream(handler) -> None:
                 return
 
             try:
-                handler.wfile.write(
-                    f"data: {line.rstrip()}\n\n".encode("utf-8")
-                )
+                handler.wfile.write(f"data: {line.rstrip()}\n\n".encode("utf-8"))
                 handler.wfile.flush()
             except OSError:
                 return

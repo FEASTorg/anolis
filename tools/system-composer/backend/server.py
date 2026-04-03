@@ -3,6 +3,7 @@
 Run from the anolis repo root:
     python tools/system-composer/backend/server.py
 """
+
 import json
 import pathlib
 import sys
@@ -353,7 +354,7 @@ class _Handler(BaseHTTPRequestHandler):
     @staticmethod
     def _parse_project_path(path: str):
         """Return (name, sub) from /api/projects/<name>[/<sub>], sub may be None."""
-        tail = path[len("/api/projects/"):]
+        tail = path[len("/api/projects/") :]
         parts = tail.split("/", 1)
         name = parts[0]
         sub = parts[1] if len(parts) > 1 else None

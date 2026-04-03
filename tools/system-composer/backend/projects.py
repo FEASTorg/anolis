@@ -1,4 +1,5 @@
 """Project CRUD and filesystem helpers for Anolis System Composer."""
+
 import json
 import os
 import pathlib
@@ -11,7 +12,7 @@ from backend import renderer
 SYSTEMS_ROOT = pathlib.Path("systems")
 TEMPLATES_ROOT = pathlib.Path("tools/system-composer/templates")
 
-NAME_RE = re.compile(r'^[a-zA-Z0-9_-]{1,64}$')
+NAME_RE = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 
 
 def validate_name(name: str) -> "str | None":
@@ -48,14 +49,17 @@ def log_path(name: str) -> pathlib.Path:
 # PID existence check (cross-platform, no required external deps)
 # ---------------------------------------------------------------------------
 
+
 def _pid_exists(pid: int) -> bool:
     try:
-        import psutil  # type: ignore
-        return psutil.pid_exists(pid)
+        import psutil
+
+        return bool(psutil.pid_exists(pid))
     except ImportError:
         pass
     if os.name == "nt":
         import ctypes
+
         PROCESS_QUERY_INFORMATION = 0x0400
         handle = ctypes.windll.kernel32.OpenProcess(PROCESS_QUERY_INFORMATION, False, pid)
         if handle == 0:
@@ -102,6 +106,7 @@ def cleanup_stale_running_files() -> None:
 # Core CRUD
 # ---------------------------------------------------------------------------
 
+
 def list_projects() -> list:
     if not SYSTEMS_ROOT.exists():
         return []
@@ -124,15 +129,13 @@ def get_project(name: str) -> dict:
     path = system_json_path(name)
     if not path.exists():
         raise FileNotFoundError(f"Project '{name}' not found")
-    return json.loads(path.read_text(encoding="utf-8"))
+    return json.loads(path.read_text(encoding="utf-8"))  # type: ignore[no-any-return]
 
 
 def save_project(name: str, system: dict) -> None:
     pdir = project_dir(name)
     pdir.mkdir(parents=True, exist_ok=True)
-    system_json_path(name).write_text(
-        json.dumps(system, indent=2), encoding="utf-8"
-    )
+    system_json_path(name).write_text(json.dumps(system, indent=2), encoding="utf-8")
     outputs = renderer.render(system, name)
     for rel, content in outputs.items():
         out_path = pdir / rel
@@ -146,7 +149,7 @@ def create_project_from_template(name: str, template: str) -> dict:
     tpl_path = TEMPLATES_ROOT / template / "system.json"
     if not tpl_path.exists():
         raise FileNotFoundError(f"Template '{template}' not found")
-    system = json.loads(tpl_path.read_text(encoding="utf-8"))
+    system: dict = json.loads(tpl_path.read_text(encoding="utf-8"))
     system["meta"]["name"] = name
     system["meta"]["created"] = datetime.now(timezone.utc).isoformat()
     system["meta"]["template"] = template

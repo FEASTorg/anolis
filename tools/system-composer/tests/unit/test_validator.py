@@ -1,4 +1,5 @@
 """Unit tests for backend/validator.py — cross-provider system validation."""
+
 import json
 import pathlib
 import sys
@@ -10,17 +11,14 @@ if _SC_DIR not in sys.path:
 
 from backend import validator  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _load_template(name: str) -> dict:
-    tpl_path = (
-        pathlib.Path(__file__).parent.parent.parent
-        / "templates" / name / "system.json"
-    )
-    return json.loads(tpl_path.read_text(encoding="utf-8"))
+    tpl_path = pathlib.Path(__file__).parent.parent.parent / "templates" / name / "system.json"
+    return json.loads(tpl_path.read_text(encoding="utf-8"))  # type: ignore[no-any-return]
 
 
 def _make_system(providers=None, runtime_port=8080, runtime_providers=None):
@@ -48,6 +46,7 @@ def _make_system(providers=None, runtime_port=8080, runtime_providers=None):
 # Test: clean system produces no errors
 # ---------------------------------------------------------------------------
 
+
 def test_clean_sim_quickstart():
     system = _load_template("sim-quickstart")
     errors = validator.validate_system(system)
@@ -64,6 +63,7 @@ def test_clean_mixed_bus_mock():
 # Test: duplicate provider IDs
 # ---------------------------------------------------------------------------
 
+
 def test_duplicate_provider_ids():
     system = _make_system(
         providers={"sim0": {"kind": "sim"}},
@@ -77,6 +77,7 @@ def test_duplicate_provider_ids():
 # Test: port 3002 collision
 # ---------------------------------------------------------------------------
 
+
 def test_port_3002_collision():
     system = _make_system(runtime_port=3002)
     errors = validator.validate_system(system)
@@ -86,6 +87,7 @@ def test_port_3002_collision():
 # ---------------------------------------------------------------------------
 # Test: duplicate I2C address across two providers
 # ---------------------------------------------------------------------------
+
 
 def test_duplicate_i2c_address():
     system = {
@@ -109,7 +111,7 @@ def test_duplicate_i2c_address():
             "runtime_executable": "../anolis/build/anolis-runtime",
             "providers": {
                 "bread0": {"executable": "../anolis-provider-bread/build/bread", "bus_path": "/dev/i2c-1"},
-                "ezo0":   {"executable": "../anolis-provider-ezo/build/ezo",     "bus_path": "/dev/i2c-1"},
+                "ezo0": {"executable": "../anolis-provider-ezo/build/ezo", "bus_path": "/dev/i2c-1"},
             },
         },
     }
@@ -140,7 +142,7 @@ def test_same_address_different_bus_is_ok():
             "runtime_executable": "../anolis/build/anolis-runtime",
             "providers": {
                 "bread0": {"executable": "...", "bus_path": "/dev/i2c-1"},
-                "ezo0":   {"executable": "...", "bus_path": "/dev/i2c-2"},
+                "ezo0": {"executable": "...", "bus_path": "/dev/i2c-2"},
             },
         },
     }
@@ -154,6 +156,7 @@ def test_same_address_different_bus_is_ok():
 # Test: provider in runtime list but no topology entry
 # ---------------------------------------------------------------------------
 
+
 def test_provider_in_runtime_missing_from_topology():
     system = _make_system(
         providers={},  # topology empty
@@ -166,6 +169,7 @@ def test_provider_in_runtime_missing_from_topology():
 # ---------------------------------------------------------------------------
 # Test: provider in topology but not in runtime list
 # ---------------------------------------------------------------------------
+
 
 def test_provider_in_topology_missing_from_runtime():
     system = _make_system(
