@@ -38,7 +38,15 @@ systems/<project-name>/
   running.json            Ephemeral launch state (gitignored)
 ```
 
-The `behaviors/` subdirectory is not managed by the composer in v1. Place BT
-XMLs there manually and reference them by path in the runtime config's
-`automation.behavior_tree` field. The repo-level `behaviors/` directory is
+The `behaviors/` subdirectory is not managed by the composer. Place BT
+XMLs there manually and reference them by path in the system's
+`behavior_tree_path` field. The repo-level `behaviors/` directory is
 reserved for generic and test BTs not associated with any specific system.
+
+## Out of Scope
+
+**Behavior tree authoring is not part of this tool and never will be.**
+Use [Groot2](https://www.behaviortree.dev/groot/) to create and edit BT XMLs —
+it is the purpose-built editor for BehaviorTree.CPP trees, with a graphical
+canvas, node palette, and live monitoring. The composer's only role with respect
+to BTs is storing the path to an XML file and passing it to the runtime at launch.
