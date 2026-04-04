@@ -1,5 +1,10 @@
 #pragma once
 
+/**
+ * @file provider_handle.hpp
+ * @brief High-level synchronous ADPP client wrapper for one provider process.
+ */
+
 #include <atomic>
 #include <chrono>
 #include <mutex>
@@ -13,47 +18,69 @@
 namespace anolis {
 namespace provider {
 
-// ProviderHandle provides high-level ADPP client API
-// Wraps ProviderProcess and handles protobuf serialization/deserialization
+/**
+ * @brief Blocking ADPP client facade backed by a spawned provider process.
+ *
+ * ProviderHandle layers request/response framing, protobuf serialization,
+ * request ID correlation, and handshake/ready checks on top of
+ * `ProviderProcess`.
+ *
+ * Threading:
+ * Public RPC methods are safe to call from multiple threads, but requests are
+ * serialized internally so one provider session has at most one in-flight ADPP
+ * exchange at a time.
+ *
+ * Availability:
+ * `is_available()` is stronger than child liveness alone; it also requires the
+ * session to remain healthy after framing, timeout, or protocol checks.
+ */
 class ProviderHandle : public IProviderHandle {
 public:
+    /** @brief Construct a provider handle with operation-specific timeouts. */
     ProviderHandle(const std::string &provider_id, const std::string &executable_path,
                    const std::vector<std::string> &args = {}, int timeout_ms = 5000, int hello_timeout_ms = 5000,
                    int ready_timeout_ms = 60000, int shutdown_timeout_ms = 2000);
     ~ProviderHandle() override = default;
 
-    // Delete copy/move
     ProviderHandle(const ProviderHandle &) = delete;
     ProviderHandle &operator=(const ProviderHandle &) = delete;
 
-    // Start provider process and perform Hello handshake
-    // Returns true on success, false on failure
+    /**
+     * @brief Spawn the process, perform `Hello`, and optionally wait for `WaitReady`.
+     *
+     * @return true when the provider session is ready for runtime use
+     */
     bool start() override;
 
-    // Check if provider is available
+    /** @brief Report whether the process is alive and the ADPP session is healthy. */
     bool is_available() const override {
         return session_healthy_.load(std::memory_order_acquire) && process_.is_running();
     }
 
-    // ADPP Operations (all blocking, synchronous)
+    /** @brief Issue the ADPP `Hello` handshake. */
     bool hello(anolis::deviceprovider::v1::HelloResponse &response) override;
+    /** @brief Issue `WaitReady` using the configured ready timeout. */
     bool wait_ready(anolis::deviceprovider::v1::WaitReadyResponse &response);
+    /** @brief Issue `ListDevices` and return the provider's device roster. */
     bool list_devices(std::vector<anolis::deviceprovider::v1::Device> &devices) override;
+    /** @brief Issue `DescribeDevice` for one provider-local device ID. */
     bool describe_device(const std::string &device_id,
                          anolis::deviceprovider::v1::DescribeDeviceResponse &response) override;
+    /** @brief Issue `ReadSignals` for one device and requested signal subset. */
     bool read_signals(const std::string &device_id, const std::vector<std::string> &signal_ids,
                       anolis::deviceprovider::v1::ReadSignalsResponse &response) override;
+    /** @brief Issue `Call` for one device/function selector and argument map. */
     bool call(const std::string &device_id, uint32_t function_id, const std::string &function_name,
               const std::map<std::string, anolis::deviceprovider::v1::Value> &args,
               anolis::deviceprovider::v1::CallResponse &response) override;
 
-    // Get last error message
+    /** @brief Return the last client-side or provider-reported error. */
     const std::string &last_error() const override { return error_; }
 
-    // Get last status code
+    /** @brief Return the last ADPP status code observed from the provider. */
     anolis::deviceprovider::v1::Status_Code last_status_code() const override { return last_status_code_; }
 
-    // Get provider ID
+    /** @brief Return the runtime-local provider identifier. */
     const std::string &provider_id() const override { return process_.provider_id(); }
 
 private:
@@ -64,16 +91,15 @@ private:
     std::atomic<uint32_t> next_request_id_;
     std::mutex mutex_;
 
-    // Timeout for operations
     int timeout_ms_;        // ADPP operation timeout
     int hello_timeout_ms_;  // Process liveness check timeout
     int ready_timeout_ms_;  // Hardware initialization timeout
 
-    // Send request and wait for response
+    /** @brief Serialize, send, and validate one ADPP request/response exchange. */
     bool send_request(const anolis::deviceprovider::v1::Request &request,
                       anolis::deviceprovider::v1::Response &response, uint64_t request_id);
 
-    // Wait for response with timeout and request_id validation
+    /** @brief Wait for one correlated response frame within the given timeout. */
     bool wait_for_response(anolis::deviceprovider::v1::Response &response, uint64_t expected_request_id,
                            int timeout_ms);
 };

@@ -1,3 +1,12 @@
+/**
+ * @file framed_stdio_client.cpp
+ * @brief Cross-platform framed stdio transport used for runtime-to-provider RPCs.
+ *
+ * This transport is intentionally simple: one blocking reader, one blocking
+ * writer, length-prefixed frames, and explicit timeout/error reporting for the
+ * higher-level provider client.
+ */
+
 #include "framed_stdio_client.hpp"
 
 #include <chrono>
@@ -42,7 +51,8 @@ bool FramedStdioClient::write_frame(const uint8_t *data, size_t len, int timeout
         return false;
     }
 
-    // Write uint32_le length prefix
+    // Frame boundaries are encoded explicitly so protobuf payloads can remain
+    // binary and do not depend on line buffering or delimiter escaping.
     uint32_t len32 = static_cast<uint32_t>(len);
     uint8_t len_buf[4];
     len_buf[0] = (len32 >> 0) & 0xFF;
@@ -156,7 +166,7 @@ bool FramedStdioClient::write_exact(const uint8_t *buf, size_t n, int timeout_ms
     auto start_time = std::chrono::steady_clock::now();
 
     while (total < n) {
-        // Check timeout if specified
+        // Timeouts apply to the whole frame write, not to each partial chunk.
         if (timeout_ms >= 0) {
             auto elapsed = std::chrono::steady_clock::now() - start_time;
             auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
@@ -186,8 +196,8 @@ bool FramedStdioClient::write_exact(const uint8_t *buf, size_t n, int timeout_ms
                 continue;
             }
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                // Would block (shouldn't happen on blocking pipes, but handle defensively)
-                // Sleep briefly and retry
+                // Pipes are expected to be blocking, but retry defensively if
+                // the platform reports a transient would-block condition.
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
                 continue;
             }
@@ -214,7 +224,7 @@ bool FramedStdioClient::read_exact(uint8_t *buf, size_t n, int timeout_ms) {
     auto start_time = std::chrono::steady_clock::now();
 
     while (total < n) {
-        // If a timeout is specified, wait for data availability
+        // Apply the timeout across the entire read, not per individual chunk.
         if (timeout_ms >= 0) {
             auto elapsed = std::chrono::steady_clock::now() - start_time;
             auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
@@ -228,8 +238,6 @@ bool FramedStdioClient::read_exact(uint8_t *buf, size_t n, int timeout_ms) {
 
             int remaining_ms = static_cast<int>(timeout_ms - elapsed_ms);
             if (!wait_for_data(remaining_ms)) {
-                // wait_for_data sets error_ on failure, or just returns false on timeout
-                // If it returned false but error_ is empty, it's a timeout.
                 if (error_.empty()) {
                     error_ = "Timeout waiting for data chunk";
                 }
@@ -239,16 +247,6 @@ bool FramedStdioClient::read_exact(uint8_t *buf, size_t n, int timeout_ms) {
 
 #ifdef _WIN32
         DWORD read = 0;
-        // Only read what is available to avoid blocking, or if we trust wait_for_data,
-        // we can just call ReadFile. Since wait_for_data ensures > 0 bytes,
-        // ReadFile should not block indefinitely if we ask for (n-total).
-        // However, on pipes, ReadFile might block if we ask for MORE than available?
-        // MSDN says: "If the pipe is a byte-mode pipe... ReadFile returns when one of the following occurs: a write
-        // operation completes on the write end of the pipe, the number of bytes requested is read, or the timeout
-        // interval elapses." Since this is a value-oriented pipe (simulated), let's be safe. Actually, for anonymous
-        // pipes (used here), ReadFile returns as soon as SOME data is available. It does NOT wait for the full buffer
-        // unless we use named pipes in message mode (we aren't).
-
         if (!ReadFile(stdout_read_, buf + total, static_cast<DWORD>(n - total), &read, NULL)) {
             error_ = "Read failed: " + std::to_string(GetLastError());
             return false;

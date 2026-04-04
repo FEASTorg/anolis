@@ -1,3 +1,8 @@
+/**
+ * @file provider_registry.cpp
+ * @brief Shared-handle publication logic for live provider instances.
+ */
+
 #include "provider_registry.hpp"
 
 #include <algorithm>
@@ -7,7 +12,8 @@ namespace anolis {
 namespace provider {
 
 void ProviderRegistry::add_provider(const std::string& provider_id, std::shared_ptr<IProviderHandle> provider) {
-    // Require exclusive access for modification
+    // Replacement is by shared_ptr swap, so existing readers keep their old
+    // handle alive until they release it.
     std::unique_lock<std::shared_mutex> lock(mutex_);
     providers_[provider_id] = std::move(provider);
 }
@@ -30,7 +36,8 @@ std::shared_ptr<IProviderHandle> ProviderRegistry::get_provider(const std::strin
 }
 
 std::unordered_map<std::string, std::shared_ptr<IProviderHandle>> ProviderRegistry::get_all_providers() const {
-    // Shared read access - return by value to avoid iterator invalidation
+    // Return by value so callers can iterate over a stable snapshot without
+    // holding the registry lock across provider work.
     std::shared_lock<std::shared_mutex> lock(mutex_);
     return providers_;  // Copy the map (shared_ptr copies are cheap - ref count increment)
 }

@@ -1,3 +1,12 @@
+/**
+ * @file config.cpp
+ * @brief YAML loading and validation for the runtime configuration model.
+ *
+ * The loader is intentionally tolerant of unknown keys and some deprecated
+ * aliases, but it always rebuilds `RuntimeConfig` from defaults on each load so
+ * omitted sections never inherit stale state from a previous file.
+ */
+
 #include "config.hpp"
 
 #include <yaml-cpp/yaml.h>
@@ -260,7 +269,8 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
         // stale values from previous files.
         config = RuntimeConfig{};
 
-        // Check for unknown top-level keys
+        // Unknown keys are warned about and ignored so config evolution can be
+        // rolled out without breaking older runtimes immediately.
         const std::vector<std::string> valid_keys = {"runtime",   "http",    "providers", "polling",
                                                      "telemetry", "logging", "automation"};
         for (const auto &key_node : yaml) {
@@ -351,7 +361,8 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
             }
         }
 
-        // Load providers
+        // Provider blocks are parsed independently so structural validation can
+        // point at the exact provider index that failed.
         if (yaml["providers"]) {
             if (!ensure_sequence(yaml["providers"], "providers", error)) {
                 return false;
@@ -400,7 +411,8 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
                     provider.ready_timeout_ms = provider_node["ready_timeout_ms"].as<int>();
                 }
 
-                // Parse restart policy
+                // Restart policy is nested because its defaults and validation
+                // rules belong to the provider entry, not the global runtime.
                 if (provider_node["restart_policy"]) {
                     const auto &rp = provider_node["restart_policy"];
                     if (!ensure_mapping(rp, provider_path + ".restart_policy", error)) {
@@ -463,7 +475,8 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
                 config.telemetry.enabled = yaml["telemetry"]["enabled"].as<bool>();
             }
 
-            // Check for deprecated flat keys
+            // Accept the older flat telemetry shape long enough to warn and map
+            // it, but prefer the canonical nested `telemetry.influxdb.*` form.
             const std::vector<std::string> deprecated_flat_keys = {"influx_url",   "influx_org", "influx_bucket",
                                                                    "influx_token", "batch_size", "flush_interval_ms"};
             for (const auto &deprecated_key : deprecated_flat_keys) {
@@ -478,7 +491,8 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
                 }
             }
 
-            // InfluxDB settings (canonical nested structure)
+            // Canonical nested telemetry settings are loaded after warnings so
+            // newer keys cleanly override any deprecated flat values.
             if (yaml["telemetry"]["influxdb"]) {
                 auto influx = yaml["telemetry"]["influxdb"];
                 if (!ensure_mapping(influx, "telemetry.influxdb", error)) {
@@ -514,7 +528,8 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
                 }
             }
 
-            // Check for token from environment variable if not in config
+            // Environment fallback is used only when telemetry is enabled and
+            // the config file did not provide a token explicitly.
             if (config.telemetry.enabled && config.telemetry.influx_token.empty()) {
 #ifdef _WIN32
                 char *token_env = nullptr;
@@ -575,7 +590,8 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
                 config.automation.manual_gating_policy = *policy;
             }
 
-            // Load parameters
+            // Parameter parsing is type-directed: the declared parameter type
+            // controls how the default value and constraints are interpreted.
             if (yaml["automation"]["parameters"]) {
                 if (!ensure_sequence(yaml["automation"]["parameters"], "automation.parameters", error)) {
                     return false;
@@ -612,7 +628,8 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
                         param.type = parsed_type.value();
                     }
 
-                    // Initialize typed default before overriding from YAML.
+                    // Start from a typed zero/default so omitted defaults still
+                    // produce a value consistent with the declared type.
                     switch (param.type) {
                         case automation::ParameterType::DOUBLE:
                             param.default_value = 0.0;
@@ -676,7 +693,8 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
             }
         }
 
-        // Perform validation (this replaces centralized logic in the loop)
+        // Structural YAML checks above guarantee node shape; centralized
+        // validation here enforces cross-field and semantic constraints.
         if (!validate_config(config, error)) {
             return false;
         }

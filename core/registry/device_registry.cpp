@@ -1,3 +1,12 @@
+/**
+ * @file device_registry.cpp
+ * @brief Discovery and publication logic for the runtime device registry.
+ *
+ * Discovery is intentionally split into an inspection phase that talks to the
+ * provider without holding the registry lock and a commit phase that swaps the
+ * resulting snapshot into the published inventory.
+ */
+
 #include "device_registry.hpp"
 
 #include <algorithm>
@@ -39,7 +48,8 @@ bool DeviceRegistry::inspect_provider_devices(const std::string &provider_id,
     // Build devices outside lock (discovery is network I/O)
     discovered_devices.reserve(device_list.size());
 
-    // Step 2: DescribeDevice for each
+    // The registry only publishes devices that survive both ListDevices and an
+    // individual DescribeDevice/capability parsing round-trip.
     for (const auto &device_brief : device_list) {
         const std::string &device_id = device_brief.device_id();
         LOG_INFO("[Registry] Describing device: " << device_id);
@@ -90,6 +100,8 @@ void DeviceRegistry::commit_provider_devices(const std::string &provider_id,
                                              std::vector<RegisteredDevice> discovered_devices, bool replace_existing) {
     std::unique_lock<std::shared_mutex> lock(mutex_);
 
+    // Replacement commits atomically swap one provider's published inventory so
+    // readers never see a half-cleared, half-rebuilt registry view.
     if (replace_existing) {
         auto new_end = std::remove_if(devices_.begin(), devices_.end(), [&provider_id](const RegisteredDevice &device) {
             return device.provider_id == provider_id;
@@ -181,7 +193,8 @@ std::string DeviceRegistry::last_error() const {
 bool DeviceRegistry::build_capabilities(const anolis::deviceprovider::v1::Device &proto_device,
                                         const anolis::deviceprovider::v1::CapabilitySet &proto_caps,
                                         DeviceCapabilitySet &caps) {
-    // Store raw proto
+    // Store the raw proto metadata for downstream consumers, then build the
+    // runtime's lookup maps used by validation, control routing, and HTTP.
     caps.proto = proto_device;
 
     // Build signal lookup map

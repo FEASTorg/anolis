@@ -1,3 +1,12 @@
+/**
+ * @file provider_process.cpp
+ * @brief Platform-specific child-process lifecycle for spawned providers.
+ *
+ * This layer owns process creation and teardown details only. Protocol
+ * handshakes and request/response validation live one layer up in
+ * `ProviderHandle`.
+ */
+
 #include "provider_process.hpp"
 
 #include <chrono>
@@ -42,7 +51,7 @@ ProviderProcess::~ProviderProcess() { shutdown(); }
 bool ProviderProcess::spawn() {
     LOG_INFO("[" << provider_id_ << "] Spawning: " << executable_path_);
 
-    // Check executable exists
+    // Fail before fork/CreateProcess if the configured binary path is missing.
     if (!std::filesystem::exists(executable_path_)) {
         error_ = "Executable not found: " + executable_path_;
         LOG_ERROR("[" << provider_id_ << "] " << error_);
@@ -145,7 +154,9 @@ bool ProviderProcess::spawn_windows() {
 }
 #else
 bool ProviderProcess::spawn_linux() {
-    // Create pipes
+    // The runtime keeps the parent write/read ends and hands them to
+    // FramedStdioClient; the child gets the opposite ends mapped onto stdin
+    // and stdout before exec.
     int stdin_pipe[2];
     int stdout_pipe[2];
 
@@ -255,16 +266,15 @@ void ProviderProcess::shutdown() {
     if (running) {
         LOG_INFO("[" << provider_id_ << "] Initiating shutdown");
 
-        // 1. Send EOF
+        // Shutdown policy is ordered: first close stdin to signal EOF, then
+        // wait for a clean exit, and only then escalate to termination.
         client_.close_stdin();
 
-        // 2. Wait with configurable timeout
         bool exited = wait_for_exit(shutdown_timeout_ms_);
 
         if (exited) {
             LOG_INFO("[" << provider_id_ << "] Clean shutdown");
         } else {
-            // 3. Forced kill
             LOG_WARN("[" << provider_id_ << "] Timeout - forcing termination");
             force_terminate();
             wait_for_exit(500);
@@ -276,7 +286,8 @@ void ProviderProcess::shutdown() {
 #endif
     }
 
-    // Always release pipe handles, even if the process exited earlier.
+    // Always release pipe handles, even if the process already exited. This
+    // keeps provider teardown idempotent from the caller's point of view.
     client_.close_stdin();
     client_.close_stdout();
 

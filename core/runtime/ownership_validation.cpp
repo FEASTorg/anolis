@@ -1,3 +1,12 @@
+/**
+ * @file ownership_validation.cpp
+ * @brief Validation of canonical I2C bus/address ownership tags across discovered devices.
+ *
+ * The validator operates on published inventory snapshots, not on provider
+ * config files directly, so it enforces the ownership contract actually
+ * surfaced by provider discovery.
+ */
+
 #include "ownership_validation.hpp"
 
 #include <algorithm>
@@ -88,6 +97,9 @@ bool validate_i2c_ownership_claims(const std::vector<registry::RegisteredDevice>
 
         const std::string handle = device.get_handle();
 
+        // Devices that do not claim shared-bus ownership are ignored; devices
+        // that partially claim it are rejected because the runtime cannot make
+        // a safe uniqueness decision from incomplete tags.
         if (!has_bus_path && !has_i2c_address) {
             if (has_legacy_bus_path || has_legacy_i2c_address) {
                 error = "Device '" + handle + "' uses legacy ownership tags ('" + kLegacyBusPathTag + "', '" +
@@ -117,6 +129,8 @@ bool validate_i2c_ownership_claims(const std::vector<registry::RegisteredDevice>
             return false;
         }
 
+        // Validation keys are normalized to trimmed bus path plus canonical
+        // lowercase hex address so providers cannot evade collisions by format.
         const std::string key = bus_path + "|" + canonical_address;
         claims_by_key[key].push_back(OwnershipClaim{device.provider_id, device.device_id, bus_path, canonical_address});
     }
@@ -166,6 +180,9 @@ bool validate_i2c_ownership_claims_after_provider_replacement(
     std::vector<registry::RegisteredDevice> candidate_devices;
     candidate_devices.reserve(current_devices.size() + replacement_devices.size());
 
+    // Build the hypothetical post-restart inventory first, then validate it as
+    // a whole. This prevents partial replacement state from leaking into the
+    // live registry before ownership checks pass.
     for (const auto &device : current_devices) {
         if (device.provider_id != provider_id) {
             candidate_devices.push_back(device);

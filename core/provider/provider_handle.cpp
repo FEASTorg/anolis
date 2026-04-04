@@ -1,3 +1,12 @@
+/**
+ * @file provider_handle.cpp
+ * @brief Synchronous ADPP client logic for one spawned provider process.
+ *
+ * The handle serializes RPCs over one stdio transport, performs the initial
+ * `Hello`/`WaitReady` lifecycle handshake, and marks the session unhealthy on
+ * transport or protocol-correlation failures.
+ */
+
 #include "provider_handle.hpp"
 
 #include <chrono>
@@ -29,7 +38,8 @@ bool ProviderHandle::start() {
     }
     session_healthy_.store(true, std::memory_order_release);
 
-    // Step 1: Process liveness check with Hello handshake
+    // `Hello` is both the protocol negotiation step and the first proof that
+    // framing and protobuf round-trips are working against the spawned child.
     anolis::deviceprovider::v1::HelloResponse hello_response;
     if (!hello(hello_response)) {
         session_healthy_.store(false, std::memory_order_release);
@@ -40,7 +50,8 @@ bool ProviderHandle::start() {
     LOG_INFO("[" << process_.provider_id() << "] Hello succeeded: " << hello_response.provider_name() << " v"
                  << hello_response.provider_version());
 
-    // Step 2: Check if provider supports WaitReady via capability signaling
+    // `WaitReady` is optional and capability-signaled so older or simpler
+    // providers can still participate without a second startup RPC.
     bool supports_ready = hello_response.metadata().count("supports_wait_ready") &&
                           hello_response.metadata().at("supports_wait_ready") == "true";
 
@@ -216,6 +227,8 @@ bool ProviderHandle::send_request(const anolis::deviceprovider::v1::Request &req
                                   anolis::deviceprovider::v1::Response &response, uint64_t request_id) {
     std::lock_guard<std::mutex> lock(mutex_);
 
+    // One in-flight request per provider session keeps framing simple and makes
+    // request_id mismatch a hard protocol error rather than a multiplexing case.
     if (!session_healthy_.load(std::memory_order_acquire)) {
         error_ = "Provider session not healthy";
         return false;
@@ -235,7 +248,8 @@ bool ProviderHandle::send_request(const anolis::deviceprovider::v1::Request &req
         return false;
     }
 
-    // Determine timeout based on request type
+    // Handshake and ready RPCs intentionally use dedicated timeout budgets that
+    // differ from normal control/read operations.
     int timeout_to_use = timeout_ms_;  // Default for normal operations
     if (request.has_hello()) {
         timeout_to_use = hello_timeout_ms_;
@@ -285,7 +299,8 @@ bool ProviderHandle::wait_for_response(anolis::deviceprovider::v1::Response &res
         }
 
         int remaining = static_cast<int>(timeout_ms - elapsed_ms);
-        // Poll in small chunks to check process status
+        // Poll in short intervals so the runtime can notice provider death and
+        // surface a better error than one long blocking read timeout.
         int poll_wait = (remaining > 50) ? 50 : remaining;
 
         if (process_.client().wait_for_data(poll_wait)) {
@@ -306,7 +321,9 @@ bool ProviderHandle::wait_for_response(anolis::deviceprovider::v1::Response &res
                     return false;
                 }
 
-                // Validate request_id correlation
+                // Correlated request IDs are required because the runtime treats
+                // this transport as strictly synchronous; any mismatch means the
+                // session is no longer trustworthy.
                 if (response.request_id() != expected_request_id) {
                     session_healthy_.store(false, std::memory_order_release);
                     error_ = "Response request_id mismatch (expected " + std::to_string(expected_request_id) +

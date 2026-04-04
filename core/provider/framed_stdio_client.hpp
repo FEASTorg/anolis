@@ -1,5 +1,10 @@
 #pragma once
 
+/**
+ * @file framed_stdio_client.hpp
+ * @brief Length-prefixed stdio transport used for runtime-to-provider ADPP traffic.
+ */
+
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -7,14 +12,22 @@
 namespace anolis {
 namespace provider {
 
-// Maximum frame size: 1 MiB (same as provider-sim)
+/** @brief Maximum accepted frame payload size for provider stdio traffic. */
 constexpr uint32_t kMaxFrameSize = 1024u * 1024u;
 
-// FramedStdioClient manages length-prefixed binary communication over stdin/stdout
-// with a child process. Frames are: uint32_le (length) + payload bytes.
+/**
+ * @brief Framed binary transport over a provider child process's stdin/stdout.
+ *
+ * Frames are encoded as `uint32_le length + payload`. The client performs
+ * exact reads/writes, enforces `kMaxFrameSize`, and exposes timeout-aware wait,
+ * read, and write helpers to `ProviderHandle`.
+ *
+ * Ownership:
+ * OS handles are supplied externally by `ProviderProcess`. This class uses and
+ * closes them, but it does not create them.
+ */
 class FramedStdioClient {
 public:
-    // Platform-specific handle types
 #ifdef _WIN32
     using PipeHandle = void *;  // HANDLE
 #else
@@ -24,32 +37,28 @@ public:
     FramedStdioClient();
     ~FramedStdioClient();
 
-    // Delete copy/move (manages OS handles)
     FramedStdioClient(const FramedStdioClient &) = delete;
     FramedStdioClient &operator=(const FramedStdioClient &) = delete;
 
-    // Initialize with pipe handles (stdin_write, stdout_read from parent's perspective)
+    /** @brief Bind the client to already-created parent-side pipe handles. */
     void set_handles(PipeHandle stdin_write, PipeHandle stdout_read);
 
-    // Write a length-prefixed frame to provider's stdin
-    // Returns true on success, false on error (sets error_)
+    /** @brief Write one complete length-prefixed frame to the provider. */
     bool write_frame(const uint8_t *data, size_t len, int timeout_ms = -1);
 
-    // Read a length-prefixed frame from provider's stdout
-    // Returns true on success, false on EOF or error (sets error_)
+    /** @brief Read one complete length-prefixed frame from the provider. */
     bool read_frame(std::vector<uint8_t> &out, int timeout_ms = -1);
 
-    // Wait for data to be available on stdout (non-blocking with timeout)
-    // Returns true if data is available, false on timeout or error (sets error_ on error)
+    /** @brief Wait for provider stdout to become readable within a timeout. */
     bool wait_for_data(int timeout_ms);
 
-    // Close stdin (signals EOF to provider)
+    /** @brief Close the provider stdin pipe to signal EOF. */
     void close_stdin();
 
-    // Close stdout read handle
+    /** @brief Close the provider stdout read handle. */
     void close_stdout();
 
-    // Get last error message
+    /** @brief Return the last transport-layer error message. */
     const std::string &last_error() const { return error_; }
 
 private:
@@ -57,10 +66,10 @@ private:
     PipeHandle stdout_read_;
     std::string error_;
 
-    // Low-level read exactly n bytes
+    /** @brief Read exactly `n` bytes or fail with EOF/error/timeout. */
     bool read_exact(uint8_t *buf, size_t n, int timeout_ms = -1);
 
-    // Low-level write exactly n bytes (handles partial writes, EINTR, etc.)
+    /** @brief Write exactly `n` bytes, handling partial writes and interruptions. */
     bool write_exact(const uint8_t *buf, size_t n, int timeout_ms = -1);
 };
 
