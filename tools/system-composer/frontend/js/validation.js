@@ -51,9 +51,18 @@ function _applyError(input, message) {
  */
 export function validateSystem(system) {
   const errors = [];
+  const paths = system.paths ?? {};
+  const runtime = system.topology?.runtime ?? {};
+  const topologyProviders = system.topology?.providers ?? {};
+  const providerPaths = system.paths?.providers ?? {};
   const providers = system.topology?.runtime?.providers ?? [];
 
-  // 1. Duplicate provider IDs
+  // 1. Runtime executable path
+  if (!paths.runtime_executable?.trim()) {
+    errors.push('Runtime executable path is missing.');
+  }
+
+  // 2. Duplicate provider IDs
   const seen = new Set();
   const dupes = new Set();
   for (const p of providers) {
@@ -64,17 +73,17 @@ export function validateSystem(system) {
     errors.push(`Duplicate provider IDs: ${[...dupes].join(', ')}`);
   }
 
-  // 2. Port 3002 collision (reserved by System Composer)
+  // 3. Port 3002 collision (reserved by System Composer)
   if (system.topology?.runtime?.http_port === 3002) {
     errors.push('Port 3002 is reserved for the System Composer itself.');
   }
 
-  // 3. Duplicate (bus_path, address) across bread/ezo providers
+  // 4. Duplicate (bus_path, address) across bread/ezo providers
   const busOwnership = {};
   for (const p of providers) {
     if (p.kind !== 'bread' && p.kind !== 'ezo') continue;
-    const busPath = system.paths?.providers?.[p.id]?.bus_path ?? '';
-    const devices = system.topology?.providers?.[p.id]?.devices ?? [];
+    const busPath = providerPaths?.[p.id]?.bus_path ?? '';
+    const devices = topologyProviders?.[p.id]?.devices ?? [];
     for (const d of devices) {
       const key = `${busPath}::${d.address}`;
       if (busOwnership[key]) {
@@ -87,12 +96,77 @@ export function validateSystem(system) {
     }
   }
 
-  // 4. Missing provider topology config
+  // 5. Runtime/topology membership mismatch
   for (const p of providers) {
-    if (p.kind === 'custom') continue;
-    if (!system.topology?.providers?.[p.id]) {
+    if (!topologyProviders?.[p.id]) {
       errors.push(`Provider "${p.id}" has no config in topology.providers.`);
     }
+  }
+  const runtimeIds = new Set(providers.map(p => p.id));
+  for (const pid of Object.keys(topologyProviders)) {
+    if (!runtimeIds.has(pid)) {
+      errors.push(`Provider "${pid}" has a config entry but is not in the runtime list.`);
+    }
+  }
+
+  // 6. Duplicate device IDs within a provider
+  for (const [pid, cfg] of Object.entries(topologyProviders)) {
+    const deviceSeen = new Set();
+    const deviceDupes = new Set();
+    for (const dev of cfg.devices ?? []) {
+      if (!dev.id) continue;
+      if (deviceSeen.has(dev.id)) deviceDupes.add(dev.id);
+      deviceSeen.add(dev.id);
+    }
+    if (deviceDupes.size > 0) {
+      errors.push(`Provider "${pid}" has duplicate device IDs: ${[...deviceDupes].join(', ')}`);
+    }
+  }
+
+  // 7. Required provider path entries
+  for (const p of providers) {
+    const pathEntry = providerPaths?.[p.id];
+    if (!pathEntry) {
+      errors.push(`Provider "${p.id}" has no paths.providers entry.`);
+      continue;
+    }
+    if (!pathEntry.executable?.trim()) {
+      errors.push(`Provider "${p.id}" is missing an executable path.`);
+    }
+    if ((p.kind === 'bread' || p.kind === 'ezo') && !pathEntry.bus_path?.trim()) {
+      errors.push(`Provider "${p.id}" requires a bus path.`);
+    }
+  }
+
+  // 8. Restart policy validation
+  for (const p of providers) {
+    const rp = p.restart_policy;
+    if (!rp?.enabled) continue;
+
+    if (!Number.isInteger(rp.max_attempts) || rp.max_attempts < 1) {
+      errors.push(`Provider "${p.id}" restart policy max_attempts must be >= 1.`);
+    }
+    if (!Array.isArray(rp.backoff_ms) || rp.backoff_ms.length === 0) {
+      errors.push(`Provider "${p.id}" restart policy backoff_ms must be a non-empty list.`);
+    } else {
+      if (Number.isInteger(rp.max_attempts) && rp.backoff_ms.length !== rp.max_attempts) {
+        errors.push(`Provider "${p.id}" restart policy backoff_ms length must match max_attempts.`);
+      }
+      if (rp.backoff_ms.some(v => !Number.isInteger(v) || v < 0)) {
+        errors.push(`Provider "${p.id}" restart policy backoff_ms values must be integers >= 0.`);
+      }
+    }
+    if (!Number.isInteger(rp.timeout_ms) || rp.timeout_ms < 1000) {
+      errors.push(`Provider "${p.id}" restart policy timeout_ms must be >= 1000.`);
+    }
+    if (rp.success_reset_ms !== undefined && (!Number.isInteger(rp.success_reset_ms) || rp.success_reset_ms < 0)) {
+      errors.push(`Provider "${p.id}" restart policy success_reset_ms must be >= 0.`);
+    }
+  }
+
+  // 9. Automation consistency
+  if (runtime.automation_enabled && !(runtime.behavior_tree_path ?? runtime.behavior_tree)) {
+    errors.push('Automation is enabled but no behavior tree path is set.');
   }
 
   return errors;

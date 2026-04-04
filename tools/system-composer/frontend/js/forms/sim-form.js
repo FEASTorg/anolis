@@ -13,6 +13,8 @@ const SIM_DEVICE_TYPES = [
  * @param {function} onChanged
  */
 export function renderSimForm(container, config, onChanged) {
+  _normalizeSimConfig(config);
+
   // startup_policy
   container.append(_selectGroup('Startup policy',
     config.startup_policy ?? 'degraded',
@@ -21,7 +23,7 @@ export function renderSimForm(container, config, onChanged) {
   ));
 
   // simulation_mode — guard for unsupported 'sim' mode
-  const simMode = config.simulation?.mode ?? 'non_interacting';
+  const simMode = config.simulation_mode ?? 'non_interacting';
   if (simMode === 'sim') {
     const badge = document.createElement('div');
     badge.className = 'note-warning';
@@ -30,8 +32,8 @@ export function renderSimForm(container, config, onChanged) {
     container.append(badge);
   } else {
     const tickRow = _numberGroup('Tick rate (Hz)',
-      config.simulation?.tick_rate_hz ?? 10.0, 1, 100,
-      v => { config.simulation = config.simulation || {}; config.simulation.tick_rate_hz = v; onChanged(); }
+      config.tick_rate_hz ?? 10.0, 1, 100,
+      v => { config.tick_rate_hz = v; onChanged(); }
     );
     tickRow.style.display = simMode === 'inert' ? 'none' : '';
 
@@ -39,8 +41,7 @@ export function renderSimForm(container, config, onChanged) {
       simMode,
       [['inert','inert'],['non_interacting','non_interacting']],
       v => {
-        config.simulation = config.simulation || {};
-        config.simulation.mode = v;
+        config.simulation_mode = v;
         tickRow.style.display = v === 'inert' ? 'none' : '';
         onChanged();
       }
@@ -186,4 +187,16 @@ function _fmtGroup(label) {
   lbl.textContent = label;
   g.append(lbl);
   return g;
+}
+
+function _normalizeSimConfig(config) {
+  if (config.simulation && typeof config.simulation === 'object') {
+    if (config.simulation_mode === undefined && config.simulation.mode !== undefined) {
+      config.simulation_mode = config.simulation.mode;
+    }
+    if (config.tick_rate_hz === undefined && config.simulation.tick_rate_hz !== undefined) {
+      config.tick_rate_hz = config.simulation.tick_rate_hz;
+    }
+    delete config.simulation;
+  }
 }

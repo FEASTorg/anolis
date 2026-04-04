@@ -71,7 +71,7 @@ function _genId(system, kind) {
 
 function _defaultTopology(kind) {
   switch (kind) {
-    case 'sim':    return { startup_policy: 'degraded', simulation: { mode: 'non_interacting', tick_rate_hz: 10.0 }, devices: [] };
+    case 'sim':    return { startup_policy: 'degraded', simulation_mode: 'non_interacting', tick_rate_hz: 10.0, devices: [] };
     case 'bread':  return { provider_name: '', require_live_session: false, query_delay_us: 10000, timeout_ms: 100, retry_count: 2, discovery: { mode: 'manual', addresses: [] }, devices: [] };
     case 'ezo':    return { provider_name: '', query_delay_us: 300000, timeout_ms: 300, retry_count: 2, devices: [] };
     case 'custom': return { args: [] };
@@ -188,26 +188,49 @@ function _buildRow(provEntry, index, system, kindMap, onChanged, rerender) {
   cb.addEventListener('change', () => {
     provEntry.restart_policy = provEntry.restart_policy || {};
     provEntry.restart_policy.enabled = cb.checked;
+    if (cb.checked) {
+      provEntry.restart_policy.max_attempts = provEntry.restart_policy.max_attempts ?? 3;
+      provEntry.restart_policy.backoff_ms = Array.isArray(provEntry.restart_policy.backoff_ms)
+        ? provEntry.restart_policy.backoff_ms
+        : [200, 500, 1000];
+      provEntry.restart_policy.timeout_ms = provEntry.restart_policy.timeout_ms ?? 30000;
+    }
     restartFields.style.display = cb.checked ? '' : 'none';
     onChanged();
   });
   const rp = provEntry.restart_policy || {};
-  for (const [key, display, def] of [
-    ['max_attempts','max attempts', 5],
-    ['backoff_ms',  'backoff (ms)', 1000],
-    ['timeout_ms',  'timeout (ms)', 10000],
-  ]) {
-    const il = document.createElement('label');
-    il.className = 'inline-label';
-    const inp = document.createElement('input');
-    inp.type = 'number'; inp.value = rp[key] ?? def;
-    inp.addEventListener('change', () => {
-      const n = Number(inp.value);
-      if (!isNaN(n)) { provEntry.restart_policy[key] = n; onChanged(); }
-    });
-    il.append(inp, document.createTextNode(' ' + display));
-    restartFields.append(il);
-  }
+  const maxAttempts = _restartNumberField('max attempts', rp.max_attempts ?? 3, value => {
+    provEntry.restart_policy.max_attempts = value;
+    onChanged();
+  });
+  const timeoutMs = _restartNumberField('timeout (ms)', rp.timeout_ms ?? 30000, value => {
+    provEntry.restart_policy.timeout_ms = value;
+    onChanged();
+  });
+  const successResetMs = _restartNumberField(
+    'success reset (ms)',
+    rp.success_reset_ms ?? '',
+    value => {
+      if (value === '') {
+        delete provEntry.restart_policy.success_reset_ms;
+      } else {
+        provEntry.restart_policy.success_reset_ms = value;
+      }
+      onChanged();
+    },
+    { allowBlank: true }
+  );
+  const backoffMs = _restartTextField(
+    'backoff ms',
+    _formatBackoffMs(rp.backoff_ms),
+    value => {
+      provEntry.restart_policy.backoff_ms = _parseBackoffMs(value);
+      onChanged();
+    },
+    '200, 500, 1000'
+  );
+
+  restartFields.append(maxAttempts, backoffMs, timeoutMs, successResetMs);
   restartWrap.append(cbLabel, restartFields);
   row.append(restartWrap);
 
@@ -306,4 +329,52 @@ function _fmtGroup(label) {
   lbl.textContent = label;
   g.append(lbl);
   return g;
+}
+
+function _restartNumberField(label, value, onChange, opts = {}) {
+  const il = document.createElement('label');
+  il.className = 'inline-label';
+  const inp = document.createElement('input');
+  inp.type = 'number';
+  inp.value = value;
+  if (!opts.allowBlank) {
+    inp.min = 0;
+  }
+  inp.addEventListener('change', () => {
+    if (opts.allowBlank && inp.value.trim() === '') {
+      onChange('');
+      return;
+    }
+    const n = Number(inp.value);
+    if (!isNaN(n)) onChange(n);
+  });
+  il.append(inp, document.createTextNode(' ' + label));
+  return il;
+}
+
+function _restartTextField(label, value, onChange, placeholder = '') {
+  const il = document.createElement('label');
+  il.className = 'inline-label';
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.value = value;
+  inp.placeholder = placeholder;
+  inp.spellcheck = false;
+  inp.style.fontFamily = 'monospace';
+  inp.addEventListener('change', () => onChange(inp.value));
+  il.append(inp, document.createTextNode(' ' + label));
+  return il;
+}
+
+function _formatBackoffMs(values) {
+  return Array.isArray(values) ? values.join(', ') : '';
+}
+
+function _parseBackoffMs(value) {
+  return String(value)
+    .split(',')
+    .map(part => part.trim())
+    .filter(Boolean)
+    .map(part => Number(part))
+    .filter(part => !Number.isNaN(part));
 }

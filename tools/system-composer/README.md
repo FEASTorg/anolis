@@ -38,10 +38,16 @@ systems/<project-name>/
   running.json            Ephemeral launch state (gitignored)
 ```
 
-The `behaviors/` subdirectory is not managed by the composer. Place BT
-XMLs there manually and reference them by path in the system's
-`behavior_tree_path` field. The repo-level `behaviors/` directory is
-reserved for generic and test BTs not associated with any specific system.
+Contract notes:
+
+- `system.json` is the composer source of truth. Generated YAML files are derived output.
+- `topology.runtime.behavior_tree_path` is the composer-facing BT field; generated runtime YAML uses the canonical runtime key `automation.behavior_tree`.
+- `topology.runtime.telemetry` mirrors the runtime's nested `telemetry.*` structure. The composer keeps telemetry settings in `system.json` even when telemetry is disabled, but the generated runtime YAML only emits the nested `telemetry.influxdb` block when telemetry is enabled.
+
+The `behaviors/` subdirectory is not managed by the composer. Place BT XMLs
+there manually and reference them by path in `behavior_tree_path`. The repo-level
+`behaviors/` directory is reserved for generic and test BTs not associated with
+any specific system.
 
 ## Out of Scope
 
