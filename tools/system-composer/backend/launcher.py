@@ -101,7 +101,8 @@ def preflight(name: str, system: dict, project_dir: pathlib.Path) -> dict:
         return {"ok": False, "checks": checks}
 
     # Check 1: Runtime binary
-    runtime_exe = pathlib.Path(system["paths"]["runtime_executable"])
+    runtime_exe_value = system.get("paths", {}).get("runtime_executable", "")
+    runtime_exe = pathlib.Path(runtime_exe_value) if runtime_exe_value else None
     _exists_check(
         checks,
         "Runtime binary exists",
@@ -112,13 +113,17 @@ def preflight(name: str, system: dict, project_dir: pathlib.Path) -> dict:
     # Check 2: Provider binaries
     providers = system.get("topology", {}).get("providers", {})
     for pid, pcfg in providers.items():
-        exe = pathlib.Path(system["paths"]["providers"][pid]["executable"])
+        exe_str = system.get("paths", {}).get("providers", {}).get(pid, {}).get("executable", "")
+        exe = pathlib.Path(exe_str) if exe_str else None
         kind = pcfg.get("kind", "")
         kind_info = catalog.get(kind, {})
         repo = kind_info.get("repo")
         docs = kind_info.get("build_docs")
         _exists_check(
-            checks, f"Provider {pid} binary exists", exe, hint=_build_binary_hint(exe, kind=kind, repo=repo, docs=docs)
+            checks,
+            f"Provider {pid} binary exists",
+            exe,
+            hint=_build_binary_hint(exe, kind=kind, repo=repo, docs=docs) if exe is not None else None,
         )
 
     # Check 3: Output paths writable
@@ -151,7 +156,8 @@ def preflight(name: str, system: dict, project_dir: pathlib.Path) -> dict:
         kind = pcfg.get("kind", "")
         if not catalog.get(kind, {}).get("check_config_flag"):
             continue
-        exe = pathlib.Path(system["paths"]["providers"][pid]["executable"])
+        exe_str = system.get("paths", {}).get("providers", {}).get(pid, {}).get("executable", "")
+        exe = pathlib.Path(exe_str) if exe_str else None
         yaml_path = project_dir / "providers" / f"{pid}.yaml"
         checks.append(
             _check_config_binary(
@@ -188,7 +194,7 @@ _PRESETS: dict[str, dict[str, str]] = {
 }
 
 
-def _build_binary_hint(exe: pathlib.Path, kind: str, repo: str | None, docs: str | None) -> str:
+def _build_binary_hint(exe: pathlib.Path | None, kind: str, repo: str | None, docs: str | None) -> str:
     """Return an actionable build hint for a missing binary."""
     platform_key = "win32" if sys.platform == "win32" else "other"
     preset = _PRESETS.get(platform_key, {}).get(kind, "dev-release")
@@ -227,13 +233,13 @@ def _check_port(port: int) -> dict:
     return {"name": f"Runtime port {port} available", "ok": True, "error": None, "hint": None}
 
 
-def _exists_check(checks: list, name: str, path: pathlib.Path, hint: str | None = None) -> None:
-    exists = path.exists()
+def _exists_check(checks: list, name: str, path: pathlib.Path | None, hint: str | None = None) -> None:
+    exists = path is not None and path.exists()
     checks.append(
         {
             "name": name,
             "ok": exists,
-            "error": None if exists else f"File not found: {path}",
+            "error": None if exists else f"File not found: {path if path is not None else '<missing>'}",
             "hint": hint if not exists else None,
         }
     )
@@ -256,8 +262,8 @@ def _check_writable(project_dir: pathlib.Path) -> dict:
         }
 
 
-def _check_config_binary(check_name: str, exe: pathlib.Path, yaml_path: pathlib.Path) -> dict:
-    if not exe.exists():
+def _check_config_binary(check_name: str, exe: pathlib.Path | None, yaml_path: pathlib.Path) -> dict:
+    if exe is None or not exe.exists():
         return {"name": check_name, "ok": None, "note": "Binary missing — skipped"}
     if not yaml_path.exists():
         return {"name": check_name, "ok": None, "note": "Config not yet rendered"}
@@ -308,7 +314,9 @@ def launch(name: str, system: dict, project_dir: pathlib.Path) -> None:
     log_file = open(log_path, "w", buffering=1, encoding="utf-8")
 
     # Build command
-    runtime_exe = str(system["paths"]["runtime_executable"])
+    runtime_exe = system.get("paths", {}).get("runtime_executable", "")
+    if not runtime_exe:
+        raise RuntimeError("Runtime executable path is missing.")
     runtime_config = f"systems/{name}/anolis-runtime.yaml"
     cmd = [runtime_exe, "--config", runtime_config]
 
@@ -379,7 +387,9 @@ def restart(name: str, project_dir: pathlib.Path) -> None:
     log_path.parent.mkdir(parents=True, exist_ok=True)
     log_file = open(log_path, "w", buffering=1, encoding="utf-8")
 
-    runtime_exe = str(system["paths"]["runtime_executable"])
+    runtime_exe = system.get("paths", {}).get("runtime_executable", "")
+    if not runtime_exe:
+        raise RuntimeError("Runtime executable path is missing.")
     runtime_config = f"systems/{name}/anolis-runtime.yaml"
     cmd = [runtime_exe, "--config", runtime_config]
 

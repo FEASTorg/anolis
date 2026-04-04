@@ -29,6 +29,7 @@ def render(system: dict, project_name: str) -> dict[str, str]:
     topology = system["topology"]
     paths = system["paths"]
     rt = topology["runtime"]
+    provider_paths = paths.get("providers", {})
 
     outputs: dict[str, str] = {}
 
@@ -53,6 +54,7 @@ def render(system: dict, project_name: str) -> dict[str, str]:
         "enabled": True,
         "bind": rt.get("http_bind", "127.0.0.1"),
         "port": rt["http_port"],
+        "cors_allow_credentials": rt.get("cors_allow_credentials", False),
     }
     if "cors_origins" in rt:
         http_section["cors_allowed_origins"] = rt["cors_origins"]
@@ -63,9 +65,10 @@ def render(system: dict, project_name: str) -> dict[str, str]:
     for p in rt.get("providers", []):
         pid = p["id"]
         config_arg = f"systems/{project_name}/providers/{pid}.yaml"
+        path_entry = provider_paths.get(pid, {})
         entry: dict = {
             "id": pid,
-            "command": paths["providers"][pid]["executable"],
+            "command": path_entry.get("executable", ""),
             "args": ["--config", config_arg],
             "timeout_ms": p.get("timeout_ms", 5000),
         }
@@ -93,12 +96,15 @@ def render(system: dict, project_name: str) -> dict[str, str]:
         runtime_doc["polling"] = {"interval_ms": rt["polling_interval_ms"]}
 
     # telemetry
-    runtime_doc["telemetry"] = {"enabled": rt.get("telemetry_enabled", False)}
+    telemetry_cfg = _runtime_telemetry(rt)
+    runtime_doc["telemetry"] = {"enabled": telemetry_cfg["enabled"]}
+    if telemetry_cfg["enabled"] and telemetry_cfg["influxdb"]:
+        runtime_doc["telemetry"]["influxdb"] = telemetry_cfg["influxdb"]
 
     # automation
-    bt_path = rt.get("behavior_tree_path")
+    bt_path = rt.get("behavior_tree_path") or rt.get("behavior_tree")
     if bt_path:
-        runtime_doc["automation"] = {"enabled": True, "behavior_tree_path": bt_path}
+        runtime_doc["automation"] = {"enabled": True, "behavior_tree": bt_path}
     else:
         runtime_doc["automation"] = {"enabled": rt.get("automation_enabled", False)}
 
@@ -112,13 +118,14 @@ def render(system: dict, project_name: str) -> dict[str, str]:
     # -------------------------------------------------------------------------
     for pid, pdata in topology.get("providers", {}).items():
         kind = pdata["kind"]
+        path_data = provider_paths.get(pid, {})
 
         if kind == "sim":
             doc = _render_sim(pdata)
         elif kind == "bread":
-            doc = _render_bread(pdata, paths["providers"][pid])
+            doc = _render_bread(pdata, path_data)
         elif kind == "ezo":
-            doc = _render_ezo(pdata, paths["providers"][pid])
+            doc = _render_ezo(pdata, path_data)
         elif kind == "custom":
             # Custom providers manage their own config files.
             continue
@@ -142,6 +149,35 @@ def _hex_to_int(addr) -> int:
     return int(addr)
 
 
+def _runtime_telemetry(rt: dict) -> dict:
+    telemetry = rt.get("telemetry")
+    if not isinstance(telemetry, dict):
+        telemetry = {}
+
+    enabled = telemetry.get("enabled")
+    if enabled is None:
+        enabled = rt.get("telemetry_enabled", False)
+
+    influx_in = telemetry.get("influxdb")
+    influx_cfg = influx_in if isinstance(influx_in, dict) else {}
+    influx_out: dict = {}
+    for key in (
+        "url",
+        "org",
+        "bucket",
+        "token",
+        "batch_size",
+        "flush_interval_ms",
+        "max_retry_buffer_size",
+        "queue_size",
+    ):
+        value = influx_cfg.get(key)
+        if value not in (None, ""):
+            influx_out[key] = value
+
+    return {"enabled": bool(enabled), "influxdb": influx_out}
+
+
 def _render_sim(pdata: dict) -> dict:
     doc: dict = {}
 
@@ -161,10 +197,15 @@ def _render_sim(pdata: dict) -> dict:
         devices.append(d)
     doc["devices"] = devices
 
-    mode = pdata.get("simulation_mode", "non_interacting")
+    simulation_cfg = pdata.get("simulation")
+    if not isinstance(simulation_cfg, dict):
+        simulation_cfg = {}
+
+    mode = pdata.get("simulation_mode") or simulation_cfg.get("mode") or "non_interacting"
     sim_section: dict = {"mode": mode}
-    if mode != "inert" and "tick_rate_hz" in pdata:
-        sim_section["tick_rate_hz"] = pdata["tick_rate_hz"]
+    tick_rate_hz = pdata.get("tick_rate_hz", simulation_cfg.get("tick_rate_hz"))
+    if mode != "inert" and tick_rate_hz is not None:
+        sim_section["tick_rate_hz"] = tick_rate_hz
     doc["simulation"] = sim_section
 
     return doc
@@ -176,7 +217,7 @@ def _render_bread(pdata: dict, path_data: dict) -> dict:
     if "provider_name" in pdata:
         doc["provider"] = {"name": pdata["provider_name"]}
 
-    hardware: dict = {"bus_path": path_data["bus_path"]}
+    hardware: dict = {"bus_path": path_data.get("bus_path", "")}
     if "require_live_session" in pdata:
         hardware["require_live_session"] = pdata["require_live_session"]
     if "query_delay_us" in pdata:
@@ -209,7 +250,7 @@ def _render_ezo(pdata: dict, path_data: dict) -> dict:
     if "provider_name" in pdata:
         doc["provider"] = {"name": pdata["provider_name"]}
 
-    hardware: dict = {"bus_path": path_data["bus_path"]}
+    hardware: dict = {"bus_path": path_data.get("bus_path", "")}
     if "query_delay_us" in pdata:
         hardware["query_delay_us"] = pdata["query_delay_us"]
     if "timeout_ms" in pdata:

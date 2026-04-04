@@ -11,11 +11,22 @@
       "http_port": 8080,
       "http_bind": "127.0.0.1",
       "cors_origins": ["http://localhost:3000", "http://127.0.0.1:3000"],
+      "cors_allow_credentials": false,
       "shutdown_timeout_ms": 3000,
       "startup_timeout_ms": 30000,
       "polling_interval_ms": 2500,
       "log_level": "info",
-      "telemetry_enabled": false,
+      "telemetry": {
+        "enabled": false,
+        "influxdb": {
+          "url": "http://localhost:8086",
+          "org": "anolis",
+          "bucket": "anolis",
+          "token": "dev-token",
+          "batch_size": 100,
+          "flush_interval_ms": 1000
+        }
+      },
       "automation_enabled": false,
       "behavior_tree_path": null,
       "providers": [
@@ -29,8 +40,7 @@
             "enabled": true,
             "max_attempts": 3,
             "backoff_ms": [200, 500, 1000],
-            "timeout_ms": 30000,
-            "success_reset_ms": 1000
+            "timeout_ms": 30000
           }
         },
         {
@@ -43,8 +53,7 @@
             "enabled": true,
             "max_attempts": 3,
             "backoff_ms": [200, 500, 1000],
-            "timeout_ms": 30000,
-            "success_reset_ms": 1000
+            "timeout_ms": 30000
           }
         }
       ]
