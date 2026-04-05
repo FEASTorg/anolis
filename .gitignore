@@ -250,6 +250,7 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
+# general artifact outputs
 artifacts/
 
 # build files
