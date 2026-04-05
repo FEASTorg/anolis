@@ -7,7 +7,7 @@
 #   2. Set INFLUXDB_TOKEN environment variable OR use token below
 #
 # DASHBOARDS:
-#   - Open http://localhost:3000 (admin/anolis123)
+#   - Open http://localhost:3001 (admin/anolis123)
 #   - Navigate to Dashboards -> Signal History or Device Health
 
 runtime:

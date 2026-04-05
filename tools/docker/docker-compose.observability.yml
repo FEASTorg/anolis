@@ -6,11 +6,11 @@
 # Usage:
 #   cd tools/docker
 #   cp .env.example .env  # Optional: customize credentials
-#   docker compose -f docker-compose.observability.yml up -d
+#   docker-compose -f docker-compose.observability.yml up -d
 #
 # Access:
 #   - InfluxDB: http://localhost:8086 (admin / anolis123)
-#   - Grafana:  http://localhost:3000 (admin / anolis123)
+#   - Grafana:  http://localhost:3001 (admin / anolis123)
 
 services:
   influxdb:

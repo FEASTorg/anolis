@@ -14,10 +14,10 @@ This directory contains Docker configuration for the Anolis telemetry stack:
 cp .env.example .env
 
 # Start containers
-docker compose -f docker-compose.observability.yml up -d
+docker-compose -f docker-compose.observability.yml up -d
 
 # Verify containers are running
-docker compose -f docker-compose.observability.yml ps
+docker-compose -f docker-compose.observability.yml ps
 ```
 
 ### 2. Access Services
@@ -126,7 +126,7 @@ anolis_signal,provider_id=sim0,device_id=tempctl-0,signal_id=temperature value_d
 Check health status:
 
 ```bash
-docker compose -f docker-compose.observability.yml logs influxdb
+docker-compose -f docker-compose.observability.yml logs influxdb
 ```
 
 ### No Data in Grafana
@@ -152,15 +152,15 @@ Dashboards are auto-provisioned from `../grafana/dashboards/`.
 If not appearing:
 
 ```bash
-docker compose -f docker-compose.observability.yml restart grafana
+docker-compose -f docker-compose.observability.yml restart grafana
 ```
 
 ## Cleanup
 
 ```bash
 # Stop containers
-docker compose -f docker-compose.observability.yml down
+docker-compose -f docker-compose.observability.yml down
 
 # Remove volumes (deletes all data)
-docker compose -f docker-compose.observability.yml down -v
+docker-compose -f docker-compose.observability.yml down -v
 ```

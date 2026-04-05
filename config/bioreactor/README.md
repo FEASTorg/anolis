@@ -82,19 +82,50 @@ Acceptance:
 
 ## Linux Hardware Baseline With Telemetry
 
+Run the manual baseline above first, then layer the observability stack on top.
+
+On Raspberry Pi OS / Debian, the simplest working path is the distro packages:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y docker.io docker-compose
+docker --version
+docker-compose --version
+sudo systemctl status docker --no-pager || sudo systemctl start docker
+sudo docker run hello-world
+```
+
+If your user is not yet configured for Docker access, prefix the `docker`
+commands below with `sudo`.
+
 Start observability stack:
 
 ```bash
 cd /path/to/anolis/tools/docker
-cp .env.example .env
-docker compose -f docker-compose.observability.yml up -d
+[ -f .env ] || cp .env.example .env
+docker-compose -f docker-compose.observability.yml up -d
+docker-compose -f docker-compose.observability.yml ps
 ```
 
 Token alignment requirement:
 
 1. The runtime telemetry profile uses Influx token `dev-token`.
-2. Ensure `tools/docker/.env` keeps `INFLUXDB_TOKEN=dev-token`, or update
-   `anolis-runtime.bioreactor.telemetry.yaml` to match your `.env` token.
+2. The default stack also expects `INFLUXDB_ORG=anolis`,
+   `INFLUXDB_BUCKET=anolis`, and `INFLUXDB_TOKEN=dev-token`.
+3. If `tools/docker/.env` already exists, verify those values before startup
+   instead of overwriting the file.
+4. If you change the token, update
+   `anolis-runtime.bioreactor.telemetry.yaml` to match.
+
+Service endpoints:
+
+1. InfluxDB: `http://localhost:8086`
+2. Grafana: `http://localhost:3001`
+3. Grafana login: `admin / anolis123`
+4. Port `3000` remains reserved for the operator UI, not Grafana.
+
+Stop the manual-profile runtime before starting the telemetry-profile runtime.
+Both profiles bind the runtime HTTP server to `127.0.0.1:8080`.
 
 Start runtime with telemetry profile:
 
@@ -122,6 +153,10 @@ Telemetry acceptance:
 4. Grafana is reachable at `http://localhost:3001`.
 5. Telemetry points are ingested in InfluxDB:
 
+If you changed the Influx token in `tools/docker/.env` and
+`anolis-runtime.bioreactor.telemetry.yaml`, replace `dev-token` below with the
+same token value.
+
 ```bash
 curl -sS --request POST "http://localhost:8086/api/v2/query?org=anolis" \
   --header "Authorization: Token dev-token" \
@@ -132,7 +167,16 @@ curl -sS --request POST "http://localhost:8086/api/v2/query?org=anolis" \
 
 Expected: output includes at least one data row (not only CSV headers).
 
+Stop observability stack when finished:
+
+```bash
+cd /path/to/anolis/tools/docker
+docker-compose -f docker-compose.observability.yml down
+```
+
 ## Operator UI Manual Workflow
+
+Requires Python 3 on the lab machine.
 
 Start UI server:
 
