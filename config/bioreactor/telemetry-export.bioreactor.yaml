@@ -18,6 +18,7 @@ influxdb:
 #   allowlist and callers must provide explicit selector values for that dimension.
 authorization:
   enforce_selector_scope: false
+  allowed_runtime_names: []
   allowed_provider_ids: []
   allowed_device_ids: []
   allowed_signal_ids: []

@@ -34,6 +34,7 @@ def _test_config(module):
         ),
         authorization=module.AuthorizationConfig(
             enforce_selector_scope=False,
+            allowed_runtime_names=(),
             allowed_provider_ids=(),
             allowed_device_ids=(),
             allowed_signal_ids=(),
@@ -44,9 +45,9 @@ def _test_config(module):
 def _sample_csv_rows() -> str:
     return "\n".join(
         [
-            ",result,table,_time,provider_id,device_id,signal_id,quality,value_double,value_int,value_uint,value_bool,value_string",
-            ",,0,2026-04-01T00:00:01Z,bread0,rlht0,tc1_temp,OK,23.5,,,,",
-            ",,0,2026-04-01T00:00:02Z,bread0,rlht0,tc1_temp,OK,23.6,,,,",
+            ",result,table,_time,runtime_name,provider_id,device_id,signal_id,quality,value_double,value_int,value_uint,value_bool,value_string",
+            ",,0,2026-04-01T00:00:01Z,bioreactor-telemetry,bread0,rlht0,tc1_temp,OK,23.5,,,,",
+            ",,0,2026-04-01T00:00:02Z,bioreactor-telemetry,bread0,rlht0,tc1_temp,OK,23.6,,,,",
         ]
     )
 
@@ -58,6 +59,7 @@ def test_validate_query_request_accepts_raw_event():
     request = {
         "time_range": {"start": "2026-04-01T00:00:00Z", "end": "2026-04-01T00:10:00Z"},
         "selector": {
+            "runtime_names": ["bioreactor-telemetry"],
             "provider_ids": ["bread0", "ezo0"],
             "device_ids": ["rlht0", "ph0"],
             "signal_ids": ["tc1_temp", "ph.value"],
@@ -70,6 +72,7 @@ def test_validate_query_request_accepts_raw_event():
 
     assert parsed.resolution.mode == "raw_event"
     assert parsed.fmt == "json"
+    assert parsed.runtime_names == ["bioreactor-telemetry"]
     assert parsed.provider_ids == ["bread0", "ezo0"]
 
 
@@ -130,6 +133,7 @@ def test_build_flux_query_includes_expected_filters_and_aggregate_window():
     request = {
         "time_range": {"start": "2026-04-01T00:00:00Z", "end": "2026-04-01T00:10:00Z"},
         "selector": {
+            "runtime_names": ["bioreactor-telemetry"],
             "provider_ids": ["bread0"],
             "device_ids": ["rlht0"],
             "signal_ids": ["tc1_temp"],
@@ -142,6 +146,7 @@ def test_build_flux_query_includes_expected_filters_and_aggregate_window():
     flux = module.build_flux_query(parsed, cfg.influx.bucket)
 
     assert "r._measurement == \"anolis_signal\"" in flux
+    assert "r.runtime_name == \"bioreactor-telemetry\"" in flux
     assert "r.provider_id == \"bread0\"" in flux
     assert "r.device_id == \"rlht0\"" in flux
     assert "r.signal_id == \"tc1_temp\"" in flux
@@ -166,6 +171,8 @@ def test_build_flux_query_downsample_uses_last_for_non_numeric_fields():
     assert "union(tables:[numeric, non_numeric])" in flux
     assert "fn: mean" in flux
     assert "fn: last" in flux
+    assert 'pivot(rowKey:["_time","runtime_name","provider_id","device_id","signal_id"]' in flux
+    assert 'keep(columns:["_time","runtime_name","provider_id","device_id","signal_id","quality"' in flux
 
 
 def test_execute_query_enforces_auth_and_row_limit(monkeypatch: pytest.MonkeyPatch):
@@ -217,6 +224,7 @@ def test_execute_query_enforces_selector_scope(monkeypatch: pytest.MonkeyPatch):
         limits=cfg.limits,
         authorization=module.AuthorizationConfig(
             enforce_selector_scope=True,
+            allowed_runtime_names=("bioreactor-telemetry",),
             allowed_provider_ids=("bread0",),
             allowed_device_ids=(),
             allowed_signal_ids=(),
@@ -229,6 +237,40 @@ def test_execute_query_enforces_selector_scope(monkeypatch: pytest.MonkeyPatch):
     request = {
         "time_range": {"start": "2026-04-01T00:00:00Z", "end": "2026-04-01T00:10:00Z"},
         "selector": {"provider_ids": ["ezo0"]},
+        "resolution": {"mode": "raw_event"},
+        "format": "json",
+    }
+
+    with pytest.raises(module.ApiError) as scope_exc:
+        scoped_svc.execute_query(request)
+
+    assert scope_exc.value.status == 403
+    assert scope_exc.value.code == "permission_denied"
+
+
+def test_execute_query_enforces_runtime_scope(monkeypatch: pytest.MonkeyPatch):
+    module = _load_module()
+    cfg = _test_config(module)
+
+    scoped_cfg = module.AppConfig(
+        server=cfg.server,
+        influx=cfg.influx,
+        limits=cfg.limits,
+        authorization=module.AuthorizationConfig(
+            enforce_selector_scope=True,
+            allowed_runtime_names=("bioreactor-telemetry",),
+            allowed_provider_ids=(),
+            allowed_device_ids=(),
+            allowed_signal_ids=(),
+        ),
+    )
+    scoped_svc = module.ExportService(scoped_cfg)
+
+    monkeypatch.setattr(module, "influx_query_csv", lambda _cfg, _query: _sample_csv_rows())
+
+    request = {
+        "time_range": {"start": "2026-04-01T00:00:00Z", "end": "2026-04-01T00:10:00Z"},
+        "selector": {"runtime_names": ["different-runtime"]},
         "resolution": {"mode": "raw_event"},
         "format": "json",
     }
@@ -259,6 +301,7 @@ def test_execute_query_csv_payload_contains_manifest_and_request_trace(monkeypat
     assert status == 200
     assert payload["format"] == "csv"
     assert "csv_body" in payload
+    assert "runtime_name" in payload["csv_body"]
     assert "tc1_temp" in payload["csv_body"]
     assert payload["manifest"]["request_id"] == "req-123"
     assert payload["manifest"]["requester_id"] == "operator-a"
@@ -287,6 +330,9 @@ def test_load_config_prefers_env_over_config_tokens(monkeypatch: pytest.MonkeyPa
                 "  max_selector_items: 128",
                 "  request_timeout_seconds: 15",
                 "  max_request_bytes: 200000",
+                "authorization:",
+                "  enforce_selector_scope: true",
+                "  allowed_runtime_names: [bioreactor-telemetry]",
             ]
         ),
         encoding="utf-8",
@@ -298,3 +344,4 @@ def test_load_config_prefers_env_over_config_tokens(monkeypatch: pytest.MonkeyPa
     loaded = module.load_config(cfg_path)
     assert loaded.server.auth_token == "env-auth-token"
     assert loaded.influx.token == "env-influx-token"
+    assert loaded.authorization.allowed_runtime_names == ("bioreactor-telemetry",)

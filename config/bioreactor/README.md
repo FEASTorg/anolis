@@ -163,7 +163,7 @@ curl -sS --request POST "http://localhost:8086/api/v2/query?org=anolis" \
   --header "Authorization: Token dev-token" \
   --header "Accept: application/csv" \
   --header "Content-type: application/vnd.flux" \
-  --data 'from(bucket:"anolis") |> range(start: -5m) |> filter(fn:(r) => r._measurement == "anolis_signal") |> limit(n: 1)'
+  --data 'from(bucket:"anolis") |> range(start: -5m) |> filter(fn:(r) => r._measurement == "anolis_signal") |> filter(fn:(r) => r.runtime_name == "bioreactor-telemetry") |> limit(n: 1)'
 ```
 
 Expected: output includes at least one data row (not only CSV headers).
@@ -202,6 +202,7 @@ curl -sS -X POST "http://127.0.0.1:8091/v1/exports/signals:query" \
       "end": "2026-04-01T00:30:00Z"
     },
     "selector": {
+      "runtime_names": ["bioreactor-telemetry"],
       "provider_ids": ["bread0", "ezo0"],
       "device_ids": ["rlht0", "dcmt0", "dcmt1", "ph0", "do0"]
     },
@@ -253,8 +254,9 @@ MVP constraints:
 4. `bytes` vs `string` fidelity remains a known MVP limitation.
 5. `X-Request-Id` is always emitted; `X-Requester-Id` is optional.
 6. Optional selector scope enforcement can return `403 permission_denied`.
-7. `timezone` request input is not supported in v1 (timestamps are always UTC).
-8. In downsample mode:
+7. Selector supports optional `runtime_names` for multi-runtime disambiguation.
+8. `timezone` request input is not supported in v1 (timestamps are always UTC).
+9. In downsample mode:
    - numeric fields use requested aggregation (`last|mean|min|max|count`);
    - `value_bool`, `value_string`, and `quality` use `last`;
    - requesting `value_bool`/`value_string` columns with non-`last` aggregation returns `400 invalid_argument`.

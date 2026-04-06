@@ -116,6 +116,19 @@ TEST(InfluxLineProtocolTest, FormatDoubleValue) {
     EXPECT_TRUE(line.find("1234567890") != std::string::npos);
 }
 
+TEST(InfluxLineProtocolTest, FormatIncludesRuntimeNameTag) {
+    StateUpdateEvent event;
+    event.provider_id = "test_provider";
+    event.device_id = "test_device";
+    event.signal_id = "temperature";
+    event.value = 23.5;
+    event.quality = Quality::OK;
+    event.timestamp_ms = 1234567890;
+
+    std::string line = format_line_protocol(event, "bioreactor-telemetry");
+    EXPECT_TRUE(line.find("runtime_name=bioreactor-telemetry") != std::string::npos);
+}
+
 TEST(InfluxLineProtocolTest, FormatNegativeDouble) {
     StateUpdateEvent event;
     event.provider_id = "provider";
@@ -477,6 +490,7 @@ TEST(InfluxConfigTest, DefaultValues) {
     EXPECT_EQ(config.org, "anolis");
     EXPECT_EQ(config.bucket, "anolis");
     EXPECT_TRUE(config.token.empty());
+    EXPECT_EQ(config.runtime_name, "default");
     EXPECT_EQ(config.batch_size, 100);
     EXPECT_EQ(config.flush_interval_ms, 1000);
     EXPECT_EQ(config.timeout_ms, 5000);

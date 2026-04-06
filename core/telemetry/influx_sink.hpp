@@ -14,7 +14,7 @@
  *
  * InfluxDB Schema:
  * - Measurement: anolis_signal
- * - Tags: provider_id, device_id, signal_id
+ * - Tags: runtime_name, provider_id, device_id, signal_id
  * - Fields: value_double|value_int|value_bool, quality
  * - Timestamp: epoch milliseconds (precision=ms)
  */
@@ -52,6 +52,7 @@ struct InfluxConfig {
     std::string org = "anolis";                 // InfluxDB organization
     std::string bucket = "anolis";              // InfluxDB bucket
     std::string token;                          // InfluxDB API token
+    std::string runtime_name = "default";       // Runtime instance tag for multi-runtime disambiguation
 
     // Batching configuration
     size_t batch_size = 100;       // Flush when batch reaches this size
@@ -100,7 +101,7 @@ inline std::string escape_field_string(const std::string &s) {
  * @brief Format a StateUpdateEvent as InfluxDB line protocol
  *
  * Format:
- *   anolis_signal,provider_id=X,device_id=Y,signal_id=Z value_TYPE=V,quality="Q" TIMESTAMP
+ *   anolis_signal,runtime_name=R,provider_id=X,device_id=Y,signal_id=Z value_TYPE=V,quality="Q" TIMESTAMP
  *
  * Type-specific fields:
  * - double: value_double=23.5
@@ -109,11 +110,13 @@ inline std::string escape_field_string(const std::string &s) {
  * - bool: value_bool=true
  * - string: value_string="hello"
  */
-inline std::string format_line_protocol(const events::StateUpdateEvent &event) {
+inline std::string format_line_protocol(const events::StateUpdateEvent &event,
+                                        const std::string &runtime_name = "default") {
     std::ostringstream line;
 
     // Measurement and tags
     line << "anolis_signal";
+    line << ",runtime_name=" << escape_tag(runtime_name);
     line << ",provider_id=" << escape_tag(event.provider_id);
     line << ",device_id=" << escape_tag(event.device_id);
     line << ",signal_id=" << escape_tag(event.signal_id);
@@ -338,7 +341,7 @@ private:
                     const auto &update = std::get<events::StateUpdateEvent>(*event_opt);
 
                     std::lock_guard<std::mutex> lock(batch_mutex_);
-                    batch_.push_back(format_line_protocol(update));
+                    batch_.push_back(format_line_protocol(update, config_.runtime_name));
                 } else if (std::holds_alternative<events::ModeChangeEvent>(*event_opt)) {
                     const auto &mode_change = std::get<events::ModeChangeEvent>(*event_opt);
 

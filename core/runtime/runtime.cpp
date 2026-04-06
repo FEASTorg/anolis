@@ -315,6 +315,7 @@ bool Runtime::init_telemetry(std::string & /*error*/) {
         influx_config.org = config_.telemetry.influx_org;
         influx_config.bucket = config_.telemetry.influx_bucket;
         influx_config.token = config_.telemetry.influx_token;
+        influx_config.runtime_name = config_.runtime.name.empty() ? "default" : config_.runtime.name;
         influx_config.batch_size = config_.telemetry.batch_size;
         influx_config.flush_interval_ms = config_.telemetry.flush_interval_ms;
         influx_config.queue_size = config_.telemetry.queue_size;

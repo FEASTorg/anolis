@@ -17,6 +17,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--start", required=True, help="RFC3339 UTC start timestamp")
     parser.add_argument("--end", required=True, help="RFC3339 UTC end timestamp")
     parser.add_argument("--format", choices=["json", "csv"], default="json")
+    parser.add_argument("--runtime", action="append", default=[], help="runtime_name filter (repeatable)")
     parser.add_argument("--provider", action="append", default=[], help="provider_id filter (repeatable)")
     parser.add_argument("--device", action="append", default=[], help="device_id filter (repeatable)")
     parser.add_argument("--signal", action="append", default=[], help="signal_id filter (repeatable)")
@@ -39,6 +40,8 @@ def main() -> int:
     }
 
     selector: dict[str, list[str]] = {}
+    if args.runtime:
+        selector["runtime_names"] = args.runtime
     if args.provider:
         selector["provider_ids"] = args.provider
     if args.device:

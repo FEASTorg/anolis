@@ -32,6 +32,7 @@ LOGGER = logging.getLogger("telemetry_export")
 
 DEFAULT_COLUMNS = [
     "timestamp",
+    "runtime_name",
     "provider_id",
     "device_id",
     "signal_id",
@@ -98,6 +99,7 @@ class ServerConfig:
 @dataclass(frozen=True)
 class AuthorizationConfig:
     enforce_selector_scope: bool
+    allowed_runtime_names: tuple[str, ...]
     allowed_provider_ids: tuple[str, ...]
     allowed_device_ids: tuple[str, ...]
     allowed_signal_ids: tuple[str, ...]
@@ -125,6 +127,7 @@ class SignalsQuery:
     resolution: Resolution
     fmt: str
     columns: list[str]
+    runtime_names: list[str]
     provider_ids: list[str]
     device_ids: list[str]
     signal_ids: list[str]
@@ -239,6 +242,10 @@ def load_config(path: Path) -> AppConfig:
         enforce_selector_scope=parse_bool(
             authorization_raw.get("enforce_selector_scope", False),
             "authorization.enforce_selector_scope",
+        ),
+        allowed_runtime_names=parse_allowed_list(
+            authorization_raw.get("allowed_runtime_names"),
+            "authorization.allowed_runtime_names",
         ),
         allowed_provider_ids=parse_allowed_list(
             authorization_raw.get("allowed_provider_ids"),
@@ -410,6 +417,11 @@ def validate_query_request(body: Any, limits: LimitConfig) -> SignalsQuery:
     if not isinstance(selector, dict):
         raise ApiError(HTTPStatus.BAD_REQUEST, "invalid_argument", "selector must be an object")
 
+    runtime_names = ensure_string_list(
+        selector.get("runtime_names"),
+        "selector.runtime_names",
+        limits.max_selector_items,
+    )
     provider_ids = ensure_string_list(selector.get("provider_ids"), "selector.provider_ids", limits.max_selector_items)
     device_ids = ensure_string_list(selector.get("device_ids"), "selector.device_ids", limits.max_selector_items)
     signal_ids = ensure_string_list(selector.get("signal_ids"), "selector.signal_ids", limits.max_selector_items)
@@ -436,6 +448,7 @@ def validate_query_request(body: Any, limits: LimitConfig) -> SignalsQuery:
         resolution=resolution,
         fmt=fmt,
         columns=columns,
+        runtime_names=runtime_names,
         provider_ids=provider_ids,
         device_ids=device_ids,
         signal_ids=signal_ids,
@@ -470,6 +483,7 @@ def build_base_flux_lines(request: SignalsQuery, bucket: str) -> list[str]:
     ]
 
     for field_name, values in (
+        ("runtime_name", request.runtime_names),
         ("provider_id", request.provider_ids),
         ("device_id", request.device_ids),
         ("signal_id", request.signal_ids),
@@ -517,14 +531,14 @@ def build_downsample_query(request: SignalsQuery, bucket: str) -> str:
             "",
             "union(tables:[numeric, non_numeric])",
             (
-                '  |> pivot(rowKey:["_time","provider_id","device_id","signal_id"], '
+                '  |> pivot(rowKey:["_time","runtime_name","provider_id","device_id","signal_id"], '
                 'columnKey:["_field"], valueColumn:"_value")'
             ),
             (
-                '  |> keep(columns:["_time","provider_id","device_id","signal_id","quality",'
+                '  |> keep(columns:["_time","runtime_name","provider_id","device_id","signal_id","quality",'
                 '"value_double","value_int","value_uint","value_bool","value_string"])'
             ),
-            '  |> sort(columns:["_time","provider_id","device_id","signal_id"])',
+            '  |> sort(columns:["_time","runtime_name","provider_id","device_id","signal_id"])',
         ]
     )
 
@@ -535,14 +549,14 @@ def build_raw_or_project_query(request: SignalsQuery, bucket: str) -> str:
     lines.extend(
         [
             (
-                '  |> pivot(rowKey:["_time","provider_id","device_id","signal_id"], '
+                '  |> pivot(rowKey:["_time","runtime_name","provider_id","device_id","signal_id"], '
                 'columnKey:["_field"], valueColumn:"_value")'
             ),
             (
-                '  |> keep(columns:["_time","provider_id","device_id","signal_id","quality",'
+                '  |> keep(columns:["_time","runtime_name","provider_id","device_id","signal_id","quality",'
                 '"value_double","value_int","value_uint","value_bool","value_string"])'
             ),
-            '  |> sort(columns:["_time","provider_id","device_id","signal_id"])',
+            '  |> sort(columns:["_time","runtime_name","provider_id","device_id","signal_id"])',
         ]
     )
 
@@ -641,6 +655,7 @@ def normalize_rows(raw_rows: list[dict[str, str]], columns: list[str]) -> list[d
         value, value_type = infer_value_and_type(raw)
         normalized = {
             "timestamp": raw.get("_time", ""),
+            "runtime_name": raw.get("runtime_name", ""),
             "provider_id": raw.get("provider_id", ""),
             "device_id": raw.get("device_id", ""),
             "signal_id": raw.get("signal_id", ""),
@@ -748,6 +763,7 @@ class ExportService:
         if not auth.enforce_selector_scope:
             return
 
+        self.enforce_scope_dimension(query.runtime_names, auth.allowed_runtime_names, "selector.runtime_names")
         self.enforce_scope_dimension(query.provider_ids, auth.allowed_provider_ids, "selector.provider_ids")
         self.enforce_scope_dimension(query.device_ids, auth.allowed_device_ids, "selector.device_ids")
         self.enforce_scope_dimension(query.signal_ids, auth.allowed_signal_ids, "selector.signal_ids")

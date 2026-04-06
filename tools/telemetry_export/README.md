@@ -43,9 +43,19 @@ If missing, the service generates `X-Request-Id` and defaults requester to
 Config section `authorization` can enforce selector allowlists.
 
 - `authorization.enforce_selector_scope: true`
-- Non-empty `allowed_provider_ids` / `allowed_device_ids` / `allowed_signal_ids`
-  become hard allowlists.
+- Non-empty `allowed_runtime_names` / `allowed_provider_ids` /
+  `allowed_device_ids` / `allowed_signal_ids` become hard allowlists.
 - Violations return `403 permission_denied`.
+
+## Runtime Disambiguation (v1)
+
+Telemetry points include `runtime_name` tag, and exports support:
+
+- `selector.runtime_names` (optional list filter)
+- `runtime_name` output column (included by default)
+
+If `selector.runtime_names` is omitted, results include all matching runtimes in
+the bucket.
 
 ## Downsample Aggregation Matrix (v1)
 
@@ -81,6 +91,7 @@ curl -sS -X POST "http://127.0.0.1:8091/v1/exports/signals:query" \
       "end": "2026-04-01T00:30:00Z"
     },
     "selector": {
+      "runtime_names": ["bioreactor-telemetry"],
       "provider_ids": ["bread0", "ezo0"],
       "device_ids": ["rlht0", "dcmt0", "dcmt1", "ph0", "do0"]
     },
