@@ -473,7 +473,7 @@ def test_load_config_rejects_invalid_server_port(tmp_path: Path):
     assert "server.port" in str(exc_info.value)
 
 
-def test_load_config_rejects_response_size_smaller_than_request_size(tmp_path: Path):
+def test_load_config_allows_response_size_smaller_than_request_size(tmp_path: Path):
     module = _load_module()
 
     cfg_path = tmp_path / "telemetry-export-invalid-limits.yaml"
@@ -501,9 +501,9 @@ def test_load_config_rejects_response_size_smaller_than_request_size(tmp_path: P
         encoding="utf-8",
     )
 
-    with pytest.raises(RuntimeError) as exc_info:
-        module.load_config(cfg_path)
-    assert "limits.max_response_bytes" in str(exc_info.value)
+    loaded = module.load_config(cfg_path)
+    assert loaded.limits.max_response_bytes == 1000
+    assert loaded.limits.max_request_bytes == 200000
 
 
 def test_load_config_rejects_scope_enforcement_without_allowlists(tmp_path: Path):

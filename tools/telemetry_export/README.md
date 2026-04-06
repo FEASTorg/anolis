@@ -192,7 +192,7 @@ python tools/telemetry_export/examples/query_signals.py \
 1. MVP scope is `signals` only.
 2. Completeness is best-effort under current telemetry overflow behavior.
 3. `bytes` vs `string` fidelity remains a documented MVP limitation.
-4. Config validates field ranges and semantics (for example: `server.port`,
-   positive limits, and `max_response_bytes >= max_request_bytes`).
+4. Config validates field ranges and semantics (for example: `server.port`
+   bounds and positive limit values).
 5. `authorization.enforce_selector_scope=true` requires at least one non-empty
    `allowed_*` allowlist.

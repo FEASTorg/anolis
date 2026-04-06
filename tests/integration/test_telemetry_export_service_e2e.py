@@ -93,12 +93,26 @@ def export_service_process() -> tuple[subprocess.Popen[str], dict]:
         try:
             _wait_for_http_ok("http://127.0.0.1:18091/v1/health", timeout_seconds=30)
             yield process, service_cfg
+        except Exception as exc:
+            exit_code = process.poll()
+            startup_output = ""
+            if exit_code is not None and process.stdout is not None:
+                try:
+                    startup_output = process.stdout.read().strip()
+                except Exception:
+                    startup_output = "<unable to read process output>"
+            detail = (
+                f"export service failed to start (exit_code={exit_code}). "
+                f"startup_output={startup_output or '<none>'}"
+            )
+            raise RuntimeError(detail) from exc
         finally:
-            process.terminate()
-            try:
-                process.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                process.kill()
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    process.kill()
 
 
 def test_export_service_e2e_paths(export_service_process: tuple[subprocess.Popen[str], dict]) -> None:

@@ -161,11 +161,6 @@ def load_config(path: Path) -> AppConfig:
         ),
     )
 
-    if limits.max_response_bytes < limits.max_request_bytes:
-        raise RuntimeError(
-            "Invalid config at limits.max_response_bytes: must be >= limits.max_request_bytes"
-        )
-
     if authorization.enforce_selector_scope and not any(
         (
             authorization.allowed_runtime_names,
