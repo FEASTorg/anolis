@@ -14,6 +14,8 @@ import hmac
 import json
 import logging
 import tempfile
+import threading
+import uuid
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -25,13 +27,19 @@ from tools.telemetry_export.export_core.influx_client import influx_query_csv, i
 from tools.telemetry_export.export_core.models import (
     ApiError,
     AppConfig,
-    CsvSpoolResult,
+    AuthorizationConfig,
+    InfluxConfig,
+    LimitConfig,
+    Resolution,
+    ServerConfig,
     SignalsQuery,
+    SpoolResult,
 )
 from tools.telemetry_export.export_core.serialization import (
     build_manifest,
     coerce_request_id,
     coerce_requester_id,
+    compute_manifest_hash,
     iter_influx_csv_rows,
     json_error_payload,
     normalize_row,
@@ -42,6 +50,40 @@ from tools.telemetry_export.export_core.serialization import (
 from tools.telemetry_export.export_core.validation import validate_query_request
 
 LOGGER = logging.getLogger("telemetry_export")
+
+# Re-export selected helpers for compatibility with existing tests/tools.
+__all__ = [
+    "ApiError",
+    "AppConfig",
+    "AuthorizationConfig",
+    "ExportService",
+    "InfluxConfig",
+    "LimitConfig",
+    "Resolution",
+    "ServerConfig",
+    "SignalsQuery",
+    "build_flux_query",
+    "influx_query_csv",
+    "influx_query_csv_stream",
+    "load_config",
+    "normalize_row",
+    "normalize_rows",
+    "parse_influx_csv_rows",
+    "render_csv",
+    "validate_query_request",
+]
+
+CONTENT_TYPE_BY_FORMAT = {
+    "csv": "text/csv; charset=utf-8",
+    "json": "application/json",
+    "ndjson": "application/x-ndjson; charset=utf-8",
+}
+
+SUFFIX_BY_FORMAT = {
+    "csv": ".csv",
+    "json": ".json",
+    "ndjson": ".ndjson",
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -55,11 +97,40 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+class _BoundedTextWriter:
+    """UTF-8 text writer with deterministic max-byte enforcement."""
+
+    def __init__(self, handle: Any, max_bytes: int):
+        self._handle = handle
+        self._max_bytes = max_bytes
+        self._bytes_written = 0
+
+    def write(self, text: str) -> int:
+        encoded = text.encode("utf-8")
+        self._bytes_written += len(encoded)
+        if self._bytes_written > self._max_bytes:
+            raise ApiError(
+                HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                "limit_exceeded",
+                f"response exceeds max_response_bytes={self._max_bytes}",
+            )
+        return self._handle.write(text)
+
+    def flush(self) -> None:
+        self._handle.flush()
+
+    @property
+    def bytes_written(self) -> int:
+        return self._bytes_written
+
+
 class ExportService:
     """In-memory request handler facade for the HTTP layer."""
 
     def __init__(self, config: AppConfig):
         self.config = config
+        self._manifest_lock = threading.Lock()
+        self._manifest_by_export_id: dict[str, dict[str, Any]] = {}
 
     def authorize(self, authorization_header: str | None) -> None:
         if not authorization_header or not authorization_header.startswith("Bearer "):
@@ -100,6 +171,20 @@ class ExportService:
                 f"{field_name} contains unauthorized values: {', '.join(denied[:5])}",
             )
 
+    def get_manifest(self, export_id: str) -> dict[str, Any] | None:
+        with self._manifest_lock:
+            record = self._manifest_by_export_id.get(export_id)
+            if record is None:
+                return None
+            return dict(record["manifest"])
+
+    def _store_manifest(self, export_id: str, manifest: dict[str, Any], manifest_hash: str) -> None:
+        with self._manifest_lock:
+            self._manifest_by_export_id[export_id] = {
+                "manifest_hash": manifest_hash,
+                "manifest": manifest,
+            }
+
     def execute_query(
         self,
         request_body: Any,
@@ -117,8 +202,8 @@ class ExportService:
         request_id: str = "unknown",
         requester_id: str = "anonymous",
     ) -> tuple[int, dict[str, Any]]:
+        # Backward-compatible in-memory helper used by unit tests and direct callers.
         self.enforce_scope(query)
-
         flux_query = build_flux_query(query, self.config.influx.bucket)
         csv_text = influx_query_csv(self.config, flux_query)
         raw_rows = parse_influx_csv_rows(csv_text)
@@ -131,13 +216,17 @@ class ExportService:
             )
 
         normalized_rows = normalize_rows(raw_rows, query.columns)
+        export_id = str(uuid.uuid4())
         manifest = build_manifest(
             query,
             self.config,
             row_count=len(normalized_rows),
+            export_id=export_id,
             request_id=request_id,
             requester_id=requester_id,
         )
+        manifest_hash = compute_manifest_hash(manifest)
+        self._store_manifest(export_id, manifest, manifest_hash)
 
         if query.fmt == "json":
             payload = {
@@ -147,7 +236,6 @@ class ExportService:
                 "manifest": manifest,
                 "data": normalized_rows,
             }
-
             encoded = json.dumps(payload, separators=(",", ":")).encode("utf-8")
             if len(encoded) > self.config.limits.max_response_bytes:
                 raise ApiError(
@@ -155,8 +243,23 @@ class ExportService:
                     "limit_exceeded",
                     f"response exceeds max_response_bytes={self.config.limits.max_response_bytes}",
                 )
-
             return HTTPStatus.OK, payload
+
+        if query.fmt == "ndjson":
+            ndjson_body = "".join(json.dumps(row, separators=(",", ":")) + "\n" for row in normalized_rows)
+            if len(ndjson_body.encode("utf-8")) > self.config.limits.max_response_bytes:
+                raise ApiError(
+                    HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                    "limit_exceeded",
+                    f"response exceeds max_response_bytes={self.config.limits.max_response_bytes}",
+                )
+            return HTTPStatus.OK, {
+                "status": "ok",
+                "dataset": "signals",
+                "format": "ndjson",
+                "manifest": manifest,
+                "ndjson_body": ndjson_body,
+            }
 
         csv_body = render_csv(normalized_rows, query.columns)
         if len(csv_body.encode("utf-8")) > self.config.limits.max_response_bytes:
@@ -174,37 +277,37 @@ class ExportService:
             "csv_body": csv_body,
         }
 
-    def execute_csv_spooled_query(
+    def execute_spooled_query(
         self,
         request_body: Any,
         *,
         request_id: str = "unknown",
         requester_id: str = "anonymous",
-    ) -> CsvSpoolResult:
+    ) -> SpoolResult:
         query = validate_query_request(request_body, self.config.limits)
-        return self.execute_csv_spooled_query_from_query(
+        return self.execute_spooled_query_from_query(
             query,
             request_id=request_id,
             requester_id=requester_id,
         )
 
-    def execute_csv_spooled_query_from_query(
+    def execute_spooled_query_from_query(
         self,
         query: SignalsQuery,
         *,
         request_id: str = "unknown",
         requester_id: str = "anonymous",
-    ) -> CsvSpoolResult:
+    ) -> SpoolResult:
         self.enforce_scope(query)
-        if query.fmt != "csv":
-            raise ApiError(
-                HTTPStatus.BAD_REQUEST,
-                "invalid_argument",
-                "execute_csv_spooled_query requires format=csv",
-            )
 
         flux_query = build_flux_query(query, self.config.influx.bucket)
         response = influx_query_csv_stream(self.config, flux_query)
+
+        suffix = SUFFIX_BY_FORMAT.get(query.fmt)
+        content_type = CONTENT_TYPE_BY_FORMAT.get(query.fmt)
+        if suffix is None or content_type is None:
+            response.close()
+            raise ApiError(HTTPStatus.BAD_REQUEST, "invalid_argument", f"unsupported format: {query.fmt}")
 
         tmp_file = tempfile.NamedTemporaryFile(
             mode="w",
@@ -212,14 +315,22 @@ class ExportService:
             newline="",
             delete=False,
             prefix="anolis_export_",
-            suffix=".csv",
+            suffix=suffix,
         )
         tmp_path = Path(tmp_file.name)
+        bounded_writer = _BoundedTextWriter(tmp_file, self.config.limits.max_response_bytes)
+        export_id = str(uuid.uuid4())
         row_count = 0
 
         try:
-            writer = csv.DictWriter(tmp_file, fieldnames=query.columns)
-            writer.writeheader()
+            if query.fmt == "csv":
+                csv_writer = csv.DictWriter(bounded_writer, fieldnames=query.columns)
+                csv_writer.writeheader()
+            elif query.fmt == "json":
+                bounded_writer.write('{"status":"ok","dataset":"signals","format":"json","data":[')
+                json_first = True
+            else:
+                json_first = False
 
             for raw_row in iter_influx_csv_rows(response):
                 row_count += 1
@@ -229,32 +340,48 @@ class ExportService:
                         "limit_exceeded",
                         f"row count exceeds max_rows={self.config.limits.max_rows}",
                     )
-                writer.writerow(normalize_row(raw_row, query.columns))
 
-            tmp_file.flush()
-            tmp_file.close()
-            response.close()
+                normalized = normalize_row(raw_row, query.columns)
 
-            content_length = tmp_path.stat().st_size
-            if content_length > self.config.limits.max_response_bytes:
-                raise ApiError(
-                    HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
-                    "limit_exceeded",
-                    f"response exceeds max_response_bytes={self.config.limits.max_response_bytes}",
-                )
+                if query.fmt == "csv":
+                    csv_writer.writerow(normalized)
+                elif query.fmt == "json":
+                    if not json_first:
+                        bounded_writer.write(",")
+                    bounded_writer.write(json.dumps(normalized, separators=(",", ":")))
+                    json_first = False
+                else:
+                    bounded_writer.write(json.dumps(normalized, separators=(",", ":")))
+                    bounded_writer.write("\n")
 
             manifest = build_manifest(
                 query,
                 self.config,
                 row_count=row_count,
+                export_id=export_id,
                 request_id=request_id,
                 requester_id=requester_id,
             )
+            manifest_hash = compute_manifest_hash(manifest)
+            self._store_manifest(export_id, manifest, manifest_hash)
 
-            return CsvSpoolResult(
+            if query.fmt == "json":
+                bounded_writer.write('],"manifest":')
+                bounded_writer.write(json.dumps(manifest, separators=(",", ":")))
+                bounded_writer.write("}")
+
+            bounded_writer.flush()
+            tmp_file.close()
+            response.close()
+
+            return SpoolResult(
                 path=tmp_path,
+                fmt=query.fmt,
+                content_type=content_type,
                 row_count=row_count,
-                content_length=content_length,
+                content_length=bounded_writer.bytes_written,
+                export_id=export_id,
+                manifest_hash=manifest_hash,
                 manifest=manifest,
             )
         except Exception:
@@ -266,6 +393,39 @@ class ExportService:
             if tmp_path.exists():
                 tmp_path.unlink(missing_ok=True)
             raise
+
+    # Backward-compatible aliases kept for existing tests/callers.
+    def execute_csv_spooled_query(
+        self,
+        request_body: Any,
+        *,
+        request_id: str = "unknown",
+        requester_id: str = "anonymous",
+    ) -> SpoolResult:
+        result = self.execute_spooled_query(
+            request_body,
+            request_id=request_id,
+            requester_id=requester_id,
+        )
+        if result.fmt != "csv":
+            raise ApiError(HTTPStatus.BAD_REQUEST, "invalid_argument", "format must be csv")
+        return result
+
+    def execute_csv_spooled_query_from_query(
+        self,
+        query: SignalsQuery,
+        *,
+        request_id: str = "unknown",
+        requester_id: str = "anonymous",
+    ) -> SpoolResult:
+        result = self.execute_spooled_query_from_query(
+            query,
+            request_id=request_id,
+            requester_id=requester_id,
+        )
+        if result.fmt != "csv":
+            raise ApiError(HTTPStatus.BAD_REQUEST, "invalid_argument", "format must be csv")
+        return result
 
 
 class ExportRequestHandler(BaseHTTPRequestHandler):
@@ -282,6 +442,33 @@ class ExportRequestHandler(BaseHTTPRequestHandler):
         if self.path == "/v1/health":
             self.send_json(HTTPStatus.OK, {"status": "ok"}, request_id=request_id)
             return
+
+        prefix = "/v1/exports/manifests/"
+        if self.path.startswith(prefix):
+            self.service.authorize(self.headers.get("Authorization"))
+            export_id = self.path[len(prefix) :].strip()
+            if not export_id:
+                self.send_json(
+                    HTTPStatus.BAD_REQUEST,
+                    json_error_payload("invalid_argument", "export_id is required"),
+                    request_id=request_id,
+                )
+                return
+            manifest = self.service.get_manifest(export_id)
+            if manifest is None:
+                self.send_json(
+                    HTTPStatus.NOT_FOUND,
+                    json_error_payload("not_found", f"manifest not found for export_id={export_id}"),
+                    request_id=request_id,
+                )
+                return
+            self.send_json(
+                HTTPStatus.OK,
+                {"status": "ok", "export_id": export_id, "manifest": manifest},
+                request_id=request_id,
+            )
+            return
+
         self.send_json(
             HTTPStatus.NOT_FOUND,
             json_error_payload("not_found", "route not found"),
@@ -306,32 +493,24 @@ class ExportRequestHandler(BaseHTTPRequestHandler):
             self.service.authorize(self.headers.get("Authorization"))
             body = self.read_json_body(self.service.config.limits.max_request_bytes)
             query = validate_query_request(body, self.service.config.limits)
-            if query.fmt == "csv":
-                result = self.service.execute_csv_spooled_query_from_query(
-                    query,
-                    request_id=request_id,
-                    requester_id=requester_id,
-                )
-                try:
-                    self.send_csv_file(
-                        HTTPStatus.OK,
-                        csv_path=result.path,
-                        content_length=result.content_length,
-                        manifest=result.manifest,
-                        request_id=request_id,
-                        requester_id=requester_id,
-                    )
-                finally:
-                    result.path.unlink(missing_ok=True)
-                return
-
-            status, payload = self.service.execute_query_from_query(
+            result = self.service.execute_spooled_query_from_query(
                 query,
                 request_id=request_id,
                 requester_id=requester_id,
             )
-
-            self.send_json(status, payload, request_id=request_id)
+            try:
+                self.send_file_response(
+                    HTTPStatus.OK,
+                    export_path=result.path,
+                    content_length=result.content_length,
+                    content_type=result.content_type,
+                    export_id=result.export_id,
+                    manifest_hash=result.manifest_hash,
+                    request_id=request_id,
+                    requester_id=requester_id,
+                )
+            finally:
+                result.path.unlink(missing_ok=True)
         except ApiError as exc:
             LOGGER.warning(
                 "request_id=%s api_error status=%s code=%s message=%s",
@@ -379,27 +558,27 @@ class ExportRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def send_csv_file(
+    def send_file_response(
         self,
         status: int | HTTPStatus,
         *,
-        csv_path: Path,
+        export_path: Path,
         content_length: int,
-        manifest: Any,
+        content_type: str,
+        export_id: str,
+        manifest_hash: str,
         request_id: str,
         requester_id: str,
     ) -> None:
         self.send_response(int(status))
-        self.send_header("Content-Type", "text/csv; charset=utf-8")
+        self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(content_length))
         self.send_header("X-Request-Id", request_id)
         self.send_header("X-Requester-Id", requester_id)
-
-        if isinstance(manifest, dict):
-            self.send_header("X-Export-Manifest", json.dumps(manifest, separators=(",", ":")))
-
+        self.send_header("X-Export-Id", export_id)
+        self.send_header("X-Export-Manifest-Hash", manifest_hash)
         self.end_headers()
-        with csv_path.open("rb") as handle:
+        with export_path.open("rb") as handle:
             while True:
                 chunk = handle.read(64 * 1024)
                 if not chunk:

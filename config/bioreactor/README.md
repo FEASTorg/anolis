@@ -235,6 +235,32 @@ curl -sS -D /tmp/export.headers \
   }'
 ```
 
+Fetch the CSV manifest by export id:
+
+```bash
+export EXPORT_ID=$(grep -i '^X-Export-Id:' /tmp/export.headers | awk '{print $2}' | tr -d '\r')
+curl -sS "http://127.0.0.1:8091/v1/exports/manifests/${EXPORT_ID}" \
+  -H "Authorization: Bearer export-dev-token"
+```
+
+Raw-event query (`ndjson` response):
+
+```bash
+curl -sS -X POST "http://127.0.0.1:8091/v1/exports/signals:query" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer export-dev-token" \
+  -d '{
+    "time_range": {
+      "start": "2026-04-01T00:00:00Z",
+      "end": "2026-04-01T00:30:00Z"
+    },
+    "resolution": {
+      "mode": "raw_event"
+    },
+    "format": "ndjson"
+  }'
+```
+
 Programmatic example:
 
 ```bash
@@ -253,14 +279,19 @@ MVP constraints:
 3. Completeness is best-effort under current telemetry overflow behavior.
 4. `bytes` vs `string` fidelity remains a known MVP limitation.
 5. `X-Request-Id` is always emitted; `X-Requester-Id` is optional.
-6. Optional selector scope enforcement can return `403 permission_denied`.
-7. Selector supports optional `runtime_names` for multi-runtime disambiguation.
-8. `timezone` request input is not supported in v1 (timestamps are always UTC).
-9. In downsample mode:
+6. Export responses include `X-Export-Id` and `X-Export-Manifest-Hash`; full
+   manifest payload is available in JSON responses and at
+   `GET /v1/exports/manifests/{export_id}`.
+7. Optional selector scope enforcement can return `403 permission_denied`.
+8. Selector supports optional `runtime_names` for multi-runtime disambiguation.
+9. `timezone` request input is not supported in v1 (timestamps are always UTC).
+10. In downsample mode:
    - numeric fields use requested aggregation (`last|mean|min|max|count`);
    - `value_bool`, `value_string`, and `quality` use `last`;
    - requesting `value_bool`/`value_string` columns with non-`last` aggregation returns `400 invalid_argument`.
-10. `format=csv` uses a bounded-memory spool-to-file path before response streaming; limit violations still return deterministic API errors.
+11. `json`, `csv`, and `ndjson` all use a bounded-memory spool-to-file path
+    before response streaming; limit violations still return deterministic API
+    errors.
 
 Stop observability stack when finished:
 

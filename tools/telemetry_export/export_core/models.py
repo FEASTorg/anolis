@@ -28,7 +28,7 @@ ALLOWED_COLUMNS = set(DEFAULT_COLUMNS).union(
     }
 )
 
-ALLOWED_FORMATS = {"json", "csv"}
+ALLOWED_FORMATS = {"json", "csv", "ndjson"}
 ALLOWED_RESOLUTION_MODES = {"raw_event", "downsampled"}
 ALLOWED_AGGREGATIONS = {"last", "mean", "min", "max", "count"}
 NUMERIC_VALUE_FIELDS = ("value_double", "value_int", "value_uint")
@@ -111,8 +111,12 @@ class SignalsQuery:
 
 
 @dataclass(frozen=True)
-class CsvSpoolResult:
+class SpoolResult:
     path: Path
+    fmt: str
+    content_type: str
     row_count: int
     content_length: int
+    export_id: str
+    manifest_hash: str
     manifest: dict[str, Any]

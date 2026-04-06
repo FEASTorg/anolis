@@ -10,12 +10,15 @@ for `signals` exports. It intentionally does not add export routes to
 
 1. `GET /v1/health`
 2. `POST /v1/exports/signals:query`
+3. `GET /v1/exports/manifests/{export_id}`
 
 ## Auth
 
 Use bearer token auth on every export request:
 
 - Header: `Authorization: Bearer <token>`
+
+This applies to both query and manifest routes.
 
 Token comes from service config (`server.auth_token`).
 Token precedence:
@@ -37,6 +40,14 @@ Optional headers for traceability:
 
 If missing, the service generates `X-Request-Id` and defaults requester to
 `anonymous`. Successful responses include `X-Request-Id`.
+
+Export responses also include:
+
+1. `X-Export-Id`
+2. `X-Export-Manifest-Hash` (`sha256:...`)
+
+The full manifest is always available in JSON bodies and via
+`GET /v1/exports/manifests/{export_id}`.
 
 ## Optional Scope Enforcement
 
@@ -70,6 +81,17 @@ For `resolution.mode=downsampled`:
 `timezone` request input is not supported in v1.
 All timestamps are exported in UTC (`RFC3339 Z`).
 Supplying `timezone` returns `400 invalid_argument`.
+
+## Response Formats
+
+`format` supports:
+
+1. `json`
+2. `csv`
+3. `ndjson`
+
+All formats use a bounded-memory spool-to-file pipeline before response
+streaming to avoid assembling full exports in RAM.
 
 ## Run
 
@@ -106,7 +128,7 @@ curl -sS -X POST "http://127.0.0.1:8091/v1/exports/signals:query" \
 
 `format=csv` returns a `text/csv` body. The service writes CSV to a temporary
 spool file first (bounded memory path), enforces row/size limits, then streams
-the file to the response. Manifest metadata is returned in `X-Export-Manifest`.
+the file to the response.
 
 ```bash
 curl -sS -D /tmp/export.headers \
@@ -128,6 +150,32 @@ curl -sS -D /tmp/export.headers \
   }'
 ```
 
+Fetch manifest metadata for the CSV response:
+
+```bash
+export EXPORT_ID=$(grep -i '^X-Export-Id:' /tmp/export.headers | awk '{print $2}' | tr -d '\r')
+curl -sS "http://127.0.0.1:8091/v1/exports/manifests/${EXPORT_ID}" \
+  -H "Authorization: Bearer export-dev-token"
+```
+
+## Example Query (NDJSON Response)
+
+```bash
+curl -sS -X POST "http://127.0.0.1:8091/v1/exports/signals:query" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer export-dev-token" \
+  -d '{
+    "time_range": {
+      "start": "2026-04-01T00:00:00Z",
+      "end": "2026-04-01T00:30:00Z"
+    },
+    "resolution": {
+      "mode": "raw_event"
+    },
+    "format": "ndjson"
+  }'
+```
+
 ## Programmatic Example
 
 ```bash
@@ -144,5 +192,7 @@ python tools/telemetry_export/examples/query_signals.py \
 1. MVP scope is `signals` only.
 2. Completeness is best-effort under current telemetry overflow behavior.
 3. `bytes` vs `string` fidelity remains a documented MVP limitation.
-4. `format=json` remains synchronous/in-memory and is bounded by `limits.max_rows`
-   and `limits.max_response_bytes`.
+4. Config validates field ranges and semantics (for example: `server.port`,
+   positive limits, and `max_response_bytes >= max_request_bytes`).
+5. `authorization.enforce_selector_scope=true` requires at least one non-empty
+   `allowed_*` allowlist.

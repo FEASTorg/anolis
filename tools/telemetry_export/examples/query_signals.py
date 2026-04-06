@@ -16,7 +16,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--token", default="export-dev-token", help="Bearer token")
     parser.add_argument("--start", required=True, help="RFC3339 UTC start timestamp")
     parser.add_argument("--end", required=True, help="RFC3339 UTC end timestamp")
-    parser.add_argument("--format", choices=["json", "csv"], default="json")
+    parser.add_argument("--format", choices=["json", "csv", "ndjson"], default="json")
     parser.add_argument("--runtime", action="append", default=[], help="runtime_name filter (repeatable)")
     parser.add_argument("--provider", action="append", default=[], help="provider_id filter (repeatable)")
     parser.add_argument("--device", action="append", default=[], help="device_id filter (repeatable)")
@@ -65,6 +65,12 @@ def main() -> int:
     request_id = response.headers.get("X-Request-Id", "")
     if request_id:
         print(f"request_id={request_id}", file=sys.stderr)
+    export_id = response.headers.get("X-Export-Id", "")
+    if export_id:
+        print(f"export_id={export_id}", file=sys.stderr)
+    manifest_hash = response.headers.get("X-Export-Manifest-Hash", "")
+    if manifest_hash:
+        print(f"manifest_hash={manifest_hash}", file=sys.stderr)
 
     if response.status_code != 200:
         print(response.text)
@@ -77,9 +83,26 @@ def main() -> int:
         return 0
 
     if content_type.startswith("text/csv"):
-        manifest = response.headers.get("X-Export-Manifest", "")
-        if manifest:
-            print("manifest=" + manifest, file=sys.stderr)
+        if export_id:
+            manifest_response = requests.get(
+                f"{args.base_url.rstrip('/')}/v1/exports/manifests/{export_id}",
+                headers={"Authorization": f"Bearer {args.token}"},
+                timeout=20,
+            )
+            if manifest_response.status_code == 200:
+                print("manifest=" + manifest_response.text, file=sys.stderr)
+        print(response.text)
+        return 0
+
+    if content_type.startswith("application/x-ndjson"):
+        if export_id:
+            manifest_response = requests.get(
+                f"{args.base_url.rstrip('/')}/v1/exports/manifests/{export_id}",
+                headers={"Authorization": f"Bearer {args.token}"},
+                timeout=20,
+            )
+            if manifest_response.status_code == 200:
+                print("manifest=" + manifest_response.text, file=sys.stderr)
         print(response.text)
         return 0
 

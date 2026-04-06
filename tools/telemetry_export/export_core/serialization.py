@@ -129,6 +129,7 @@ def build_manifest(
     config: AppConfig,
     row_count: int,
     *,
+    export_id: str,
     request_id: str,
     requester_id: str,
 ) -> dict[str, Any]:
@@ -140,6 +141,7 @@ def build_manifest(
 
     return {
         "schema_version": 1,
+        "export_id": export_id,
         "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "request_hash": f"sha256:{request_hash}",
         "request_id": request_id,
@@ -156,6 +158,11 @@ def build_manifest(
         "resolution": resolution,
         "row_count": row_count,
     }
+
+
+def compute_manifest_hash(manifest: dict[str, Any]) -> str:
+    encoded = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return f"sha256:{hashlib.sha256(encoded).hexdigest()}"
 
 
 def render_csv(rows: list[dict[str, Any]], columns: list[str]) -> str:
