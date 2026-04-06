@@ -45,9 +45,7 @@ def resolve_secret(*, env_name: str, config_value: str, field_name: str) -> str:
     if config_value:
         return config_value
 
-    raise RuntimeError(
-        f"Invalid config: {field_name} must be set (or provide env override {env_name})"
-    )
+    raise RuntimeError(f"Invalid config: {field_name} must be set (or provide env override {env_name})")
 
 
 def load_config(path: Path) -> AppConfig:

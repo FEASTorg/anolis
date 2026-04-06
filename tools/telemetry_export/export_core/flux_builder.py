@@ -59,23 +59,13 @@ def build_downsample_query(request: SignalsQuery, bucket: str) -> str:
             "numeric = (",
             base,
             f"  |> filter(fn:(r) => {numeric_filter})",
-            (
-                "  |> aggregateWindow("
-                f"every: {request.resolution.interval}, "
-                f"fn: {numeric_agg}, "
-                "createEmpty: false)"
-            ),
+            (f"  |> aggregateWindow(every: {request.resolution.interval}, fn: {numeric_agg}, createEmpty: false)"),
             ")",
             "",
             "non_numeric = (",
             base,
             f"  |> filter(fn:(r) => {non_numeric_filter})",
-            (
-                "  |> aggregateWindow("
-                f"every: {request.resolution.interval}, "
-                "fn: last, "
-                "createEmpty: false)"
-            ),
+            (f"  |> aggregateWindow(every: {request.resolution.interval}, fn: last, createEmpty: false)"),
             ")",
             "",
             "union(tables:[numeric, non_numeric])",

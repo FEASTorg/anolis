@@ -146,11 +146,11 @@ def test_build_flux_query_includes_expected_filters_and_aggregate_window():
     parsed = module.validate_query_request(request, cfg.limits)
     flux = module.build_flux_query(parsed, cfg.influx.bucket)
 
-    assert "r._measurement == \"anolis_signal\"" in flux
-    assert "r.runtime_name == \"bioreactor-telemetry\"" in flux
-    assert "r.provider_id == \"bread0\"" in flux
-    assert "r.device_id == \"rlht0\"" in flux
-    assert "r.signal_id == \"tc1_temp\"" in flux
+    assert 'r._measurement == "anolis_signal"' in flux
+    assert 'r.runtime_name == "bioreactor-telemetry"' in flux
+    assert 'r.provider_id == "bread0"' in flux
+    assert 'r.device_id == "rlht0"' in flux
+    assert 'r.signal_id == "tc1_temp"' in flux
     assert "aggregateWindow(every: 10s, fn: last, createEmpty: false)" in flux
 
 
@@ -409,7 +409,9 @@ def test_execute_query_from_query_does_not_revalidate(monkeypatch: pytest.Monkey
     }
     parsed = module.validate_query_request(request, cfg.limits)
 
-    monkeypatch.setattr(module, "validate_query_request", lambda _body, _limits: (_ for _ in ()).throw(AssertionError()))
+    monkeypatch.setattr(
+        module, "validate_query_request", lambda _body, _limits: (_ for _ in ()).throw(AssertionError())
+    )
     monkeypatch.setattr(module, "influx_query_csv", lambda _cfg, _query: _sample_csv_rows())
 
     status, payload = svc.execute_query_from_query(parsed, request_id="req-from-query", requester_id="operator-a")
@@ -447,7 +449,9 @@ def test_execute_csv_spooled_query_from_query_does_not_revalidate(monkeypatch: p
         ",,0,2026-04-01T00:00:01Z,bioreactor-telemetry,bread0,rlht0,tc1_temp,OK,23.5,,,,",
     ]
 
-    monkeypatch.setattr(module, "validate_query_request", lambda _body, _limits: (_ for _ in ()).throw(AssertionError()))
+    monkeypatch.setattr(
+        module, "validate_query_request", lambda _body, _limits: (_ for _ in ()).throw(AssertionError())
+    )
     monkeypatch.setattr(module, "influx_query_csv_stream", lambda _cfg, _query: _FakeStreamResponse(fake_lines))
 
     result = svc.execute_csv_spooled_query_from_query(parsed, request_id="req-spooled", requester_id="operator-a")
