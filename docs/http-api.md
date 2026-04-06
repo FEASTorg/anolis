@@ -357,7 +357,12 @@ Get device capabilities (signals and functions).
         "name": "set_mode",
         "label": "Set control mode: open or closed",
         "args": {
-          "mode": {}
+          "mode": {
+            "type": "string",
+            "required": true,
+            "description": "Control mode",
+            "unit": ""
+          }
         }
       },
       {
@@ -365,7 +370,14 @@ Get device capabilities (signals and functions).
         "name": "set_setpoint",
         "label": "Set closed-loop setpoint (C)",
         "args": {
-          "value": {}
+          "value": {
+            "type": "double",
+            "required": true,
+            "description": "Target setpoint in Celsius",
+            "unit": "C",
+            "min": 0.0,
+            "max": 100.0
+          }
         }
       }
     ]
@@ -388,7 +400,18 @@ Get device capabilities (signals and functions).
 | `function_id` | integer | Numeric function ID for calls          |
 | `name`        | string  | Function name                          |
 | `label`       | string  | Human-readable description             |
-| `args`        | object  | Argument names (values are type hints) |
+| `args`        | object  | Argument map keyed by argument name    |
+
+**Function Arg Metadata Fields (`args.<arg_name>`):**
+
+| Field         | Type                | Description                                               |
+| ------------- | ------------------- | --------------------------------------------------------- |
+| `type`        | string              | Value type (`double`, `int64`, `uint64`, `bool`, `string`, `bytes`) |
+| `required`    | boolean             | Whether the argument is required                          |
+| `description` | string (optional)   | Human-readable argument description                       |
+| `unit`        | string (optional)   | Unit label (if provided by provider)                      |
+| `min`         | number/integer (optional) | Numeric lower bound (for numeric types)             |
+| `max`         | number/integer (optional) | Numeric upper bound (for numeric types)             |
 
 ---
 

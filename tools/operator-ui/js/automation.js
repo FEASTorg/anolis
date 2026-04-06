@@ -352,7 +352,10 @@ function renderBTOutline(xmlDoc, node = null, indent = 0, isLast = true) {
  * Add event to trace
  */
 function addEvent(eventType, details, timestampMs) {
-  const timestamp = new Date(timestampMs).toLocaleTimeString();
+  const timestampValue = Number(timestampMs);
+  const timestamp = Number.isFinite(timestampValue) && timestampValue > 0
+    ? new Date(timestampValue).toLocaleTimeString()
+    : new Date().toLocaleTimeString();
   eventBuffer.push({ type: eventType, details, timestamp });
 
   if (eventBuffer.length > CONFIG.MAX_EVENTS) {

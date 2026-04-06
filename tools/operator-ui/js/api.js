@@ -16,7 +16,18 @@ async function fetchApi(endpoint, options = {}) {
         ...options.headers,
       },
     });
-    const data = await response.json();
+    const responseText = await response.text();
+    let data = {};
+    if (responseText) {
+      try {
+        data = JSON.parse(responseText);
+      } catch (_parseErr) {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${responseText}`);
+        }
+        throw new Error(`Invalid JSON response from ${endpoint}`);
+      }
+    }
 
     if (!response.ok) {
       const errorMsg = data.status?.message || `HTTP ${response.status}`;

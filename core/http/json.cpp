@@ -1,5 +1,6 @@
 #include "json.hpp"
 
+#include <algorithm>
 #include <iomanip>
 #include <sstream>
 
@@ -231,13 +232,34 @@ nlohmann::json encode_function_spec(const registry::FunctionSpec &spec) {
 
 nlohmann::json encode_capabilities(const registry::DeviceCapabilitySet &caps) {
     nlohmann::json signals = nlohmann::json::array();
+    std::vector<std::reference_wrapper<const registry::SignalSpec>> sorted_signals;
+    sorted_signals.reserve(caps.signals_by_id.size());
     for (const auto &[id, spec] : caps.signals_by_id) {
-        signals.push_back(encode_signal_spec(spec));
+        (void)id;
+        sorted_signals.emplace_back(std::cref(spec));
+    }
+    std::sort(sorted_signals.begin(), sorted_signals.end(), [](const auto &a, const auto &b) {
+        return a.get().signal_id < b.get().signal_id;
+    });
+    for (const auto &spec : sorted_signals) {
+        signals.push_back(encode_signal_spec(spec.get()));
     }
 
     nlohmann::json functions = nlohmann::json::array();
+    std::vector<std::reference_wrapper<const registry::FunctionSpec>> sorted_functions;
+    sorted_functions.reserve(caps.functions_by_id.size());
     for (const auto &[id, spec] : caps.functions_by_id) {
-        functions.push_back(encode_function_spec(spec));
+        (void)id;
+        sorted_functions.emplace_back(std::cref(spec));
+    }
+    std::sort(sorted_functions.begin(), sorted_functions.end(), [](const auto &a, const auto &b) {
+        if (a.get().function_id != b.get().function_id) {
+            return a.get().function_id < b.get().function_id;
+        }
+        return a.get().function_name < b.get().function_name;
+    });
+    for (const auto &spec : sorted_functions) {
+        functions.push_back(encode_function_spec(spec.get()));
     }
 
     return {{"signals", signals}, {"functions", functions}};

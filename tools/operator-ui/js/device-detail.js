@@ -10,6 +10,7 @@ import * as UI from "./ui.js";
 let elements = {};
 let allDevices = []; // Full device list from API
 let deviceStates = {}; // Map of "provider/device" -> {device, signals}
+let deviceCapabilities = {}; // Map of "provider/device" -> normalized capabilities
 let selectedDevice = null; // {provider_id, device_id, device}
 
 /**
@@ -205,7 +206,11 @@ export async function selectDevice(provider, device) {
   // Render device detail
   renderDeviceDetail(state);
 
-  // Load capabilities for functions
+  // Render cached capabilities immediately if present, then refresh from API
+  const capabilityKey = `${provider}/${device}`;
+  if (deviceCapabilities[capabilityKey]) {
+    renderFunctions(deviceCapabilities[capabilityKey]);
+  }
   loadDeviceCapabilities(provider, device);
 
   console.log(`[DeviceDetail] Selected device: ${key}`);
@@ -277,6 +282,7 @@ function renderDeviceDetail(state) {
   `;
 
   elements.detailPanel.innerHTML = html;
+  renderCachedFunctionsForSelected();
 }
 
 /**
@@ -299,19 +305,138 @@ function getAggregateQuality(signals) {
  * Load device capabilities and render functions
  */
 async function loadDeviceCapabilities(provider, device) {
+  const capabilityKey = `${provider}/${device}`;
   try {
     const capabilities = await API.fetchDeviceCapabilities(provider, device);
-    renderFunctions(capabilities);
+    const normalized = normalizeCapabilities(capabilities);
+    deviceCapabilities[capabilityKey] = normalized;
+
+    if (
+      selectedDevice &&
+      selectedDevice.provider_id === provider &&
+      selectedDevice.device_id === device
+    ) {
+      renderFunctions(normalized);
+    }
   } catch (err) {
     console.error(
       `Failed to load capabilities for ${provider}/${device}:`,
       err,
     );
-    const container = document.getElementById("device-functions-container");
-    if (container) {
-      container.innerHTML = '<p class="placeholder">No functions available</p>';
+    // Keep last-known-good cache on transient failures.
+    if (
+      selectedDevice &&
+      selectedDevice.provider_id === provider &&
+      selectedDevice.device_id === device
+    ) {
+      const container = document.getElementById("device-functions-container");
+      if (container && !deviceCapabilities[capabilityKey]) {
+        container.innerHTML = '<p class="placeholder">No functions available</p>';
+      }
     }
   }
+}
+
+function getSelectedDeviceKey() {
+  if (!selectedDevice) return "";
+  return `${selectedDevice.provider_id}/${selectedDevice.device_id}`;
+}
+
+function renderCachedFunctionsForSelected() {
+  const key = getSelectedDeviceKey();
+  if (!key) return;
+  const cached = deviceCapabilities[key];
+  if (cached) {
+    renderFunctions(cached);
+  }
+}
+
+function normalizeCapabilities(capabilities) {
+  const normalized = capabilities ? { ...capabilities } : {};
+  normalized.functions = normalizeFunctions(capabilities?.functions);
+  return normalized;
+}
+
+function normalizeFunctions(functions) {
+  if (!Array.isArray(functions)) return [];
+
+  const normalized = functions.map((func, index) => {
+    const functionId = Number(func?.function_id);
+    const fallbackId = Number.isFinite(functionId) ? functionId : index + 1;
+    const name =
+      typeof func?.name === "string" && func.name.trim() !== ""
+        ? func.name.trim()
+        : typeof func?.function_name === "string" && func.function_name.trim() !== ""
+          ? func.function_name.trim()
+          : `Function ${fallbackId}`;
+    const description =
+      typeof func?.label === "string" && func.label.trim() !== ""
+        ? func.label.trim()
+        : typeof func?.description === "string" && func.description.trim() !== ""
+          ? func.description.trim()
+          : "";
+
+    return {
+      ...func,
+      function_id: fallbackId,
+      name,
+      function_name: name,
+      label: description,
+      description,
+      display_name: name,
+      args: normalizeFunctionArgs(func?.args),
+    };
+  });
+
+  normalized.sort((a, b) => {
+    if (a.function_id !== b.function_id) {
+      return a.function_id - b.function_id;
+    }
+    return a.display_name.localeCompare(b.display_name);
+  });
+
+  return normalized;
+}
+
+function normalizeFunctionArgs(args) {
+  if (Array.isArray(args)) {
+    return args
+      .map((arg, index) => normalizeArgSpec(arg, `arg_${index + 1}`))
+      .filter((arg) => arg.name !== "");
+  }
+
+  if (args && typeof args === "object") {
+    return Object.entries(args)
+      .map(([name, spec]) => normalizeArgSpec(spec, name))
+      .filter((arg) => arg.name !== "")
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  return [];
+}
+
+function normalizeArgSpec(arg, fallbackName = "") {
+  const name =
+    typeof arg?.name === "string" && arg.name.trim() !== ""
+      ? arg.name.trim()
+      : fallbackName;
+  if (typeof name !== "string" || name.trim() === "") {
+    return { name: "", type: "string", required: true };
+  }
+
+  return {
+    name: name.trim(),
+    type:
+      typeof arg?.type === "string" && arg.type.trim() !== ""
+        ? arg.type.trim()
+        : "string",
+    required: arg?.required !== false,
+    min: arg?.min,
+    max: arg?.max,
+    description:
+      typeof arg?.description === "string" ? arg.description.trim() : "",
+    unit: typeof arg?.unit === "string" ? arg.unit.trim() : "",
+  };
 }
 
 /**
@@ -349,23 +474,26 @@ function renderFunctions(capabilities) {
  */
 function renderFunctionForm(func) {
   const formId = `func-${func.function_id}`;
+  const functionName =
+    func.display_name || func.name || func.function_name || `Function ${func.function_id}`;
+  const functionDescription = func.description || func.label || "";
 
   let html = `
     <div class="function-card">
-      <form class="function-form" id="${formId}" data-function-id="${func.function_id}" data-function-name="${UI.escapeHtml(func.function_name || `Function ${func.function_id}`)}">
-        <h4>${UI.escapeHtml(func.function_name || `Function ${func.function_id}`)}</h4>
+      <form class="function-form" id="${formId}" data-function-id="${func.function_id}" data-function-name="${UI.escapeHtml(functionName)}">
+        <h4>${UI.escapeHtml(functionName)}</h4>
   `;
 
-  if (func.description) {
-    html += `<p class="function-description">${UI.escapeHtml(func.description)}</p>`;
+  if (functionDescription) {
+    html += `<p class="function-description">${UI.escapeHtml(functionDescription)}</p>`;
   }
 
   // Render arguments
-  if (func.args && func.args.length > 0) {
+  if (Array.isArray(func.args) && func.args.length > 0) {
     html += '<div class="function-args">';
 
     for (const arg of func.args) {
-      html += renderArgInput(arg);
+      html += renderArgInput(arg, formId);
     }
 
     html += "</div>";
@@ -386,11 +514,12 @@ function renderFunctionForm(func) {
 /**
  * Render an input field for a function argument
  */
-function renderArgInput(arg) {
-  const argId = `arg-${arg.name}`;
+function renderArgInput(arg, formId = "func") {
+  const argId = `${formId}-arg-${arg.name}`;
   const required = arg.required !== false; // Default to required
   const requiredAttr = required ? "required" : "";
   const requiredLabel = required ? ' <span class="required">*</span>' : "";
+  const unitLabel = arg.unit ? ` (${UI.escapeHtml(arg.unit)})` : "";
 
   let input = "";
   const type = arg.type || "string";
@@ -412,7 +541,8 @@ function renderArgInput(arg) {
       break;
 
     case "bool":
-      input = `<input type="checkbox" id="${argId}" name="${arg.name}" ${requiredAttr}>`;
+      // For checkboxes, HTML "required" means "must be checked" (wrong semantics for bool args).
+      input = `<input type="checkbox" id="${argId}" name="${arg.name}">`;
       break;
 
     case "bytes":
@@ -438,7 +568,7 @@ function renderArgInput(arg) {
   return `
     <div class="arg-row">
       <label for="${argId}">
-        ${UI.escapeHtml(arg.name)}${requiredLabel}${hint}
+        ${UI.escapeHtml(arg.name)}${unitLabel}${requiredLabel}${hint}
       </label>
       ${input}
     </div>
@@ -457,7 +587,7 @@ async function handleFunctionSubmit(event) {
   }
 
   const form = event.target;
-  const functionId = parseInt(form.dataset.functionId);
+  const functionId = parseInt(form.dataset.functionId, 10);
   const functionName = form.dataset.functionName;
   const feedback = form.querySelector(".function-feedback");
   const submitBtn = form.querySelector('button[type="submit"]');
@@ -468,16 +598,20 @@ async function handleFunctionSubmit(event) {
   feedback.className = "function-feedback executing";
 
   try {
-    // Build args object from form data
-    const formData = new FormData(form);
+    const selectedKey = getSelectedDeviceKey();
     const args = {};
 
-    // Get function definition to properly type arguments
-    const capabilities = await API.fetchDeviceCapabilities(
-      selectedDevice.provider_id,
-      selectedDevice.device_id,
-    );
-    const funcDef = capabilities.functions.find(
+    let capabilities = deviceCapabilities[selectedKey];
+    if (!capabilities) {
+      const rawCapabilities = await API.fetchDeviceCapabilities(
+        selectedDevice.provider_id,
+        selectedDevice.device_id,
+      );
+      capabilities = normalizeCapabilities(rawCapabilities);
+      deviceCapabilities[selectedKey] = capabilities;
+    }
+
+    const funcDef = (capabilities.functions || []).find(
       (f) => f.function_id === functionId,
     );
 
@@ -485,36 +619,64 @@ async function handleFunctionSubmit(event) {
       throw new Error("Function definition not found");
     }
 
+    const formData = new FormData(form);
+
     // Parse each argument according to its type
     for (const argDef of funcDef.args || []) {
-      const value = formData.get(argDef.name);
+      const inputElement = form.elements[argDef.name];
+      const argType = argDef.type || "string";
 
-      if (value === null || value === "") {
+      if (!inputElement) {
         if (argDef.required !== false) {
           throw new Error(`Missing required argument: ${argDef.name}`);
         }
         continue;
       }
 
-      // Type conversion
-      switch (argDef.type) {
-        case "double":
-          args[argDef.name] = { type: "double", double: parseFloat(value) };
+      if (argType === "bool") {
+        args[argDef.name] = {
+          type: "bool",
+          bool: Boolean(inputElement.checked),
+        };
+        continue;
+      }
+
+      const rawValue = formData.get(argDef.name);
+      const value = typeof rawValue === "string" ? rawValue.trim() : "";
+      if (value === "") {
+        if (argDef.required !== false) {
+          throw new Error(`Missing required argument: ${argDef.name}`);
+        }
+        continue;
+      }
+
+      switch (argType) {
+        case "double": {
+          const parsed = Number(value);
+          if (Number.isNaN(parsed)) {
+            throw new Error(`Invalid double argument: ${argDef.name}`);
+          }
+          args[argDef.name] = { type: "double", double: parsed };
           break;
-        case "int64":
-          args[argDef.name] = { type: "int64", int64: parseInt(value) };
+        }
+        case "int64": {
+          const parsed = Number(value);
+          if (!Number.isInteger(parsed)) {
+            throw new Error(`Invalid int64 argument: ${argDef.name}`);
+          }
+          args[argDef.name] = { type: "int64", int64: parsed };
           break;
-        case "uint64":
-          args[argDef.name] = { type: "uint64", uint64: parseInt(value) };
+        }
+        case "uint64": {
+          const parsed = Number(value);
+          if (!Number.isInteger(parsed) || parsed < 0) {
+            throw new Error(`Invalid uint64 argument: ${argDef.name}`);
+          }
+          args[argDef.name] = { type: "uint64", uint64: parsed };
           break;
-        case "bool":
-          args[argDef.name] = {
-            type: "bool",
-            bool: form.elements[argDef.name].checked,
-          };
-          break;
+        }
         case "bytes":
-          args[argDef.name] = { type: "bytes", bytes: value };
+          args[argDef.name] = { type: "bytes", base64: value };
           break;
         case "string":
         default:
