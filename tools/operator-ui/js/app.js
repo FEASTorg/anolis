@@ -9,7 +9,7 @@ import * as Automation from "./automation.js";
 import * as DeviceOverview from "./device-overview.js";
 import * as DeviceDetail from "./device-detail.js";
 import * as Telemetry from "./telemetry.js";
-import { CONFIG } from "./config.js";
+import { CONFIG, THEMES } from "./config.js";
 
 // DOM elements
 const elements = {
@@ -20,6 +20,7 @@ const elements = {
   errorBanner: document.getElementById("error-banner"),
   errorBannerMessage: document.getElementById("error-banner-message"),
   errorBannerDismiss: document.getElementById("error-banner-dismiss"),
+  themeToggle: document.getElementById("theme-toggle"),
   // Views
   dashboardView: document.getElementById("view-dashboard"),
   devicesView: document.getElementById("view-devices"),
@@ -31,6 +32,7 @@ const elements = {
 };
 
 let currentView = "dashboard";
+let currentTheme = CONFIG.DEFAULT_THEME;
 let errorDismissTimeout = null;
 
 /**
@@ -57,6 +59,62 @@ function hideErrorBanner() {
   if (!elements.errorBanner) return;
   elements.errorBanner.classList.add("hidden");
   if (errorDismissTimeout) clearTimeout(errorDismissTimeout);
+}
+
+/**
+ * Apply theme and refresh toggle copy
+ */
+function applyTheme(theme) {
+  currentTheme = theme;
+  document.documentElement.setAttribute("data-theme", theme);
+
+  if (!elements.themeToggle) return;
+  const nextTheme = theme === "dark" ? "light" : "dark";
+  elements.themeToggle.textContent = nextTheme === "dark" ? "Dark" : "Light";
+  elements.themeToggle.setAttribute("aria-label", `Switch to ${nextTheme} theme`);
+}
+
+/**
+ * Resolve initial theme from local storage or system preference
+ */
+function resolveInitialTheme() {
+  try {
+    const storedTheme = localStorage.getItem(CONFIG.THEME_STORAGE_KEY);
+    if (storedTheme && THEMES.includes(storedTheme)) {
+      return storedTheme;
+    }
+  } catch (err) {
+    console.warn("[App] Failed to read theme preference:", err);
+  }
+
+  if (
+    window.matchMedia &&
+    window.matchMedia("(prefers-color-scheme: light)").matches
+  ) {
+    return "light";
+  }
+
+  return CONFIG.DEFAULT_THEME;
+}
+
+/**
+ * Initialize theme controls
+ */
+function initTheme() {
+  applyTheme(resolveInitialTheme());
+
+  if (!elements.themeToggle) return;
+
+  elements.themeToggle.addEventListener("click", () => {
+    const nextTheme = currentTheme === "dark" ? "light" : "dark";
+    applyTheme(nextTheme);
+
+    try {
+      localStorage.setItem(CONFIG.THEME_STORAGE_KEY, nextTheme);
+    } catch (err) {
+      console.warn("[App] Failed to persist theme preference:", err);
+    }
+  });
 }
 
 /**
@@ -132,13 +190,15 @@ async function init() {
   // Allow runtime API base override via ?api= query parameter.
   // Used by system-composer to point operator-ui at the correct runtime port.
   const params = new URLSearchParams(window.location.search);
-  const apiOverride = params.get('api');
+  const apiOverride = params.get("api");
   if (apiOverride) {
     CONFIG.API_BASE = apiOverride;
     console.log(`[App] API base overridden via URL param: ${CONFIG.API_BASE}`);
   }
 
   console.log("Anolis Control Dashboard starting...");
+
+  initTheme();
 
   // Initialize modules
   Automation.init({
@@ -208,10 +268,7 @@ async function init() {
         UI.updateBadge(elements.connectionBadge, "disconnected");
         elements.connectionBadge.textContent = "Disconnected";
         if (attempts > 0) {
-          showErrorBanner(
-            "Connection to runtime lost. Reconnecting...",
-            "warning",
-          );
+          showErrorBanner("Connection to runtime lost. Reconnecting...", "warning");
         }
       } else if (state === "stale") {
         UI.updateBadge(elements.connectionBadge, "stale");

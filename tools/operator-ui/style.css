@@ -1,16 +1,47 @@
-/* Anolis Control Dashboard - Simplified Single-Page UI */
+/* Anolis Operator UI - Neutral/semantic HMI color model */
 
 :root {
-  --bg-primary: #1a1a2e;
-  --bg-secondary: #16213e;
-  --bg-card: #1e2640;
-  --text-primary: #e4e4e4;
-  --text-secondary: #a0a0a0;
-  --accent: #e94560;
-  --success: #4ade80;
-  --warning: #fbbf24;
-  --error: #ef4444;
-  --border: #2a2a4a;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Semantic colors (fixed across themes) */
+  --color-alarm: #c24a4a;
+  --color-warning: #a77724;
+  --color-interaction: #356fad;
+  --color-normal: #3f7f56;
+
+  --color-alarm-soft: rgba(194, 74, 74, 0.16);
+  --color-warning-soft: rgba(167, 119, 36, 0.18);
+  --color-interaction-soft: rgba(53, 111, 173, 0.18);
+  --color-normal-soft: rgba(63, 127, 86, 0.16);
+
+  --color-on-interaction: #eef4fb;
+  --color-on-alarm: #f9eded;
+
+  --transition-fast: 0.2s;
+}
+
+html[data-theme="dark"] {
+  --color-bg-0: #1e232a;
+  --color-bg-1: #252b33;
+  --color-bg-2: #303843;
+  --color-border: #46505e;
+  --color-text-strong: #e8ebef;
+  --color-text-muted: #b5bdc9;
+  --color-focus-ring: #8eb2da;
+  --color-shadow-elevated: 0 6px 14px rgba(14, 20, 28, 0.44);
+}
+
+html[data-theme="light"] {
+  --color-bg-0: #edf1f5;
+  --color-bg-1: #f5f7fa;
+  --color-bg-2: #dde4eb;
+  --color-border: #c3ccd8;
+  --color-text-strong: #212831;
+  --color-text-muted: #596576;
+  --color-focus-ring: #5f8fc4;
+  --color-shadow-elevated: 0 6px 14px rgba(27, 38, 53, 0.18);
 }
 
 * {
@@ -20,16 +51,31 @@
 }
 
 body {
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--color-bg-0);
+  color: var(--color-text-strong);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-/* Error Banner (Top of Header) */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: var(--color-interaction);
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Header error banner */
 .error-banner {
   width: 100%;
   padding: 0.75rem 2rem;
@@ -38,6 +84,9 @@ body {
   gap: 1rem;
   font-size: 0.9rem;
   font-weight: 500;
+  background: var(--color-bg-1);
+  color: var(--color-text-strong);
+  border-bottom: 2px solid var(--color-border);
   animation: slideDown 0.3s ease-out;
 }
 
@@ -53,21 +102,21 @@ body {
 }
 
 .error-banner.error {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--error);
-  border-bottom: 2px solid var(--error);
+  background: var(--color-alarm-soft);
+  color: var(--color-alarm);
+  border-bottom-color: var(--color-alarm);
 }
 
 .error-banner.warning {
-  background: rgba(251, 191, 36, 0.15);
-  color: var(--warning);
-  border-bottom: 2px solid var(--warning);
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  border-bottom-color: var(--color-warning);
 }
 
 .error-banner.info {
-  background: rgba(74, 222, 128, 0.15);
-  color: var(--success);
-  border-bottom: 2px solid var(--success);
+  background: var(--color-interaction-soft);
+  color: var(--color-interaction);
+  border-bottom-color: var(--color-interaction);
 }
 
 .error-banner .error-icon {
@@ -76,8 +125,8 @@ body {
 
 .error-banner .btn-dismiss {
   margin-left: auto;
-  background: none;
-  border: none;
+  background: transparent;
+  border: 1px solid var(--color-border);
   color: inherit;
   font-size: 1.5rem;
   cursor: pointer;
@@ -87,22 +136,22 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
-  transition: background 0.2s;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast), border-color var(--transition-fast);
 }
 
 .error-banner .btn-dismiss:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--color-interaction-soft);
+  border-color: var(--color-interaction);
 }
 
-/* Header */
 header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem 2rem;
-  background: var(--bg-secondary);
-  border-bottom: 2px solid var(--border);
+  background: var(--color-bg-1);
+  border-bottom: 2px solid var(--color-border);
   gap: 2rem;
 }
 
@@ -114,10 +163,9 @@ header {
 
 .header-subtitle {
   font-size: 0.875rem;
-  color: var(--text-secondary);
+  color: var(--color-text-muted);
 }
 
-/* Header Tabs */
 .header-tabs {
   display: flex;
   gap: 0.5rem;
@@ -128,29 +176,29 @@ header {
 .tab-button {
   padding: 0.75rem 1.5rem;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--color-text-muted);
   border: none;
   border-bottom: 3px solid transparent;
   font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
 }
 
 .tab-button:hover {
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-interaction);
+  background: var(--color-interaction-soft);
 }
 
 .tab-button.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
+  color: var(--color-interaction);
+  border-bottom-color: var(--color-interaction);
 }
 
 .header-status {
   display: flex;
   align-items: center;
-  gap: 2rem;
+  gap: 1.25rem;
 }
 
 .status-item {
@@ -160,19 +208,39 @@ header {
 }
 
 .status-item .label {
-  color: var(--text-secondary);
+  color: var(--color-text-muted);
   font-size: 0.875rem;
 }
 
 .last-update {
   font-size: 0.75rem;
-  color: var(--text-secondary);
+  color: var(--color-text-muted);
 }
 
-/* Badges */
+.theme-toggle {
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-2);
+  color: var(--color-text-strong);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
+}
+
+.theme-toggle:hover {
+  border-color: var(--color-interaction);
+  color: var(--color-interaction);
+}
+
+/* Badge system */
 .badge {
   padding: 0.25rem 0.75rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-2);
+  color: var(--color-text-muted);
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -180,48 +248,54 @@ header {
 }
 
 .badge.ok,
-.badge.connected {
-  background: var(--success);
-  color: #000;
-}
-.badge.stale,
-.badge.connecting {
-  background: var(--warning);
-  color: #000;
-}
-.badge.unavailable,
-.badge.fault {
-  background: var(--error);
-  color: #fff;
-}
-.badge.disconnected,
-.badge.unknown {
-  background: var(--text-secondary);
-  color: #000;
-}
-.badge.manual {
-  background: #6366f1;
-  color: #fff;
-}
-.badge.auto {
-  background: var(--success);
-  color: #000;
-}
-.badge.idle {
-  background: var(--text-secondary);
-  color: #000;
+.badge.connected,
+.badge.auto,
+.badge.bt-running {
+  background: var(--color-normal-soft);
+  color: var(--color-normal);
+  border-color: var(--color-normal);
 }
 
-/* View Management */
+.badge.stale,
+.badge.connecting,
+.badge.bt-stalled {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  border-color: var(--color-warning);
+}
+
+.badge.unavailable,
+.badge.fault,
+.badge.bt-error {
+  background: var(--color-alarm-soft);
+  color: var(--color-alarm);
+  border-color: var(--color-alarm);
+}
+
+.badge.manual {
+  background: var(--color-interaction-soft);
+  color: var(--color-interaction);
+  border-color: var(--color-interaction);
+}
+
+.badge.disconnected,
+.badge.unknown,
+.badge.idle,
+.badge.bt-idle,
+.badge.bt-unknown {
+  background: var(--color-bg-2);
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
+}
+
 .view-active {
-  /* Display is controlled by the view's own class (dashboard, devices-view, telemetry-view) */
+  /* display controlled by view type */
 }
 
 .view-hidden {
   display: none !important;
 }
 
-/* Main Dashboard */
 .dashboard {
   display: block;
   flex: 1;
@@ -234,17 +308,17 @@ header {
 
 .dash-section {
   margin-bottom: 2rem;
-  background: var(--bg-secondary);
-  border-radius: 8px;
+  background: var(--color-bg-1);
+  border-radius: var(--radius-lg);
   padding: 1.5rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--color-border);
 }
 
 .dash-section h2 {
   font-size: 1.25rem;
   margin-bottom: 1.5rem;
-  color: var(--text-primary);
-  border-bottom: 1px solid var(--border);
+  color: var(--color-text-strong);
+  border-bottom: 1px solid var(--color-border);
   padding-bottom: 0.75rem;
 }
 
@@ -252,14 +326,14 @@ header {
   display: none;
 }
 
-/* Automation Controls */
 .automation-controls {
   display: flex;
   gap: 2rem;
   margin-bottom: 1.5rem;
   padding: 1rem;
-  background: var(--bg-card);
-  border-radius: 6px;
+  background: var(--color-bg-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
 }
 
 .control-group {
@@ -270,10 +344,9 @@ header {
 
 .control-group label {
   font-size: 0.875rem;
-  color: var(--text-secondary);
+  color: var(--color-text-muted);
 }
 
-/* Section Grid (Parameters + BT side by side) */
 .section-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -284,7 +357,7 @@ header {
 .subsection h3 {
   font-size: 1rem;
   margin-bottom: 1rem;
-  color: var(--text-primary);
+  color: var(--color-text-strong);
 }
 
 .subsection.full-width {
@@ -292,25 +365,24 @@ header {
 }
 
 .content-box {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  background: var(--color-bg-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   padding: 1rem;
   min-height: 200px;
   max-height: 400px;
   overflow-y: auto;
 }
 
-/* Parameters Grid */
 .parameters-grid {
   display: grid;
   gap: 1rem;
 }
 
 .parameter-card {
-  background: var(--bg-primary);
-  border: 1px solid var(--border);
-  border-radius: 4px;
+  background: var(--color-bg-0);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   padding: 0.75rem;
 }
 
@@ -323,14 +395,16 @@ header {
 
 .parameter-name {
   font-weight: 500;
+  color: var(--color-text-strong);
 }
 
 .parameter-type {
   font-size: 0.75rem;
-  color: var(--text-secondary);
-  background: var(--bg-secondary);
+  color: var(--color-text-muted);
+  background: var(--color-bg-2);
   padding: 0.125rem 0.5rem;
   border-radius: 3px;
+  border: 1px solid var(--color-border);
 }
 
 .parameter-value {
@@ -339,7 +413,7 @@ header {
 }
 
 .parameter-value strong {
-  color: var(--accent);
+  color: var(--color-interaction);
 }
 
 .parameter-controls {
@@ -351,30 +425,28 @@ header {
 .parameter-controls input {
   flex: 1;
   padding: 0.375rem 0.5rem;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  color: var(--text-primary);
+  background: var(--color-bg-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-strong);
   font-size: 0.875rem;
 }
 
 .parameter-range {
   font-size: 0.75rem;
-  color: var(--text-secondary);
+  color: var(--color-text-muted);
   margin-top: 0.5rem;
 }
 
-/* Behavior Tree Viewer */
 .bt-viewer {
   font-family: "Courier New", monospace;
   font-size: 0.875rem;
   line-height: 1.5;
-  color: var(--text-primary);
+  color: var(--color-text-strong);
   white-space: pre;
   margin: 0;
 }
 
-/* Event Trace */
 .event-trace {
   max-height: 300px;
 }
@@ -390,36 +462,40 @@ header {
   grid-template-columns: 100px 150px 1fr;
   gap: 1rem;
   padding: 0.5rem;
-  background: var(--bg-primary);
-  border-left: 3px solid var(--border);
-  border-radius: 4px;
+  background: var(--color-bg-0);
+  border-left: 3px solid var(--color-border);
+  border-radius: var(--radius-sm);
   font-size: 0.875rem;
 }
 
 .event-item.mode-change {
-  border-left-color: #6366f1;
+  border-left-color: var(--color-interaction);
 }
 
 .event-item.parameter-change {
-  border-left-color: var(--warning);
+  border-left-color: var(--color-warning);
+}
+
+.event-item.bt-error {
+  border-left-color: var(--color-alarm);
 }
 
 .event-time {
-  color: var(--text-secondary);
+  color: var(--color-text-muted);
   font-size: 0.75rem;
 }
 
 .event-type {
-  font-weight: 500;
+  font-weight: 600;
   text-transform: uppercase;
   font-size: 0.75rem;
+  color: var(--color-text-strong);
 }
 
 .event-details {
-  color: var(--text-secondary);
+  color: var(--color-text-muted);
 }
 
-/* Devices Grid */
 .devices-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -427,9 +503,9 @@ header {
 }
 
 .device-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  background: var(--color-bg-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   padding: 1rem;
 }
 
@@ -439,20 +515,23 @@ header {
   align-items: center;
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--color-border);
+  gap: 0.5rem;
 }
 
 .device-card-header h3 {
   font-size: 1rem;
   font-weight: 500;
+  color: var(--color-text-strong);
 }
 
 .device-provider {
   font-size: 0.75rem;
-  color: var(--text-secondary);
-  background: var(--bg-primary);
+  color: var(--color-text-muted);
+  background: var(--color-bg-0);
   padding: 0.25rem 0.5rem;
   border-radius: 3px;
+  border: 1px solid var(--color-border);
 }
 
 .device-signals {
@@ -470,53 +549,52 @@ header {
 }
 
 .signal-name {
-  color: var(--text-secondary);
+  color: var(--color-text-muted);
 }
 
 .signal-value {
   font-family: "Courier New", monospace;
   font-weight: 500;
+  color: var(--color-text-strong);
 }
 
 .more-signals {
   text-align: center;
-  color: var(--text-secondary);
+  color: var(--color-text-muted);
   font-size: 0.75rem;
   margin-top: 0.5rem;
   font-style: italic;
 }
 
-/* Clickable device cards */
 .device-card.clickable {
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
 }
 
 .device-card.clickable:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  border-color: var(--accent);
+  box-shadow: var(--color-shadow-elevated);
+  border-color: var(--color-interaction);
 }
 
 .section-hint {
-  color: var(--text-secondary);
+  color: var(--color-text-muted);
   font-size: 0.875rem;
   margin: -0.5rem 0 1rem 0;
   font-style: italic;
 }
 
-/* Devices View (Detail Page) */
 .devices-view {
   display: flex;
   flex-direction: column;
   height: calc(100vh - 100px);
-  background: var(--bg-primary);
+  background: var(--color-bg-0);
 }
 
 .device-selector-panel {
   padding: 1.5rem 2rem;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
+  background: var(--color-bg-1);
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -525,7 +603,7 @@ header {
 .selector-label {
   font-weight: 500;
   font-size: 0.875rem;
-  color: var(--text-primary);
+  color: var(--color-text-strong);
   white-space: nowrap;
 }
 
@@ -539,13 +617,13 @@ header {
 .device-selector optgroup {
   font-weight: 600;
   font-style: normal;
-  color: var(--accent);
+  color: var(--color-interaction);
 }
 
 .device-selector option {
   padding: 0.5rem;
   font-weight: 400;
-  color: var(--text-primary);
+  color: var(--color-text-strong);
 }
 
 .device-detail-panel {
@@ -554,11 +632,10 @@ header {
   padding: 2rem;
 }
 
-/* Device Detail Header */
 .device-detail-header {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  background: var(--color-bg-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   padding: 1.5rem;
   margin-bottom: 2rem;
 }
@@ -577,8 +654,9 @@ header {
 }
 
 .device-type-badge {
-  background: var(--accent);
-  color: #fff;
+  background: var(--color-bg-2);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
   padding: 0.25rem 0.75rem;
   border-radius: 12px;
   font-size: 0.75rem;
@@ -590,7 +668,7 @@ header {
   display: flex;
   gap: 2rem;
   font-size: 0.875rem;
-  color: var(--text-secondary);
+  color: var(--color-text-muted);
 }
 
 .device-id,
@@ -598,11 +676,10 @@ header {
   font-family: "Courier New", monospace;
 }
 
-/* Device Detail Sections */
 .device-detail-section {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  background: var(--color-bg-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   padding: 1.5rem;
   margin-bottom: 1.5rem;
 }
@@ -612,10 +689,9 @@ header {
   font-size: 1.125rem;
   font-weight: 500;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--color-border);
 }
 
-/* State Table (Full View) */
 .state-table-full {
   overflow-x: auto;
 }
@@ -626,7 +702,7 @@ header {
 }
 
 .state-table-full thead {
-  background: var(--bg-tertiary);
+  background: var(--color-bg-2);
 }
 
 .state-table-full th {
@@ -634,108 +710,136 @@ header {
   padding: 0.75rem 1rem;
   font-weight: 600;
   font-size: 0.875rem;
-  color: var(--text-secondary);
+  color: var(--color-text-muted);
   text-transform: uppercase;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .state-table-full td {
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--color-border);
   font-size: 0.875rem;
 }
 
 .state-table-full tbody tr:hover {
-  background: var(--bg-tertiary);
+  background: var(--color-bg-2);
 }
 
 .state-table-full .signal-name {
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--color-text-strong);
 }
 
 .state-table-full .signal-value {
   font-family: "Courier New", monospace;
-  color: var(--accent);
+  color: var(--color-interaction);
 }
 
 .state-table-full .signal-timestamp {
-  color: var(--text-secondary);
+  color: var(--color-text-muted);
   font-size: 0.8125rem;
 }
 
-/* Functions Section */
 .capabilities-json {
-  background: var(--bg-tertiary);
+  background: var(--color-bg-2);
   padding: 1rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   overflow-x: auto;
   font-size: 0.8125rem;
-  color: var(--text-secondary);
+  color: var(--color-text-muted);
 }
 
-/* Buttons */
-button,
-.btn-primary {
+button {
   padding: 0.5rem 1rem;
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 4px;
+  background: var(--color-bg-2);
+  color: var(--color-text-strong);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
 }
 
-button:hover,
+button:hover {
+  border-color: var(--color-interaction);
+  color: var(--color-interaction);
+}
+
+.btn-primary {
+  background: var(--color-interaction-soft);
+  color: var(--color-interaction);
+  border-color: var(--color-interaction);
+}
+
 .btn-primary:hover {
-  opacity: 0.9;
+  background: var(--color-interaction);
+  color: var(--color-on-interaction);
 }
 
-button:disabled {
-  opacity: 0.5;
+button:disabled,
+.btn-primary:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
 }
 
-/* Select */
-select {
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+select,
+.arg-row input[type="text"],
+.arg-row input[type="number"] {
   padding: 0.5rem;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  color: var(--text-primary);
+  background: var(--color-bg-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-strong);
   font-size: 0.875rem;
+}
+
+.arg-row input[type="checkbox"] {
+  width: 1.25rem;
+  height: 1.25rem;
   cursor: pointer;
 }
 
-/* Feedback */
 .feedback {
   font-size: 0.875rem;
   font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.feedback.pending {
+  color: var(--color-interaction);
 }
 
 .feedback.success {
-  color: var(--success);
+  color: var(--color-normal);
 }
 
 .feedback.error {
-  color: var(--error);
+  color: var(--color-alarm);
 }
 
-/* Placeholder */
 .placeholder {
-  color: var(--text-secondary);
+  color: var(--color-text-muted);
   text-align: center;
   padding: 2rem;
   font-style: italic;
 }
 
-/* Error Message Box */
 .error-message {
-  background: var(--bg-secondary);
-  border: 2px solid var(--error);
-  border-radius: 6px;
+  background: var(--color-bg-1);
+  border: 2px solid var(--color-alarm);
+  border-radius: var(--radius-md);
   padding: 2rem;
   text-align: center;
   max-width: 600px;
@@ -743,26 +847,27 @@ select {
 }
 
 .error-message h3 {
-  color: var(--error);
+  color: var(--color-alarm);
   margin: 0 0 1rem 0;
   font-size: 1.25rem;
 }
 
 .error-message p {
   margin: 0.5rem 0;
-  color: var(--text-secondary);
+  color: var(--color-text-muted);
 }
 
 .error-message code {
-  background: var(--bg-tertiary);
+  background: var(--color-bg-2);
   padding: 0.25rem 0.5rem;
   border-radius: 3px;
   font-family: "Courier New", monospace;
-  color: var(--accent);
+  color: var(--color-interaction);
+  border: 1px solid var(--color-border);
 }
 
 .error-message .error-details {
-  color: var(--error);
+  color: var(--color-alarm);
   font-size: 0.875rem;
   margin: 1rem 0;
   font-family: "Courier New", monospace;
@@ -772,45 +877,40 @@ select {
   margin-top: 1rem;
 }
 
-/* Footer/Error Banner */
 footer {
-  background: var(--bg-secondary);
-  border-top: 1px solid var(--border);
+  background: var(--color-bg-1);
+  border-top: 1px solid var(--color-border);
 }
 
-.error-banner {
+.runtime-error-footer {
   padding: 1rem 2rem;
-  background: var(--error);
-  color: #fff;
   font-size: 0.875rem;
+  color: var(--color-alarm);
+  background: var(--color-alarm-soft);
+  border-top: 1px solid var(--color-alarm);
 }
 
-.error-banner.hidden {
-  display: none;
-}
-
-/* Telemetry View */
 .telemetry-view {
   display: flex;
   flex-direction: column;
   height: calc(100vh - 100px);
-  background: var(--bg-primary);
+  background: var(--color-bg-0);
 }
 
 .telemetry-controls {
   padding: 1rem 2rem;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
+  background: var(--color-bg-1);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .telemetry-notice {
   margin: 0;
-  color: var(--text-secondary);
+  color: var(--color-text-muted);
   font-size: 0.875rem;
 }
 
 .external-link {
-  color: var(--accent);
+  color: var(--color-interaction);
   text-decoration: none;
   font-weight: 500;
 }
@@ -834,7 +934,7 @@ footer {
   border: none;
 }
 
-/* Legacy telemetry section styles - remove */
+/* Legacy telemetry styles no longer used */
 .telemetry-section,
 .section-header-with-toggle,
 .btn-secondary,
@@ -842,23 +942,6 @@ footer {
   display: none;
 }
 
-/* Utility Classes */
-.hidden {
-  display: none !important;
-}
-
-/* Responsive */
-@media (max-width: 1024px) {
-  .section-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .devices-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Function Execution Forms */
 .functions-list {
   display: flex;
   flex-direction: column;
@@ -866,21 +949,21 @@ footer {
 }
 
 .function-card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--color-bg-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   padding: 1.5rem;
 }
 
 .function-card h4 {
-  color: var(--text-primary);
+  color: var(--color-text-strong);
   font-size: 1.1rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
 }
 
 .function-description {
-  color: var(--text-secondary);
+  color: var(--color-text-muted);
   font-size: 0.875rem;
   margin-bottom: 1rem;
   font-style: italic;
@@ -900,42 +983,25 @@ footer {
 }
 
 .arg-row label {
-  color: var(--text-primary);
+  color: var(--color-text-strong);
   font-size: 0.875rem;
   font-weight: 500;
 }
 
 .arg-row .required {
-  color: var(--error);
+  color: var(--color-warning);
 }
 
 .arg-row .constraint-hint {
-  color: var(--text-secondary);
+  color: var(--color-text-muted);
   font-size: 0.75rem;
   font-style: italic;
   margin-left: 0.5rem;
 }
 
-.arg-row input[type="text"],
-.arg-row input[type="number"] {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 0.5rem;
-  color: var(--text-primary);
-  font-size: 0.875rem;
-}
-
 .arg-row input[type="text"]:focus,
 .arg-row input[type="number"]:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.arg-row input[type="checkbox"] {
-  width: 1.25rem;
-  height: 1.25rem;
-  cursor: pointer;
+  border-color: var(--color-interaction);
 }
 
 .function-actions {
@@ -951,25 +1017,25 @@ footer {
 .function-feedback {
   font-size: 0.875rem;
   font-weight: 500;
+  color: var(--color-text-muted);
 }
 
 .function-feedback.executing {
-  color: var(--warning);
+  color: var(--color-interaction);
 }
 
 .function-feedback.success {
-  color: var(--success);
+  color: var(--color-normal);
 }
 
 .function-feedback.error {
-  color: var(--error);
+  color: var(--color-alarm);
 }
 
-/* Automation Health Display */
 .automation-health {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--color-bg-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   padding: 1.5rem;
   margin: 1rem 0;
 }
@@ -978,7 +1044,7 @@ footer {
   font-size: 1rem;
   font-weight: 600;
   margin-bottom: 1rem;
-  color: var(--text-primary);
+  color: var(--color-text-strong);
 }
 
 .health-grid {
@@ -998,49 +1064,57 @@ footer {
 }
 
 .health-item label {
-  color: var(--text-secondary);
+  color: var(--color-text-muted);
   font-size: 0.875rem;
   font-weight: 500;
 }
 
 .health-item span {
-  color: var(--text-primary);
+  color: var(--color-text-strong);
   font-size: 1rem;
 }
 
 .error-text {
-  color: var(--text-secondary);
+  color: var(--color-text-muted);
   font-family: monospace;
   font-size: 0.875rem;
 }
 
 .error-text.warning {
-  color: var(--error);
+  color: var(--color-warning);
   font-weight: 600;
 }
 
-/* BT Status Badges */
-.badge.bt-idle {
-  background: rgba(160, 160, 160, 0.2);
-  color: var(--text-secondary);
+.error-text.alarm {
+  color: var(--color-alarm);
+  font-weight: 600;
 }
 
-.badge.bt-running {
-  background: rgba(74, 222, 128, 0.2);
-  color: var(--success);
+@media (max-width: 1280px) {
+  header {
+    flex-wrap: wrap;
+  }
+
+  .header-tabs {
+    order: 3;
+    width: 100%;
+    justify-content: flex-start;
+  }
 }
 
-.badge.bt-stalled {
-  background: rgba(251, 191, 36, 0.2);
-  color: var(--warning);
-}
+@media (max-width: 1024px) {
+  .section-grid {
+    grid-template-columns: 1fr;
+  }
 
-.badge.bt-error {
-  background: rgba(239, 68, 68, 0.2);
-  color: var(--error);
-}
+  .devices-grid {
+    grid-template-columns: 1fr;
+  }
 
-.badge.bt-unknown {
-  background: rgba(160, 160, 160, 0.2);
-  color: var(--text-secondary);
+  .header-status {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
 }

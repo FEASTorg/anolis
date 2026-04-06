@@ -130,9 +130,11 @@ async function refreshAutomationHealth() {
       elements.btErrorCount.textContent = data.error_count || 0;
       elements.btLastError.textContent = data.last_error || "--";
 
-      // Apply warning style if stalled or error
-      if (btStatus === "STALLED" || btStatus === "ERROR") {
+      // Apply semantic style to last error based on BT health
+      if (btStatus === "STALLED") {
         elements.btLastError.className = "error-text warning";
+      } else if (btStatus === "ERROR") {
+        elements.btLastError.className = "error-text alarm";
       } else {
         elements.btLastError.className = "error-text";
       }
@@ -149,7 +151,7 @@ async function refreshAutomationHealth() {
 function handleBTError(data) {
   // Update error display
   elements.btLastError.textContent = data.error;
-  elements.btLastError.className = "error-text warning";
+  elements.btLastError.className = "error-text alarm";
 
   // Increment error count
   const currentCount = parseInt(elements.btErrorCount.textContent) || 0;
@@ -170,7 +172,7 @@ function handleBTError(data) {
 async function handleSetMode() {
   const newMode = elements.modeSelector.value;
 
-  elements.modeFeedback.className = "";
+  elements.modeFeedback.className = "feedback pending";
   elements.modeFeedback.textContent = "Setting...";
 
   try {
@@ -178,20 +180,21 @@ async function handleSetMode() {
 
     if (result.status?.code === "OK") {
       elements.modeFeedback.textContent = "Mode set";
-      elements.modeFeedback.className = "success";
+      elements.modeFeedback.className = "feedback success";
       
       // Reset dirty flag - mode change successful
       modeSelectorDirty = false;
       
       setTimeout(() => {
         elements.modeFeedback.textContent = "";
+        elements.modeFeedback.className = "feedback";
       }, 2000);
     } else {
       throw new Error(result.status?.message || "Failed to set mode");
     }
   } catch (err) {
     elements.modeFeedback.textContent = `Error: ${err.message}`;
-    elements.modeFeedback.className = "error";
+    elements.modeFeedback.className = "feedback error";
     console.error("Failed to set mode:", err);
   }
 }

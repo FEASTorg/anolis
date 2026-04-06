@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,9 +7,9 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>Anolis Control Dashboard</title>
-    <link rel="icon" href="anolis_logo_1024.ico" type="image/x-icon">
-    <link rel="shortcut icon" href="anolis_logo_1024.ico" type="image/x-icon">
-    <meta name="msapplication-TileImage" content="anolis_logo_1024.ico">
+    <link rel="icon" href="anolis_logo_1024.ico" type="image/x-icon" />
+    <link rel="shortcut icon" href="anolis_logo_1024.ico" type="image/x-icon" />
+    <meta name="msapplication-TileImage" content="anolis_logo_1024.ico" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -17,20 +17,20 @@
       <div id="error-banner" class="error-banner hidden">
         <span class="error-icon">[!]</span>
         <span id="error-banner-message"></span>
-        <button id="error-banner-dismiss" class="btn-dismiss">x</button>
+        <button id="error-banner-dismiss" class="btn-dismiss" type="button">x</button>
       </div>
-      
+
       <div class="header-main">
         <h1>Anolis Control Dashboard</h1>
-        <span class="header-subtitle">Runtime Automation &amp; Device Monitoring</span>
+        <span class="header-subtitle">Runtime Automation and Device Monitoring</span>
       </div>
-      
+
       <nav class="header-tabs">
-        <button id="tab-dashboard" class="tab-button active" data-view="dashboard">Dashboard</button>
-        <button id="tab-devices" class="tab-button" data-view="devices">Devices</button>
-        <button id="tab-telemetry" class="tab-button" data-view="telemetry">Telemetry</button>
+        <button id="tab-dashboard" class="tab-button active" data-view="dashboard" type="button">Dashboard</button>
+        <button id="tab-devices" class="tab-button" data-view="devices" type="button">Devices</button>
+        <button id="tab-telemetry" class="tab-button" data-view="telemetry" type="button">Telemetry</button>
       </nav>
-      
+
       <div class="header-status">
         <div class="status-item">
           <span class="label">Runtime:</span>
@@ -39,6 +39,10 @@
         <div class="status-item">
           <span class="label">Stream:</span>
           <span id="connection-badge" class="badge unknown">Disconnected</span>
+        </div>
+        <div class="status-item theme-control">
+          <span class="label">Theme:</span>
+          <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch color theme">Light</button>
         </div>
         <div id="last-update" class="last-update">--</div>
       </div>
@@ -49,7 +53,7 @@
       <!-- Automation Control Section -->
       <section id="automation-section" class="dash-section hidden">
         <h2>Automation Control</h2>
-        
+
         <div class="automation-controls">
           <div class="control-group">
             <label>Current Mode:</label>
@@ -62,7 +66,7 @@
               <option value="AUTO">AUTO</option>
               <option value="IDLE">IDLE</option>
             </select>
-            <button id="set-mode-button" class="btn-primary">Set Mode</button>
+            <button id="set-mode-button" class="btn-primary" type="button">Set Mode</button>
             <span id="mode-feedback" class="feedback"></span>
           </div>
         </div>
@@ -94,7 +98,8 @@
           </div>
         </div>
 
-        <div class="section-grid">\n          <!-- Parameters -->
+        <div class="section-grid">
+          <!-- Parameters -->
           <div class="subsection">
             <h3>Runtime Parameters</h3>
             <div id="parameters-container" class="content-box">
@@ -138,7 +143,7 @@
           <option value="">Loading devices...</option>
         </select>
       </div>
-      
+
       <div class="device-detail-panel">
         <div id="device-detail-container">
           <p class="placeholder">Select a device from the dropdown above</p>
@@ -150,28 +155,27 @@
     <main id="view-telemetry" class="telemetry-view view-hidden">
       <div class="telemetry-controls">
         <p class="telemetry-notice">
-          <strong>Note:</strong> If the embedded view is blocked, 
+          <strong>Note:</strong> If the embedded view is blocked,
           <a href="http://localhost:3001" target="_blank" rel="noopener noreferrer" class="external-link">
             open Grafana in a new tab ->
           </a>
         </p>
       </div>
       <div class="telemetry-iframe-container">
-        <iframe 
-          id="grafana-iframe" 
+        <iframe
+          id="grafana-iframe"
           src="about:blank"
           frameborder="0"
           sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
-          title="Grafana Telemetry Dashboard">
-        </iframe>
-      </div
-      </section>
+          title="Grafana Telemetry Dashboard"
+        ></iframe>
+      </div>
     </main>
 
     <footer>
-      <div id="last-error" class="error-banner hidden"></div>
+      <div id="last-error" class="runtime-error-footer hidden"></div>
     </footer>
 
-    <script type="module" src="js/app.js?v=20260209"></script>
+    <script type="module" src="js/app.js?v=20260405"></script>
   </body>
 </html>
