@@ -10,6 +10,7 @@ Minimal living documentation for Anolis Core.
 - [getting-started.md](getting-started.md) - Build and run instructions
 - [configuration.md](configuration.md) - Configuration guide (`config/anolis-runtime.yaml` and composer-generated runtime YAML)
 - [configuration-schema.md](configuration-schema.md) - Complete YAML schema reference
+- [contracts/runtime-config-baseline.md](contracts/runtime-config-baseline.md) - Locked baseline behavior snapshot for runtime config contract implementation
 - [providers.md](providers.md) - Provider protocol and development
 - [http-api.md](http-api.md) - HTTP REST API reference
 - [automation.md](automation.md) - Behavior trees and automation system
