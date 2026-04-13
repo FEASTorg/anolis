@@ -6,11 +6,11 @@ bioreactor lab stack.
 Scope:
 
 1. Manual/open-loop and telemetry validation profiles.
-2. Optional Stage 1 automation profile for stir + feed scheduling.
+2. Optional automation profile for stir + feed scheduling.
 3. Three runtime variants:
    - `manual` with telemetry disabled.
    - `telemetry` with InfluxDB sink enabled.
-   - `automation-stage1` for stir + feed BT control.
+   - `automation` for stir + feed BT control.
 
 Device map:
 
@@ -40,11 +40,17 @@ RLHT usage note:
 
 1. `anolis-runtime.bioreactor.manual.yaml`
 2. `anolis-runtime.bioreactor.telemetry.yaml`
-3. `anolis-runtime.bioreactor.automation-stage1.yaml`
+3. `anolis-runtime.bioreactor.automation.yaml`
 4. `provider-bread.bioreactor.yaml`
 5. `provider-ezo.bioreactor.yaml`
 6. `telemetry-export.bioreactor.yaml`
-7. `../../behaviors/bioreactor_stir_feed_stage1.xml`
+7. `../../behaviors/bioreactor_stir_feed.xml`
+
+Automation naming convention:
+
+1. Use descriptive profile names by capability, not rollout step labels.
+2. Current pattern is `anolis-runtime.bioreactor.automation.yaml`.
+3. Future variants should follow explicit capability naming (for example `automation.ph-dosing`).
 
 ## Build Prerequisites
 
@@ -98,7 +104,7 @@ Acceptance:
 3. Health is stable/OK for `rlht0`, `dcmt0`, `dcmt1`, `ph0`, and `do0`.
 4. Artifacts exist in `artifacts/mixed-bus-validation/bioreactor`.
 
-## Stage 1 Automation (Stir + Feed)
+## Automation (Stir + Feed)
 
 This profile enables Behavior Tree automation for:
 
@@ -115,7 +121,7 @@ Start runtime:
 
 ```bash
 cd /path/to/anolis
-./build/dev-release/core/anolis-runtime --config ./config/bioreactor/anolis-runtime.bioreactor.automation-stage1.yaml
+./build/dev-release/core/anolis-runtime --config ./config/bioreactor/anolis-runtime.bioreactor.automation.yaml
 ```
 
 Recommended first validation:

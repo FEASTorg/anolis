@@ -1,5 +1,5 @@
 runtime:
-  name: bioreactor-automation-stage1
+  name: bioreactor-automation
   shutdown_timeout_ms: 3000
   startup_timeout_ms: 30000
 
@@ -45,7 +45,7 @@ telemetry:
 
 automation:
   enabled: true
-  behavior_tree: ./behaviors/bioreactor_stir_feed_stage1.xml
+  behavior_tree: ./behaviors/bioreactor_stir_feed.xml
   tick_rate_hz: 2
   manual_gating_policy: BLOCK
   parameters:
