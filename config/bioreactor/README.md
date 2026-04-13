@@ -11,6 +11,7 @@ Scope:
    - `manual` with telemetry disabled.
    - `telemetry` with InfluxDB sink enabled.
    - `automation` for stir + feed BT control.
+   - `full` for combined automation + telemetry.
 
 Device map:
 
@@ -41,10 +42,11 @@ RLHT usage note:
 1. `anolis-runtime.bioreactor.manual.yaml`
 2. `anolis-runtime.bioreactor.telemetry.yaml`
 3. `anolis-runtime.bioreactor.automation.yaml`
-4. `provider-bread.bioreactor.yaml`
-5. `provider-ezo.bioreactor.yaml`
-6. `telemetry-export.bioreactor.yaml`
-7. `../../behaviors/bioreactor_stir_feed.xml`
+4. `anolis-runtime.bioreactor.full.yaml`
+5. `provider-bread.bioreactor.yaml`
+6. `provider-ezo.bioreactor.yaml`
+7. `telemetry-export.bioreactor.yaml`
+8. `../../behaviors/bioreactor_stir_feed.xml`
 
 Automation naming convention:
 
@@ -155,6 +157,48 @@ Automation acceptance:
 1. Runtime and providers remain `AVAILABLE`.
 2. Inventory remains 5 devices while automation runs.
 3. Artifact capture passes during active stir/feed control.
+
+## Full Runtime (Automation + Telemetry)
+
+This is the canonical end-state profile combining:
+
+1. bioreactor provider map (`bread0` + `ezo0`)
+2. telemetry sink (`InfluxDB`)
+3. stir/feed behavior tree automation
+
+Start runtime with combined profile:
+
+```bash
+cd /path/to/anolis
+./build/dev-release/core/anolis-runtime --config ./config/bioreactor/anolis-runtime.bioreactor.full.yaml
+```
+
+Acceptance:
+
+1. Runtime starts with both telemetry and automation enabled.
+2. Provider inventory remains stable at 5 devices.
+3. Stir/feed control behaves as expected while telemetry points are written.
+
+Capture API artifacts for full profile:
+
+```bash
+cd /path/to/anolis
+./config/mixed-bus-providers/check_mixed_bus_http.sh \
+  --base-url http://127.0.0.1:8080 \
+  --expect-providers bread0,ezo0 \
+  --min-device-count 5 \
+  --capture-dir artifacts/mixed-bus-validation/bioreactor-full
+```
+
+Optional Influx sanity query for the full profile runtime name:
+
+```bash
+curl -sS --request POST "http://localhost:8086/api/v2/query?org=anolis" \
+  --header "Authorization: Token dev-token" \
+  --header "Accept: application/csv" \
+  --header "Content-type: application/vnd.flux" \
+  --data 'from(bucket:"anolis") |> range(start: -5m) |> filter(fn:(r) => r._measurement == "anolis_signal") |> filter(fn:(r) => r.runtime_name == "bioreactor-full") |> limit(n: 1)'
+```
 
 ## Linux Hardware Baseline With Telemetry
 
