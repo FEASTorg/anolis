@@ -10,9 +10,9 @@
 #include "runtime.hpp"
 
 #include <chrono>
+#include <sstream>
 #include <thread>
 #include <utility>
-#include <sstream>
 
 #if ANOLIS_ENABLE_AUTOMATION
 #include "automation/bt_runtime.hpp"
@@ -234,43 +234,44 @@ bool Runtime::init_automation(std::string &error) {
         const auto after_hooks = config_.automation.mode_transition_hooks.after_transition;
 
         if (!before_hooks.empty()) {
-            mode_manager_->on_before_mode_change([this, before_hooks, hook_mode_matches,
-                                                  parameter_value_to_provider_value](automation::RuntimeMode prev,
-                                                                                     automation::RuntimeMode next,
-                                                                                     std::string &hook_error) {
-                for (const auto &hook : before_hooks) {
-                    if (!hook_mode_matches(hook.from, prev) || !hook_mode_matches(hook.to, next)) {
-                        continue;
-                    }
-
-                    for (const auto &call : hook.calls) {
-                        control::CallRequest request;
-                        request.device_handle = call.device_handle;
-                        request.function_id = call.function_id;
-                        request.function_name = call.function_name;
-                        request.is_automated = true;
-
-                        for (const auto &[arg_name, arg_value] : call.args) {
-                            request.args[arg_name] = parameter_value_to_provider_value(arg_value);
+            mode_manager_->on_before_mode_change(
+                [this, before_hooks, hook_mode_matches, parameter_value_to_provider_value](
+                    automation::RuntimeMode prev, automation::RuntimeMode next, std::string &hook_error) {
+                    for (const auto &hook : before_hooks) {
+                        if (!hook_mode_matches(hook.from, prev) || !hook_mode_matches(hook.to, next)) {
+                            continue;
                         }
 
-                        const auto result = call_router_->execute_call(request, provider_registry_);
-                        if (!result.success) {
-                            std::stringstream ss;
-                            ss << "Before-transition hook failed (" << automation::mode_to_string(prev) << " -> "
-                               << automation::mode_to_string(next) << "): " << call.device_handle << " "
-                               << (call.function_name.empty() ? std::to_string(call.function_id) : call.function_name)
-                               << " - " << result.error_message;
-                            if (hook.fail_on_error) {
-                                hook_error = ss.str();
-                                return false;
+                        for (const auto &call : hook.calls) {
+                            control::CallRequest request;
+                            request.device_handle = call.device_handle;
+                            request.function_id = call.function_id;
+                            request.function_name = call.function_name;
+                            request.is_automated = true;
+
+                            for (const auto &[arg_name, arg_value] : call.args) {
+                                request.args[arg_name] = parameter_value_to_provider_value(arg_value);
                             }
-                            LOG_WARN("[Runtime] " << ss.str());
+
+                            const auto result = call_router_->execute_call(request, provider_registry_);
+                            if (!result.success) {
+                                std::stringstream hook_msg;
+                                hook_msg << "Before-transition hook failed (" << automation::mode_to_string(prev)
+                                         << " -> " << automation::mode_to_string(next) << "): " << call.device_handle
+                                         << " "
+                                         << (call.function_name.empty() ? std::to_string(call.function_id)
+                                                                        : call.function_name)
+                                         << " - " << result.error_message;
+                                if (hook.fail_on_error) {
+                                    hook_error = hook_msg.str();
+                                    return false;
+                                }
+                                LOG_WARN("[Runtime] " << hook_msg.str());
+                            }
                         }
                     }
-                }
-                return true;
-            });
+                    return true;
+                });
         }
 
         if (!after_hooks.empty()) {
@@ -294,15 +295,16 @@ bool Runtime::init_automation(std::string &error) {
 
                         const auto result = call_router_->execute_call(request, provider_registry_);
                         if (!result.success) {
-                            std::stringstream ss;
-                            ss << "After-transition hook failed (" << automation::mode_to_string(prev) << " -> "
-                               << automation::mode_to_string(next) << "): " << call.device_handle << " "
-                               << (call.function_name.empty() ? std::to_string(call.function_id) : call.function_name)
-                               << " - " << result.error_message;
+                            std::stringstream hook_msg;
+                            hook_msg << "After-transition hook failed (" << automation::mode_to_string(prev) << " -> "
+                                     << automation::mode_to_string(next) << "): " << call.device_handle << " "
+                                     << (call.function_name.empty() ? std::to_string(call.function_id)
+                                                                    : call.function_name)
+                                     << " - " << result.error_message;
                             if (hook.fail_on_error) {
-                                LOG_ERROR("[Runtime] " << ss.str());
+                                LOG_ERROR("[Runtime] " << hook_msg.str());
                             } else {
-                                LOG_WARN("[Runtime] " << ss.str());
+                                LOG_WARN("[Runtime] " << hook_msg.str());
                             }
                         }
                     }
