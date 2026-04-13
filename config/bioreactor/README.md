@@ -114,6 +114,11 @@ This profile enables Behavior Tree automation for:
 2. `dcmt0` channel 2 impeller command.
 3. Safe mode-transition handoff writes (`AUTO->MANUAL`, `MANUAL->IDLE`, `*->FAULT`).
 
+PWM parameter guardrails:
+
+1. `feed_pwm` and `impeller_pwm` use Nano-compatible open-loop bounds: `0..255`.
+2. Bioreactor automation intentionally keeps these non-negative (forward-only dosing/stir).
+
 Safety behavior note:
 
 1. Transition hooks targeting `FAULT` run best-effort; hook failures are logged.
