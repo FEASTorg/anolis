@@ -55,6 +55,8 @@ Automation naming convention:
 ## Build Prerequisites
 
 Build all three repos before validation so runtime config executable paths exist.
+If you need first-time host setup (Ninja, vcpkg, compiler toolchain), follow
+`docs/getting-started.md` in each repo first.
 
 Linux packages required by this runbook:
 
@@ -131,6 +133,23 @@ Recommended first validation:
 3. Confirm `dcmt0` channel 1 responds and channel 2 remains off.
 4. Set `feed_enable=true` and tune `feed_interval_s` / `feed_pulse_s`.
 5. Confirm channel 2 pulses on schedule.
+
+Capture automation API artifacts:
+
+```bash
+cd /path/to/anolis
+./config/mixed-bus-providers/check_mixed_bus_http.sh \
+  --base-url http://127.0.0.1:8080 \
+  --expect-providers bread0,ezo0 \
+  --min-device-count 5 \
+  --capture-dir artifacts/mixed-bus-validation/bioreactor-automation
+```
+
+Automation acceptance:
+
+1. Runtime and providers remain `AVAILABLE`.
+2. Inventory remains 5 devices while automation runs.
+3. Artifact capture passes during active stir/feed control.
 
 ## Linux Hardware Baseline With Telemetry
 
