@@ -251,9 +251,6 @@ async function init() {
   // Handle initial route
   handleRouting();
 
-  // Make updateParameter available globally for inline handlers
-  window.updateParameter = Automation.updateParameter;
-
   // SSE connection status handler
   SSE.on("connection_status", (status) => {
     // Handle new object-based status

@@ -5,15 +5,20 @@
 import * as API from "./api.js";
 import * as SSE from "./sse.js";
 import * as UI from "./ui.js";
-import { CONFIG, AUTOMATION_MODES } from "./config.js";
+import { CONFIG } from "./config.js";
 
 let elements = {};
 let currentMode = null;
 let eventBuffer = [];
 let modeSelectorDirty = false; // Track if user has manually changed dropdown
-let parametersEditing = false;
-let pendingParametersRefresh = false;
 let lastParametersSnapshot = "";
+let parametersGrid = null;
+const parameterRows = new Map();
+const PARAMETER_TYPES = new Set(["double", "int64", "bool", "string"]);
+const INT64_MIN = -9223372036854775808n;
+const INT64_MAX = 9223372036854775807n;
+const JS_SAFE_MIN = BigInt(Number.MIN_SAFE_INTEGER);
+const JS_SAFE_MAX = BigInt(Number.MAX_SAFE_INTEGER);
 
 /**
  * Initialize automation module
@@ -44,20 +49,6 @@ export function init(elementIds) {
   // Track when user manually changes dropdown (dirty state)
   elements.modeSelector.addEventListener("change", () => {
     modeSelectorDirty = true;
-  });
-
-  // Prevent periodic refresh from interrupting active parameter edits.
-  elements.parametersContainer.addEventListener("focusin", () => {
-    parametersEditing = isParameterEditorActive();
-  });
-  elements.parametersContainer.addEventListener("focusout", () => {
-    window.setTimeout(() => {
-      parametersEditing = isParameterEditorActive();
-      if (!parametersEditing && pendingParametersRefresh) {
-        pendingParametersRefresh = false;
-        void refreshParameters();
-      }
-    }, 0);
   });
 
   // SSE event handlers
@@ -220,93 +211,32 @@ async function handleSetMode() {
  * Refresh parameters display
  */
 async function refreshParameters() {
-  if (parametersEditing || isParameterEditorActive()) {
-    pendingParametersRefresh = true;
-    return;
-  }
-
   try {
     const parameters = await API.fetchParameters();
-    const snapshot = JSON.stringify(parameters);
+    const normalized = normalizeParameterList(parameters);
+    const snapshot = JSON.stringify(
+      normalized.map((param) => ({
+        name: param.name,
+        type: param.type,
+        value: param.value,
+        min: param.min ?? null,
+        max: param.max ?? null,
+        allowed_values: param.allowed_values ?? null,
+      })),
+    );
     if (snapshot === lastParametersSnapshot) {
       return;
     }
     lastParametersSnapshot = snapshot;
 
-    if (parameters.length === 0) {
+    if (normalized.length === 0) {
       elements.parametersContainer.innerHTML =
         '<p class="placeholder">No parameters available</p>';
+      parametersGrid = null;
+      parameterRows.clear();
       return;
     }
-
-    let html = '<div class="parameters-grid">';
-    for (const param of parameters) {
-      const valueText = UI.escapeHtml(String(param.value));
-      const minAttr =
-        param.min !== undefined ? `data-param-min="${param.min}"` : "";
-      const maxAttr =
-        param.max !== undefined ? `data-param-max="${param.max}"` : "";
-      const commonAttrs = `${minAttr} ${maxAttr}`.trim();
-      let inputHtml = "";
-      if (param.type === "bool") {
-        const boolValue = String(param.value).toLowerCase() === "true";
-        inputHtml = `
-            <select id="param-${UI.escapeHtml(param.name)}" ${commonAttrs}>
-              <option value="true" ${boolValue ? "selected" : ""}>true</option>
-              <option value="false" ${boolValue ? "" : "selected"}>false</option>
-            </select>
-        `;
-      } else if (param.type === "double") {
-        const minValue = param.min !== undefined ? `min="${param.min}"` : "";
-        const maxValue = param.max !== undefined ? `max="${param.max}"` : "";
-        inputHtml = `
-            <input type="number"
-                   id="param-${UI.escapeHtml(param.name)}"
-                   value="${valueText}"
-                   step="any"
-                   ${minValue}
-                   ${maxValue}
-                   ${commonAttrs}
-                   placeholder="New value">
-        `;
-      } else if (param.type === "int64" || param.type === "uint64") {
-        inputHtml = `
-            <input type="text"
-                   id="param-${UI.escapeHtml(param.name)}"
-                   value="${valueText}"
-                   inputmode="numeric"
-                   ${commonAttrs}
-                   placeholder="New value">
-        `;
-      } else {
-        inputHtml = `
-            <input type="text"
-                   id="param-${UI.escapeHtml(param.name)}"
-                   value="${valueText}"
-                   ${commonAttrs}
-                   placeholder="New value">
-        `;
-      }
-      html += `
-        <div class="parameter-card">
-          <div class="parameter-header">
-            <span class="parameter-name">${UI.escapeHtml(param.name)}</span>
-            <span class="parameter-type">${UI.escapeHtml(param.type)}</span>
-          </div>
-          <div class="parameter-value">
-            <strong>${valueText}</strong>
-          </div>
-          <div class="parameter-controls">
-            ${inputHtml}
-            <button onclick="window.updateParameter('${UI.escapeHtml(param.name)}', '${UI.escapeHtml(param.type)}')">Set</button>
-            <span id="param-feedback-${UI.escapeHtml(param.name)}" class="feedback"></span>
-          </div>
-          ${param.min !== undefined || param.max !== undefined ? `<div class="parameter-range">Range: [${param.min}, ${param.max}]</div>` : ""}
-        </div>
-      `;
-    }
-    html += "</div>";
-    elements.parametersContainer.innerHTML = html;
+    reconcileParameterRows(normalized);
   } catch (err) {
     console.error("Failed to refresh parameters:", err);
   }
@@ -315,23 +245,26 @@ async function refreshParameters() {
 /**
  * Update parameter value
  */
-export async function updateParameter(name, type) {
-  const inputElement = document.getElementById(`param-${name}`);
-  const feedbackElement = document.getElementById(`param-feedback-${name}`);
+export async function updateParameter(name, type, inputElement, feedbackElement) {
+  if (!inputElement || !feedbackElement) {
+    return;
+  }
   const rawValue = String(inputElement.value).trim();
+  const normalizedType = normalizeParameterType(type);
 
   try {
+    if (!normalizedType) {
+      throw new Error("Unsupported parameter type");
+    }
+
     // Parse value based on type
     let value;
-    if (type === "int64" || type === "uint64") {
-      const pattern = type === "uint64" ? /^\d+$/ : /^-?\d+$/;
-      if (!pattern.test(rawValue)) throw new Error("Invalid integer");
-      value = parseInt(rawValue, 10);
-      if (isNaN(value)) throw new Error("Invalid integer");
-    } else if (type === "double") {
+    if (normalizedType === "int64") {
+      value = parseInt64(rawValue);
+    } else if (normalizedType === "double") {
       value = parseFloat(rawValue);
       if (isNaN(value)) throw new Error("Invalid number");
-    } else if (type === "bool") {
+    } else if (normalizedType === "bool") {
       value = rawValue.toLowerCase() === "true";
     } else {
       value = rawValue;
@@ -340,7 +273,7 @@ export async function updateParameter(name, type) {
     const minAttr = inputElement.dataset.paramMin;
     const maxAttr = inputElement.dataset.paramMax;
     if (
-      (type === "int64" || type === "uint64" || type === "double") &&
+      (normalizedType === "int64" || normalizedType === "double") &&
       minAttr !== undefined &&
       minAttr !== "" &&
       value < Number(minAttr)
@@ -348,7 +281,7 @@ export async function updateParameter(name, type) {
       throw new Error(`Value below minimum (${minAttr})`);
     }
     if (
-      (type === "int64" || type === "uint64" || type === "double") &&
+      (normalizedType === "int64" || normalizedType === "double") &&
       maxAttr !== undefined &&
       maxAttr !== "" &&
       value > Number(maxAttr)
@@ -388,21 +321,253 @@ function handleParameterChange(data) {
   void refreshParameters();
 }
 
-function isParameterEditorActive() {
+function normalizeParameterType(typeToken) {
+  const type = String(typeToken ?? "").trim();
+  return PARAMETER_TYPES.has(type) ? type : null;
+}
+
+function ensureParametersGrid() {
+  if (parametersGrid && elements.parametersContainer.contains(parametersGrid)) {
+    return parametersGrid;
+  }
+  parametersGrid = document.createElement("div");
+  parametersGrid.className = "parameters-grid";
+  elements.parametersContainer.innerHTML = "";
+  elements.parametersContainer.appendChild(parametersGrid);
+  return parametersGrid;
+}
+
+function isElementEditing(element) {
   const active = document.activeElement;
-  if (!(active instanceof HTMLElement)) {
-    return false;
+  return active instanceof HTMLElement && active === element;
+}
+
+function setConstraints(inputElement, min, max) {
+  if (min !== undefined) {
+    inputElement.dataset.paramMin = String(min);
+  } else {
+    delete inputElement.dataset.paramMin;
   }
-  if (!elements.parametersContainer.contains(active)) {
-    return false;
+  if (max !== undefined) {
+    inputElement.dataset.paramMax = String(max);
+  } else {
+    delete inputElement.dataset.paramMax;
   }
-  return (
-    active.tagName === "INPUT" ||
-    active.tagName === "TEXTAREA" ||
-    active.tagName === "SELECT" ||
-    active.tagName === "BUTTON" ||
-    active.closest(".parameter-controls") !== null
-  );
+}
+
+function createParameterInput(param) {
+  const type = normalizeParameterType(param.type);
+  if (!type) {
+    return null;
+  }
+
+  let inputElement;
+  if (type === "bool") {
+    inputElement = document.createElement("select");
+    const trueOption = document.createElement("option");
+    trueOption.value = "true";
+    trueOption.textContent = "true";
+    const falseOption = document.createElement("option");
+    falseOption.value = "false";
+    falseOption.textContent = "false";
+    inputElement.appendChild(trueOption);
+    inputElement.appendChild(falseOption);
+  } else {
+    inputElement = document.createElement("input");
+    if (type === "double") {
+      inputElement.type = "number";
+      inputElement.step = "any";
+      if (param.min !== undefined) inputElement.min = String(param.min);
+      if (param.max !== undefined) inputElement.max = String(param.max);
+    } else if (type === "int64") {
+      inputElement.type = "text";
+      inputElement.inputMode = "numeric";
+    } else {
+      inputElement.type = "text";
+    }
+  }
+
+  inputElement.placeholder = "New value";
+  setConstraints(inputElement, param.min, param.max);
+  return inputElement;
+}
+
+function createParameterRow(param) {
+  const card = document.createElement("div");
+  card.className = "parameter-card";
+  card.dataset.parameterName = param.name;
+
+  const header = document.createElement("div");
+  header.className = "parameter-header";
+
+  const nameEl = document.createElement("span");
+  nameEl.className = "parameter-name";
+  nameEl.textContent = param.name;
+  header.appendChild(nameEl);
+
+  const typeEl = document.createElement("span");
+  typeEl.className = "parameter-type";
+  typeEl.textContent = param.type;
+  header.appendChild(typeEl);
+
+  const valueWrap = document.createElement("div");
+  valueWrap.className = "parameter-value";
+  const valueStrong = document.createElement("strong");
+  valueWrap.appendChild(valueStrong);
+
+  const controls = document.createElement("div");
+  controls.className = "parameter-controls";
+
+  const feedbackEl = document.createElement("span");
+  feedbackEl.className = "feedback";
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "Set";
+
+  const rangeEl = document.createElement("div");
+  rangeEl.className = "parameter-range";
+
+  card.appendChild(header);
+  card.appendChild(valueWrap);
+  card.appendChild(controls);
+  card.appendChild(rangeEl);
+
+  return {
+    card,
+    name: param.name,
+    type: param.type,
+    typeEl,
+    valueStrong,
+    controls,
+    feedbackEl,
+    button,
+    rangeEl,
+    inputElement: null,
+  };
+}
+
+function updateParameterRow(row, param) {
+  const type = normalizeParameterType(param.type);
+  row.typeEl.textContent = type ?? String(param.type);
+  row.valueStrong.textContent = String(param.value);
+
+  if (!type) {
+    if (row.type !== "invalid") {
+      row.controls.innerHTML = "";
+      const errorText = document.createElement("span");
+      errorText.className = "feedback error";
+      errorText.textContent = `Unsupported parameter type: ${String(param.type)}`;
+      row.controls.appendChild(errorText);
+      row.inputElement = null;
+      row.type = "invalid";
+    }
+    row.rangeEl.textContent = "";
+    row.rangeEl.style.display = "none";
+    return;
+  }
+
+  if (row.type !== type || !row.inputElement) {
+    row.controls.innerHTML = "";
+    row.inputElement = createParameterInput(param);
+    if (!row.inputElement) {
+      return;
+    }
+    row.button.onclick = () => {
+      void updateParameter(param.name, type, row.inputElement, row.feedbackEl);
+    };
+    row.controls.appendChild(row.inputElement);
+    row.controls.appendChild(row.button);
+    row.controls.appendChild(row.feedbackEl);
+    row.type = type;
+  } else {
+    setConstraints(row.inputElement, param.min, param.max);
+    if (type === "double") {
+      if (param.min !== undefined) {
+        row.inputElement.min = String(param.min);
+      } else {
+        row.inputElement.removeAttribute("min");
+      }
+      if (param.max !== undefined) {
+        row.inputElement.max = String(param.max);
+      } else {
+        row.inputElement.removeAttribute("max");
+      }
+    }
+  }
+
+  if (!isElementEditing(row.inputElement)) {
+    if (type === "bool") {
+      row.inputElement.value =
+        String(param.value).toLowerCase() === "true" ? "true" : "false";
+    } else {
+      row.inputElement.value = String(param.value);
+    }
+  }
+
+  if (param.min !== undefined || param.max !== undefined) {
+    row.rangeEl.textContent = `Range: [${param.min}, ${param.max}]`;
+    row.rangeEl.style.display = "";
+  } else {
+    row.rangeEl.textContent = "";
+    row.rangeEl.style.display = "none";
+  }
+}
+
+function reconcileParameterRows(parameters) {
+  const grid = ensureParametersGrid();
+  const names = new Set(parameters.map((param) => param.name));
+
+  for (const [name, row] of parameterRows.entries()) {
+    if (!names.has(name)) {
+      row.card.remove();
+      parameterRows.delete(name);
+    }
+  }
+
+  for (const param of parameters) {
+    let row = parameterRows.get(param.name);
+    if (!row) {
+      row = createParameterRow(param);
+      parameterRows.set(param.name, row);
+    }
+    updateParameterRow(row, param);
+    grid.appendChild(row.card);
+  }
+}
+
+function parseInt64(rawValue) {
+  if (!/^-?\d+$/.test(rawValue)) {
+    throw new Error("Invalid integer");
+  }
+  let parsed;
+  try {
+    parsed = BigInt(rawValue);
+  } catch (_err) {
+    throw new Error("Invalid integer");
+  }
+  if (parsed < INT64_MIN || parsed > INT64_MAX) {
+    throw new Error("Out-of-range int64 value");
+  }
+  if (parsed < JS_SAFE_MIN || parsed > JS_SAFE_MAX) {
+    throw new Error("int64 value exceeds browser-safe range");
+  }
+  return Number(parsed);
+}
+
+function normalizeParameterList(parameters) {
+  if (!Array.isArray(parameters)) {
+    return [];
+  }
+
+  return parameters
+    .filter((param) => param && typeof param.name === "string")
+    .map((param) => ({
+      ...param,
+      name: param.name.trim(),
+    }))
+    .filter((param) => param.name !== "")
+    .sort((a, b) => String(a.name).localeCompare(String(b.name)));
 }
 
 /**
