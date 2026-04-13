@@ -275,6 +275,11 @@ jobs:
       - name: Build
         run: cmake --build --preset "${{ matrix.configure_preset }}" --parallel
 
+      - name: Validate runtime config contract
+        if: runner.os == 'Linux' && matrix.configure_preset == 'ci-linux-release-strict'
+        run: |
+          python tools/contracts/validate-runtime-configs.py --runtime-bin build/ci-linux-release-strict/core/anolis-runtime
+
       - name: Run CTest
         run: ctest --preset "${{ matrix.test_preset }}"
 

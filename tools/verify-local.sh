@@ -17,6 +17,20 @@ fi
 echo "[verify-local] Running System Composer test suite"
 "$PYTHON_BIN" -m pytest tools/system-composer/tests -q
 
+RUNTIME_BIN=""
+if [ -f build/dev-release/core/anolis-runtime ]; then
+  RUNTIME_BIN="build/dev-release/core/anolis-runtime"
+elif [ -f build/dev-windows-release/core/Release/anolis-runtime.exe ]; then
+  RUNTIME_BIN="build/dev-windows-release/core/Release/anolis-runtime.exe"
+fi
+
+if [ -n "$RUNTIME_BIN" ]; then
+  echo "[verify-local] Running runtime config contract checks"
+  "$PYTHON_BIN" tools/contracts/validate-runtime-configs.py --runtime-bin "$RUNTIME_BIN"
+else
+  echo "[verify-local] Skipping runtime config contract checks: runtime binary not found"
+fi
+
 if ! command -v ctest >/dev/null 2>&1; then
   echo "[verify-local] Skipping focused C++ tests: ctest not found"
   exit 0
