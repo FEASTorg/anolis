@@ -66,6 +66,10 @@ Base classes for Anolis-specific BT nodes:
 - `CallDeviceNode` - Invokes device function via CallRouter
 - `CheckQualityNode` - Verifies signal quality (OK/STALE/FAULT)
 - `GetParameterNode` - Reads numeric runtime parameters (`double`/`int64`)
+- `GetParameterBoolNode` - Reads boolean runtime parameters
+- `PeriodicPulseWindowNode` - Computes periodic activation windows
+- `EmitOnChangeOrIntervalNode` - Gates command emission by change/keepalive
+- `BuildArgsJsonNode` - Builds JSON args payload from typed slots
 
 All nodes registered with BehaviorTree.CPP factory.
 

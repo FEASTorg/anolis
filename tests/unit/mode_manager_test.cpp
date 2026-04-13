@@ -331,6 +331,49 @@ TEST_F(ModeManagerTest, CallbackExceptionsDoNotAbortTransition) {
     EXPECT_TRUE(second_callback_invoked);
 }
 
+TEST_F(ModeManagerTest, BeforeCallbackCanRejectTransition) {
+    mode_manager_->on_before_mode_change(
+        [](RuntimeMode previous_mode, RuntimeMode next_mode, std::string &error) {
+            if (previous_mode == RuntimeMode::MANUAL && next_mode == RuntimeMode::AUTO) {
+                error = "Rejected by before callback";
+                return false;
+            }
+            return true;
+        });
+
+    std::string error;
+    EXPECT_FALSE(mode_manager_->set_mode(RuntimeMode::AUTO, error));
+    EXPECT_EQ(mode_manager_->current_mode(), RuntimeMode::MANUAL);
+    EXPECT_EQ(error, "Rejected by before callback");
+}
+
+TEST_F(ModeManagerTest, BeforeCallbackExceptionRejectsTransition) {
+    mode_manager_->on_before_mode_change(
+        [](RuntimeMode, RuntimeMode, std::string &) -> bool { throw std::runtime_error("boom"); });
+
+    std::string error;
+    EXPECT_FALSE(mode_manager_->set_mode(RuntimeMode::AUTO, error));
+    EXPECT_EQ(mode_manager_->current_mode(), RuntimeMode::MANUAL);
+    EXPECT_NE(error.find("Before mode change callback error"), std::string::npos);
+}
+
+TEST_F(ModeManagerTest, BeforeCallbackRunsBeforeAfterCallback) {
+    std::vector<std::string> call_order;
+
+    mode_manager_->on_before_mode_change(
+        [&](RuntimeMode, RuntimeMode, std::string &) {
+            call_order.push_back("before");
+            return true;
+        });
+    mode_manager_->on_mode_change([&](RuntimeMode, RuntimeMode) { call_order.push_back("after"); });
+
+    std::string error;
+    ASSERT_TRUE(mode_manager_->set_mode(RuntimeMode::AUTO, error));
+    ASSERT_EQ(call_order.size(), 2u);
+    EXPECT_EQ(call_order[0], "before");
+    EXPECT_EQ(call_order[1], "after");
+}
+
 /******************************************************************************
  * Thread-Safety Tests
  ******************************************************************************/

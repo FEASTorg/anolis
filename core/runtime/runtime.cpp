@@ -12,6 +12,7 @@
 #include <chrono>
 #include <thread>
 #include <utility>
+#include <sstream>
 
 #if ANOLIS_ENABLE_AUTOMATION
 #include "automation/bt_runtime.hpp"
@@ -173,6 +174,31 @@ bool Runtime::init_providers(std::string &error) {
 
 bool Runtime::init_automation(std::string &error) {
 #if ANOLIS_ENABLE_AUTOMATION
+    auto parameter_value_to_provider_value = [](const automation::ParameterValue &input) {
+        anolis::deviceprovider::v1::Value value;
+        if (std::holds_alternative<double>(input)) {
+            value.set_type(anolis::deviceprovider::v1::VALUE_TYPE_DOUBLE);
+            value.set_double_value(std::get<double>(input));
+        } else if (std::holds_alternative<int64_t>(input)) {
+            value.set_type(anolis::deviceprovider::v1::VALUE_TYPE_INT64);
+            value.set_int64_value(std::get<int64_t>(input));
+        } else if (std::holds_alternative<bool>(input)) {
+            value.set_type(anolis::deviceprovider::v1::VALUE_TYPE_BOOL);
+            value.set_bool_value(std::get<bool>(input));
+        } else if (std::holds_alternative<std::string>(input)) {
+            value.set_type(anolis::deviceprovider::v1::VALUE_TYPE_STRING);
+            value.set_string_value(std::get<std::string>(input));
+        }
+        return value;
+    };
+
+    auto hook_mode_matches = [](const std::string &filter, automation::RuntimeMode actual) {
+        if (filter.empty() || filter == "*") {
+            return true;
+        }
+        return filter == automation::mode_to_string(actual);
+    };
+
     // Create ModeManager and wire to CallRouter if automation enabled
     if (config_.automation.enabled) {
         mode_manager_ = std::make_unique<automation::ModeManager>(automation::RuntimeMode::IDLE);
@@ -200,6 +226,89 @@ bool Runtime::init_automation(std::string &error) {
 
         LOG_INFO("[Runtime] Parameter manager initialized with " << parameter_manager_->parameter_count()
                                                                  << " parameters");
+    }
+
+    // Register transition hooks when configured.
+    if (mode_manager_ != nullptr) {
+        const auto before_hooks = config_.automation.mode_transition_hooks.before_transition;
+        const auto after_hooks = config_.automation.mode_transition_hooks.after_transition;
+
+        if (!before_hooks.empty()) {
+            mode_manager_->on_before_mode_change([this, before_hooks, hook_mode_matches,
+                                                  parameter_value_to_provider_value](automation::RuntimeMode prev,
+                                                                                     automation::RuntimeMode next,
+                                                                                     std::string &hook_error) {
+                for (const auto &hook : before_hooks) {
+                    if (!hook_mode_matches(hook.from, prev) || !hook_mode_matches(hook.to, next)) {
+                        continue;
+                    }
+
+                    for (const auto &call : hook.calls) {
+                        control::CallRequest request;
+                        request.device_handle = call.device_handle;
+                        request.function_id = call.function_id;
+                        request.function_name = call.function_name;
+                        request.is_automated = true;
+
+                        for (const auto &[arg_name, arg_value] : call.args) {
+                            request.args[arg_name] = parameter_value_to_provider_value(arg_value);
+                        }
+
+                        const auto result = call_router_->execute_call(request, provider_registry_);
+                        if (!result.success) {
+                            std::stringstream ss;
+                            ss << "Before-transition hook failed (" << automation::mode_to_string(prev) << " -> "
+                               << automation::mode_to_string(next) << "): " << call.device_handle << " "
+                               << (call.function_name.empty() ? std::to_string(call.function_id) : call.function_name)
+                               << " - " << result.error_message;
+                            if (hook.fail_on_error) {
+                                hook_error = ss.str();
+                                return false;
+                            }
+                            LOG_WARN("[Runtime] " << ss.str());
+                        }
+                    }
+                }
+                return true;
+            });
+        }
+
+        if (!after_hooks.empty()) {
+            mode_manager_->on_mode_change([this, after_hooks, hook_mode_matches, parameter_value_to_provider_value](
+                                              automation::RuntimeMode prev, automation::RuntimeMode next) {
+                for (const auto &hook : after_hooks) {
+                    if (!hook_mode_matches(hook.from, prev) || !hook_mode_matches(hook.to, next)) {
+                        continue;
+                    }
+
+                    for (const auto &call : hook.calls) {
+                        control::CallRequest request;
+                        request.device_handle = call.device_handle;
+                        request.function_id = call.function_id;
+                        request.function_name = call.function_name;
+                        request.is_automated = true;
+
+                        for (const auto &[arg_name, arg_value] : call.args) {
+                            request.args[arg_name] = parameter_value_to_provider_value(arg_value);
+                        }
+
+                        const auto result = call_router_->execute_call(request, provider_registry_);
+                        if (!result.success) {
+                            std::stringstream ss;
+                            ss << "After-transition hook failed (" << automation::mode_to_string(prev) << " -> "
+                               << automation::mode_to_string(next) << "): " << call.device_handle << " "
+                               << (call.function_name.empty() ? std::to_string(call.function_id) : call.function_name)
+                               << " - " << result.error_message;
+                            if (hook.fail_on_error) {
+                                LOG_ERROR("[Runtime] " << ss.str());
+                            } else {
+                                LOG_WARN("[Runtime] " << ss.str());
+                            }
+                        }
+                    }
+                }
+            });
+        }
     }
 
     // Register mode change callback to emit telemetry events (only if automation enabled)

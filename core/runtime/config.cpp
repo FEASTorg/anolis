@@ -17,6 +17,7 @@
 #include <initializer_list>
 #include <iostream>
 #include <optional>
+#include <regex>
 #include <unordered_set>
 
 #include "../logging/logger.hpp"
@@ -84,6 +85,59 @@ void warn_unknown_keys(const YAML::Node &node, const std::string &path,
             LOG_WARN("[Config] Unknown key '" << path << "." << key << "' (will be ignored)");
         }
     }
+}
+
+bool is_valid_mode_name(const std::string &mode_name) {
+    return mode_name == "MANUAL" || mode_name == "AUTO" || mode_name == "IDLE" || mode_name == "FAULT" ||
+           mode_name == "*";
+}
+
+bool parse_scalar_parameter_value(const YAML::Node &node, automation::ParameterValue &out, std::string &error,
+                                  const std::string &path) {
+    if (!node || node.IsNull()) {
+        error = "'" + path + "' must be a scalar value";
+        return false;
+    }
+    if (!node.IsScalar()) {
+        error = "'" + path + "' must be a scalar value";
+        return false;
+    }
+
+    const std::string raw = node.as<std::string>();
+
+    // bool literal
+    if (raw == "true" || raw == "false") {
+        out = (raw == "true");
+        return true;
+    }
+
+    // integer literal
+    static const std::regex kIntPattern(R"(^[+-]?[0-9]+$)");
+    if (std::regex_match(raw, kIntPattern)) {
+        try {
+            out = std::stoll(raw);
+            return true;
+        } catch (const std::exception &) {
+            error = "'" + path + "' integer value out of range";
+            return false;
+        }
+    }
+
+    // floating literal
+    static const std::regex kFloatPattern(R"(^[+-]?([0-9]+\.[0-9]*|[0-9]*\.[0-9]+)([eE][+-]?[0-9]+)?$)");
+    if (std::regex_match(raw, kFloatPattern)) {
+        try {
+            out = std::stod(raw);
+            return true;
+        } catch (const std::exception &) {
+            error = "'" + path + "' floating value out of range";
+            return false;
+        }
+    }
+
+    // Fallback: treat as string
+    out = raw;
+    return true;
 }
 
 }  // namespace
@@ -251,6 +305,49 @@ bool validate_config(const RuntimeConfig &config, std::string &error) {
                 error = "Parameter '" + param.name + "' allowed_values is only valid for string parameters";
                 return false;
             }
+        }
+
+        const auto validate_hook_group = [&](const std::vector<ModeTransitionHookConfig> &hooks,
+                                             const std::string &group_name) -> bool {
+            for (size_t hook_index = 0; hook_index < hooks.size(); ++hook_index) {
+                const auto &hook = hooks[hook_index];
+                const std::string hook_path =
+                    "automation.mode_transition_hooks." + group_name + "[" + std::to_string(hook_index) + "]";
+
+                if (!hook.from.empty() && !is_valid_mode_name(hook.from)) {
+                    error = hook_path + ".from must be one of MANUAL/AUTO/IDLE/FAULT/*";
+                    return false;
+                }
+                if (!hook.to.empty() && !is_valid_mode_name(hook.to)) {
+                    error = hook_path + ".to must be one of MANUAL/AUTO/IDLE/FAULT/*";
+                    return false;
+                }
+                if (hook.calls.empty()) {
+                    error = hook_path + ".calls must contain at least one call";
+                    return false;
+                }
+
+                for (size_t call_index = 0; call_index < hook.calls.size(); ++call_index) {
+                    const auto &call = hook.calls[call_index];
+                    const std::string call_path = hook_path + ".calls[" + std::to_string(call_index) + "]";
+                    if (call.device_handle.empty()) {
+                        error = call_path + ".device_handle is required";
+                        return false;
+                    }
+                    if (call.function_id == 0 && call.function_name.empty()) {
+                        error = call_path + " must provide function_id or function_name";
+                        return false;
+                    }
+                }
+            }
+            return true;
+        };
+
+        if (!validate_hook_group(config.automation.mode_transition_hooks.before_transition, "before_transition")) {
+            return false;
+        }
+        if (!validate_hook_group(config.automation.mode_transition_hooks.after_transition, "after_transition")) {
+            return false;
         }
     }
 
@@ -564,7 +661,7 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
             }
             warn_unknown_keys(yaml["automation"], "automation",
                               {"enabled", "behavior_tree", "behavior_tree_path", "tick_rate_hz", "manual_gating_policy",
-                               "parameters"});
+                               "parameters", "mode_transition_hooks"});
 
             if (yaml["automation"]["enabled"]) {
                 config.automation.enabled = yaml["automation"]["enabled"].as<bool>();
@@ -691,6 +788,107 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
                     ++param_index;
                 }
             }
+
+            if (yaml["automation"]["mode_transition_hooks"]) {
+                const auto &hooks_node = yaml["automation"]["mode_transition_hooks"];
+                if (!ensure_mapping(hooks_node, "automation.mode_transition_hooks", error)) {
+                    return false;
+                }
+                warn_unknown_keys(hooks_node, "automation.mode_transition_hooks", {"before_transition", "after_transition"});
+
+                const auto parse_hook_group = [&](const YAML::Node &group_node, const std::string &group_path,
+                                                  std::vector<ModeTransitionHookConfig> &out) -> bool {
+                    out.clear();
+                    if (!group_node || group_node.IsNull()) {
+                        return true;
+                    }
+                    if (!ensure_sequence(group_node, group_path, error)) {
+                        return false;
+                    }
+
+                    size_t hook_index = 0;
+                    for (const auto &hook_node : group_node) {
+                        const std::string hook_path = group_path + "[" + std::to_string(hook_index) + "]";
+                        if (!hook_node.IsMap()) {
+                            error = "'" + hook_path + "' must be a map";
+                            return false;
+                        }
+                        warn_unknown_keys(hook_node, hook_path, {"from", "to", "fail_on_error", "calls"});
+
+                        ModeTransitionHookConfig hook;
+                        if (hook_node["from"]) {
+                            hook.from = hook_node["from"].as<std::string>();
+                        }
+                        if (hook_node["to"]) {
+                            hook.to = hook_node["to"].as<std::string>();
+                        }
+                        if (hook_node["fail_on_error"]) {
+                            hook.fail_on_error = hook_node["fail_on_error"].as<bool>();
+                        }
+
+                        if (!hook_node["calls"]) {
+                            error = "'" + hook_path + ".calls' is required";
+                            return false;
+                        }
+                        if (!ensure_sequence(hook_node["calls"], hook_path + ".calls", error)) {
+                            return false;
+                        }
+
+                        size_t call_index = 0;
+                        for (const auto &call_node : hook_node["calls"]) {
+                            const std::string call_path = hook_path + ".calls[" + std::to_string(call_index) + "]";
+                            if (!call_node.IsMap()) {
+                                error = "'" + call_path + "' must be a map";
+                                return false;
+                            }
+                            warn_unknown_keys(call_node, call_path, {"device_handle", "function_id", "function_name", "args"});
+
+                            ModeTransitionCallConfig call;
+                            if (call_node["device_handle"]) {
+                                call.device_handle = call_node["device_handle"].as<std::string>();
+                            }
+                            if (call_node["function_id"]) {
+                                call.function_id = call_node["function_id"].as<uint32_t>();
+                            }
+                            if (call_node["function_name"]) {
+                                call.function_name = call_node["function_name"].as<std::string>();
+                            }
+
+                            if (call_node["args"]) {
+                                if (!ensure_mapping(call_node["args"], call_path + ".args", error)) {
+                                    return false;
+                                }
+                                for (const auto &arg_entry : call_node["args"]) {
+                                    const std::string arg_key = arg_entry.first.as<std::string>();
+                                    const std::string arg_path = call_path + ".args." + arg_key;
+                                    automation::ParameterValue arg_value;
+                                    if (!parse_scalar_parameter_value(arg_entry.second, arg_value, error, arg_path)) {
+                                        return false;
+                                    }
+                                    call.args[arg_key] = arg_value;
+                                }
+                            }
+
+                            hook.calls.push_back(std::move(call));
+                            ++call_index;
+                        }
+
+                        out.push_back(std::move(hook));
+                        ++hook_index;
+                    }
+
+                    return true;
+                };
+
+                if (!parse_hook_group(hooks_node["before_transition"], "automation.mode_transition_hooks.before_transition",
+                                      config.automation.mode_transition_hooks.before_transition)) {
+                    return false;
+                }
+                if (!parse_hook_group(hooks_node["after_transition"], "automation.mode_transition_hooks.after_transition",
+                                      config.automation.mode_transition_hooks.after_transition)) {
+                    return false;
+                }
+            }
         }
 
         // Structural YAML checks above guarantee node shape; centralized
@@ -728,7 +926,9 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
         if (config.automation.enabled) {
             automation_msg << " (BT: " << config.automation.behavior_tree
                            << ", tick rate: " << config.automation.tick_rate_hz << " Hz, "
-                           << config.automation.parameters.size() << " parameters)";
+                           << config.automation.parameters.size() << " parameters, hooks: before="
+                           << config.automation.mode_transition_hooks.before_transition.size() << ", after="
+                           << config.automation.mode_transition_hooks.after_transition.size() << ")";
         }
         LOG_INFO(automation_msg.str());
 

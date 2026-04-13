@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <variant>
 
 namespace fs = std::filesystem;
 using namespace anolis::runtime;
@@ -293,6 +294,97 @@ automation:
     ASSERT_TRUE(load_config(config_path, config, error)) << "Error: " << error;
     EXPECT_TRUE(config.automation.enabled);
     EXPECT_EQ(config.automation.behavior_tree, "/path/to/tree.xml");
+}
+
+TEST_F(ConfigTest, AutomationModeTransitionHooksConfiguration) {
+    std::string config_content = R"(
+runtime:
+
+http:
+  enabled: false
+
+providers:
+  - id: test
+    command: /path/to/provider
+
+logging:
+  level: info
+
+automation:
+  enabled: true
+  behavior_tree: /path/to/tree.xml
+  mode_transition_hooks:
+    before_transition:
+      - from: AUTO
+        to: MANUAL
+        fail_on_error: true
+        calls:
+          - device_handle: bread0/dcmt0
+            function_name: set_open_loop
+            args:
+              motor1_pwm: 35
+              motor2_pwm: 0
+              brake: false
+    after_transition:
+      - from: MANUAL
+        to: IDLE
+        fail_on_error: false
+        calls:
+          - device_handle: bread0/dcmt0
+            function_id: 1
+)";
+
+    std::string config_path = create_config_file("automation_hooks.yaml", config_content);
+    RuntimeConfig config;
+    std::string error;
+
+    ASSERT_TRUE(load_config(config_path, config, error)) << "Error: " << error;
+    ASSERT_EQ(config.automation.mode_transition_hooks.before_transition.size(), 1);
+    ASSERT_EQ(config.automation.mode_transition_hooks.after_transition.size(), 1);
+
+    const auto &before = config.automation.mode_transition_hooks.before_transition[0];
+    EXPECT_EQ(before.from, "AUTO");
+    EXPECT_EQ(before.to, "MANUAL");
+    ASSERT_EQ(before.calls.size(), 1);
+    EXPECT_EQ(before.calls[0].device_handle, "bread0/dcmt0");
+    EXPECT_EQ(before.calls[0].function_name, "set_open_loop");
+    ASSERT_EQ(before.calls[0].args.size(), 3u);
+    EXPECT_TRUE(std::holds_alternative<int64_t>(before.calls[0].args.at("motor1_pwm")));
+    EXPECT_TRUE(std::holds_alternative<bool>(before.calls[0].args.at("brake")));
+}
+
+TEST_F(ConfigTest, AutomationModeTransitionHooksRejectInvalidModeName) {
+    std::string config_content = R"(
+runtime:
+
+http:
+  enabled: false
+
+providers:
+  - id: test
+    command: /path/to/provider
+
+logging:
+  level: info
+
+automation:
+  enabled: true
+  behavior_tree: /path/to/tree.xml
+  mode_transition_hooks:
+    before_transition:
+      - from: AUTOISH
+        to: MANUAL
+        calls:
+          - device_handle: bread0/dcmt0
+            function_name: set_open_loop
+)";
+
+    std::string config_path = create_config_file("automation_hooks_bad_mode.yaml", config_content);
+    RuntimeConfig config;
+    std::string error;
+
+    EXPECT_FALSE(load_config(config_path, config, error));
+    EXPECT_NE(error.find("from must be one of"), std::string::npos) << "Error: " << error;
 }
 
 TEST_F(ConfigTest, ValidLogLevels) {

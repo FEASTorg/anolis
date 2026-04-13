@@ -4,6 +4,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace anolis {
 namespace automation {
@@ -45,6 +46,19 @@ std::optional<RuntimeMode> string_to_mode(const std::string& str);
  */
 class ModeManager {
 public:
+    /**
+     * Before mode change callback signature.
+     *
+     * Returning false vetoes the transition and sets an error message.
+     *
+     * @param previous_mode Mode before transition
+     * @param new_mode Requested mode
+     * @param error Output error when returning false
+     * @return true to allow transition, false to reject
+     */
+    using BeforeModeChangeCallback =
+        std::function<bool(RuntimeMode previous_mode, RuntimeMode new_mode, std::string &error)>;
+
     /**
      * Mode change callback signature.
      * Called after successful mode transition.
@@ -91,6 +105,14 @@ public:
     bool set_mode(RuntimeMode new_mode, std::string& error);
 
     /**
+     * Register callback invoked before mode transition is committed.
+     *
+     * Callbacks run with no internal lock held. Returning false rejects
+     * the transition.
+     */
+    void on_before_mode_change(const BeforeModeChangeCallback& callback);
+
+    /**
      * Register callback for mode change notifications.
      *
      * Callback is invoked AFTER mode transition with lock released.
@@ -112,6 +134,7 @@ private:
 
     mutable std::mutex mutex_;
     RuntimeMode current_mode_;
+    std::vector<BeforeModeChangeCallback> before_callbacks_;
     std::vector<ModeChangeCallback> callbacks_;
 };
 

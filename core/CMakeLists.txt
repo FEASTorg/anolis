@@ -196,7 +196,7 @@ if(ANOLIS_ENABLE_AUTOMATION)
         automation/bt_nodes_sanity.cpp
     )
 
-    if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    if ((CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang") AND (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24"))
         target_link_libraries(bt_nodes_sanity PRIVATE
             $<LINK_GROUP:RESCAN,anolis_automation,anolis_control>
             BT::behaviortree_cpp

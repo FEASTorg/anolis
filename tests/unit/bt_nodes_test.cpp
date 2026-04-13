@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <string>
+#include <sstream>
 
 #include "automation/bt_services.hpp"
 #include "automation/parameter_manager.hpp"
@@ -28,6 +29,65 @@ std::string make_get_parameter_tree_xml(const std::string& param_name) {
 )";
 }
 
+std::string make_get_parameter_bool_tree_xml(const std::string& param_name) {
+    return std::string(R"(<?xml version="1.0"?>
+<root BTCPP_format="4">
+  <BehaviorTree ID="MainTree">
+    <GetParameterBool param=")") +
+           param_name +
+           R"(" value="{out}"/>
+  </BehaviorTree>
+</root>
+)";
+}
+
+std::string make_pulse_tree_xml(int64_t startup_delay_s, int64_t interval_s, int64_t pulse_s) {
+    std::stringstream xml;
+    xml << R"(<?xml version="1.0"?>
+<root BTCPP_format="4">
+  <BehaviorTree ID="MainTree">
+    <PeriodicPulseWindow enabled="true" startup_delay_s=")"
+        << startup_delay_s << R"(" interval_s=")" << interval_s << R"(" pulse_s=")" << pulse_s << R"("
+        now_ms="{now}" active="{active}" pulse_index="{idx}" elapsed_ms="{elapsed}"/>
+  </BehaviorTree>
+</root>
+)";
+    return xml.str();
+}
+
+std::string make_emit_gate_tree_xml(int64_t keepalive_s) {
+    std::stringstream xml;
+    xml << R"(<?xml version="1.0"?>
+<root BTCPP_format="4">
+  <BehaviorTree ID="MainTree">
+    <EmitOnChangeOrInterval key="{key}" keepalive_s=")" << keepalive_s
+        << R"(" now_ms="{now}" emit="{emit}" reason="{reason}"/>
+  </BehaviorTree>
+</root>
+)";
+    return xml.str();
+}
+
+std::string make_build_args_tree_xml(double motor1, double motor2) {
+    std::stringstream xml;
+    xml << R"(<?xml version="1.0"?>
+<root BTCPP_format="4">
+  <BehaviorTree ID="MainTree">
+    <BuildArgsJson
+      arg1_name="motor1_pwm"
+      arg1_type="int64"
+      arg1_num=")"
+        << motor1 << R"("
+      arg2_name="motor2_pwm"
+      arg2_type="int64"
+      arg2_num=")" << motor2 << R"("
+      json="{args}"/>
+  </BehaviorTree>
+</root>
+)";
+    return xml.str();
+}
+
 class BTNodesTest : public ::testing::Test {
 protected:
     anolis::registry::DeviceRegistry registry_;
@@ -38,6 +98,10 @@ protected:
 
     static void register_nodes(BT::BehaviorTreeFactory& factory) {
         factory.registerNodeType<anolis::automation::GetParameterNode>("GetParameter");
+        factory.registerNodeType<anolis::automation::GetParameterBoolNode>("GetParameterBool");
+        factory.registerNodeType<anolis::automation::PeriodicPulseWindowNode>("PeriodicPulseWindow");
+        factory.registerNodeType<anolis::automation::EmitOnChangeOrIntervalNode>("EmitOnChangeOrInterval");
+        factory.registerNodeType<anolis::automation::BuildArgsJsonNode>("BuildArgsJson");
     }
 
     BT::Blackboard::Ptr make_blackboard(bool with_context) {
@@ -105,4 +169,63 @@ TEST_F(BTNodesTest, GetParameterNodeFailsWhenServiceContextMissing) {
     auto tree = factory.createTreeFromText(make_get_parameter_tree_xml("temp_setpoint"), blackboard);
 
     EXPECT_EQ(BT::NodeStatus::FAILURE, tree.tickOnce());
+}
+
+TEST_F(BTNodesTest, GetParameterBoolNodeSucceedsForBool) {
+    ASSERT_TRUE(parameter_manager_.define("feed_enable", anolis::automation::ParameterType::BOOL, true));
+
+    BT::BehaviorTreeFactory factory;
+    register_nodes(factory);
+    auto blackboard = make_blackboard(true);
+    auto tree = factory.createTreeFromText(make_get_parameter_bool_tree_xml("feed_enable"), blackboard);
+
+    EXPECT_EQ(BT::NodeStatus::SUCCESS, tree.tickOnce());
+    EXPECT_TRUE(blackboard->get<bool>("out"));
+}
+
+TEST_F(BTNodesTest, PeriodicPulseWindowNodeComputesExpectedWindow) {
+    BT::BehaviorTreeFactory factory;
+    register_nodes(factory);
+    auto blackboard = make_blackboard(true);
+
+    auto tree = factory.createTreeFromText(make_pulse_tree_xml(10, 5, 2), blackboard);
+    blackboard->set<int64_t>("now", 0);
+    EXPECT_EQ(BT::NodeStatus::SUCCESS, tree.tickOnce());
+    EXPECT_FALSE(blackboard->get<bool>("active"));
+
+    // +11s with delay=10s, interval=5s, pulse=2s => inside pulse 0
+    blackboard->set<int64_t>("now", 11 * 1000);
+    EXPECT_EQ(BT::NodeStatus::SUCCESS, tree.tickOnce());
+    EXPECT_TRUE(blackboard->get<bool>("active"));
+    EXPECT_EQ(0, blackboard->get<int64_t>("idx"));
+}
+
+TEST_F(BTNodesTest, EmitOnChangeOrIntervalNodeEmitsOnFirstAndChange) {
+    BT::BehaviorTreeFactory factory;
+    register_nodes(factory);
+    auto blackboard = make_blackboard(true);
+
+    auto tree = factory.createTreeFromText(make_emit_gate_tree_xml(30), blackboard);
+
+    blackboard->set<std::string>("key", "cmdA");
+    blackboard->set<int64_t>("now", 1000);
+    EXPECT_EQ(BT::NodeStatus::SUCCESS, tree.tickOnce());
+    EXPECT_TRUE(blackboard->get<bool>("emit"));
+
+    blackboard->set<std::string>("key", "cmdB");
+    blackboard->set<int64_t>("now", 2000);
+    EXPECT_EQ(BT::NodeStatus::SUCCESS, tree.tickOnce());
+    EXPECT_TRUE(blackboard->get<bool>("emit"));
+}
+
+TEST_F(BTNodesTest, BuildArgsJsonNodeBuildsInt64Args) {
+    BT::BehaviorTreeFactory factory;
+    register_nodes(factory);
+    auto blackboard = make_blackboard(true);
+    auto tree = factory.createTreeFromText(make_build_args_tree_xml(35.0, 0.0), blackboard);
+
+    EXPECT_EQ(BT::NodeStatus::SUCCESS, tree.tickOnce());
+    const auto args_json = blackboard->get<std::string>("args");
+    EXPECT_NE(args_json.find("\"motor1_pwm\":35"), std::string::npos);
+    EXPECT_NE(args_json.find("\"motor2_pwm\":0"), std::string::npos);
 }

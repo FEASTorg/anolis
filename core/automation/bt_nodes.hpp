@@ -6,6 +6,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <cstdint>
 
 #include "automation/bt_services.hpp"
 
@@ -156,6 +157,85 @@ public:
 
 private:
     std::optional<BTServiceContext> get_services() const;
+};
+
+/**
+ * GetParameterBoolNode - BT action node for reading bool runtime parameters.
+ *
+ * XML Port Configuration:
+ * - param (input): Parameter name
+ * - value (output): Parameter value (bool only)
+ *
+ * Returns:
+ * - SUCCESS: Parameter read successfully and is bool
+ * - FAILURE: Parameter missing, manager unavailable, or non-bool type
+ */
+class GetParameterBoolNode : public BT::SyncActionNode {
+public:
+    GetParameterBoolNode(const std::string &name, const BT::NodeConfig &config);
+
+    BT::NodeStatus tick() override;
+
+    static BT::PortsList providedPorts();
+
+private:
+    std::optional<BTServiceContext> get_services() const;
+};
+
+/**
+ * PeriodicPulseWindowNode - Generic periodic scheduler window.
+ *
+ * Computes whether current time is inside a pulse window after startup delay.
+ * Useful for simple time-based dosing/actuation schedules.
+ */
+class PeriodicPulseWindowNode : public BT::SyncActionNode {
+public:
+    PeriodicPulseWindowNode(const std::string &name, const BT::NodeConfig &config);
+
+    BT::NodeStatus tick() override;
+
+    static BT::PortsList providedPorts();
+
+private:
+    bool initialized_ = false;
+    int64_t enabled_at_ms_ = 0;
+};
+
+/**
+ * EmitOnChangeOrIntervalNode - Generic emission gate.
+ *
+ * Emits true when an input key changes or keepalive interval elapses.
+ * This helps avoid unnecessary repeated calls while preserving liveness.
+ */
+class EmitOnChangeOrIntervalNode : public BT::SyncActionNode {
+public:
+    EmitOnChangeOrIntervalNode(const std::string &name, const BT::NodeConfig &config);
+
+    BT::NodeStatus tick() override;
+
+    static BT::PortsList providedPorts();
+
+private:
+    bool has_last_emit_ = false;
+    int64_t last_emit_ms_ = 0;
+    std::string last_key_;
+};
+
+/**
+ * BuildArgsJsonNode - Build JSON args object from typed input slots.
+ *
+ * Supports up to 6 argument slots, each with:
+ * - argN_name (string)
+ * - argN_type (optional: int64|double|bool|string)
+ * - argN_num / argN_bool / argN_str (one value source)
+ */
+class BuildArgsJsonNode : public BT::SyncActionNode {
+public:
+    BuildArgsJsonNode(const std::string &name, const BT::NodeConfig &config);
+
+    BT::NodeStatus tick() override;
+
+    static BT::PortsList providedPorts();
 };
 
 }  // namespace automation

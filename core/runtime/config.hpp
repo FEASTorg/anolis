@@ -8,6 +8,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <map>
 
 #include "../automation/parameter_types.hpp"
 #include "../provider/provider_config.hpp"
@@ -93,6 +94,37 @@ struct ParameterConfig {
 };
 
 /**
+ * @brief Generic device call payload for a mode-transition hook.
+ */
+struct ModeTransitionCallConfig {
+    std::string device_handle;                             // provider_id/device_id
+    uint32_t function_id = 0;                              // optional numeric selector
+    std::string function_name;                             // optional name selector
+    std::map<std::string, automation::ParameterValue> args;  // scalar args only
+};
+
+/**
+ * @brief Hook definition for mode transition lifecycle.
+ *
+ * `from` or `to` may be empty (wildcard). Matching is runtime-string based
+ * against MANUAL/AUTO/IDLE/FAULT.
+ */
+struct ModeTransitionHookConfig {
+    std::string from;  // optional mode filter, empty or "*" means any
+    std::string to;    // optional mode filter, empty or "*" means any
+    bool fail_on_error = true;
+    std::vector<ModeTransitionCallConfig> calls;
+};
+
+/**
+ * @brief Grouped mode transition hooks by lifecycle timing.
+ */
+struct ModeTransitionHooksConfig {
+    std::vector<ModeTransitionHookConfig> before_transition;
+    std::vector<ModeTransitionHookConfig> after_transition;
+};
+
+/**
  * @brief Automation subsystem settings from the `automation` YAML section.
  *
  * `behavior_tree` is the canonical config key. The loader may accept a small
@@ -105,6 +137,7 @@ struct AutomationConfig {
     int tick_rate_hz = 10;                                    // BT tick rate (1-1000 Hz)
     GatingPolicy manual_gating_policy = GatingPolicy::BLOCK;  // BLOCK or OVERRIDE
     std::vector<ParameterConfig> parameters;                  // Runtime parameters
+    ModeTransitionHooksConfig mode_transition_hooks;          // Generic mode transition hooks
 };
 
 /**
