@@ -2,8 +2,8 @@
 <root BTCPP_format="4">
   <!--
     Bioreactor stir/feed automation:
-    - Maintain impeller command (dcmt0 motor1)
-    - Run feed pulse schedule (dcmt0 motor2)
+    - Run feed pulse schedule (dcmt0 motor1)
+    - Maintain impeller command (dcmt0 motor2)
     - Emit set_open_loop only on command change or keepalive
 
     All machine semantics live in config/BT assets; core runtime remains provider-agnostic.
@@ -32,19 +32,19 @@
         <Sequence>
           <CheckBool value="{impeller_enable}" expected="true"/>
           <CheckBool value="{feed_active}" expected="true"/>
-          <BuildArgsJson arg1_name="motor1_pwm" arg1_type="int64" arg1_num="{impeller_pwm}" arg2_name="motor2_pwm" arg2_type="int64" arg2_num="{feed_pwm}" json="{dcmt0_open_loop_args}"/>
+          <BuildArgsJson arg1_name="motor1_pwm" arg1_type="int64" arg1_num="{feed_pwm}" arg2_name="motor2_pwm" arg2_type="int64" arg2_num="{impeller_pwm}" json="{dcmt0_open_loop_args}"/>
         </Sequence>
 
         <Sequence>
           <CheckBool value="{impeller_enable}" expected="true"/>
           <CheckBool value="{feed_active}" expected="false"/>
-          <BuildArgsJson arg1_name="motor1_pwm" arg1_type="int64" arg1_num="{impeller_pwm}" arg2_name="motor2_pwm" arg2_type="int64" arg2_num="0" json="{dcmt0_open_loop_args}"/>
+          <BuildArgsJson arg1_name="motor1_pwm" arg1_type="int64" arg1_num="0" arg2_name="motor2_pwm" arg2_type="int64" arg2_num="{impeller_pwm}" json="{dcmt0_open_loop_args}"/>
         </Sequence>
 
         <Sequence>
           <CheckBool value="{impeller_enable}" expected="false"/>
           <CheckBool value="{feed_active}" expected="true"/>
-          <BuildArgsJson arg1_name="motor1_pwm" arg1_type="int64" arg1_num="0" arg2_name="motor2_pwm" arg2_type="int64" arg2_num="{feed_pwm}" json="{dcmt0_open_loop_args}"/>
+          <BuildArgsJson arg1_name="motor1_pwm" arg1_type="int64" arg1_num="{feed_pwm}" arg2_name="motor2_pwm" arg2_type="int64" arg2_num="0" json="{dcmt0_open_loop_args}"/>
         </Sequence>
 
         <Sequence>

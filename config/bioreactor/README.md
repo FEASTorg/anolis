@@ -25,11 +25,11 @@ Device map:
 DCMT channel intent map:
 
 1. `dcmt0` (`0x14` / decimal 20):
-   - channel 1: impeller stirring motor
-   - channel 2: media/feed motor
+   - channel 1: media/feed motor
+   - channel 2: impeller stirring motor
 2. `dcmt1` (`0x15` / decimal 21):
-   - channel 1: acid pump motor
-   - channel 2: base pump motor
+   - channel 1: base pump motor
+   - channel 2: acid pump motor
 
 RLHT usage note:
 
@@ -110,8 +110,8 @@ Acceptance:
 
 This profile enables Behavior Tree automation for:
 
-1. `dcmt0` channel 1 impeller command.
-2. `dcmt0` channel 2 feed pulse schedule.
+1. `dcmt0` channel 1 feed pulse schedule.
+2. `dcmt0` channel 2 impeller command.
 3. Safe mode-transition handoff writes (`AUTO->MANUAL`, `MANUAL->IDLE`, `*->FAULT`).
 
 Safety behavior note:
@@ -130,9 +130,9 @@ Recommended first validation:
 
 1. Keep defaults (`impeller_enable=false`, `feed_enable=false`).
 2. Set `impeller_enable=true` and `impeller_pwm` via `POST /v0/parameters`.
-3. Confirm `dcmt0` channel 1 responds and channel 2 remains off.
+3. Confirm `dcmt0` channel 2 responds and channel 1 remains off.
 4. Set `feed_enable=true` and tune `feed_interval_s` / `feed_pulse_s`.
-5. Confirm channel 2 pulses on schedule.
+5. Confirm channel 1 pulses on schedule.
 
 Capture automation API artifacts:
 
