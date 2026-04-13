@@ -88,8 +88,8 @@ bool ModeManager::set_mode(RuntimeMode new_mode, std::string &error) {
             std::string callback_error;
             if (!callback(previous_mode, new_mode, callback_error)) {
                 if (new_mode == RuntimeMode::FAULT) {
-                    const std::string warn = callback_error.empty() ? "Before-mode callback rejected FAULT transition"
-                                                                    : callback_error;
+                    const std::string warn =
+                        callback_error.empty() ? "Before-mode callback rejected FAULT transition" : callback_error;
                     LOG_WARN("[ModeManager] Ignoring before-mode rejection during FAULT transition: " << warn);
                     continue;
                 }

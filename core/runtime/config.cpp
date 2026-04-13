@@ -794,7 +794,8 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
                 if (!ensure_mapping(hooks_node, "automation.mode_transition_hooks", error)) {
                     return false;
                 }
-                warn_unknown_keys(hooks_node, "automation.mode_transition_hooks", {"before_transition", "after_transition"});
+                warn_unknown_keys(hooks_node, "automation.mode_transition_hooks",
+                                  {"before_transition", "after_transition"});
 
                 const auto parse_hook_group = [&](const YAML::Node &group_node, const std::string &group_path,
                                                   std::vector<ModeTransitionHookConfig> &out) -> bool {
@@ -841,7 +842,8 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
                                 error = "'" + call_path + "' must be a map";
                                 return false;
                             }
-                            warn_unknown_keys(call_node, call_path, {"device_handle", "function_id", "function_name", "args"});
+                            warn_unknown_keys(call_node, call_path,
+                                              {"device_handle", "function_id", "function_name", "args"});
 
                             ModeTransitionCallConfig call;
                             if (call_node["device_handle"]) {
@@ -880,11 +882,13 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
                     return true;
                 };
 
-                if (!parse_hook_group(hooks_node["before_transition"], "automation.mode_transition_hooks.before_transition",
+                if (!parse_hook_group(hooks_node["before_transition"],
+                                      "automation.mode_transition_hooks.before_transition",
                                       config.automation.mode_transition_hooks.before_transition)) {
                     return false;
                 }
-                if (!parse_hook_group(hooks_node["after_transition"], "automation.mode_transition_hooks.after_transition",
+                if (!parse_hook_group(hooks_node["after_transition"],
+                                      "automation.mode_transition_hooks.after_transition",
                                       config.automation.mode_transition_hooks.after_transition)) {
                     return false;
                 }
@@ -927,8 +931,8 @@ bool load_config(const std::string &config_path, RuntimeConfig &config, std::str
             automation_msg << " (BT: " << config.automation.behavior_tree
                            << ", tick rate: " << config.automation.tick_rate_hz << " Hz, "
                            << config.automation.parameters.size() << " parameters, hooks: before="
-                           << config.automation.mode_transition_hooks.before_transition.size() << ", after="
-                           << config.automation.mode_transition_hooks.after_transition.size() << ")";
+                           << config.automation.mode_transition_hooks.before_transition.size()
+                           << ", after=" << config.automation.mode_transition_hooks.after_transition.size() << ")";
         }
         LOG_INFO(automation_msg.str());
 

@@ -332,14 +332,13 @@ TEST_F(ModeManagerTest, CallbackExceptionsDoNotAbortTransition) {
 }
 
 TEST_F(ModeManagerTest, BeforeCallbackCanRejectTransition) {
-    mode_manager_->on_before_mode_change(
-        [](RuntimeMode previous_mode, RuntimeMode next_mode, std::string &error) {
-            if (previous_mode == RuntimeMode::MANUAL && next_mode == RuntimeMode::AUTO) {
-                error = "Rejected by before callback";
-                return false;
-            }
-            return true;
-        });
+    mode_manager_->on_before_mode_change([](RuntimeMode previous_mode, RuntimeMode next_mode, std::string &error) {
+        if (previous_mode == RuntimeMode::MANUAL && next_mode == RuntimeMode::AUTO) {
+            error = "Rejected by before callback";
+            return false;
+        }
+        return true;
+    });
 
     std::string error;
     EXPECT_FALSE(mode_manager_->set_mode(RuntimeMode::AUTO, error));
@@ -360,11 +359,10 @@ TEST_F(ModeManagerTest, BeforeCallbackExceptionRejectsTransition) {
 TEST_F(ModeManagerTest, BeforeCallbackRunsBeforeAfterCallback) {
     std::vector<std::string> call_order;
 
-    mode_manager_->on_before_mode_change(
-        [&](RuntimeMode, RuntimeMode, std::string &) {
-            call_order.push_back("before");
-            return true;
-        });
+    mode_manager_->on_before_mode_change([&](RuntimeMode, RuntimeMode, std::string &) {
+        call_order.push_back("before");
+        return true;
+    });
     mode_manager_->on_mode_change([&](RuntimeMode, RuntimeMode) { call_order.push_back("after"); });
 
     std::string error;
@@ -375,14 +373,13 @@ TEST_F(ModeManagerTest, BeforeCallbackRunsBeforeAfterCallback) {
 }
 
 TEST_F(ModeManagerTest, BeforeCallbackCannotRejectFaultTransition) {
-    mode_manager_->on_before_mode_change(
-        [](RuntimeMode, RuntimeMode next_mode, std::string &error) {
-            if (next_mode == RuntimeMode::FAULT) {
-                error = "Simulated failure while entering FAULT";
-                return false;
-            }
-            return true;
-        });
+    mode_manager_->on_before_mode_change([](RuntimeMode, RuntimeMode next_mode, std::string &error) {
+        if (next_mode == RuntimeMode::FAULT) {
+            error = "Simulated failure while entering FAULT";
+            return false;
+        }
+        return true;
+    });
 
     std::string error;
     EXPECT_TRUE(mode_manager_->set_mode(RuntimeMode::FAULT, error));
@@ -390,13 +387,12 @@ TEST_F(ModeManagerTest, BeforeCallbackCannotRejectFaultTransition) {
 }
 
 TEST_F(ModeManagerTest, BeforeCallbackExceptionCannotBlockFaultTransition) {
-    mode_manager_->on_before_mode_change(
-        [](RuntimeMode, RuntimeMode next_mode, std::string &) -> bool {
-            if (next_mode == RuntimeMode::FAULT) {
-                throw std::runtime_error("boom while entering fault");
-            }
-            return true;
-        });
+    mode_manager_->on_before_mode_change([](RuntimeMode, RuntimeMode next_mode, std::string &) -> bool {
+        if (next_mode == RuntimeMode::FAULT) {
+            throw std::runtime_error("boom while entering fault");
+        }
+        return true;
+    });
 
     std::string error;
     EXPECT_TRUE(mode_manager_->set_mode(RuntimeMode::FAULT, error));

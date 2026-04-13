@@ -5,10 +5,10 @@
  * @brief Runtime configuration types and YAML load/validation entry points.
  */
 
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
-#include <map>
 
 #include "../automation/parameter_types.hpp"
 #include "../provider/provider_config.hpp"
@@ -97,9 +97,9 @@ struct ParameterConfig {
  * @brief Generic device call payload for a mode-transition hook.
  */
 struct ModeTransitionCallConfig {
-    std::string device_handle;                             // provider_id/device_id
-    uint32_t function_id = 0;                              // optional numeric selector
-    std::string function_name;                             // optional name selector
+    std::string device_handle;                               // provider_id/device_id
+    uint32_t function_id = 0;                                // optional numeric selector
+    std::string function_name;                               // optional name selector
     std::map<std::string, automation::ParameterValue> args;  // scalar args only
 };
 

@@ -5,8 +5,8 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
-#include <string>
 #include <sstream>
+#include <string>
 
 #include "automation/bt_services.hpp"
 #include "automation/parameter_manager.hpp"
@@ -58,8 +58,8 @@ std::string make_check_bool_tree_xml(bool value, bool expected) {
     xml << R"(<?xml version="1.0"?>
 <root BTCPP_format="4">
   <BehaviorTree ID="MainTree">
-    <CheckBool value=")" << (value ? "true" : "false") << R"(" expected=")" << (expected ? "true" : "false")
-        << R"("/>
+    <CheckBool value=")"
+        << (value ? "true" : "false") << R"(" expected=")" << (expected ? "true" : "false") << R"("/>
   </BehaviorTree>
 </root>
 )";
@@ -109,8 +109,8 @@ std::string make_emit_gate_tree_xml(int64_t keepalive_s) {
     xml << R"(<?xml version="1.0"?>
 <root BTCPP_format="4">
   <BehaviorTree ID="MainTree">
-    <EmitOnChangeOrInterval key="{key}" keepalive_s=")" << keepalive_s
-        << R"(" now_ms="{now}" emit="{emit}" reason="{reason}"/>
+    <EmitOnChangeOrInterval key="{key}" keepalive_s=")"
+        << keepalive_s << R"(" now_ms="{now}" emit="{emit}" reason="{reason}"/>
   </BehaviorTree>
 </root>
 )";
@@ -129,7 +129,8 @@ std::string make_build_args_tree_xml(double motor1, double motor2) {
         << motor1 << R"("
       arg2_name="motor2_pwm"
       arg2_type="int64"
-      arg2_num=")" << motor2 << R"("
+      arg2_num=")"
+        << motor2 << R"("
       json="{args}"/>
   </BehaviorTree>
 </root>
@@ -277,7 +278,8 @@ TEST_F(BTNodesTest, PeriodicPulseWindowNodeComputesExpectedWindow) {
 
 TEST_F(BTNodesTest, PeriodicPulseWindowNodeAcceptsNumericParametersFromGetParameter) {
     ASSERT_TRUE(parameter_manager_.define("feed_enable", anolis::automation::ParameterType::BOOL, true));
-    ASSERT_TRUE(parameter_manager_.define("feed_startup_delay_s", anolis::automation::ParameterType::INT64, int64_t{10}));
+    ASSERT_TRUE(
+        parameter_manager_.define("feed_startup_delay_s", anolis::automation::ParameterType::INT64, int64_t{10}));
     ASSERT_TRUE(parameter_manager_.define("feed_interval_s", anolis::automation::ParameterType::INT64, int64_t{5}));
     ASSERT_TRUE(parameter_manager_.define("feed_pulse_s", anolis::automation::ParameterType::INT64, int64_t{2}));
 

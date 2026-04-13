@@ -670,8 +670,8 @@ BuildArgsJsonNode::BuildArgsJsonNode(const std::string &name, const BT::NodeConf
     for (int i = 1; i <= 6; ++i) {
         const std::string slot = std::to_string(i);
         ports.insert(BT::InputPort<std::string>("arg" + slot + "_name", "", "Argument key name"));
-        ports.insert(BT::InputPort<std::string>("arg" + slot + "_type", "",
-                                                "Optional type override: int64|double|bool|string"));
+        ports.insert(
+            BT::InputPort<std::string>("arg" + slot + "_type", "", "Optional type override: int64|double|bool|string"));
         ports.insert(BT::InputPort<double>("arg" + slot + "_num", "Numeric argument value"));
         ports.insert(BT::InputPort<bool>("arg" + slot + "_bool", "Boolean argument value"));
         ports.insert(BT::InputPort<std::string>("arg" + slot + "_str", "String argument value"));

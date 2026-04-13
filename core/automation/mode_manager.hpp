@@ -61,7 +61,7 @@ public:
      * @return true to allow transition, false to reject
      */
     using BeforeModeChangeCallback =
-        std::function<bool(RuntimeMode previous_mode, RuntimeMode new_mode, std::string &error)>;
+        std::function<bool(RuntimeMode previous_mode, RuntimeMode new_mode, std::string& error)>;
 
     /**
      * Mode change callback signature.

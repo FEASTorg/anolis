@@ -342,7 +342,7 @@ automation:
     ASSERT_EQ(config.automation.mode_transition_hooks.before_transition.size(), 1);
     ASSERT_EQ(config.automation.mode_transition_hooks.after_transition.size(), 1);
 
-    const auto &before = config.automation.mode_transition_hooks.before_transition[0];
+    const auto& before = config.automation.mode_transition_hooks.before_transition[0];
     EXPECT_EQ(before.from, "AUTO");
     EXPECT_EQ(before.to, "MANUAL");
     ASSERT_EQ(before.calls.size(), 1);

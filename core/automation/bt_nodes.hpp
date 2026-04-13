@@ -2,11 +2,11 @@
 
 #include <behaviortree_cpp/action_node.h>
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
 #include <unordered_map>
-#include <cstdint>
 
 #include "automation/bt_services.hpp"
 
