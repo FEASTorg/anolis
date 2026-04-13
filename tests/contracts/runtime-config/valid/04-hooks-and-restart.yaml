@@ -1,0 +1,50 @@
+runtime:
+  shutdown_timeout_ms: 3000
+  startup_timeout_ms: 30000
+
+providers:
+  - id: test0
+    command: ./provider-test
+    hello_timeout_ms: 1000
+    ready_timeout_ms: 2000
+    restart_policy:
+      enabled: true
+      max_attempts: 3
+      backoff_ms: [100, 500, 1000]
+      timeout_ms: 30000
+      success_reset_ms: 1000
+
+automation:
+  enabled: true
+  behavior_tree: ./behaviors/demo.xml
+  tick_rate_hz: 2
+  parameters:
+    - name: speed
+      type: int64
+      default: 100
+      min: 0
+      max: 255
+  mode_transition_hooks:
+    before_transition:
+      - from: AUTO
+        to: MANUAL
+        fail_on_error: true
+        calls:
+          - device_handle: test0/device0
+            function_name: set_output
+            args:
+              pwm: 120
+              enabled: true
+    after_transition:
+      - from: MANUAL
+        to: IDLE
+        fail_on_error: false
+        calls:
+          - device_handle: test0/device0
+            function_id: 1
+            args:
+              pwm: 0
+
+logging:
+  level: info
+

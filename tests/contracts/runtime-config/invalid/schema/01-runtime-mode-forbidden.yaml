@@ -1,0 +1,10 @@
+runtime:
+  mode: MANUAL
+
+providers:
+  - id: test0
+    command: ./provider-test
+
+logging:
+  level: info
+

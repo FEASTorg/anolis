@@ -1,0 +1,9 @@
+providers:
+  - id: dup0
+    command: ./provider-one
+  - id: dup0
+    command: ./provider-two
+
+logging:
+  level: info
+

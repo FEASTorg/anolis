@@ -1,0 +1,11 @@
+providers:
+  - id: test0
+    command: ./provider-test
+
+automation:
+  enabled: true
+  tick_rate_hz: 10
+
+logging:
+  level: info
+
