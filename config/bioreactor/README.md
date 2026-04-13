@@ -5,11 +5,12 @@ bioreactor lab stack.
 
 Scope:
 
-1. Manual/open-loop validation only.
-2. No automation in either profile.
-3. Two runtime variants:
+1. Manual/open-loop and telemetry validation profiles.
+2. Optional automation profile for stir + feed scheduling.
+3. Three runtime variants:
    - `manual` with telemetry disabled.
    - `telemetry` with InfluxDB sink enabled.
+   - `automation` for stir + feed BT control.
 
 Device map:
 
@@ -39,9 +40,17 @@ RLHT usage note:
 
 1. `anolis-runtime.bioreactor.manual.yaml`
 2. `anolis-runtime.bioreactor.telemetry.yaml`
-3. `provider-bread.bioreactor.yaml`
-4. `provider-ezo.bioreactor.yaml`
-5. `telemetry-export.bioreactor.yaml`
+3. `anolis-runtime.bioreactor.automation.yaml`
+4. `provider-bread.bioreactor.yaml`
+5. `provider-ezo.bioreactor.yaml`
+6. `telemetry-export.bioreactor.yaml`
+7. `../../behaviors/bioreactor_stir_feed.xml`
+
+Automation naming convention:
+
+1. Use descriptive profile names by capability, not rollout step labels.
+2. Current pattern is `anolis-runtime.bioreactor.automation.yaml`.
+3. Future variants should follow explicit capability naming (for example `automation.ph-dosing`).
 
 ## Build Prerequisites
 
@@ -94,6 +103,34 @@ Acceptance:
 2. Runtime reports 5 devices.
 3. Health is stable/OK for `rlht0`, `dcmt0`, `dcmt1`, `ph0`, and `do0`.
 4. Artifacts exist in `artifacts/mixed-bus-validation/bioreactor`.
+
+## Automation (Stir + Feed)
+
+This profile enables Behavior Tree automation for:
+
+1. `dcmt0` channel 1 impeller command.
+2. `dcmt0` channel 2 feed pulse schedule.
+3. Safe mode-transition handoff writes (`AUTO->MANUAL`, `MANUAL->IDLE`, `*->FAULT`).
+
+Safety behavior note:
+
+1. Transition hooks targeting `FAULT` run best-effort; hook failures are logged.
+2. `FAULT` entry is not blocked by hook failures.
+
+Start runtime:
+
+```bash
+cd /path/to/anolis
+./build/dev-release/core/anolis-runtime --config ./config/bioreactor/anolis-runtime.bioreactor.automation.yaml
+```
+
+Recommended first validation:
+
+1. Keep defaults (`impeller_enable=false`, `feed_enable=false`).
+2. Set `impeller_enable=true` and `impeller_pwm` via `POST /v0/parameters`.
+3. Confirm `dcmt0` channel 1 responds and channel 2 remains off.
+4. Set `feed_enable=true` and tune `feed_interval_s` / `feed_pulse_s`.
+5. Confirm channel 2 pulses on schedule.
 
 ## Linux Hardware Baseline With Telemetry
 

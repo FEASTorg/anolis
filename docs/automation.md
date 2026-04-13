@@ -357,7 +357,9 @@ Example (response):
 Behavior Trees can access parameters via the `GetParameter` node.
 The node is available in the default node registry and reads a parameter by name from the blackboard using the `param` input port.
 It returns SUCCESS with the value available on the `value` output port **only for numeric parameter types** (`double`, `int64`).
-For `bool` and `string` parameters, `GetParameter` returns `FAILURE` by design.
+For `bool` parameters, use `GetParameterBool`.
+For strict `int64` typed flows, use `GetParameterInt64`.
+For `string` parameters, `GetParameter` returns `FAILURE` by design (no string node yet).
 
 Example:
 
@@ -369,7 +371,7 @@ Example:
 
 ## BT Node Reference
 
-Anolis provides four custom BehaviorTree.CPP action nodes for interacting with devices and runtime parameters.
+Anolis provides the following custom BehaviorTree.CPP nodes for interacting with devices and runtime parameters.
 
 ### CallDevice
 
@@ -503,6 +505,96 @@ Reads a runtime parameter from the ParameterManager.
 <GetParameter param="temp_setpoint" value="{target_temp}"/>
 ```
 
+### GetParameterBool
+
+Reads a boolean runtime parameter from the ParameterManager.
+
+**Ports:**
+
+| Port  | Type   | Direction | Description        |
+| ----- | ------ | --------- | ------------------ |
+| param | string | input     | Parameter name     |
+| value | bool   | output    | Boolean value      |
+
+**Returns:**
+
+- `SUCCESS` — Parameter read successfully and is bool
+- `FAILURE` — Parameter missing, manager unavailable, or non-bool type
+
+### GetParameterInt64
+
+Reads an `int64` runtime parameter from the ParameterManager.
+
+**Ports:**
+
+| Port  | Type   | Direction | Description        |
+| ----- | ------ | --------- | ------------------ |
+| param | string | input     | Parameter name     |
+| value | int64  | output    | `int64` value      |
+
+**Returns:**
+
+- `SUCCESS` — Parameter read successfully and is `int64`
+- `FAILURE` — Parameter missing, manager unavailable, or non-`int64` type
+
+### CheckBool
+
+Compares a boolean input against an expected value.
+
+**Ports:**
+
+| Port     | Type | Direction | Description |
+| -------- | ---- | --------- | ----------- |
+| value    | bool | input     | Value to compare |
+| expected | bool | input     | Expected value (default `true`) |
+
+**Returns:**
+
+- `SUCCESS` — `value == expected`
+- `FAILURE` — values do not match (or input missing)
+
+### PeriodicPulseWindow
+
+Computes a periodic active window with startup delay.
+
+**Ports:**
+
+| Port                 | Type  | Direction | Description |
+| -------------------- | ----- | --------- | ----------- |
+| enabled              | bool  | input     | Enable scheduler |
+| startup_delay_s      | int64 | input     | Delay before first pulse |
+| interval_s           | int64 | input     | Pulse interval |
+| pulse_s              | int64 | input     | Pulse width |
+| max_pulses_per_hour  | int64 | input     | Optional cap (0 disables cap) |
+| now_ms               | int64 | input     | Optional deterministic time override |
+| active               | bool  | output    | True when in pulse window |
+| pulse_index          | int64 | output    | Pulse index after delay |
+| elapsed_ms           | int64 | output    | Elapsed ms since enable |
+
+### EmitOnChangeOrInterval
+
+Gates whether a command should be emitted this tick.
+
+**Ports:**
+
+| Port            | Type   | Direction | Description |
+| --------------- | ------ | --------- | ----------- |
+| key             | string | input     | Deterministic command signature |
+| keepalive_s     | int64  | input     | Keepalive interval |
+| min_spacing_ms  | int64  | input     | Minimum spacing between emits |
+| force           | bool   | input     | Force immediate emit |
+| now_ms          | int64  | input     | Optional deterministic time override |
+| emit            | bool   | output    | Emit decision |
+| reason          | string | output    | Decision reason |
+
+### BuildArgsJson
+
+Builds JSON object arguments from up to six typed arg slots (`argN_*` ports).
+
+**Output:**
+
+- `json` — JSON object string suitable for `CallDevice.args`.
+
 ---
 
 ## Configuration
@@ -526,6 +618,12 @@ automation:
 | `tick_rate_hz`         | int    | 10       | BT execution rate (1-1000)             |
 | `manual_gating_policy` | string | BLOCK    | Manual call policy (BLOCK or OVERRIDE) |
 | `parameters`           | list   | []       | Parameter definitions                  |
+| `mode_transition_hooks`| map    | {}       | Generic before/after mode transition hook calls |
+
+Mode-transition hook fail-safe rule:
+
+- Transitions to `FAULT` are never vetoed by `before_transition` callback failures.
+- Hook errors are logged and runtime still enters `FAULT`.
 
 ---
 

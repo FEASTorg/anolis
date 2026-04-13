@@ -197,10 +197,10 @@ HTTP gateway, Behavior Trees, and CLI will use these APIs only.
 
 ## Deferred SDK Layout (L11)
 
-`include/` vs `src/` repository split is intentionally deferred out of Phase 35 to avoid mixing packaging churn with
-runtime correctness hardening.
+`include/` vs `src/` repository split is intentionally deferred to a dedicated SDK-surface workstream to avoid mixing
+packaging churn with runtime correctness hardening.
 
-Entry criteria for that dedicated SDK-surface phase:
+Entry criteria for that dedicated SDK-surface workstream:
 
 1. Public API boundary is explicitly versioned (consumer-facing headers and compatibility policy documented).
 2. Export/install model is defined in CMake (`install(TARGETS ...)`, header install roots, package config strategy).
