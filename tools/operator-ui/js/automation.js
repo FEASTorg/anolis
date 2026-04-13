@@ -11,6 +11,9 @@ let elements = {};
 let currentMode = null;
 let eventBuffer = [];
 let modeSelectorDirty = false; // Track if user has manually changed dropdown
+let parametersEditing = false;
+let pendingParametersRefresh = false;
+let lastParametersSnapshot = "";
 
 /**
  * Initialize automation module
@@ -41,6 +44,20 @@ export function init(elementIds) {
   // Track when user manually changes dropdown (dirty state)
   elements.modeSelector.addEventListener("change", () => {
     modeSelectorDirty = true;
+  });
+
+  // Prevent periodic refresh from interrupting active parameter edits.
+  elements.parametersContainer.addEventListener("focusin", () => {
+    parametersEditing = isParameterEditorActive();
+  });
+  elements.parametersContainer.addEventListener("focusout", () => {
+    window.setTimeout(() => {
+      parametersEditing = isParameterEditorActive();
+      if (!parametersEditing && pendingParametersRefresh) {
+        pendingParametersRefresh = false;
+        void refreshParameters();
+      }
+    }, 0);
   });
 
   // SSE event handlers
@@ -203,8 +220,18 @@ async function handleSetMode() {
  * Refresh parameters display
  */
 async function refreshParameters() {
+  if (parametersEditing || isParameterEditorActive()) {
+    pendingParametersRefresh = true;
+    return;
+  }
+
   try {
     const parameters = await API.fetchParameters();
+    const snapshot = JSON.stringify(parameters);
+    if (snapshot === lastParametersSnapshot) {
+      return;
+    }
+    lastParametersSnapshot = snapshot;
 
     if (parameters.length === 0) {
       elements.parametersContainer.innerHTML =
@@ -214,6 +241,52 @@ async function refreshParameters() {
 
     let html = '<div class="parameters-grid">';
     for (const param of parameters) {
+      const valueText = UI.escapeHtml(String(param.value));
+      const minAttr =
+        param.min !== undefined ? `data-param-min="${param.min}"` : "";
+      const maxAttr =
+        param.max !== undefined ? `data-param-max="${param.max}"` : "";
+      const commonAttrs = `${minAttr} ${maxAttr}`.trim();
+      let inputHtml = "";
+      if (param.type === "bool") {
+        const boolValue = String(param.value).toLowerCase() === "true";
+        inputHtml = `
+            <select id="param-${UI.escapeHtml(param.name)}" ${commonAttrs}>
+              <option value="true" ${boolValue ? "selected" : ""}>true</option>
+              <option value="false" ${boolValue ? "" : "selected"}>false</option>
+            </select>
+        `;
+      } else if (param.type === "double") {
+        const minValue = param.min !== undefined ? `min="${param.min}"` : "";
+        const maxValue = param.max !== undefined ? `max="${param.max}"` : "";
+        inputHtml = `
+            <input type="number"
+                   id="param-${UI.escapeHtml(param.name)}"
+                   value="${valueText}"
+                   step="any"
+                   ${minValue}
+                   ${maxValue}
+                   ${commonAttrs}
+                   placeholder="New value">
+        `;
+      } else if (param.type === "int64" || param.type === "uint64") {
+        inputHtml = `
+            <input type="text"
+                   id="param-${UI.escapeHtml(param.name)}"
+                   value="${valueText}"
+                   inputmode="numeric"
+                   ${commonAttrs}
+                   placeholder="New value">
+        `;
+      } else {
+        inputHtml = `
+            <input type="text"
+                   id="param-${UI.escapeHtml(param.name)}"
+                   value="${valueText}"
+                   ${commonAttrs}
+                   placeholder="New value">
+        `;
+      }
       html += `
         <div class="parameter-card">
           <div class="parameter-header">
@@ -221,13 +294,10 @@ async function refreshParameters() {
             <span class="parameter-type">${UI.escapeHtml(param.type)}</span>
           </div>
           <div class="parameter-value">
-            <strong>${UI.escapeHtml(String(param.value))}</strong>
+            <strong>${valueText}</strong>
           </div>
           <div class="parameter-controls">
-            <input type="text" 
-                   id="param-${UI.escapeHtml(param.name)}" 
-                   value="${UI.escapeHtml(String(param.value))}"
-                   placeholder="New value">
+            ${inputHtml}
             <button onclick="window.updateParameter('${UI.escapeHtml(param.name)}', '${UI.escapeHtml(param.type)}')">Set</button>
             <span id="param-feedback-${UI.escapeHtml(param.name)}" class="feedback"></span>
           </div>
@@ -248,12 +318,14 @@ async function refreshParameters() {
 export async function updateParameter(name, type) {
   const inputElement = document.getElementById(`param-${name}`);
   const feedbackElement = document.getElementById(`param-feedback-${name}`);
-  const rawValue = inputElement.value;
+  const rawValue = String(inputElement.value).trim();
 
   try {
     // Parse value based on type
     let value;
     if (type === "int64" || type === "uint64") {
+      const pattern = type === "uint64" ? /^\d+$/ : /^-?\d+$/;
+      if (!pattern.test(rawValue)) throw new Error("Invalid integer");
       value = parseInt(rawValue, 10);
       if (isNaN(value)) throw new Error("Invalid integer");
     } else if (type === "double") {
@@ -265,13 +337,34 @@ export async function updateParameter(name, type) {
       value = rawValue;
     }
 
+    const minAttr = inputElement.dataset.paramMin;
+    const maxAttr = inputElement.dataset.paramMax;
+    if (
+      (type === "int64" || type === "uint64" || type === "double") &&
+      minAttr !== undefined &&
+      minAttr !== "" &&
+      value < Number(minAttr)
+    ) {
+      throw new Error(`Value below minimum (${minAttr})`);
+    }
+    if (
+      (type === "int64" || type === "uint64" || type === "double") &&
+      maxAttr !== undefined &&
+      maxAttr !== "" &&
+      value > Number(maxAttr)
+    ) {
+      throw new Error(`Value above maximum (${maxAttr})`);
+    }
+
     const result = await API.updateParameter(name, value);
 
     if (result.status?.code === "OK") {
       feedbackElement.textContent = "Updated";
       feedbackElement.className = "feedback success";
+      lastParametersSnapshot = "";
       setTimeout(() => {
         feedbackElement.textContent = "";
+        feedbackElement.className = "feedback";
       }, 2000);
       await refreshParameters();
     } else {
@@ -292,7 +385,24 @@ function handleParameterChange(data) {
     `${data.parameter_name}: ${data.old_value} -> ${data.new_value}`,
     data.timestamp_ms,
   );
-  refreshParameters();
+  void refreshParameters();
+}
+
+function isParameterEditorActive() {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement)) {
+    return false;
+  }
+  if (!elements.parametersContainer.contains(active)) {
+    return false;
+  }
+  return (
+    active.tagName === "INPUT" ||
+    active.tagName === "TEXTAREA" ||
+    active.tagName === "SELECT" ||
+    active.tagName === "BUTTON" ||
+    active.closest(".parameter-controls") !== null
+  );
 }
 
 /**

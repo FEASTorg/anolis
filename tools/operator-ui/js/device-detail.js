@@ -12,6 +12,7 @@ let allDevices = []; // Full device list from API
 let deviceStates = {}; // Map of "provider/device" -> {device, signals}
 let deviceCapabilities = {}; // Map of "provider/device" -> normalized capabilities
 let selectedDevice = null; // {provider_id, device_id, device}
+let pendingDetailRender = false;
 const INT64_MIN = -9223372036854775808n;
 const INT64_MAX = 9223372036854775807n;
 const UINT64_MAX = 18446744073709551615n;
@@ -37,6 +38,13 @@ export function init(elementIds) {
     if (provider && device) {
       selectDevice(provider, device);
     }
+  });
+
+  // Avoid tearing down active function forms while operators are typing.
+  elements.detailPanel.addEventListener("focusout", () => {
+    window.setTimeout(() => {
+      flushPendingDetailRender();
+    }, 0);
   });
 
   // Initial load
@@ -790,6 +798,10 @@ function handleStateUpdate(data) {
     data.provider_id === selectedDevice.provider_id &&
     data.device_id === selectedDevice.device_id
   ) {
+    if (isDetailInteractionActive()) {
+      pendingDetailRender = true;
+      return;
+    }
     renderDeviceDetail(deviceStates[key]);
   }
 }
@@ -815,8 +827,42 @@ function handleQualityChange(data) {
     data.provider_id === selectedDevice.provider_id &&
     data.device_id === selectedDevice.device_id
   ) {
+    if (isDetailInteractionActive()) {
+      pendingDetailRender = true;
+      return;
+    }
     renderDeviceDetail(deviceStates[key]);
   }
+}
+
+function isDetailInteractionActive() {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement)) {
+    return false;
+  }
+  if (!elements.detailPanel.contains(active)) {
+    return false;
+  }
+  if (
+    active.tagName === "INPUT" ||
+    active.tagName === "TEXTAREA" ||
+    active.tagName === "SELECT"
+  ) {
+    return true;
+  }
+  return active.closest(".function-form") !== null;
+}
+
+function flushPendingDetailRender() {
+  if (!pendingDetailRender || isDetailInteractionActive() || !selectedDevice) {
+    return;
+  }
+  const state = deviceStates[getSelectedDeviceKey()];
+  if (!state) {
+    return;
+  }
+  pendingDetailRender = false;
+  renderDeviceDetail(state);
 }
 
 /**
