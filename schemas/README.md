@@ -21,3 +21,8 @@ Compatibility notes for current wave:
    - `automation.behavior_tree_path`
    - flat `telemetry.influx_*`, `telemetry.batch_size`, `telemetry.flush_interval_ms`
 3. Use runtime semantic validation (`anolis-runtime --check-config`) alongside schema validation.
+4. Runtime parser behavior (`yaml-cpp`) is authoritative for config semantics;
+   schema tooling must not assume Python YAML parsing is equivalent for edge cases (for example duplicate keys and ambiguous scalar resolution).
+5. Contract tooling enforces schema draft lock and meta-validation:
+   - schema must declare Draft-07
+   - schema must pass JSON Schema meta-validation before instance checks

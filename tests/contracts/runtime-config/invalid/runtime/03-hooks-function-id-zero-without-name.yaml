@@ -1,0 +1,17 @@
+providers:
+  - id: test0
+    command: ./provider-test
+
+automation:
+  enabled: true
+  behavior_tree: ./behaviors/demo.xml
+  mode_transition_hooks:
+    before_transition:
+      - from: AUTO
+        to: MANUAL
+        calls:
+          - device_handle: test0/device0
+            function_id: 0
+
+logging:
+  level: info

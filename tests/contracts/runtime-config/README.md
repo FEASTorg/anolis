@@ -15,3 +15,11 @@ Use these fixtures to lock compatibility behavior while the runtime-config contr
 
 Edge-case coverage includes quoted scalar values in automation hook args
 (numeric-like, bool-like, and text) to guard current loader scalar parsing behavior.
+
+Runtime parser semantics (`yaml-cpp`) remain authoritative; fixture outcomes must
+be verified through `anolis-runtime --check-config` as part of the contract gate.
+
+Parser-alignment guardrails:
+
+1. Duplicate mapping keys are contract-invalid and must fail schema-layer checks.
+2. Runtime-invalid fixtures must remain schema-valid and fail only at runtime semantic validation.

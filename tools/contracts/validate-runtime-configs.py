@@ -27,9 +27,7 @@ except ImportError as exc:  # pragma: no cover
 try:
     import jsonschema
 except ImportError as exc:  # pragma: no cover
-    raise SystemExit(
-        "ERROR: missing dependency 'jsonschema' (pip install jsonschema)"
-    ) from exc
+    raise SystemExit("ERROR: missing dependency 'jsonschema' (pip install jsonschema)") from exc
 
 
 @dataclass
@@ -66,14 +64,58 @@ def _load_schema(schema_path: Path) -> dict:
     try:
         return json.loads(schema_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        raise SystemExit(
-            f"ERROR: schema json parse failed at {schema_path}: {exc}"
-        ) from exc
+        raise SystemExit(f"ERROR: schema json parse failed at {schema_path}: {exc}") from exc
+
+
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """PyYAML loader that rejects duplicate mapping keys."""
+
+
+def _construct_mapping_no_duplicates(loader: _UniqueKeyLoader, node: yaml.Node, deep: bool = False) -> dict:
+    mapping: dict = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if key in mapping:
+            raise yaml.constructor.ConstructorError(
+                "while constructing a mapping",
+                node.start_mark,
+                f"found duplicate key ({key!r})",
+                key_node.start_mark,
+            )
+        mapping[key] = loader.construct_object(value_node, deep=deep)
+    return mapping
+
+
+_UniqueKeyLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+    _construct_mapping_no_duplicates,
+)
+
+
+def _build_validator(schema: dict) -> jsonschema.Validator:
+    schema_draft = schema.get("$schema")
+    expected_draft = "http://json-schema.org/draft-07/schema#"
+    if schema_draft != expected_draft:
+        raise SystemExit(f"ERROR: runtime schema draft mismatch. Expected '{expected_draft}', found '{schema_draft}'.")
+
+    validator_cls = jsonschema.validators.validator_for(schema)
+    try:
+        validator_cls.check_schema(schema)
+    except jsonschema.SchemaError as exc:
+        raise SystemExit(f"ERROR: schema meta-validation failed: {exc}") from exc
+
+    if validator_cls is not jsonschema.Draft7Validator:
+        raise SystemExit("ERROR: runtime schema must validate with Draft7Validator in this wave.")
+
+    return validator_cls(schema)
 
 
 def _schema_validate(validator: jsonschema.Validator, config_path: Path) -> list[str]:
     try:
-        payload = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+        payload = yaml.load(
+            config_path.read_text(encoding="utf-8"),
+            Loader=_UniqueKeyLoader,
+        )
     except Exception as exc:
         return [f"yaml parse failed: {exc}"]
 
@@ -110,9 +152,7 @@ def _resolve_runtime_binary(repo_root: Path, override: str | None) -> Path:
     if in_path:
         return Path(in_path).resolve()
 
-    raise SystemExit(
-        "ERROR: anolis-runtime binary not found.\nBuild runtime first or pass --runtime-bin <path>."
-    )
+    raise SystemExit("ERROR: anolis-runtime binary not found.\nBuild runtime first or pass --runtime-bin <path>.")
 
 
 def _run_check_config(runtime_bin: Path, config_path: Path) -> tuple[int, str]:
@@ -211,9 +251,7 @@ def _check_expected_success(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Validate Anolis runtime config contract."
-    )
+    parser = argparse.ArgumentParser(description="Validate Anolis runtime config contract.")
     parser.add_argument(
         "--repo-root",
         default=str(_repo_root_from_script()),
@@ -239,7 +277,7 @@ def main() -> int:
         return 1
 
     schema = _load_schema(schema_path)
-    validator = jsonschema.Draft7Validator(schema)
+    validator = _build_validator(schema)
 
     tracked_runtime_configs = _glob_paths(
         repo_root,
@@ -249,15 +287,9 @@ def main() -> int:
             "systems/**/anolis-runtime.yaml",
         ),
     )
-    valid_fixtures = _glob_paths(
-        repo_root, ("tests/contracts/runtime-config/valid/*.yaml",)
-    )
-    invalid_schema_fixtures = _glob_paths(
-        repo_root, ("tests/contracts/runtime-config/invalid/schema/*.yaml",)
-    )
-    invalid_runtime_fixtures = _glob_paths(
-        repo_root, ("tests/contracts/runtime-config/invalid/runtime/*.yaml",)
-    )
+    valid_fixtures = _glob_paths(repo_root, ("tests/contracts/runtime-config/valid/*.yaml",))
+    invalid_schema_fixtures = _glob_paths(repo_root, ("tests/contracts/runtime-config/invalid/schema/*.yaml",))
+    invalid_runtime_fixtures = _glob_paths(repo_root, ("tests/contracts/runtime-config/invalid/runtime/*.yaml",))
 
     if not tracked_runtime_configs:
         print(
@@ -284,13 +316,9 @@ def main() -> int:
     runtime_bin = _resolve_runtime_binary(repo_root, args.runtime_bin)
 
     failures: list[Failure] = []
-    _check_expected_success(
-        validator, runtime_bin, [*tracked_runtime_configs, *valid_fixtures], failures
-    )
+    _check_expected_success(validator, runtime_bin, [*tracked_runtime_configs, *valid_fixtures], failures)
     _check_expected_schema_failures(validator, invalid_schema_fixtures, failures)
-    _check_expected_runtime_failures(
-        validator, runtime_bin, invalid_runtime_fixtures, failures
-    )
+    _check_expected_runtime_failures(validator, runtime_bin, invalid_runtime_fixtures, failures)
 
     print("runtime-config contract summary")
     print(f"  runtime configs checked: {len(tracked_runtime_configs)}")

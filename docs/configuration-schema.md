@@ -7,7 +7,13 @@ This document describes the runtime YAML schema in narrative form.
 Authoritative contract enforcement is machine-validated via:
 
 1. `schemas/runtime-config.schema.json`
-2. `anolis-runtime --check-config`
+2. `python tools/contracts/validate-runtime-configs.py`
+3. `anolis-runtime --check-config` (load-time semantic checks)
+
+Schema draft policy for this wave:
+
+1. `runtime-config.schema.json` is locked to Draft-07.
+2. `deprecated` fields in the schema are annotation-only metadata (documented compatibility), not a runtime rejection rule by themselves.
 
 ---
 
@@ -604,8 +610,21 @@ The runtime validates all configuration fields at startup. Invalid configuration
 
 ### Unknown Keys
 
-**Behavior:** Unknown top-level keys will generate warnings but won't prevent startup.
-This allows for forwards compatibility with future schema versions.
+**Behavior:** Unknown keys are compatibility-warned and ignored, not hard-failed.
+
+1. Top-level unknown keys are warned.
+2. Most nested map sections also warn on unknown keys.
+3. Current runtime behavior is not fully uniform; `polling` and `logging` currently do not emit nested unknown-key warnings.
+
+This behavior is preserved for forwards compatibility in the current contract wave.
+
+### Validation Scope of `--check-config`
+
+`anolis-runtime --check-config` validates config load-time structure and semantics only.
+
+1. It validates parser/load semantics and runtime config invariants.
+2. It does not exercise the full runtime initialization path (provider process lifecycle, live inventory, etc.).
+3. Contract validation therefore uses both schema validation and `--check-config`.
 
 ### Migration from v0 Flat Keys
 

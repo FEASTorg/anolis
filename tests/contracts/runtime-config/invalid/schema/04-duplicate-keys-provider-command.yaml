@@ -1,0 +1,7 @@
+providers:
+  - id: test0
+    command: ./provider-one
+    command: ./provider-two
+
+logging:
+  level: info

@@ -63,13 +63,13 @@
         "kind": "bread",
         "provider_name": "bread0",
         "require_live_session": true,
-        "query_delay_us": 10000,
-        "timeout_ms": 100,
-        "retry_count": 2,
+        "query_delay_us": 15000,
+        "timeout_ms": 150,
+        "retry_count": 3,
         "devices": [
           { "id": "rlht0", "type": "rlht", "label": "Reactor Temperature Node",   "address": "0x0A" },
-          { "id": "dcmt0", "type": "dcmt", "label": "Reactor Media Feed Pumps",   "address": "0x14" },
-          { "id": "dcmt1", "type": "dcmt", "label": "Reactor Acid-Base Pumps",    "address": "0x15" }
+          { "id": "dcmt0", "type": "dcmt", "label": "Reactor Sampling + Stirring (ch1 sample, ch2 stir)",   "address": "0x14" },
+          { "id": "dcmt1", "type": "dcmt", "label": "Reactor Dual Dosing (ch1 dose1, ch2 dose2)",            "address": "0x15" }
         ]
       },
       "ezo0": {

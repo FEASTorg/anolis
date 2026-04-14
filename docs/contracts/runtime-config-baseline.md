@@ -47,7 +47,7 @@ Unknown top-level keys are warned and ignored.
 Current compatibility behavior that must remain unchanged during initial contract rollout:
 
 1. Unknown keys:
-   - warned and ignored (top-level and nested map sections)
+   - warned and ignored (top-level and most nested map sections)
 2. Deprecated but accepted:
    - `automation.behavior_tree_path` alias for `automation.behavior_tree`
    - flat telemetry keys under `telemetry.*`:
@@ -146,6 +146,12 @@ These are baseline behaviors and not changed in the first contract wave:
 1. Duplicate automation parameter names are accepted by config load.
 2. Later parameter redefinitions are ignored by `ParameterManager::define` with a warning.
 3. Unknown keys are warnings, not hard failures.
+4. Unknown-key warning coverage is not fully uniform across every known section (`polling` and `logging` currently have no nested unknown-key warnings).
+
+## Parser Authority Note
+
+Runtime parser behavior (`yaml-cpp` in `core/runtime/config.cpp`) is authoritative for runtime semantics.
+Contract tooling must account for parser differences when running schema-layer checks from Python.
 
 ## Existing Coverage Reference
 
@@ -162,4 +168,8 @@ Representative unit coverage in `tests/unit/config_test.cpp`:
 
 ## Next Contract Step
 
-Implement schema and validator script against this baseline without changing runtime behavior.
+Close out hardening items against this baseline without changing runtime behavior:
+
+1. parser-alignment guardrails (duplicate-key rejection + parser-sensitive fixtures)
+2. schema meta-validation gate
+3. documentation alignment for authoritative behavior and gate scope
