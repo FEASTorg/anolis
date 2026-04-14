@@ -191,15 +191,14 @@ Get detailed health, timing, and supervision state for all providers.
 
 ### GET /v0/mode
 
-Get current automation mode and manual gating policy.
+Get current automation mode.
 
 **Response:**
 
 ```json
 {
   "status": { "code": "OK", "message": "ok" },
-  "mode": "MANUAL",
-  "policy": "BLOCK"
+  "mode": "MANUAL"
 }
 ```
 
@@ -395,29 +394,31 @@ Get device capabilities (signals and functions).
 
 **Function Fields:**
 
-| Field         | Type    | Description                            |
-| ------------- | ------- | -------------------------------------- |
-| `function_id` | integer | Numeric function ID for calls          |
-| `name`        | string  | Function name                          |
-| `label`       | string  | Human-readable description             |
-| `args`        | object  | Argument map keyed by argument name    |
+| Field         | Type    | Description                         |
+| ------------- | ------- | ----------------------------------- |
+| `function_id` | integer | Numeric function ID for calls       |
+| `name`        | string  | Function name                       |
+| `label`       | string  | Human-readable description          |
+| `args`        | object  | Argument map keyed by argument name |
 
 **Function Arg Metadata Fields (`args.<arg_name>`):**
 
-| Field         | Type                | Description                                               |
-| ------------- | ------------------- | --------------------------------------------------------- |
-| `type`        | string              | Value type (`double`, `int64`, `uint64`, `bool`, `string`, `bytes`) |
-| `required`    | boolean             | Whether the argument is required                          |
-| `description` | string (optional)   | Human-readable argument description                       |
-| `unit`        | string (optional)   | Unit label (if provided by provider)                      |
-| `min`         | number/integer (optional) | Numeric lower bound (for numeric types)             |
-| `max`         | number/integer (optional) | Numeric upper bound (for numeric types)             |
+| Field         | Type                      | Description                                                         |
+| ------------- | ------------------------- | ------------------------------------------------------------------- |
+| `type`        | string                    | Value type (`double`, `int64`, `uint64`, `bool`, `string`, `bytes`) |
+| `required`    | boolean                   | Whether the argument is required                                    |
+| `description` | string (optional)         | Human-readable argument description                                 |
+| `unit`        | string (optional)         | Unit label (if provided by provider)                                |
+| `min`         | number/integer (optional) | Numeric lower bound (for numeric types)                             |
+| `max`         | number/integer (optional) | Numeric upper bound (for numeric types)                             |
 
 ---
 
 ### GET /v0/state
 
 Get latest cached state for all devices.
+
+Note: devices with no cached state entry yet are omitted from this response.
 
 **Response:**
 
@@ -472,6 +473,10 @@ Get latest cached state for all devices.
 ### GET /v0/state/{provider_id}/{device_id}
 
 Get state for a single device.
+
+Optional query parameters:
+
+1. `signal_id` (repeatable): filter response values to one or more signal IDs.
 
 **Response:**
 

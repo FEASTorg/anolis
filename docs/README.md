@@ -12,6 +12,7 @@ Minimal living documentation for Anolis Core.
 - [configuration-schema.md](configuration-schema.md) - Human-readable runtime config reference
 - [../schemas/README.md](../schemas/README.md) - Machine-validated runtime config contract artifacts
 - [contracts/runtime-config-baseline.md](contracts/runtime-config-baseline.md) - Baseline behavior snapshot for runtime config contract
+- [contracts/runtime-http-baseline.md](contracts/runtime-http-baseline.md) - Baseline behavior snapshot for runtime HTTP contract
 - [providers.md](providers.md) - Provider protocol and development
 - [http-api.md](http-api.md) - HTTP REST API reference
 - [automation.md](automation.md) - Behavior trees and automation system

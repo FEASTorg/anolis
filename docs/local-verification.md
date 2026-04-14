@@ -14,8 +14,8 @@ bash tools/verify-local.sh
 
 This runs:
 
-- the full System Composer pytest suite
 - runtime config contract validation (schema + `anolis-runtime --check-config`) when a local runtime binary is present
+- the full System Composer pytest suite
 - focused C++ tests for runtime config parsing and ownership validation when a
   local CMake build directory is present
 

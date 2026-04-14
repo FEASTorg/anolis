@@ -115,7 +115,7 @@ curl http://localhost:8080/v0/mode
 
 ```bash
 # 1. Review automation parameters
-curl http://localhost:8080/v0/automation/parameters
+curl http://localhost:8080/v0/parameters
 
 # 2. Ensure manual gating policy configured (BLOCK recommended)
 # Check runtime config: automation.manual_gating_policy
