@@ -9,8 +9,9 @@ For composer-managed systems, the generated runtime YAML lives at
 > **📖 Contract Source of Truth:**
 > Runtime config contract authority is machine-validated:
 > `schemas/runtime-config.schema.json` + `tools/contracts/validate-runtime-configs.py`
-> + `anolis-runtime --check-config` (load-time semantics).
-> See [configuration-schema.md](configuration-schema.md) for human-readable reference material.
+>
+> - `anolis-runtime --check-config` (load-time semantics).
+>   See [configuration-schema.md](configuration-schema.md) for human-readable reference material.
 
 ## Structure
 

@@ -146,7 +146,8 @@ These are baseline behaviors and not changed in the first contract wave:
 1. Duplicate automation parameter names are accepted by config load.
 2. Later parameter redefinitions are ignored by `ParameterManager::define` with a warning.
 3. Unknown keys are warnings, not hard failures.
-4. Unknown-key warning coverage is not fully uniform across every known section (`polling` and `logging` currently have no nested unknown-key warnings).
+4. Unknown-key warning coverage is not fully uniform across every known section
+   (`polling` and `logging` currently have no nested unknown-key warnings).
 
 ## Parser Authority Note
 
