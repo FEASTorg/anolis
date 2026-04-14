@@ -12,9 +12,11 @@ from __future__ import annotations
 
 import argparse
 import copy
+import json
 import socket
 import sys
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -56,6 +58,17 @@ REQUIRED_OPERATIONS: list[tuple[str, str]] = [
 class Failure:
     stage: str
     message: str
+
+
+@dataclass
+class CaptureEntry:
+    name: str
+    method: str
+    path_template: str
+    actual_path: str
+    status_code: int
+    content_type: str
+    body_file: str
 
 
 class _UniqueKeyLoader(yaml.SafeLoader):
@@ -308,6 +321,24 @@ def _invoke_json(
     raise ValueError(f"unsupported method {method}")
 
 
+def _capture_body_file(
+    capture_dir: Path,
+    *,
+    name: str,
+    status_code: int,
+    payload: Any,
+    as_json: bool,
+) -> str:
+    suffix = "json" if as_json else "txt"
+    file_name = f"{name}.{status_code}.{suffix}"
+    out_path = capture_dir / file_name
+    if as_json:
+        out_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    else:
+        out_path.write_text(str(payload), encoding="utf-8")
+    return file_name
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate live runtime HTTP responses against OpenAPI.")
     parser.add_argument(
@@ -336,6 +367,11 @@ def main() -> int:
         default=0,
         help="HTTP port to use (0 = auto-pick free port).",
     )
+    parser.add_argument(
+        "--capture-dir",
+        default=None,
+        help="Optional directory to write captured live responses for example refresh.",
+    )
     args = parser.parse_args()
 
     repo_root = Path(args.repo_root).resolve()
@@ -348,12 +384,42 @@ def main() -> int:
     provider_bin = _resolve_provider_binary(repo_root, args.provider_bin)
     openapi_doc = _load_yaml_mapping(openapi_path)
 
+    capture_dir: Path | None = None
+    captures: list[CaptureEntry] = []
+    if args.capture_dir:
+        candidate = Path(args.capture_dir).expanduser()
+        if not candidate.is_absolute():
+            candidate = (repo_root / candidate).resolve()
+        capture_dir = candidate
+        capture_dir.mkdir(parents=True, exist_ok=True)
+
     # Import after repo-root resolution to avoid path ambiguity when script is invoked from elsewhere.
     sys.path.insert(0, str(repo_root))
     from tests.support.runtime_fixture import RuntimeFixture  # pylint: disable=import-outside-toplevel
 
     port = args.port if args.port > 0 else _pick_free_port()
-    fixture = RuntimeFixture(runtime_bin, provider_bin, http_port=port)
+    fixture_provider_config_path = (repo_root / "tests/integration/fixtures/provider-sim-default.yaml").resolve()
+    fixture_provider_config = str(fixture_provider_config_path).replace("\\", "/")
+    fixture_config = {
+        "runtime": {},
+        "http": {"enabled": True, "bind": "127.0.0.1", "port": port},
+        "providers": [
+            {
+                "id": "sim0",
+                "command": str(provider_bin).replace("\\", "/"),
+                "args": [
+                    "--config",
+                    fixture_provider_config,
+                ],
+                "timeout_ms": 5000,
+            }
+        ],
+        "polling": {"interval_ms": 500},
+        "telemetry": {"enabled": False},
+        "automation": {"enabled": False},
+        "logging": {"level": "info"},
+    }
+    fixture = RuntimeFixture(runtime_bin, provider_bin, http_port=port, config_dict=fixture_config)
     failures: list[Failure] = []
     checks_run = 0
     checks_passed = 0
@@ -365,12 +431,22 @@ def main() -> int:
         path_template: str,
         actual_path: str,
         json_body: dict[str, Any] | None = None,
+        expected_status: int | None = None,
     ) -> None:
         nonlocal checks_run, checks_passed
         checks_run += 1
         try:
             op = _resolve_operation(openapi_doc, method, path_template)
             resp = _invoke_json(method, f"{fixture.base_url}{actual_path}", json_body=json_body)
+            if expected_status is not None and resp.status_code != expected_status:
+                failures.append(
+                    Failure(
+                        "status",
+                        f"{name}: expected HTTP {expected_status}, got {resp.status_code} "
+                        f"({method.upper()} {actual_path})",
+                    )
+                )
+                return
 
             schema = _resolve_response_schema(
                 openapi_doc=openapi_doc,
@@ -383,6 +459,26 @@ def main() -> int:
             except ValueError as exc:
                 failures.append(Failure("response", f"{name}: response is not valid JSON: {exc}"))
                 return
+
+            if capture_dir is not None:
+                body_file = _capture_body_file(
+                    capture_dir,
+                    name=name,
+                    status_code=resp.status_code,
+                    payload=payload,
+                    as_json=True,
+                )
+                captures.append(
+                    CaptureEntry(
+                        name=name,
+                        method=method.upper(),
+                        path_template=path_template,
+                        actual_path=actual_path,
+                        status_code=resp.status_code,
+                        content_type="application/json",
+                        body_file=body_file,
+                    )
+                )
 
             validation_errors = _validate_json_instance(schema, payload)
             if validation_errors:
@@ -436,6 +532,25 @@ def main() -> int:
                             )
                         )
                         return
+                    if capture_dir is not None:
+                        body_file = _capture_body_file(
+                            capture_dir,
+                            name=name,
+                            status_code=resp.status_code,
+                            payload="event: state_update\nid: 0\ndata: {}\n\n",
+                            as_json=False,
+                        )
+                        captures.append(
+                            CaptureEntry(
+                                name=name,
+                                method="GET",
+                                path_template=path_template,
+                                actual_path="/v0/events?provider_id=sim0",
+                                status_code=resp.status_code,
+                                content_type="text/event-stream",
+                                body_file=body_file,
+                            )
+                        )
                 else:
                     schema = _resolve_response_schema(
                         openapi_doc=openapi_doc,
@@ -448,6 +563,25 @@ def main() -> int:
                     except ValueError as exc:
                         failures.append(Failure("response", f"{name}: non-JSON error response: {exc}"))
                         return
+                    if capture_dir is not None:
+                        body_file = _capture_body_file(
+                            capture_dir,
+                            name=name,
+                            status_code=resp.status_code,
+                            payload=payload,
+                            as_json=True,
+                        )
+                        captures.append(
+                            CaptureEntry(
+                                name=name,
+                                method="GET",
+                                path_template=path_template,
+                                actual_path="/v0/events?provider_id=sim0",
+                                status_code=resp.status_code,
+                                content_type="application/json",
+                                body_file=body_file,
+                            )
+                        )
                     validation_errors = _validate_json_instance(schema, payload)
                     if validation_errors:
                         failures.append(Failure("schema", f"{name}: {validation_errors[0]}"))
@@ -513,20 +647,36 @@ def main() -> int:
             path_template="/v0/call",
             actual_path="/v0/call",
             json_body={},
+            expected_status=400,
         )
-        run_json_check(name="mode_get", method="GET", path_template="/v0/mode", actual_path="/v0/mode")
+        run_json_check(
+            name="device_capabilities_not_found",
+            method="GET",
+            path_template="/v0/devices/{provider_id}/{device_id}/capabilities",
+            actual_path=f"/v0/devices/{provider_id}/definitely_missing_device/capabilities",
+            expected_status=404,
+        )
+        run_json_check(
+            name="mode_get",
+            method="GET",
+            path_template="/v0/mode",
+            actual_path="/v0/mode",
+            expected_status=503,
+        )
         run_json_check(
             name="mode_post_invalid_payload",
             method="POST",
             path_template="/v0/mode",
             actual_path="/v0/mode",
             json_body={},
+            expected_status=503,
         )
         run_json_check(
             name="parameters_get",
             method="GET",
             path_template="/v0/parameters",
             actual_path="/v0/parameters",
+            expected_status=503,
         )
         run_json_check(
             name="parameters_post_invalid_payload",
@@ -534,18 +684,21 @@ def main() -> int:
             path_template="/v0/parameters",
             actual_path="/v0/parameters",
             json_body={},
+            expected_status=503,
         )
         run_json_check(
             name="automation_tree",
             method="GET",
             path_template="/v0/automation/tree",
             actual_path="/v0/automation/tree",
+            expected_status=503,
         )
         run_json_check(
             name="automation_status",
             method="GET",
             path_template="/v0/automation/status",
             actual_path="/v0/automation/status",
+            expected_status=503,
         )
         run_events_check(name="events")
     finally:
@@ -558,6 +711,8 @@ def main() -> int:
     print(f"  checks run: {checks_run}")
     print(f"  checks passed: {checks_passed}")
     print(f"  required operations covered: {len(REQUIRED_OPERATIONS)}")
+    if capture_dir is not None:
+        print(f"  capture_dir: {capture_dir}")
 
     if checks_run < len(REQUIRED_OPERATIONS):
         failures.append(
@@ -572,6 +727,27 @@ def main() -> int:
         for failure in failures:
             print(f"  - [{failure.stage}] {failure.message}")
         return 1
+
+    if capture_dir is not None:
+        manifest_path = capture_dir / "manifest.json"
+        manifest_payload = {
+            "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+            "base_url": fixture.base_url,
+            "checks": [
+                {
+                    "name": cap.name,
+                    "method": cap.method,
+                    "path_template": cap.path_template,
+                    "actual_path": cap.actual_path,
+                    "status_code": cap.status_code,
+                    "content_type": cap.content_type,
+                    "body_file": cap.body_file,
+                }
+                for cap in captures
+            ],
+        }
+        manifest_path.write_text(json.dumps(manifest_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        print(f"  capture_manifest: {manifest_path}")
 
     print("\nRuntime HTTP conformance checks passed.")
     return 0

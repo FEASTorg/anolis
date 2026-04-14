@@ -43,7 +43,8 @@ Run live runtime conformance smoke validation (runtime + provider-sim required):
 ```bash
 python3 tools/contracts/validate-runtime-http-conformance.py \
   --runtime-bin <path-to-anolis-runtime> \
-  --provider-bin <path-to-anolis-provider-sim>
+  --provider-bin <path-to-anolis-provider-sim> \
+  --capture-dir docs/http/examples/_captures
 ```
 
 Live conformance checks:
@@ -51,6 +52,8 @@ Live conformance checks:
 1. Starts runtime with provider-sim via fixture process management.
 2. Exercises all required `/v0` operations.
 3. Validates each observed response against the OpenAPI schema declared for that status code.
+4. Enforces deterministic non-200 checks for `400`, `404`, and `503` responses.
+5. Optionally captures live response payloads to support example refresh workflows.
 
 ## Notes
 

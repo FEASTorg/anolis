@@ -76,6 +76,12 @@ python3 tools/contracts/validate-runtime-http-conformance.py \
 This starts a runtime fixture and validates live endpoint responses against the
 OpenAPI schema declared for each observed status code.
 
+The conformance run also includes deterministic negative checks for:
+
+1. `400` (`POST /v0/call` invalid payload)
+2. `404` (missing device capabilities path)
+3. `503` (automation endpoints with automation disabled)
+
 ### Focused runtime coverage
 
 If a build directory exists, the script also runs:

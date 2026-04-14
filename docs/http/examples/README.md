@@ -22,3 +22,19 @@ The validator checks:
 2. Each example maps to an existing OpenAPI operation/response/media type.
 3. JSON examples satisfy the declared OpenAPI response schema.
 4. Text examples satisfy the declared non-JSON schema type.
+
+## Refresh Workflow
+
+Examples remain curated contract anchors, but can be refreshed from live runtime captures:
+
+```bash
+python3 tools/contracts/validate-runtime-http-conformance.py \
+  --runtime-bin <path-to-anolis-runtime> \
+  --provider-bin <path-to-anolis-provider-sim> \
+  --capture-dir docs/http/examples/_captures
+```
+
+The capture directory contains:
+
+1. Per-check response body files.
+2. A `manifest.json` index for request/response metadata.

@@ -78,3 +78,5 @@ Implemented for contract drift hardening:
 4. CI gates updated:
    - Linux strict lane validates OpenAPI examples.
    - Provider compatibility lane runs live conformance smoke.
+5. Live conformance includes deterministic `400`, `404`, and `503` negative checks.
+6. Live conformance supports optional response capture (`--capture-dir`) for example refresh.
