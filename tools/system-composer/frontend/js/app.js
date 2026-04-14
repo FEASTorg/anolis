@@ -8,11 +8,18 @@ import { renderProviderList } from './forms/provider-list.js';
 let _catalog = null;
 
 async function init() {
-  // Session persistence (task 4.14): restore running state if server has one
+  // Session persistence: restore running state if server has one
   let restoredProject = null;
   try {
     const statusRes = await fetch('/api/status');
     const status = await statusRes.json();
+    const operatorUiBase = status?.composer?.operator_ui_base;
+    if (typeof operatorUiBase === 'string' && operatorUiBase.trim() !== '') {
+      window.__ANOLIS_COMPOSER__ = {
+        ...(window.__ANOLIS_COMPOSER__ || {}),
+        operatorUiBase: operatorUiBase,
+      };
+    }
     if (status.running && status.active_project) {
       const projRes = await fetch(
         `/api/projects/${encodeURIComponent(status.active_project)}`

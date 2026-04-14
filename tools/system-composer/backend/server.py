@@ -1,10 +1,11 @@
 """Anolis System Composer — local HTTP backend.
 
-Run from the anolis repo root:
-    python tools/system-composer/backend/server.py
+Run from any working directory:
+    python /path/to/anolis/tools/system-composer/backend/server.py
 """
 
 import json
+import os
 import pathlib
 import sys
 import threading
@@ -18,11 +19,25 @@ if _SC_DIR not in sys.path:
     sys.path.insert(0, _SC_DIR)
 
 from backend import launcher as launcher_module  # noqa: E402
+from backend import paths as paths_module  # noqa: E402
 from backend import projects as projects_module  # noqa: E402
 
-HOST = "127.0.0.1"
-PORT = 3002
-FRONTEND_DIR = pathlib.Path("tools/system-composer/frontend")
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        print(f"WARNING: Invalid integer for {name}: {raw!r}; using {default}", file=sys.stderr)
+        return default
+
+
+HOST = os.getenv("ANOLIS_COMPOSER_HOST", "127.0.0.1")
+PORT = _env_int("ANOLIS_COMPOSER_PORT", 3002)
+OPERATOR_UI_BASE = os.getenv("ANOLIS_OPERATOR_UI_BASE", "http://localhost:3000").rstrip("/")
+FRONTEND_DIR = paths_module.FRONTEND_DIR
 
 _MIME = {
     ".html": "text/html; charset=utf-8",
@@ -35,12 +50,14 @@ _MIME = {
 }
 
 
-def verify_repo_root() -> None:
-    marker = pathlib.Path("tools/system-composer")
-    if not marker.is_dir():
-        print("ERROR: Must be run from the anolis repo root.", file=sys.stderr)
-        print("  Expected to find: tools/system-composer/", file=sys.stderr)
-        print("  Current CWD: " + str(pathlib.Path.cwd()), file=sys.stderr)
+def verify_environment() -> None:
+    if not FRONTEND_DIR.is_dir():
+        print("ERROR: System Composer frontend directory not found.", file=sys.stderr)
+        print(f"  Expected: {FRONTEND_DIR}", file=sys.stderr)
+        sys.exit(1)
+    if not paths_module.CATALOG_PATH.is_file():
+        print("ERROR: System Composer catalog not found.", file=sys.stderr)
+        print(f"  Expected: {paths_module.CATALOG_PATH}", file=sys.stderr)
         sys.exit(1)
 
 
@@ -262,7 +279,13 @@ class _Handler(BaseHTTPRequestHandler):
             self._json(404, {"error": f"Project '{name}' not found"})
 
     def _status(self) -> None:
-        self._json(200, launcher_module.get_status())
+        status = launcher_module.get_status()
+        status["composer"] = {
+            "host": HOST,
+            "port": PORT,
+            "operator_ui_base": OPERATOR_UI_BASE,
+        }
+        self._json(200, status)
 
     def _preflight(self, name: str) -> None:
         err = projects_module.validate_name(name)
@@ -325,14 +348,14 @@ class _Handler(BaseHTTPRequestHandler):
         launcher_module.handle_log_stream(self)
 
     def _serve_catalog(self) -> None:
-        path = pathlib.Path("tools/system-composer/catalog/providers.json")
+        path = paths_module.CATALOG_PATH
         if not path.exists():
             self._json(404, {"error": "Catalog not found"})
             return
         self._json(200, json.loads(path.read_text(encoding="utf-8")))
 
     def _serve_templates(self) -> None:
-        tpl_root = pathlib.Path("tools/system-composer/templates")
+        tpl_root = paths_module.TEMPLATES_ROOT
         if not tpl_root.exists():
             self._json(200, [])
             return
@@ -415,10 +438,10 @@ class _Handler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
-    verify_repo_root()
+    verify_environment()
     projects_module.cleanup_stale_running_files()
     server = ThreadingHTTPServer((HOST, PORT), _Handler)
-    url = f"http://localhost:{PORT}"
+    url = f"http://{HOST}:{PORT}"
     print(f"Anolis System Composer is running at {url}")
     print("Close this window to stop.")
     threading.Thread(target=_open_browser, args=(url,), daemon=True).start()

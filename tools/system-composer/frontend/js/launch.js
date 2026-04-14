@@ -66,7 +66,7 @@ function _renderRunning(panel) {
         Open in Operator UI →
       </a>
       <span class="launch-summary" style="margin-left:8px;">
-        Operator UI must be running on port 3000.
+        Operator UI base URL is configurable.
       </span>
     </div>
   `;
@@ -239,20 +239,49 @@ function _onHealthChange(status) {
   const labels = { healthy: 'Healthy', unavailable: 'Unavailable', starting: 'Starting…' };
   badge.textContent = labels[status] ?? status;
 
-  // Show/hide operator-ui link (task 4.13)
+  // Show/hide operator-ui link
   const linkDiv = document.getElementById('operator-ui-link');
   if (!linkDiv) return;
   if (status === 'healthy') {
     const bind = _system?.topology?.runtime?.http_bind || '127.0.0.1';
     const port = _system?.topology?.runtime?.http_port || 8080;
     const runtimeApi = `http://${bind}:${port}`;
-    const link = `http://localhost:3000?api=${encodeURIComponent(runtimeApi)}`;
+    const operatorUiBase = _resolveOperatorUiBase(_system);
+    const link = `${operatorUiBase}?api=${encodeURIComponent(runtimeApi)}`;
     const anchor = document.getElementById('operator-ui-anchor');
     if (anchor) anchor.href = link;
     linkDiv.style.display = 'block';
   } else {
     linkDiv.style.display = 'none';
   }
+}
+
+function _resolveOperatorUiBase(system) {
+  const explicit = system?.topology?.runtime?.operator_ui_base;
+  if (typeof explicit === 'string' && explicit.trim() !== '') {
+    return _trimTrailingSlash(explicit.trim());
+  }
+
+  const corsOrigins = system?.topology?.runtime?.cors_origins;
+  if (Array.isArray(corsOrigins)) {
+    const fromCors = corsOrigins.find(
+      origin => typeof origin === 'string' && /^https?:\/\//i.test(origin)
+    );
+    if (typeof fromCors === 'string' && fromCors.trim() !== '') {
+      return _trimTrailingSlash(fromCors.trim());
+    }
+  }
+
+  const fromComposerStatus = window.__ANOLIS_COMPOSER__?.operatorUiBase;
+  if (typeof fromComposerStatus === 'string' && fromComposerStatus.trim() !== '') {
+    return _trimTrailingSlash(fromComposerStatus.trim());
+  }
+
+  return 'http://localhost:3000';
+}
+
+function _trimTrailingSlash(url) {
+  return url.endsWith('/') ? url.slice(0, -1) : url;
 }
 
 // ---------------------------------------------------------------------------

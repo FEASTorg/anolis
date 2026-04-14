@@ -9,12 +9,13 @@ from datetime import datetime, timezone
 
 import jsonschema
 
+from backend import paths as paths_module
 from backend import renderer
 from backend import validator as semantic_validator
 
-SYSTEMS_ROOT = pathlib.Path("systems")
-TEMPLATES_ROOT = pathlib.Path("tools/system-composer/templates")
-SYSTEM_SCHEMA_PATH = pathlib.Path("tools/system-composer/schema/system.schema.json")
+SYSTEMS_ROOT = paths_module.SYSTEMS_ROOT
+TEMPLATES_ROOT = paths_module.TEMPLATES_ROOT
+SYSTEM_SCHEMA_PATH = paths_module.SYSTEM_SCHEMA_PATH
 
 NAME_RE = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 _SYSTEM_SCHEMA_CACHE: dict | None = None

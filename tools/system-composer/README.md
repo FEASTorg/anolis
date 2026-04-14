@@ -14,12 +14,26 @@ automatically at `http://localhost:3002`.
 ./tools/system-composer/start.sh
 ```
 
+Optional environment overrides:
+
+1. `ANOLIS_COMPOSER_HOST` (default: `127.0.0.1`)
+2. `ANOLIS_COMPOSER_PORT` (default: `3002`)
+3. `ANOLIS_OPERATOR_UI_BASE` (default: `http://localhost:3000`)
+
 ## What it does
 
 The composer lets you pick a starter template (sim, mixed-bus, bioreactor),
 fill in device and provider settings through a form UI, save the system to a
 named project, and launch the full Anolis runtime stack with one click.
 Projects are stored in `systems/` at the repo root (gitignored).
+
+When a runtime is healthy, the launch panel's "Open in Operator UI" link is
+resolved in this order:
+
+1. `topology.runtime.operator_ui_base` (if present in `system.json`)
+2. first entry in `topology.runtime.cors_origins`
+3. backend environment setting `ANOLIS_OPERATOR_UI_BASE`
+4. fallback `http://localhost:3000`
 
 ## Save and Validation Semantics
 

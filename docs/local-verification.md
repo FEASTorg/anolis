@@ -19,6 +19,7 @@ This runs:
 - runtime HTTP example payload validation
 - runtime HTTP live conformance smoke validation when both local runtime and provider-sim binaries are present
 - the full System Composer pytest suite
+- Operator UI fixture contract tests when `node` is available
 - focused C++ tests for runtime config parsing and ownership validation when a
   local CMake build directory is present
 
@@ -31,6 +32,16 @@ python3 -m pytest tools/system-composer/tests -q
 ```
 
 This covers renderer output, template parity, and validator behavior.
+
+### Operator UI fixture contract coverage
+
+If `node` is present, the script also runs:
+
+```bash
+node --test tools/operator-ui/tests/contracts.test.mjs
+```
+
+If `node` is not available, this step is skipped with an explicit message.
 
 ### Runtime config contract coverage
 

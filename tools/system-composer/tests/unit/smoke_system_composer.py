@@ -51,23 +51,25 @@ def delete(path):
 
 
 try:
-    # /api/status extended (task 4.14)
+    # /api/status includes runtime and composer metadata
     status, _ = get("/api/status")
     assert status["version"] == 1
     assert "active_project" in status
     assert "running" in status
     assert "pid" in status
+    assert "composer" in status
+    assert "operator_ui_base" in status["composer"]
     print(f"GET /api/status       OK  running={status['running']}")
 
     # Create project
-    sys_obj, sc = post("/api/projects", {"name": "smoke-p4", "template": "sim-quickstart"})
+    sys_obj, sc = post("/api/projects", {"name": "smoke-system", "template": "sim-quickstart"})
     assert sc == 201
     print("POST /api/projects    OK")
 
     # Save validation error should be structured and deterministic
     invalid_payload = {"schema_version": 1}
     req = urllib.request.Request(
-        "http://localhost:3002/api/projects/smoke-p4",
+        "http://localhost:3002/api/projects/smoke-system",
         data=json.dumps(invalid_payload).encode(),
         headers={"Content-Type": "application/json"},
         method="PUT",
@@ -110,7 +112,7 @@ try:
     custom_payload["topology"]["providers"]["custom0"] = {"kind": "custom", "args": ["--foo", "bar"]}
     custom_payload["paths"]["providers"]["custom0"] = {"executable": "../custom-provider/build/provider"}
     req = urllib.request.Request(
-        "http://localhost:3002/api/projects/smoke-p4",
+        "http://localhost:3002/api/projects/smoke-system",
         data=json.dumps(custom_payload).encode(),
         headers={"Content-Type": "application/json"},
         method="PUT",
@@ -127,12 +129,12 @@ try:
         print("PUT /api/projects    OK  (custom provider rejected in v1)")
 
     # Save valid payload still succeeds
-    _, sc = put("/api/projects/smoke-p4", sys_obj)
+    _, sc = put("/api/projects/smoke-system", sys_obj)
     assert sc == 200
     print("PUT /api/projects    OK  (valid payload)")
 
-    # Preflight (task 4.5)
-    pf, sc = post("/api/projects/smoke-p4/preflight")
+    # Preflight
+    pf, sc = post("/api/projects/smoke-system/preflight")
     assert sc == 200, f"Expected 200, got {sc}"
     assert "ok" in pf
     assert "checks" in pf
@@ -145,7 +147,7 @@ try:
 
     # Launch — binary won't exist, should return error gracefully
     req = urllib.request.Request(
-        "http://localhost:3002/api/projects/smoke-p4/launch",
+        "http://localhost:3002/api/projects/smoke-system/launch",
         data=b"{}",
         headers={"Content-Type": "application/json"},
         method="POST",
@@ -158,12 +160,12 @@ try:
         body = json.loads(exc.read())
         print(f"POST /launch          OK  (expected error: {body.get('error', '?')[:60]})")
 
-    # Stop (no-op when nothing running) (task 4.7)
-    stop_data, sc = post("/api/projects/smoke-p4/stop")
+    # Stop (no-op when nothing running)
+    stop_data, sc = post("/api/projects/smoke-system/stop")
     assert sc == 200
     print("POST /stop            OK  (no-op)")
 
-    # New frontend files served (tasks 4.10-4.12)
+    # New frontend files served
     with urllib.request.urlopen("http://localhost:3002/js/launch.js") as r:
         ct = r.headers.get("Content-Type")
         src = r.read().decode()
@@ -188,7 +190,7 @@ try:
     print("GET /js/app.js        OK  (session persistence present)")
 
     # Cleanup
-    delete("/api/projects/smoke-p4")
+    delete("/api/projects/smoke-system")
 
     print()
     print("All System Composer smoke tests passed.")

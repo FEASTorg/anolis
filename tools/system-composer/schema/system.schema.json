@@ -70,7 +70,11 @@
                 "required": ["id", "kind"],
                 "properties": {
                   "id":               { "type": "string" },
-                  "kind":             { "type": "string", "enum": ["sim", "bread", "ezo", "custom"] },
+                  "kind":             {
+                    "type": "string",
+                    "enum": ["sim", "bread", "ezo", "custom"],
+                    "description": "Provider kind. Note: custom is reserved in schema but rejected by Composer backend validation in contract v1."
+                  },
                   "timeout_ms":       { "type": "integer" },
                   "hello_timeout_ms": { "type": "integer" },
                   "ready_timeout_ms": { "type": "integer" },
@@ -98,7 +102,11 @@
             "type": "object",
             "required": ["kind"],
             "properties": {
-              "kind": { "type": "string", "enum": ["sim", "bread", "ezo", "custom"] }
+              "kind": {
+                "type": "string",
+                "enum": ["sim", "bread", "ezo", "custom"],
+                "description": "Provider kind. Note: custom is reserved in schema but rejected by Composer backend validation in contract v1."
+              }
             }
           }
         }

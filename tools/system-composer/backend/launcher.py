@@ -14,8 +14,10 @@ import threading
 import time
 from datetime import datetime, timezone
 
-_CATALOG_PATH = pathlib.Path("tools/system-composer/catalog/providers.json")
-_SYSTEMS_DIR = pathlib.Path("systems")
+from backend import paths as paths_module
+
+_CATALOG_PATH = paths_module.CATALOG_PATH
+_SYSTEMS_DIR = paths_module.SYSTEMS_ROOT
 
 _state: dict = {
     "project": None,  # active project name
@@ -42,6 +44,12 @@ def _load_catalog() -> dict:
 
 def running_json_path(name: str) -> pathlib.Path:
     return _SYSTEMS_DIR / name / "running.json"
+
+
+def _resolve_executable_path(path_value: str | None) -> pathlib.Path | None:
+    if not path_value:
+        return None
+    return paths_module.resolve_repo_path(path_value)
 
 
 # ---------------------------------------------------------------------------
@@ -102,7 +110,7 @@ def preflight(name: str, system: dict, project_dir: pathlib.Path) -> dict:
 
     # Check 1: Runtime binary
     runtime_exe_value = system.get("paths", {}).get("runtime_executable", "")
-    runtime_exe = pathlib.Path(runtime_exe_value) if runtime_exe_value else None
+    runtime_exe = _resolve_executable_path(runtime_exe_value)
     _exists_check(
         checks,
         "Runtime binary exists",
@@ -114,7 +122,7 @@ def preflight(name: str, system: dict, project_dir: pathlib.Path) -> dict:
     providers = system.get("topology", {}).get("providers", {})
     for pid, pcfg in providers.items():
         exe_str = system.get("paths", {}).get("providers", {}).get(pid, {}).get("executable", "")
-        exe = pathlib.Path(exe_str) if exe_str else None
+        exe = _resolve_executable_path(exe_str)
         kind = pcfg.get("kind", "")
         kind_info = catalog.get(kind, {})
         repo = kind_info.get("repo")
@@ -157,7 +165,7 @@ def preflight(name: str, system: dict, project_dir: pathlib.Path) -> dict:
         if not catalog.get(kind, {}).get("check_config_flag"):
             continue
         exe_str = system.get("paths", {}).get("providers", {}).get(pid, {}).get("executable", "")
-        exe = pathlib.Path(exe_str) if exe_str else None
+        exe = _resolve_executable_path(exe_str)
         yaml_path = project_dir / "providers" / f"{pid}.yaml"
         checks.append(
             _check_config_binary(
@@ -180,8 +188,8 @@ _PRESETS: dict[str, dict[str, str]] = {
     "win32": {
         "runtime": "dev-windows-release",
         "sim": "dev-windows-release",
-        "bread": "dev-linux-hardware-release",
-        "ezo": "dev-linux-hardware-release",
+        "bread": "dev-windows-release",
+        "ezo": "dev-windows-release",
         "custom": "dev-release",
     },
     "other": {
@@ -212,6 +220,11 @@ def _build_binary_hint(exe: pathlib.Path | None, kind: str, repo: str | None, do
     parts = []
     if repo_note:
         parts.append(repo_note)
+    if sys.platform == "win32" and kind in ("bread", "ezo"):
+        parts.append(
+            "Windows note: use dev-windows-release for mock validation. "
+            "Live I2C hardware validation is expected on Linux with device access."
+        )
     if docs and repo:
         parts.append(f"Build docs: {repo}/{docs}")
     parts.append(f"CMake preset: {preset}")
@@ -314,17 +327,17 @@ def launch(name: str, system: dict, project_dir: pathlib.Path) -> None:
     log_file = open(log_path, "w", buffering=1, encoding="utf-8")
 
     # Build command
-    runtime_exe = system.get("paths", {}).get("runtime_executable", "")
-    if not runtime_exe:
+    runtime_exe = _resolve_executable_path(system.get("paths", {}).get("runtime_executable", ""))
+    if runtime_exe is None:
         raise RuntimeError("Runtime executable path is missing.")
-    runtime_config = f"systems/{name}/anolis-runtime.yaml"
-    cmd = [runtime_exe, "--config", runtime_config]
+    runtime_config = str((project_dir / "anolis-runtime.yaml").resolve())
+    cmd = [str(runtime_exe), "--config", runtime_config]
 
     proc = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        cwd=str(pathlib.Path.cwd()),
+        cwd=str(paths_module.REPO_ROOT),
         bufsize=1,
         text=True,
     )
@@ -387,17 +400,17 @@ def restart(name: str, project_dir: pathlib.Path) -> None:
     log_path.parent.mkdir(parents=True, exist_ok=True)
     log_file = open(log_path, "w", buffering=1, encoding="utf-8")
 
-    runtime_exe = system.get("paths", {}).get("runtime_executable", "")
-    if not runtime_exe:
+    runtime_exe = _resolve_executable_path(system.get("paths", {}).get("runtime_executable", ""))
+    if runtime_exe is None:
         raise RuntimeError("Runtime executable path is missing.")
-    runtime_config = f"systems/{name}/anolis-runtime.yaml"
-    cmd = [runtime_exe, "--config", runtime_config]
+    runtime_config = str((project_dir / "anolis-runtime.yaml").resolve())
+    cmd = [str(runtime_exe), "--config", runtime_config]
 
     proc = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        cwd=str(pathlib.Path.cwd()),
+        cwd=str(paths_module.REPO_ROOT),
         bufsize=1,
         text=True,
     )
