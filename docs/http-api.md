@@ -2,6 +2,9 @@
 
 This document describes the HTTP REST API exposed by `anolis-runtime` for device discovery, state monitoring, and control.
 
+> Contract source of truth for machine validation: [`docs/http/openapi.v0.yaml`](http/openapi.v0.yaml).
+> This document is a human-readable reference and examples guide.
+
 ## Overview
 
 - **Base URL**: `http://127.0.0.1:8080` (configurable)
@@ -284,6 +287,84 @@ Get the loaded behavior tree XML content.
 - `UNAVAILABLE` - Automation layer not enabled
 - `NOT_FOUND` - No behavior tree loaded
 - `INTERNAL` - Failed to read behavior tree file
+
+---
+
+### GET /v0/automation/status
+
+Get runtime automation status (enabled/active state plus BT health counters).
+
+**Response:**
+
+```json
+{
+  "status": { "code": "OK", "message": "ok" },
+  "enabled": false,
+  "active": false,
+  "bt_status": "IDLE",
+  "last_tick_ms": 0,
+  "ticks_since_progress": 0,
+  "total_ticks": 0,
+  "last_error": null,
+  "error_count": 0,
+  "current_tree": "bioreactor_stir_feed"
+}
+```
+
+**Fields:**
+
+| Field                  | Type          | Description                                        |
+| ---------------------- | ------------- | -------------------------------------------------- |
+| `enabled`              | boolean       | Runtime mode is currently `AUTO`                   |
+| `active`               | boolean       | BT runtime loop is currently running               |
+| `bt_status`            | string        | `IDLE`, `RUNNING`, `STALLED`, `ERROR`, `UNKNOWN`  |
+| `last_tick_ms`         | integer       | Last tick timestamp (epoch ms)                     |
+| `ticks_since_progress` | integer       | Ticks since last progress transition               |
+| `total_ticks`          | integer       | Total ticks since runtime start                    |
+| `last_error`           | string or null| Most recent BT runtime error                       |
+| `error_count`          | integer       | Count of recorded BT runtime errors                |
+| `current_tree`         | string        | Behavior tree name (derived from loaded tree path) |
+
+**Error Responses:**
+
+- `UNAVAILABLE` - Automation layer not enabled or unavailable
+
+---
+
+### GET /v0/events (SSE)
+
+Subscribe to runtime events via Server-Sent Events.
+
+**Content-Type:** `text/event-stream`
+
+Optional query filters:
+
+1. `provider_id`
+2. `device_id`
+3. `signal_id`
+
+**Event names currently emitted:**
+
+1. `state_update`
+2. `quality_change`
+3. `device_availability`
+4. `mode_change`
+5. `parameter_change`
+6. `bt_error`
+7. `provider_health_change`
+
+**SSE message example:**
+
+```text
+event: state_update
+id: 42
+data: {"provider_id":"sim0","device_id":"tempctl0","signal_id":"tc1_temp","timestamp_ms":1730000000000,"quality":"OK","value":{"type":"double","double":23.5}}
+
+```
+
+**Error Responses:**
+
+- `UNAVAILABLE` - Event streaming disabled/unavailable or max SSE clients reached
 
 ---
 

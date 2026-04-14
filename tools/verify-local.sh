@@ -28,6 +28,9 @@ else
   echo "[verify-local] Skipping runtime config contract checks: runtime binary not found"
 fi
 
+echo "[verify-local] Running runtime HTTP OpenAPI structural checks"
+"$PYTHON_BIN" tools/contracts/validate-runtime-http-openapi.py
+
 echo "[verify-local] Running System Composer test suite"
 "$PYTHON_BIN" -m pytest tools/system-composer/tests -q
 

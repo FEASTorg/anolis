@@ -58,3 +58,12 @@ Ready to start when these are executed in order:
 3. Author `docs/http/openapi.v0.yaml` against the decided baseline.
 4. Add spec lint + structural validation in CI.
 5. Add example payload validation and runtime conformance smoke checks.
+
+## Slice 1 Status
+
+Implemented for initial contracts-02 execution:
+
+1. `docs/http/openapi.v0.yaml` created with current shipped endpoint coverage.
+2. Structural OpenAPI validation script added at `tools/contracts/validate-runtime-http-openapi.py`.
+3. CI structural gate wired in `.github/workflows/ci.yml` (Linux strict lane).
+4. `/v0/automation/status` and `/v0/events` documentation coverage added in `docs/http-api.md`.

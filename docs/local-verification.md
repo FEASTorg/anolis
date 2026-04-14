@@ -15,6 +15,7 @@ bash tools/verify-local.sh
 This runs:
 
 - runtime config contract validation (schema + `anolis-runtime --check-config`) when a local runtime binary is present
+- runtime HTTP OpenAPI structural validation
 - the full System Composer pytest suite
 - focused C++ tests for runtime config parsing and ownership validation when a
   local CMake build directory is present
@@ -42,6 +43,21 @@ This enforces the runtime config contract across:
 
 1. tracked runtime YAML profiles
 2. contract fixture sets (`valid`, `invalid/schema`, `invalid/runtime`)
+
+### Runtime HTTP contract coverage (structural, slice 1)
+
+The script always runs:
+
+```bash
+python3 tools/contracts/validate-runtime-http-openapi.py
+```
+
+This checks:
+
+1. OpenAPI document shape and metadata
+2. Required `/v0` endpoint/method coverage
+3. Internal `$ref` resolution
+4. SSE media type contract on `/v0/events`
 
 ### Focused runtime coverage
 
