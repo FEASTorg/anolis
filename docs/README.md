@@ -1,29 +1,34 @@
 # Anolis Documentation
 
-Minimal living documentation for Anolis Core.
+Canonical docs for Anolis runtime, contracts, and operations.
 
-## Contents
+## Start Here
 
-- [concept.md](concept.md) - What Anolis is and why it exists
-- [architecture.md](architecture.md) - System design and component relationships
-- [cpp-documentation-standard.md](cpp-documentation-standard.md) - C++ API documentation and comment conventions
-- [getting-started.md](getting-started.md) - Build and run instructions
-- [configuration.md](configuration.md) - Configuration guide (`config/anolis-runtime.yaml` and composer-generated runtime YAML)
-- [configuration-schema.md](configuration-schema.md) - Human-readable runtime config reference
-- [../schemas/README.md](../schemas/README.md) - Machine-validated runtime config contract artifacts
-- [contracts/README.md](contracts/README.md) - Contract baseline index
-- [contracts/runtime-config-baseline.md](contracts/runtime-config-baseline.md) - Behavior snapshot for runtime config contract
-- [contracts/runtime-http-baseline.md](contracts/runtime-http-baseline.md) - Behavior snapshot for runtime HTTP contract
-- [contracts/machine-profile-baseline.md](contracts/machine-profile-baseline.md) - Behavior snapshot for machine profile packaging contract
-- [contracts/composer-control-baseline.md](contracts/composer-control-baseline.md) - Behavior snapshot for System Composer control API contract
-- [http/README.md](http/README.md) - Runtime HTTP contract guide and links to canonical artifacts
-- [providers.md](providers.md) - Provider protocol and development
-- [http-api.md](http-api.md) - HTTP REST API reference
-- [automation.md](automation.md) - Behavior trees and automation system
-- [local-verification.md](local-verification.md) - Focused local verification workflow
-- [../CONTRIBUTING.md](../CONTRIBUTING.md) - Development guide and common pitfalls
+1. [getting-started.md](getting-started.md) - Build and run.
+2. [architecture.md](architecture.md) - Core system structure.
+3. [configuration.md](configuration.md) - Runtime config usage.
+4. [http-api.md](http-api.md) - Runtime `/v0` API reference.
+
+## Contracts and Schemas
+
+1. [../schemas/README.md](../schemas/README.md) - Machine-validated contract artifacts.
+2. [contracts/README.md](contracts/README.md) - Contract baseline index and policy.
+3. [http/README.md](http/README.md) - Runtime HTTP contract workflow and validation.
+
+## Runtime Reference
+
+1. [configuration-schema.md](configuration-schema.md) - Human-readable runtime schema guide.
+2. [providers.md](providers.md) - Provider model and protocol usage.
+3. [automation.md](automation.md) - Automation/BT behavior model.
+4. [safety.md](safety.md) - Safety behavior and operational constraints.
+5. [local-verification.md](local-verification.md) - Focused local verification workflow.
+
+## Contributor Reference
+
+1. [concept.md](concept.md) - Problem framing and design intent.
+2. [dependencies.md](dependencies.md) - Build/runtime dependency notes.
+3. [cpp-documentation-standard.md](cpp-documentation-standard.md) - C++ documentation conventions.
+4. [../CONTRIBUTING.md](../CONTRIBUTING.md) - Full contributor workflow and pitfalls.
 
 Local C++ API docs: run `doxygen docs/Doxyfile` from the repo root.
 Generated output goes to `build/docs/doxygen/html/` and remains untracked.
-
-Keep docs short and to-the-point. Update as system evolves.
