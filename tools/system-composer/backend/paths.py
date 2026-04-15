@@ -26,4 +26,3 @@ def resolve_repo_path(path_value: str) -> pathlib.Path:
     if path.is_absolute():
         return path
     return (REPO_ROOT / path).resolve()
-

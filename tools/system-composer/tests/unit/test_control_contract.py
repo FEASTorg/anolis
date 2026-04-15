@@ -65,9 +65,7 @@ def _wait_for_ready(base_url: str, proc: subprocess.Popen[str], timeout_s: float
     while time.time() < deadline:
         if proc.poll() is not None:
             stderr = proc.stderr.read() if proc.stderr is not None else ""
-            raise AssertionError(
-                f"System Composer exited before readiness check (code={proc.returncode}):\n{stderr}"
-            )
+            raise AssertionError(f"System Composer exited before readiness check (code={proc.returncode}):\n{stderr}")
         try:
             status, _ = _http_json(base_url, "/api/status", timeout_s=0.5)
             if status == 200:
