@@ -228,6 +228,10 @@ jobs:
         run: |
           python tools/contracts/validate-runtime-http-examples.py
 
+      - name: Validate composer control OpenAPI contract (structural)
+        run: |
+          python tools/contracts/validate-composer-control-openapi.py
+
       - name: Validate machine profile contract
         run: |
           python tools/contracts/validate-machine-profiles.py
@@ -244,6 +248,7 @@ jobs:
       - name: Run Operator UI fixture contract tests
         run: |
           node --test tools/operator-ui/tests/contracts.test.mjs
+          node --test tools/system-composer/tests/unit/launch_url_resolution.test.mjs
 
   core-build-test:
     name: ${{ matrix.lane }}

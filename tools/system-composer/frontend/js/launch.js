@@ -246,7 +246,7 @@ function _onHealthChange(status) {
     const bind = _system?.topology?.runtime?.http_bind || '127.0.0.1';
     const port = _system?.topology?.runtime?.http_port || 8080;
     const runtimeApi = `http://${bind}:${port}`;
-    const operatorUiBase = _resolveOperatorUiBase(_system);
+    const operatorUiBase = resolveOperatorUiBase(_system);
     const link = `${operatorUiBase}?api=${encodeURIComponent(runtimeApi)}`;
     const anchor = document.getElementById('operator-ui-anchor');
     if (anchor) anchor.href = link;
@@ -256,10 +256,10 @@ function _onHealthChange(status) {
   }
 }
 
-function _resolveOperatorUiBase(system) {
+export function resolveOperatorUiBase(system) {
   const explicit = system?.topology?.runtime?.operator_ui_base;
   if (typeof explicit === 'string' && explicit.trim() !== '') {
-    return _trimTrailingSlash(explicit.trim());
+    return trimTrailingSlash(explicit.trim());
   }
 
   const corsOrigins = system?.topology?.runtime?.cors_origins;
@@ -268,19 +268,19 @@ function _resolveOperatorUiBase(system) {
       origin => typeof origin === 'string' && /^https?:\/\//i.test(origin)
     );
     if (typeof fromCors === 'string' && fromCors.trim() !== '') {
-      return _trimTrailingSlash(fromCors.trim());
+      return trimTrailingSlash(fromCors.trim());
     }
   }
 
   const fromComposerStatus = window.__ANOLIS_COMPOSER__?.operatorUiBase;
   if (typeof fromComposerStatus === 'string' && fromComposerStatus.trim() !== '') {
-    return _trimTrailingSlash(fromComposerStatus.trim());
+    return trimTrailingSlash(fromComposerStatus.trim());
   }
 
   return 'http://localhost:3000';
 }
 
-function _trimTrailingSlash(url) {
+export function trimTrailingSlash(url) {
   return url.endsWith('/') ? url.slice(0, -1) : url;
 }
 

@@ -44,6 +44,9 @@ echo "[verify-local] Running runtime HTTP OpenAPI structural checks"
 echo "[verify-local] Running runtime HTTP OpenAPI example checks"
 "$PYTHON_BIN" tools/contracts/validate-runtime-http-examples.py
 
+echo "[verify-local] Running composer control OpenAPI structural checks"
+"$PYTHON_BIN" tools/contracts/validate-composer-control-openapi.py
+
 if [ -n "$RUNTIME_BIN" ] && [ -n "$PROVIDER_BIN" ]; then
   echo "[verify-local] Running runtime HTTP conformance smoke checks"
   "$PYTHON_BIN" tools/contracts/validate-runtime-http-conformance.py \
@@ -59,8 +62,10 @@ echo "[verify-local] Running System Composer test suite"
 if command -v node >/dev/null 2>&1; then
   echo "[verify-local] Running Operator UI fixture contract tests"
   node --test tools/operator-ui/tests/contracts.test.mjs
+  echo "[verify-local] Running System Composer launch URL resolution tests"
+  node --test tools/system-composer/tests/unit/launch_url_resolution.test.mjs
 else
-  echo "[verify-local] Skipping Operator UI fixture contract tests: node not found"
+  echo "[verify-local] Skipping UI fixture contract tests: node not found"
 fi
 
 if ! command -v ctest >/dev/null 2>&1; then

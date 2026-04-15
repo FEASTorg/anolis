@@ -105,8 +105,10 @@ Authoritative artifacts:
 
 1. Baseline doc: `docs/contracts/composer-control-baseline.md`
 2. Implementation: `tools/system-composer/backend/server.py`
-3. Contract tests: `tools/system-composer/tests/unit/test_control_contract.py`
+3. Machine-readable contract: `schemas/tools/composer-control.openapi.v1.yaml`
+4. Contract tests: `tools/system-composer/tests/unit/test_control_contract.py`
 
 Local/CI coverage:
 
-1. `python -m pytest tools/system-composer/tests -q`
+1. `python tools/contracts/validate-composer-control-openapi.py`
+2. `python -m pytest tools/system-composer/tests -q`

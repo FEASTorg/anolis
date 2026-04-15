@@ -55,3 +55,17 @@ Scope:
    - `tools/contracts/validate-runtime-http-examples.py`
    - `tools/contracts/validate-runtime-http-conformance.py`
 3. Human-facing guide remains at `docs/http/README.md`.
+
+## Composer Control OpenAPI Contract
+
+File:
+
+1. `tools/composer-control.openapi.v1.yaml`
+
+Scope:
+
+1. Canonical machine contract for System Composer control endpoints
+   (`/api/status`, preflight, launch, stop, restart, logs SSE).
+2. Validated by:
+   - `tools/contracts/validate-composer-control-openapi.py`
+3. Human-facing baseline remains at `docs/contracts/composer-control-baseline.md`.

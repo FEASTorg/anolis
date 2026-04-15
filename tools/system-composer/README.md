@@ -89,6 +89,7 @@ Contract dependencies:
 2. Runtime HTTP OpenAPI: `schemas/http/runtime-http.openapi.v0.yaml`
 3. Runtime HTTP fixtures (shared with Operator UI tests): `tests/contracts/runtime-http/examples/`
 4. Composer control API baseline: `docs/contracts/composer-control-baseline.md`
+5. Composer control OpenAPI: `schemas/tools/composer-control.openapi.v1.yaml`
 
 The `behaviors/` subdirectory is not managed by the composer. Place BT XMLs
 there manually and reference them by path in `behavior_tree_path`. The repo-level

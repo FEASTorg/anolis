@@ -17,6 +17,7 @@ This runs:
 - runtime config contract validation (schema + `anolis-runtime --check-config`) when a local runtime binary is present
 - runtime HTTP OpenAPI structural validation
 - runtime HTTP example payload validation
+- composer control OpenAPI structural validation
 - runtime HTTP live conformance smoke validation when both local runtime and provider-sim binaries are present
 - the full System Composer pytest suite
 - Operator UI fixture contract tests when `node` is available
@@ -41,6 +42,7 @@ If `node` is present, the script also runs:
 
 ```bash
 node --test tools/operator-ui/tests/contracts.test.mjs
+node --test tools/system-composer/tests/unit/launch_url_resolution.test.mjs
 ```
 
 If `node` is not available, this step is skipped with an explicit message.
@@ -75,6 +77,21 @@ This checks:
 3. Internal `$ref` resolution
 4. SSE media type contract on `/v0/events`
 5. Example payload schema conformance from `tests/contracts/runtime-http/examples/manifest.yaml`
+
+### Composer control contract coverage (structural)
+
+The script also runs:
+
+```bash
+python3 tools/contracts/validate-composer-control-openapi.py
+```
+
+This checks:
+
+1. OpenAPI document shape and metadata
+2. Required control endpoint/method coverage
+3. Internal `$ref` resolution
+4. SSE media type contract on `/api/projects/{name}/logs`
 
 ### Runtime HTTP conformance smoke coverage (live fixture)
 
