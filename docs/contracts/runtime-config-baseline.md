@@ -1,36 +1,30 @@
 # Runtime Config Baseline
 
-Status: locked baseline for contract implementation.
+Status: Locked.
 
-Purpose: capture current runtime-config behavior before adding JSON Schema and CI gates.
+## Purpose
 
-## Source of Truth (Current Implementation)
+Freeze runtime YAML behavior used by `anolis-runtime --config` and `--check-config` so schema and validator changes stay aligned with implementation.
 
-This baseline is derived from:
+## Canonical Artifacts
 
-1. `core/runtime/config.hpp` (config model + defaults)
-2. `core/runtime/config.cpp` (loader compatibility + validation rules)
-3. `core/src/main.cpp` (`--check-config` behavior)
-4. `tests/unit/config_test.cpp` (behavior coverage)
+1. Runtime model/defaults: `core/runtime/config.hpp`
+2. Runtime loader/validation: `core/runtime/config.cpp`
+3. CLI semantic gate: `core/src/main.cpp` (`--check-config`)
+4. Runtime schema: `schemas/runtime-config.schema.json`
+5. Contract validator: `tools/contracts/validate-runtime-configs.py`
+6. Contract fixtures: `tests/contracts/runtime-config/`
+7. Unit coverage: `tests/unit/config_test.cpp`
 
-## Runtime Config File Scope
+## Locked Behavior Summary
 
-This baseline applies only to runtime YAML consumed by `anolis-runtime --config` and `--check-config`.
+### Scope
 
-Target patterns:
+1. Applies to runtime YAML consumed by `anolis-runtime`.
+2. Targets `anolis-runtime*.yaml` under `config/` and `systems/**/anolis-runtime.yaml`.
+3. Excludes provider-local YAML and telemetry-export YAML.
 
-1. `config/anolis-runtime*.yaml`
-2. `config/**/anolis-runtime*.yaml`
-3. `systems/**/anolis-runtime.yaml`
-
-Out of scope:
-
-1. `config/**/provider-*.yaml`
-2. `config/**/telemetry-export*.yaml`
-
-## Top-Level Sections
-
-Supported top-level sections:
+### Supported Top-Level Sections
 
 1. `runtime`
 2. `http`
@@ -40,137 +34,52 @@ Supported top-level sections:
 6. `logging`
 7. `automation`
 
-Unknown top-level keys are warned and ignored.
+### Compatibility Commitments
 
-## Compatibility Behavior (Locked)
+1. Unknown keys are warn-and-ignore (forward compatibility).
+2. Accepted deprecated aliases:
+   - `automation.behavior_tree_path`
+   - flat telemetry keys under `telemetry.*` (`influx_*`, `batch_size`, `flush_interval_ms`)
+3. Rejected legacy key: `runtime.mode`.
+4. Runtime parser behavior (`yaml-cpp`) is authoritative for semantic edge cases.
 
-Current compatibility behavior that must remain unchanged during initial contract rollout:
+### Key Validation Invariants
 
-1. Unknown keys:
-   - warned and ignored (top-level and most nested map sections)
-2. Deprecated but accepted:
-   - `automation.behavior_tree_path` alias for `automation.behavior_tree`
-   - flat telemetry keys under `telemetry.*`:
-     - `influx_url`
-     - `influx_org`
-     - `influx_bucket`
-     - `influx_token`
-     - `batch_size`
-     - `flush_interval_ms`
-3. Rejected legacy key:
-   - `runtime.mode` is hard-failed
-
-## Defaults Snapshot
-
-Defaults from `config.hpp`:
-
-1. `runtime.shutdown_timeout_ms = 2000`
-2. `runtime.startup_timeout_ms = 30000`
-3. `http.enabled = true`
-4. `http.bind = "127.0.0.1"`
-5. `http.port = 8080`
-6. `http.cors_allowed_origins = ["*"]`
-7. `http.cors_allow_credentials = false`
-8. `http.thread_pool_size = 40`
-9. `polling.interval_ms = 500`
-10. `logging.level = "info"`
-11. `telemetry.enabled = false`
-12. `telemetry.influx_url = "http://localhost:8086"`
-13. `telemetry.influx_org = "anolis"`
-14. `telemetry.influx_bucket = "anolis"`
-15. `telemetry.batch_size = 100`
-16. `telemetry.flush_interval_ms = 1000`
-17. `telemetry.queue_size = 10000`
-18. `telemetry.max_retry_buffer_size = 1000`
-19. `automation.enabled = false`
-20. `automation.tick_rate_hz = 10`
-21. `automation.manual_gating_policy = BLOCK`
-
-## Validation Rules Snapshot
-
-Current loader-enforced rules:
-
-1. Runtime:
+1. Runtime timeout bounds:
    - `500 <= shutdown_timeout_ms <= 30000`
    - `5000 <= startup_timeout_ms <= 300000`
-2. HTTP (when enabled):
-   - `1 <= port <= 65535`
-   - `thread_pool_size >= 1`
-   - `cors_allowed_origins` non-empty
-   - wildcard origin `*` forbidden when `cors_allow_credentials=true`
+2. HTTP invariants:
+   - valid port range, `thread_pool_size >= 1`
+   - non-empty CORS origins
+   - wildcard origin forbidden when credentials are enabled
 3. Providers:
-   - non-empty `providers`
-   - unique provider `id`
-   - `command` required
-   - `timeout_ms >= 100`
-   - `hello_timeout_ms >= 100`
-   - `ready_timeout_ms >= 1000`
-4. Restart policy (when enabled):
+   - non-empty provider list, unique IDs, required command
+   - timeout lower bounds (`timeout_ms`, `hello_timeout_ms`, `ready_timeout_ms`)
+4. Restart policy:
    - `max_attempts >= 1`
-   - `backoff_ms` non-empty
-   - `len(backoff_ms) == max_attempts`
-   - each backoff value `>= 0`
-   - `timeout_ms >= 1000`
-   - `success_reset_ms >= 0`
-5. Polling:
-   - `interval_ms >= 100`
-6. Logging:
-   - level in `debug|info|warn|error`
-7. Automation (when enabled):
-   - `behavior_tree` required
-   - `1 <= tick_rate_hz <= 1000`
-   - typed parameter default consistency
-   - numeric `min/max` only for numeric parameter types
-   - `allowed_values` only for string parameters
-   - mode transition hooks:
-     - `from`/`to` in `MANUAL|AUTO|IDLE|FAULT|*` (or empty)
-     - non-empty `calls`
-     - each call requires `device_handle`
-     - each call requires one of `function_id` or `function_name`
+   - `backoff_ms` length equals `max_attempts`
+5. Polling/logging validity:
+   - `polling.interval_ms >= 100`
+   - logging level in `debug|info|warn|error`
+6. Automation:
+   - behavior tree path required when enabled
+   - `tick_rate_hz` bounded
+   - parameter type/default consistency
+   - mode-transition-hook structure and enum validation
 
-## Automation Hook Arg Scalar Parsing
+## Validation Gates
 
-`automation.mode_transition_hooks.*.calls[].args` currently parse using loader scalar heuristics:
+Run both layers:
 
-1. `true|false` -> bool
-2. integer literal -> int64
-3. float literal -> double
-4. anything else -> string
+1. Schema and fixture validation:
+   - `python3 tools/contracts/validate-runtime-configs.py`
+2. Runtime semantic validation:
+   - `anolis-runtime --check-config --config <runtime-yaml>`
 
-Quoted numeric-like strings can be coerced by YAML scalar parsing before this logic, so fixtures must explicitly cover this edge case.
+CI must keep these green together.
 
-## Known Baseline Quirks (Intentional for Now)
+## Drift Notes and Change Rule
 
-These are baseline behaviors and not changed in the first contract wave:
-
-1. Duplicate automation parameter names are accepted by config load.
-2. Later parameter redefinitions are ignored by `ParameterManager::define` with a warning.
-3. Unknown keys are warnings, not hard failures.
-4. Unknown-key warning coverage is not fully uniform across every known section
-   (`polling` and `logging` currently have no nested unknown-key warnings).
-
-## Parser Authority Note
-
-Runtime parser behavior (`yaml-cpp` in `core/runtime/config.cpp`) is authoritative for runtime semantics.
-Contract tooling must account for parser differences when running schema-layer checks from Python.
-
-## Existing Coverage Reference
-
-Representative unit coverage in `tests/unit/config_test.cpp`:
-
-1. unknown key tolerance
-2. `runtime.mode` rejection
-3. telemetry nested + defaults
-4. automation alias (`behavior_tree_path`) acceptance
-5. mode-transition hook parsing and validation
-6. CORS constraints
-7. restart policy invariants
-8. idempotent parsing and default reset semantics
-
-## Next Contract Step
-
-Close out hardening items against this baseline without changing runtime behavior:
-
-1. parser-alignment guardrails (duplicate-key rejection + parser-sensitive fixtures)
-2. schema meta-validation gate
-3. documentation alignment for authoritative behavior and gate scope
+1. Do not change schema-only behavior without matching runtime loader semantics.
+2. Do not change runtime loader semantics without updating schema/tests/baseline in the same change.
+3. Additive compatibility is preferred; tightening validation requires explicit migration notes.

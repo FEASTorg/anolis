@@ -126,6 +126,12 @@ Examples:
 
 ---
 
+## Documentation
+
+Use [docs/README.md](docs/README.md) as the canonical docs root for runtime usage, contracts, and contributor workflows.
+
+---
+
 ## Quick Start
 
 ### Preset Quickstart

@@ -1,36 +1,27 @@
-# Anolis HTTP API Reference (v0)
+# Runtime HTTP API (v0)
 
-This document describes the HTTP REST API exposed by `anolis-runtime` for device discovery, state monitoring, and control.
+Human-oriented runtime API guide.
 
-> Contract source of truth for machine validation: [`schemas/http/runtime-http.openapi.v0.yaml`](../schemas/http/runtime-http.openapi.v0.yaml).
-> This document is a human-readable reference and examples guide.
+Machine contract authority:
 
-## Overview
+1. OpenAPI: `schemas/http/runtime-http.openapi.v0.yaml`
+2. Contract examples: `tests/contracts/runtime-http/examples/`
+3. Baseline: `docs/contracts/runtime-http-baseline.md`
 
-- **Base URL**: `http://127.0.0.1:8080` (configurable)
-- **Content-Type**: `application/json`
-- **API Version**: `v0` (all endpoints prefixed with `/v0`)
+Use this file for operational semantics and practical examples.
 
-## Authentication
+## Transport
 
-No authentication in v0. The server binds to localhost only by default.
+1. Base URL default: `http://127.0.0.1:8080`
+2. JSON content type: `application/json`
+3. API prefix: `/v0`
+4. No auth model in v0
 
-## CORS
+CORS behavior comes from runtime config (`http.cors_*`).
 
-The server includes CORS headers for browser-based clients:
+## Common Response Envelope
 
-- `Access-Control-Allow-Origin`: Configurable via `http.cors_allowed_origins` (default: `[*]`)
-- `Access-Control-Allow-Methods`: `GET, POST, OPTIONS`
-- `Access-Control-Allow-Headers`: `Content-Type`
-
-This allows the Operator UI (`tools/operator-ui/`) to connect from any origin by default.
-
-> **Note**: For production/validation, restrict `http.cors_allowed_origins` in your runtime YAML
-> (`config/anolis-runtime.yaml` or `systems/<project>/anolis-runtime.yaml`).
-
-## Response Format
-
-All responses include a `status` object:
+All JSON responses include `status`:
 
 ```json
 {
@@ -38,304 +29,59 @@ All responses include a `status` object:
     "code": "OK",
     "message": "ok"
   }
-  // ... endpoint-specific data
 }
 ```
 
-### Status Codes
-
-| Code                  | HTTP Status | Description                       |
-| --------------------- | ----------- | --------------------------------- |
-| `OK`                  | 200         | Success                           |
-| `INVALID_ARGUMENT`    | 400         | Bad request or invalid parameters |
-| `NOT_FOUND`           | 404         | Resource not found                |
-| `FAILED_PRECONDITION` | 409         | Precondition not met              |
-| `UNAVAILABLE`         | 503         | Provider or device unavailable    |
-| `DEADLINE_EXCEEDED`   | 504         | Request timeout                   |
-| `INTERNAL`            | 500         | Internal server error             |
-
----
-
-## Endpoints
-
-### GET /v0/runtime/status
-
-Get runtime status, mode, and provider availability summary.
-
-**Response:**
-
-```json
-{
-  "status": { "code": "OK", "message": "ok" },
-  "mode": "MANUAL",
-  "uptime_seconds": 3600,
-  "polling_interval_ms": 500,
-  "device_count": 2,
-  "providers": [
-    {
-      "provider_id": "sim0",
-      "state": "AVAILABLE",
-      "device_count": 2
-    }
-  ]
-}
-```
-
-**Fields:**
-
-| Field                 | Type    | Description                                        |
-| --------------------- | ------- | -------------------------------------------------- |
-| `mode`                | string  | Runtime mode: `MANUAL`, `AUTO`, `IDLE`, or `FAULT` |
-| `uptime_seconds`      | integer | Seconds since runtime started                      |
-| `polling_interval_ms` | integer | State polling interval                             |
-| `device_count`        | integer | Total devices across all providers                 |
-| `providers`           | array   | Provider status list                               |
-| `providers[].state`   | string  | `AVAILABLE` or `UNAVAILABLE`                       |
-
-`/v0/runtime/status` intentionally exposes coarse provider availability only.
-Use [`GET /v0/providers/health`](#get-v0providershealth) for restart/backoff
-details via the `supervision` block.
-
----
-
-### GET /v0/providers/health
-
-Get detailed health, timing, and supervision state for all providers.
-
-**Response:**
-
-```json
-{
-  "status": { "code": "OK", "message": "ok" },
-  "providers": [
-    {
-      "provider_id": "sim0",
-      "state": "AVAILABLE",
-      "lifecycle_state": "RUNNING",
-      "device_count": 4,
-      "last_seen_ago_ms": 312,
-      "uptime_seconds": 47,
-      "supervision": {
-        "enabled": true,
-        "attempt_count": 0,
-        "max_attempts": 3,
-        "crash_detected": false,
-        "circuit_open": false,
-        "next_restart_in_ms": null
-      },
-      "devices": [
-        {
-          "device_id": "tempctl0",
-          "health": "OK",
-          "last_poll_ms": 1708704000312,
-          "staleness_ms": 312
-        }
-      ]
-    }
-  ]
-}
-```
-
-**Provider-level fields:**
-
-| Field              | Type            | Description                                                                                                                      |
-| ------------------ | --------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `state`            | string          | `AVAILABLE` or `UNAVAILABLE`                                                                                                     |
-| `lifecycle_state`  | string          | Additive lifecycle signal: `RUNNING`, `RECOVERING`, `RESTARTING`, `CIRCUIT_OPEN`, or `DOWN`                                      |
-| `device_count`     | integer         | Number of devices registered under this provider                                                                                 |
-| `last_seen_ago_ms` | integer or null | Milliseconds since the last confirmed healthy heartbeat. Counts up while UNAVAILABLE. `null` before the very first healthy poll. |
-| `uptime_seconds`   | integer         | Seconds since the first confirmed healthy heartbeat of the current process instance. `0` when UNAVAILABLE or before first poll.  |
-| `supervision`      | object          | Supervision state block — always present, never null (see below).                                                                |
-| `devices`          | array           | Per-device health entries for this provider.                                                                                     |
+Common status-code mapping:
 
-**`lifecycle_state` values:**
+| Code                  | HTTP |
+| --------------------- | ---- |
+| `OK`                  | 200  |
+| `INVALID_ARGUMENT`    | 400  |
+| `NOT_FOUND`           | 404  |
+| `FAILED_PRECONDITION` | 409  |
+| `UNAVAILABLE`         | 503  |
+| `DEADLINE_EXCEEDED`   | 504  |
+| `INTERNAL`            | 500  |
 
-| Value          | Meaning                                                                                         |
-| -------------- | ----------------------------------------------------------------------------------------------- |
-| `RUNNING`      | Provider is available with no active restart streak.                                            |
-| `RECOVERING`   | Provider is available but still inside the post-restart stability window (`attempt_count > 0`). |
-| `RESTARTING`   | Provider is unavailable and supervised restart/backoff is active.                               |
-| `CIRCUIT_OPEN` | Provider is unavailable and restart attempts are exhausted (`supervision.circuit_open: true`).  |
-| `DOWN`         | Provider is unavailable without active supervised restart metadata.                             |
+## Endpoint Map
 
-**`supervision` object fields:**
+### Runtime and provider status
 
-| Field                | Type            | Description                                                                                   |
-| -------------------- | --------------- | --------------------------------------------------------------------------------------------- |
-| `enabled`            | boolean         | `true` if a restart policy is configured for this provider                                    |
-| `attempt_count`      | integer         | Current consecutive restart attempts since last recovery. Resets to 0 on successful recovery. |
-| `max_attempts`       | integer         | Maximum restart attempts before circuit breaker opens (from config)                           |
-| `crash_detected`     | boolean         | `true` while a crash is actively being processed (cleared after restart attempt begins)       |
-| `circuit_open`       | boolean         | `true` when `max_attempts` has been exceeded — no further restarts will be attempted          |
-| `next_restart_in_ms` | integer or null | Countdown to next restart attempt (see semantics table below)                                 |
+1. `GET /v0/runtime/status` - high-level runtime/provider summary.
+2. `GET /v0/providers/health` - per-provider lifecycle/supervision and device health.
 
-**`next_restart_in_ms` semantics:**
+### Discovery and capabilities
 
-| State                                   | Value                           | How to distinguish                                   |
-| --------------------------------------- | ------------------------------- | ---------------------------------------------------- |
-| Healthy — no crash history              | `null`                          | `circuit_open: false`, `attempt_count: 0`            |
-| In backoff window — restart pending     | positive integer (ms remaining) | `attempt_count > 0`, `circuit_open: false`           |
-| Restart eligible now                    | `0`                             | Backoff elapsed; restart attempt imminent            |
-| Circuit open — no further restarts ever | `null`                          | `circuit_open: true` disambiguates from healthy null |
+1. `GET /v0/devices`
+2. `GET /v0/devices/{provider_id}/{device_id}/capabilities`
 
-> **Note:** `null` appears in both the healthy state and the circuit-open state. Always read `circuit_open` to distinguish them.
+### State reads
 
-**Device health values:**
+1. `GET /v0/state`
+2. `GET /v0/state/{provider_id}/{device_id}` (supports repeated `signal_id` filters)
 
-| `health`      | Description                                   |
-| ------------- | --------------------------------------------- |
-| `OK`          | State polled within the last 2 seconds        |
-| `WARNING`     | State is 2–5 seconds old                      |
-| `STALE`       | State is older than 5 seconds                 |
-| `UNAVAILABLE` | Provider is UNAVAILABLE; no polling occurring |
-| `UNKNOWN`     | No state data for this device yet             |
+### Control
 
----
+1. `POST /v0/call`
 
-### GET /v0/mode
+Notes:
 
-Get current automation mode.
+1. Request currently requires `function_id`.
+2. Args use typed ADPP value encoding.
 
-**Response:**
+### Automation and parameters
 
-```json
-{
-  "status": { "code": "OK", "message": "ok" },
-  "mode": "MANUAL"
-}
-```
+1. `GET /v0/mode`
+2. `POST /v0/mode`
+3. `GET /v0/parameters`
+4. `POST /v0/parameters`
+5. `GET /v0/automation/tree`
+6. `GET /v0/automation/status`
 
----
+### Streaming
 
-### POST /v0/mode
-
-Set automation mode.
-
-**Request:**
-
-```json
-{ "mode": "AUTO" }
-```
-
-**Response:**
-
-```json
-{ "status": { "code": "OK", "message": "ok" }, "mode": "AUTO" }
-```
-
----
-
-### GET /v0/parameters
-
-List all runtime parameters with current values and constraints.
-
-**Response:**
-
-```json
-{
-  "status": { "code": "OK", "message": "ok" },
-  "parameters": [
-    {
-      "name": "temp_setpoint",
-      "type": "double",
-      "value": 25.0,
-      "min": 10.0,
-      "max": 50.0
-    }
-  ]
-}
-```
-
----
-
-### POST /v0/parameters
-
-Update a runtime parameter (validated against constraints).
-
-**Request:**
-
-```json
-{ "name": "temp_setpoint", "value": 30.0 }
-```
-
-**Response:**
-
-```json
-{
-  "status": { "code": "OK", "message": "ok" },
-  "parameter": { "name": "temp_setpoint", "value": 30.0 }
-}
-```
-
----
-
-### GET /v0/automation/tree
-
-Get the loaded behavior tree XML content.
-
-**Response:**
-
-```json
-{
-  "status": { "code": "OK", "message": "ok" },
-  "tree": "<root main_tree_to_execute=\"MainTree\">\n  <BehaviorTree ID=\"MainTree\">...</BehaviorTree>\n</root>"
-}
-```
-
-**Error Responses:**
-
-- `UNAVAILABLE` - Automation layer not enabled
-- `NOT_FOUND` - No behavior tree loaded
-- `INTERNAL` - Failed to read behavior tree file
-
----
-
-### GET /v0/automation/status
-
-Get runtime automation status (enabled/active state plus BT health counters).
-
-**Response:**
-
-```json
-{
-  "status": { "code": "OK", "message": "ok" },
-  "enabled": false,
-  "active": false,
-  "bt_status": "IDLE",
-  "last_tick_ms": 0,
-  "ticks_since_progress": 0,
-  "total_ticks": 0,
-  "last_error": null,
-  "error_count": 0,
-  "current_tree": "bioreactor_stir_feed"
-}
-```
-
-**Fields:**
-
-| Field                  | Type          | Description                                        |
-| ---------------------- | ------------- | -------------------------------------------------- |
-| `enabled`              | boolean       | Runtime mode is currently `AUTO`                   |
-| `active`               | boolean       | BT runtime loop is currently running               |
-| `bt_status`            | string        | `IDLE`, `RUNNING`, `STALLED`, `ERROR`, `UNKNOWN`  |
-| `last_tick_ms`         | integer       | Last tick timestamp (epoch ms)                     |
-| `ticks_since_progress` | integer       | Ticks since last progress transition               |
-| `total_ticks`          | integer       | Total ticks since runtime start                    |
-| `last_error`           | string or null| Most recent BT runtime error                       |
-| `error_count`          | integer       | Count of recorded BT runtime errors                |
-| `current_tree`         | string        | Behavior tree name (derived from loaded tree path) |
-
-**Error Responses:**
-
-- `UNAVAILABLE` - Automation layer not enabled or unavailable
-
----
-
-### GET /v0/events (SSE)
-
-Subscribe to runtime events via Server-Sent Events.
-
-**Content-Type:** `text/event-stream`
+1. `GET /v0/events` (SSE)
 
 Optional query filters:
 
@@ -343,7 +89,7 @@ Optional query filters:
 2. `device_id`
 3. `signal_id`
 
-**Event names currently emitted:**
+Current event names:
 
 1. `state_update`
 2. `quality_change`
@@ -353,383 +99,59 @@ Optional query filters:
 6. `bt_error`
 7. `provider_health_change`
 
-**SSE message example:**
+## Typed Value Encoding
 
-```text
-event: state_update
-id: 42
-data: {"provider_id":"sim0","device_id":"tempctl0","signal_id":"tc1_temp","timestamp_ms":1730000000000,"quality":"OK","value":{"type":"double","double":23.5}}
+ADPP value payload format:
 
+| Type     | Example |
+| -------- | ------- |
+| `double` | `{"type":"double","double":1.23}` |
+| `int64`  | `{"type":"int64","int64":-42}` |
+| `uint64` | `{"type":"uint64","uint64":42}` |
+| `bool`   | `{"type":"bool","bool":true}` |
+| `string` | `{"type":"string","string":"AUTO"}` |
+| `bytes`  | `{"type":"bytes","base64":"AAECAw=="}` |
+
+## Quality Semantics
+
+Signal quality values:
+
+1. `OK`
+2. `STALE`
+3. `UNAVAILABLE`
+4. `FAULT`
+
+Device-level quality is computed as worst signal quality.
+
+## Practical Examples
+
+### Runtime status
+
+```bash
+curl -s http://127.0.0.1:8080/v0/runtime/status | jq
 ```
 
-**Error Responses:**
+### Providers health
 
-- `UNAVAILABLE` - Event streaming disabled/unavailable or max SSE clients reached
-
----
-
-### GET /v0/devices
-
-List all discovered devices.
-
-**Response:**
-
-```json
-{
-  "status": { "code": "OK", "message": "ok" },
-  "devices": [
-    {
-      "provider_id": "sim0",
-      "device_id": "tempctl0",
-      "type": "tempctl"
-    },
-    {
-      "provider_id": "sim0",
-      "device_id": "motorctl0",
-      "type": "motorctl"
-    }
-  ]
-}
+```bash
+curl -s http://127.0.0.1:8080/v0/providers/health | jq
 ```
 
-**Fields:**
-
-| Field                   | Type   | Description                                |
-| ----------------------- | ------ | ------------------------------------------ |
-| `devices[].provider_id` | string | Provider that owns this device             |
-| `devices[].device_id`   | string | Unique device identifier (within provider) |
-| `devices[].type`        | string | Device type identifier                     |
-
----
-
-### GET /v0/devices/{provider_id}/{device_id}/capabilities
-
-Get device capabilities (signals and functions).
-
-**Response:**
-
-```json
-{
-  "status": { "code": "OK", "message": "ok" },
-  "provider_id": "sim0",
-  "device_id": "tempctl0",
-  "capabilities": {
-    "signals": [
-      {
-        "signal_id": "tc1_temp",
-        "label": "TC1 Temperature",
-        "value_type": "double"
-      },
-      {
-        "signal_id": "relay1_state",
-        "label": "Relay 1 State",
-        "value_type": "bool"
-      },
-      {
-        "signal_id": "control_mode",
-        "label": "Control Mode",
-        "value_type": "string"
-      }
-    ],
-    "functions": [
-      {
-        "function_id": 1,
-        "name": "set_mode",
-        "label": "Set control mode: open or closed",
-        "args": {
-          "mode": {
-            "type": "string",
-            "required": true,
-            "description": "Control mode",
-            "unit": ""
-          }
-        }
-      },
-      {
-        "function_id": 2,
-        "name": "set_setpoint",
-        "label": "Set closed-loop setpoint (C)",
-        "args": {
-          "value": {
-            "type": "double",
-            "required": true,
-            "description": "Target setpoint in Celsius",
-            "unit": "C",
-            "min": 0.0,
-            "max": 100.0
-          }
-        }
-      }
-    ]
-  }
-}
-```
-
-**Signal Fields:**
-
-| Field        | Type   | Description                                                        |
-| ------------ | ------ | ------------------------------------------------------------------ |
-| `signal_id`  | string | Signal identifier                                                  |
-| `label`      | string | Human-readable label                                               |
-| `value_type` | string | Value type: `double`, `int64`, `uint64`, `bool`, `string`, `bytes` |
-
-**Function Fields:**
-
-| Field         | Type    | Description                         |
-| ------------- | ------- | ----------------------------------- |
-| `function_id` | integer | Numeric function ID for calls       |
-| `name`        | string  | Function name                       |
-| `label`       | string  | Human-readable description          |
-| `args`        | object  | Argument map keyed by argument name |
-
-**Function Arg Metadata Fields (`args.<arg_name>`):**
-
-| Field         | Type                      | Description                                                         |
-| ------------- | ------------------------- | ------------------------------------------------------------------- |
-| `type`        | string                    | Value type (`double`, `int64`, `uint64`, `bool`, `string`, `bytes`) |
-| `required`    | boolean                   | Whether the argument is required                                    |
-| `description` | string (optional)         | Human-readable argument description                                 |
-| `unit`        | string (optional)         | Unit label (if provided by provider)                                |
-| `min`         | number/integer (optional) | Numeric lower bound (for numeric types)                             |
-| `max`         | number/integer (optional) | Numeric upper bound (for numeric types)                             |
-
----
-
-### GET /v0/state
-
-Get latest cached state for all devices.
-
-Note: devices with no cached state entry yet are omitted from this response.
-
-**Response:**
-
-```json
-{
-  "status": { "code": "OK", "message": "ok" },
-  "generated_at_epoch_ms": 1730000000000,
-  "devices": [
-    {
-      "provider_id": "sim0",
-      "device_id": "tempctl0",
-      "quality": "OK",
-      "values": [
-        {
-          "signal_id": "tc1_temp",
-          "value": { "type": "double", "double": 23.5 },
-          "quality": "OK",
-          "timestamp_epoch_ms": 1730000000000,
-          "age_ms": 150
-        },
-        {
-          "signal_id": "relay1_state",
-          "value": { "type": "bool", "bool": false },
-          "quality": "OK",
-          "timestamp_epoch_ms": 1730000000000,
-          "age_ms": 150
-        }
-      ]
-    }
-  ]
-}
-```
-
-**Device Fields:**
-
-| Field     | Type   | Description                               |
-| --------- | ------ | ----------------------------------------- |
-| `quality` | string | Overall device quality (worst of signals) |
-
-**Value Fields:**
-
-| Field                | Type    | Description                                           |
-| -------------------- | ------- | ----------------------------------------------------- |
-| `signal_id`          | string  | Signal identifier                                     |
-| `value`              | object  | Typed value (see Value Types below)                   |
-| `quality`            | string  | Signal quality: `OK`, `STALE`, `UNAVAILABLE`, `FAULT` |
-| `timestamp_epoch_ms` | integer | When value was polled (Unix ms)                       |
-| `age_ms`             | integer | Milliseconds since poll                               |
-
----
-
-### GET /v0/state/{provider_id}/{device_id}
-
-Get state for a single device.
-
-Optional query parameters:
-
-1. `signal_id` (repeatable): filter response values to one or more signal IDs.
-
-**Response:**
-
-```json
-{
-  "status": { "code": "OK", "message": "ok" },
-  "generated_at_epoch_ms": 1730000000000,
-  "provider_id": "sim0",
-  "device_id": "motorctl0",
-  "quality": "OK",
-  "values": [
-    {
-      "signal_id": "motor1_duty",
-      "value": { "type": "double", "double": 0.75 },
-      "quality": "OK",
-      "timestamp_epoch_ms": 1730000000000,
-      "age_ms": 50
-    }
-  ]
-}
-```
-
----
-
-### POST /v0/call
-
-Execute a device function.
-
-**Request:**
-
-```json
-{
-  "provider_id": "sim0",
-  "device_id": "motorctl0",
-  "function_id": 10,
-  "args": {
-    "motor_index": { "type": "int64", "int64": 1 },
-    "duty": { "type": "double", "double": 0.75 }
-  }
-}
-```
-
-**Request Fields:**
-
-| Field         | Type    | Required | Description                       |
-| ------------- | ------- | -------- | --------------------------------- |
-| `provider_id` | string  | Yes      | Target provider                   |
-| `device_id`   | string  | Yes      | Target device                     |
-| `function_id` | integer | Yes      | Function ID from capabilities     |
-| `args`        | object  | No       | Function arguments (typed values) |
-
-**Response (Success):**
-
-```json
-{
-  "status": { "code": "OK", "message": "ok" },
-  "provider_id": "sim0",
-  "device_id": "motorctl0",
-  "function_id": 10,
-  "post_call_poll_triggered": true
-}
-```
-
-**Response (Error):**
-
-```json
-{
-  "status": {
-    "code": "INVALID_ARGUMENT",
-    "message": "Provider returned error: motor_index must be 1 or 2"
-  }
-}
-```
-
----
-
-## Value Types
-
-All values use a typed JSON encoding:
-
-| Type     | JSON Format                               | Example                 |
-| -------- | ----------------------------------------- | ----------------------- |
-| `double` | `{"type": "double", "double": 1.23}`      | Temperature, duty cycle |
-| `int64`  | `{"type": "int64", "int64": -42}`         | Signed integers         |
-| `uint64` | `{"type": "uint64", "uint64": 12345}`     | Counters, timestamps    |
-| `bool`   | `{"type": "bool", "bool": true}`          | Relay states, flags     |
-| `string` | `{"type": "string", "string": "open"}`    | Mode, status text       |
-| `bytes`  | `{"type": "bytes", "base64": "AAECAw=="}` | Binary data (base64)    |
-
----
-
-## Quality Values
-
-| Quality       | Description                        |
-| ------------- | ---------------------------------- |
-| `OK`          | Fresh data, recently polled        |
-| `STALE`       | Provider reachable but data is old |
-| `UNAVAILABLE` | Provider or device unreachable     |
-| `FAULT`       | Device-reported fault condition    |
-
-Device-level quality is the worst-case of its signal qualities.
-
----
-
-## Error Responses
-
-All errors follow the same format:
-
-```json
-{
-  "status": {
-    "code": "NOT_FOUND",
-    "message": "Device not found: sim0/nonexistent"
-  }
-}
-```
-
-### Common Errors
-
-| Scenario               | HTTP | Code                |
-| ---------------------- | ---- | ------------------- |
-| Unknown route          | 404  | `NOT_FOUND`         |
-| Unknown device         | 404  | `NOT_FOUND`         |
-| Invalid JSON body      | 400  | `INVALID_ARGUMENT`  |
-| Missing required field | 400  | `INVALID_ARGUMENT`  |
-| Provider unavailable   | 503  | `UNAVAILABLE`       |
-| Call timeout           | 504  | `DEADLINE_EXCEEDED` |
-| Internal error         | 500  | `INTERNAL`          |
-
----
-
-## Configuration
-
-HTTP server is configured in the runtime YAML (`config/anolis-runtime.yaml` or
-`systems/<project>/anolis-runtime.yaml`):
-
-```yaml
-http:
-  enabled: true # Enable HTTP server (default: true)
-  bind: 127.0.0.1 # Bind address (default: 127.0.0.1)
-  port: 8080 # Port (default: 8080)
-```
-
----
-
-## Curl Examples
-
-### List devices
+### Devices + capabilities
 
 ```bash
 curl -s http://127.0.0.1:8080/v0/devices | jq
+curl -s http://127.0.0.1:8080/v0/devices/sim0/motorctl0/capabilities | jq
 ```
 
-### Get device capabilities
-
-```bash
-curl -s http://127.0.0.1:8080/v0/devices/sim0/tempctl0/capabilities | jq
-```
-
-### Get all state
+### State
 
 ```bash
 curl -s http://127.0.0.1:8080/v0/state | jq
+curl -s "http://127.0.0.1:8080/v0/state/sim0/motorctl0?signal_id=motor1_duty" | jq
 ```
 
-### Get single device state
-
-```bash
-curl -s http://127.0.0.1:8080/v0/state/sim0/motorctl0 | jq
-```
-
-### Set motor duty
+### Call device function
 
 ```bash
 curl -s -X POST http://127.0.0.1:8080/v0/call \
@@ -745,29 +167,40 @@ curl -s -X POST http://127.0.0.1:8080/v0/call \
   }' | jq
 ```
 
-### Set temperature setpoint
+### Mode and parameters
 
 ```bash
-curl -s -X POST http://127.0.0.1:8080/v0/call \
+curl -s http://127.0.0.1:8080/v0/mode | jq
+curl -s -X POST http://127.0.0.1:8080/v0/mode \
   -H "Content-Type: application/json" \
-  -d '{
-    "provider_id": "sim0",
-    "device_id": "tempctl0",
-    "function_id": 2,
-    "args": {
-      "value": {"type": "double", "double": 50.0}
-    }
-  }' | jq
+  -d '{"mode":"MANUAL"}' | jq
+
+curl -s http://127.0.0.1:8080/v0/parameters | jq
+curl -s -X POST http://127.0.0.1:8080/v0/parameters \
+  -H "Content-Type: application/json" \
+  -d '{"name":"temp_setpoint","value":30.0}' | jq
 ```
 
-### Get runtime status
+### SSE stream
 
 ```bash
-curl -s http://127.0.0.1:8080/v0/runtime/status | jq
+curl -N http://127.0.0.1:8080/v0/events
 ```
 
-### Get provider health and supervision state
+## Error Payload
 
-```bash
-curl -s http://127.0.0.1:8080/v0/providers/health | jq
+Example:
+
+```json
+{
+  "status": {
+    "code": "NOT_FOUND",
+    "message": "Device not found: sim0/nonexistent"
+  }
+}
 ```
+
+## Related
+
+1. `docs/http/README.md` - HTTP contract validation workflow.
+2. `tests/contracts/runtime-http/examples/manifest.yaml` - fixture inventory.

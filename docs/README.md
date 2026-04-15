@@ -1,34 +1,32 @@
 # Anolis Documentation
 
-Canonical docs for Anolis runtime, contracts, and operations.
+Use this file as the canonical documentation index.
 
 ## Start Here
 
-1. [getting-started.md](getting-started.md) - Build and run.
-2. [architecture.md](architecture.md) - Core system structure.
-3. [configuration.md](configuration.md) - Runtime config usage.
-4. [http-api.md](http-api.md) - Runtime `/v0` API reference.
+1. [getting-started.md](getting-started.md) - Build, run, and first validation.
+2. [architecture.md](architecture.md) - Runtime architecture and subsystem boundaries.
+3. [configuration.md](configuration.md) - How to author and validate runtime YAML.
+4. [http-api.md](http-api.md) - Human guide for runtime `/v0` HTTP usage.
 
 ## Contracts and Schemas
 
-1. [../schemas/README.md](../schemas/README.md) - Machine-validated contract artifacts.
-2. [contracts/README.md](contracts/README.md) - Contract baseline index and policy.
-3. [http/README.md](http/README.md) - Runtime HTTP contract workflow and validation.
+1. [../schemas/README.md](../schemas/README.md) - Machine-readable contract artifacts.
+2. [contracts/README.md](contracts/README.md) - Contract baselines and change policy.
+3. [http/README.md](http/README.md) - Runtime HTTP contract validation workflow.
 
 ## Runtime Reference
 
-1. [configuration-schema.md](configuration-schema.md) - Human-readable runtime schema guide.
-2. [providers.md](providers.md) - Provider model and protocol usage.
-3. [automation.md](automation.md) - Automation/BT behavior model.
-4. [safety.md](safety.md) - Safety behavior and operational constraints.
-5. [local-verification.md](local-verification.md) - Focused local verification workflow.
+1. [configuration-schema.md](configuration-schema.md) - Compact narrative map of schema sections.
+2. [automation.md](automation.md) - Automation architecture, mode semantics, and operation.
+3. [providers.md](providers.md) - Provider model and runtime interaction rules.
+4. [safety.md](safety.md) - Safety boundaries and operational expectations.
 
 ## Contributor Reference
 
-1. [concept.md](concept.md) - Problem framing and design intent.
-2. [dependencies.md](dependencies.md) - Build/runtime dependency notes.
-3. [cpp-documentation-standard.md](cpp-documentation-standard.md) - C++ documentation conventions.
-4. [../CONTRIBUTING.md](../CONTRIBUTING.md) - Full contributor workflow and pitfalls.
+1. [local-verification.md](local-verification.md) - Fast local verification workflow.
+2. [dependencies.md](dependencies.md) - Dependency and toolchain expectations.
+3. [cpp-documentation-standard.md](cpp-documentation-standard.md) - C++ doc style rules.
+4. [../CONTRIBUTING.md](../CONTRIBUTING.md) - Contributor workflow and repo policy.
 
-Local C++ API docs: run `doxygen docs/Doxyfile` from the repo root.
-Generated output goes to `build/docs/doxygen/html/` and remains untracked.
+Local C++ API docs: run `doxygen docs/Doxyfile` from repo root.

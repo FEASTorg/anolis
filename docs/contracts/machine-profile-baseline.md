@@ -1,75 +1,41 @@
 # Machine Profile Baseline
 
-Status: locked baseline for `contracts-03-machine-profile-packaging`.
+Status: Locked.
 
-Purpose:
+## Purpose
 
-1. Define what counts as a machine package in this wave.
-2. Lock manifest scope before validator/CI wiring.
-3. Avoid layout churn while preserving current bioreactor workflows.
+Define machine package expectations under `config/<machine_id>/` and lock manifest behavior for validation tooling.
 
-## Current Package Reality (Pre-Contract)
+## Canonical Artifacts
 
-Source-controlled machine assets already exist under `config/`:
+1. Manifest schema: `schemas/machine-profile.schema.json`
+2. Validator: `tools/contracts/validate-machine-profiles.py`
+3. Fixtures: `tests/contracts/machine-profile/`
+4. Canonical package example: `config/bioreactor/machine-profile.yaml`
+5. Runtime config schema dependency: `schemas/runtime-config.schema.json`
 
-1. `config/bioreactor/` (canonical lab application profile)
-2. `config/mixed-bus-providers/` (validation/scenario pack)
+## Locked Behavior Summary
 
-Current runtime profile entrypoints are descriptive and already used in docs/runbooks:
+1. Machine packages remain under `config/<machine_id>/` in this wave.
+2. Manifest file is `machine-profile.yaml`.
+3. Manifest declares:
+   - identity (`schema_version`, `machine_id`, `display_name`)
+   - runtime profile entrypoints (`manual` required; optional `telemetry`, `automation`, `full`)
+   - provider config references
+   - optional behavior asset references
+   - runtime contract references and compatibility notes
+4. Validator enforces:
+   - schema correctness
+   - referenced file existence
+   - referenced runtime profile schema compatibility
 
-1. `anolis-runtime.bioreactor.manual.yaml`
-2. `anolis-runtime.bioreactor.telemetry.yaml`
-3. `anolis-runtime.bioreactor.automation.yaml`
-4. `anolis-runtime.bioreactor.full.yaml`
+## Validation Gates
 
-## Package Boundary (Locked for This Wave)
+1. `python3 tools/contracts/validate-machine-profiles.py`
+2. Runtime config contract validation remains in place for referenced profiles.
 
-1. Keep machine packages under existing `config/<machine_id>/` paths.
-2. Do not migrate to `config/machines/<machine_id>/` in this wave.
-3. Composer workspace output in `systems/<project>/` remains a separate concern.
-4. Core runtime remains provider-agnostic.
+## Drift Notes and Change Rule
 
-## Manifest Contract (v1)
-
-Each machine package must include `machine-profile.yaml` with:
-
-1. identity:
-   - `schema_version`
-   - `machine_id`
-   - `display_name`
-2. package entrypoints:
-   - `runtime_profiles.manual` (required)
-   - optional `telemetry`, `automation`, `full`
-3. provider config map:
-   - provider ID -> config file path
-4. optional behavior asset list
-5. runtime contract references:
-   - runtime config baseline doc path
-   - runtime HTTP baseline doc path
-6. compatibility metadata:
-   - runtime contract versions/notes
-   - provider compatibility policy per provider
-
-## Validation Expectations
-
-Contract tooling must validate:
-
-1. manifest schema correctness,
-2. reference integrity (all declared files exist),
-3. referenced runtime profiles are valid against `schemas/runtime-config.schema.json`.
-
-## Out of Scope (This Wave)
-
-1. packaging repo split decisions,
-2. runtime/provider version negotiation redesign,
-3. cross-dialect shared schema fragment extraction.
-
-## Implementation Status
-
-Implemented in this wave:
-
-1. `schemas/machine-profile.schema.json`
-2. `tools/contracts/validate-machine-profiles.py`
-3. contract fixtures under `tests/contracts/machine-profile/`
-4. canonical `config/bioreactor/machine-profile.yaml`
-5. CI + local gate wiring for machine-profile validation
+1. Keep machine profile schema additive when possible.
+2. Path/layout changes require coordinated updates to manifest schema, validator, package docs, and fixtures.
+3. Do not introduce packaging-repo split semantics in this baseline.

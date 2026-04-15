@@ -1,16 +1,24 @@
-# Composer Control API Baseline
+# Composer Control Baseline
 
-Status: Baseline snapshot for workbench interface lock (Phase 05).
+Status: Locked.
 
-Purpose:
+## Purpose
 
-1. Freeze the System Composer control API behavior used by commissioning flows.
-2. Make response/error semantics explicit before larger workbench integration.
-3. Provide a single reference for tests, docs, and compatibility decisions.
+Freeze System Composer control API behavior used by commissioning flows so UI and tooling integrations remain stable.
 
-## Implemented Endpoint Inventory
+## Canonical Artifacts
 
-Source of truth: `tools/system-composer/backend/server.py`.
+1. Backend implementation: `tools/system-composer/backend/server.py`
+2. OpenAPI contract: `schemas/tools/composer-control.openapi.v1.yaml`
+3. OpenAPI validator: `tools/contracts/validate-composer-control-openapi.py`
+4. Contract tests: `tools/system-composer/tests/unit/test_control_contract.py`
+5. Tooling docs:
+   - `tools/system-composer/README.md`
+   - `docs/http/README.md` (contract workflow context)
+
+## Locked Behavior Summary
+
+### Endpoint Inventory
 
 1. `GET /api/status`
 2. `POST /api/projects/{name}/preflight`
@@ -19,96 +27,33 @@ Source of truth: `tools/system-composer/backend/server.py`.
 5. `POST /api/projects/{name}/restart`
 6. `GET /api/projects/{name}/logs` (SSE)
 
-These endpoints are part of the commissioning control surface.
+### Response and Error Shape
 
-## Success Response Baseline
+1. Control endpoints return stable JSON success payloads.
+2. Error payloads expose stable top-level `error` text.
+3. Validation-failure payloads include structured `errors[]` entries.
+4. Expected status semantics:
+   - `400` invalid project names
+   - `404` unknown project
+   - `409` launch conflict
+   - `500` backend failure
 
-## `GET /api/status` (200)
+### Runtime/Path Decoupling
 
-Response fields:
+1. Composer path resolution is repo-anchored (`backend/paths.py`), not caller-CWD dependent.
+2. Control-plane environment knobs remain:
+   - `ANOLIS_COMPOSER_HOST`
+   - `ANOLIS_COMPOSER_PORT`
+   - `ANOLIS_OPERATOR_UI_BASE`
+   - `ANOLIS_COMPOSER_OPEN_BROWSER`
 
-1. `version` (number, currently `1`)
-2. `active_project` (string or `null`)
-3. `running` (bool)
-4. `pid` (number or `null`)
-5. `composer` object:
-   - `host` (string)
-   - `port` (number)
-   - `operator_ui_base` (string)
+## Validation Gates
 
-## `POST /api/projects/{name}/preflight` (200)
+1. `python3 tools/contracts/validate-composer-control-openapi.py`
+2. `python3 -m pytest tools/system-composer/tests -q`
 
-Response fields:
-
-1. `ok` (bool)
-2. `checks` (array of check objects)
-
-## `POST /api/projects/{name}/launch` (200)
-
-1. `{"ok": true}`
-
-## `POST /api/projects/{name}/stop` (200)
-
-1. `{"ok": true}`
-
-## `POST /api/projects/{name}/restart` (200)
-
-1. `{"ok": true}`
-
-## `GET /api/projects/{name}/logs` (200, `text/event-stream`)
-
-SSE log stream with keepalive comments and line-oriented `data:` frames.
-
-## Error Response Baseline
-
-Common error payload shape:
-
-1. JSON object with an `error` string.
-
-Structured validation error shape (`PUT /api/projects/{name}` save path):
-
-1. `error` (string, currently `"Project validation failed"`)
-2. `code` (string, currently `"validation_failed"`)
-3. `errors` (array of objects with `source`, `code`, `path`, `message`)
-
-Control endpoint status semantics:
-
-1. `400` for invalid project names.
-2. `404` for unknown project names on control endpoints.
-3. `409` for launch conflict when another system is already running.
-4. `500` for unexpected backend failures.
-
-## Runtime/Path Decoupling Baseline
-
-Composer path resolution is repo-anchored via `backend/paths.py` and is not tied
-to the caller's current working directory.
-
-Runtime behavior controlled by environment:
-
-1. `ANOLIS_COMPOSER_HOST`
-2. `ANOLIS_COMPOSER_PORT`
-3. `ANOLIS_OPERATOR_UI_BASE`
-4. `ANOLIS_COMPOSER_OPEN_BROWSER` (`1/0`, default enabled)
-
-## Compatibility Policy
-
-For this control API baseline:
+## Drift Notes and Change Rule
 
 1. Additive response fields are allowed.
-2. Existing fields must keep meaning.
-3. Status-code changes or payload-shape changes require baseline/test updates in
-   the same change.
-
-## Contract Ownership and Gates
-
-Authoritative artifacts:
-
-1. Baseline doc: `docs/contracts/composer-control-baseline.md`
-2. Implementation: `tools/system-composer/backend/server.py`
-3. Machine-readable contract: `schemas/tools/composer-control.openapi.v1.yaml`
-4. Contract tests: `tools/system-composer/tests/unit/test_control_contract.py`
-
-Local/CI coverage:
-
-1. `python tools/contracts/validate-composer-control-openapi.py`
-2. `python -m pytest tools/system-composer/tests -q`
+2. Existing fields must keep semantics.
+3. Status-code or payload-shape changes require synchronized updates to implementation, OpenAPI, tests, and this baseline.

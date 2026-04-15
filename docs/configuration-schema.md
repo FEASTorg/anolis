@@ -1,668 +1,163 @@
-# Configuration Schema v1.0
+# Runtime Configuration Schema (Narrative)
 
-**Status:** Human-Readable Reference  
-**Date:** February 6, 2026
+This is a compact human map of runtime YAML sections.
 
-This document describes the runtime YAML schema in narrative form.
-Authoritative contract enforcement is machine-validated via:
+Authoritative contract behavior comes from:
 
 1. `schemas/runtime-config.schema.json`
-2. `python tools/contracts/validate-runtime-configs.py`
-3. `anolis-runtime --check-config` (load-time semantic checks)
-
-Schema draft policy for this wave:
-
-1. `runtime-config.schema.json` is locked to Draft-07.
-2. `deprecated` fields in the schema are annotation-only metadata (documented compatibility), not a runtime rejection rule by themselves.
-
----
-
-## Top-Level Structure
-
-```yaml
-runtime:
-  name: <string>
-  shutdown_timeout_ms: <int>
-  startup_timeout_ms: <int>
-
-http:
-  enabled: <bool>
-  bind: <string>
-  port: <int>
-  cors_allowed_origins: <string|array>
-  cors_allow_credentials: <bool>
-  thread_pool_size: <int>
-
-providers:
-  - id: <string>
-    command: <string>
-    args: <array>
-    timeout_ms: <int>
+2. `tools/contracts/validate-runtime-configs.py`
+3. `anolis-runtime --check-config`
 
-polling:
-  interval_ms: <int>
+## Top-Level Sections
 
-telemetry:
-  enabled: <bool>
-  influxdb:
-    url: <string>
-    org: <string>
-    bucket: <string>
-    token: <string>
-    batch_size: <int>
-    flush_interval_ms: <int>
+Supported runtime YAML sections:
 
-logging:
-  level: <string>
+1. `runtime`
+2. `http`
+3. `providers`
+4. `polling`
+5. `telemetry`
+6. `logging`
+7. `automation`
 
-automation:
-  enabled: <bool>
-  behavior_tree: <string>
-  tick_rate_hz: <int>
-  manual_gating_policy: <string>
-  parameters:
-    - name: <string>
-      type: <string>
-      default: <varies>
-      min: <number>
-      max: <number>
-      allowed_values: <array>
-```
-
----
+Unknown keys are compatibility-warned and ignored.
 
-## Section: `runtime`
-
-**Required:** No (all fields optional with defaults)
-
-**Note:** Runtime mode is **enforced as IDLE at startup** (not configurable).
-Use HTTP `POST /v0/mode` to transition to MANUAL or AUTO after startup.
-
-### `runtime.name`
+## `runtime`
 
-- **Type:** `string`
-- **Required:** No
-- **Default:** `""` (empty string)
-- **Description:** Instance identifier for multi-runtime deployments. Used in logs and telemetry to disambiguate runtime instances.
-
-**Example:**
-
-```yaml
-runtime:
-  name: "anolis-main"
-```
+Purpose: runtime identity and startup/shutdown timing.
 
-### `runtime.shutdown_timeout_ms`
-
-- **Type:** `int`
-- **Required:** No
-- **Default:** `2000`
-- **Min:** `500`
-- **Max:** `30000`
-- **Description:** Provider graceful shutdown timeout in milliseconds. Hardware providers with slow power-down sequences may need longer timeout.
-
-**Example:**
-
-```yaml
-runtime:
-  shutdown_timeout_ms: 5000 # 5 seconds for hardware with slow shutdown
-```
-
-### `runtime.startup_timeout_ms`
+Fields:
 
-- **Type:** `int`
-- **Required:** No
-- **Default:** `30000`
-- **Min:** `5000`
-- **Max:** `300000`
-- **Description:** Overall startup timeout in milliseconds for fail-fast behavior. CI/testing needs predictable failures;
-  different hardware has different startup times.
+1. `name` (string, optional)
+2. `shutdown_timeout_ms` (int, bounded)
+3. `startup_timeout_ms` (int, bounded)
 
-**Example:**
+Notes:
 
-```yaml
-runtime:
-  startup_timeout_ms: 60000 # 60 seconds for slow hardware initialization
-```
+1. Startup mode is always `IDLE` and not configurable via YAML.
+2. Runtime mode changes are done through HTTP (`POST /v0/mode`).
 
----
+## `http`
 
-## Section: `http`
+Purpose: API server binding and CORS policy.
 
-**Required:** No (but HTTP server won't start if omitted)
+Fields:
 
-### `http.enabled`
+1. `enabled` (bool)
+2. `bind` (string)
+3. `port` (int)
+4. `cors_allowed_origins` (string or string array)
+5. `cors_allow_credentials` (bool)
+6. `thread_pool_size` (int)
 
-- **Type:** `bool`
-- **Required:** No
-- **Default:** `true`
-- **Description:** Whether to start the HTTP API server.
+Key invariants:
 
-### `http.bind`
+1. Port must be valid TCP port range.
+2. Origins list cannot be empty.
+3. Wildcard origin (`*`) is invalid when credentials are enabled.
 
-- **Type:** `string`
-- **Required:** No
-- **Default:** `127.0.0.1`
-- **Description:** IP address to bind HTTP server to. Use `0.0.0.0` to listen on all interfaces.
+## `providers`
 
-### `http.port`
+Purpose: runtime-managed provider process list.
 
-- **Type:** `int`
-- **Required:** No
-- **Default:** `8080`
-- **Constraints:** Must be between 1 and 65535
-- **Description:** TCP port for HTTP server.
+Per-provider fields:
 
-### `http.cors_allowed_origins`
+1. `id` (unique string)
+2. `command` (required string)
+3. `args` (string array)
+4. `timeout_ms` (int)
+5. `hello_timeout_ms` (int)
+6. `ready_timeout_ms` (int)
+7. `restart_policy` (optional object)
 
-- **Type:** `string` or `array of strings`
-- **Required:** No
-- **Default:** `["*"]` (allow all origins)
-- **Description:** CORS allowed origins. Use `"*"` to allow all, or list specific origins.
-- **Validation:** Cannot use `"*"` wildcard when `cors_allow_credentials` is `true` (CORS spec violation)
+Restart policy fields:
 
-**Examples:**
+1. `enabled` (bool)
+2. `max_attempts` (int)
+3. `backoff_ms` (int array)
+4. `timeout_ms` (int)
+5. `success_reset_ms` (int)
 
-```yaml
-# Allow all origins (credentials must be false)
-http:
-  cors_allowed_origins: "*"
-  cors_allow_credentials: false
+Key invariants:
 
-# Allow specific origins (works with credentials)
-http:
-  cors_allowed_origins:
-    - http://localhost:3000
-    - http://127.0.0.1:3000
-  cors_allow_credentials: true
-```
+1. `providers` must be non-empty.
+2. `id` values must be unique.
+3. `len(backoff_ms) == max_attempts` when restart policy is enabled.
 
-### `http.cors_allow_credentials`
+## `polling`
 
-- **Type:** `bool`
-- **Required:** No
-- **Default:** `false`
-- **Description:** Whether to include `Access-Control-Allow-Credentials` header.
-- **Validation:** Cannot be `true` when `cors_allowed_origins` contains wildcard `"*"` (CORS spec violation)
+Purpose: state-cache polling cadence.
 
-**Note:** Browsers enforce CORS security: wildcard origins cannot be used with credentials.
-Attempting this configuration will be rejected at startup with a clear error message.
+Fields:
 
-### `http.thread_pool_size`
+1. `interval_ms` (int, lower-bounded)
 
-- **Type:** `int`
-- **Required:** No
-- **Default:** `40`
-- **Constraints:** Must be at least 1
-- **Description:** Size of HTTP worker thread pool.
+## `telemetry`
 
-**Example:**
+Purpose: optional runtime telemetry export configuration.
 
-```yaml
-http:
-  enabled: true
-  bind: 127.0.0.1
-  port: 8080
-  cors_allowed_origins:
-    - http://localhost:3000
-  cors_allow_credentials: false
-  thread_pool_size: 40
-```
+Fields:
 
----
+1. `enabled` (bool)
+2. `influxdb` object:
+   - `url`, `org`, `bucket`, `token`
+   - `batch_size`, `flush_interval_ms`
+   - `max_retry_buffer_size`
 
-## Section: `providers`
+Compatibility aliases (deprecated but accepted):
 
-**Required:** Yes (at least one provider)
+1. Flat keys under `telemetry.*`:
+   - `influx_url`, `influx_org`, `influx_bucket`, `influx_token`
+   - `batch_size`, `flush_interval_ms`
 
-Array of provider configurations. Each provider is a separate executable that implements the ADPP protocol.
+## `logging`
 
-### `providers[].id`
+Purpose: runtime log verbosity.
 
-- **Type:** `string`
-- **Required:** Yes
-- **Description:** Unique identifier for this provider. Used in device paths (`provider_id/device_id`).
+Fields:
 
-### `providers[].command`
+1. `level` in `debug|info|warn|error`
 
-- **Type:** `string`
-- **Required:** Yes
-- **Description:** Absolute or relative path to provider executable.
+## `automation`
 
-### `providers[].args`
+Purpose: behavior-tree runtime wiring and parameter declaration.
 
-- **Type:** `array of strings`
-- **Required:** No
-- **Default:** `[]`
-- **Description:** Command-line arguments passed to provider executable.
+Fields:
 
-### `providers[].timeout_ms`
+1. `enabled` (bool)
+2. `behavior_tree` (string; required when enabled)
+3. `tick_rate_hz` (int)
+4. `manual_gating_policy` (`BLOCK|OVERRIDE`)
+5. `parameters` (array)
+6. `mode_transition_hooks` (optional array)
 
-- **Type:** `int`
-- **Required:** No
-- **Default:** `5000`
-- **Constraints:** Must be at least 100
-- **Description:** Timeout for ADPP operations (in milliseconds).
+Parameter entry fields:
 
-### `providers[].restart_policy`
+1. `name`
+2. `type` (`double|int64|bool|string`)
+3. `default`
+4. `min` / `max` (numeric types only)
+5. `allowed_values` (string type only)
 
-**Optional.** Configuration for automatic provider supervision and restart on crash.
+Compatibility alias:
 
-#### `providers[].restart_policy.enabled`
+1. `behavior_tree_path` (accepted alias for `behavior_tree`).
 
-- **Type:** `bool`
-- **Required:** No
-- **Default:** `false`
-- **Description:** Enable automatic restart when provider crashes.
+## Validation Model
 
-#### `providers[].restart_policy.max_attempts`
+Use both layers together:
 
-- **Type:** `int`
-- **Required:** No
-- **Default:** `3`
-- **Constraints:** Must be at least 1
-- **Description:** Maximum restart attempts before opening circuit breaker.
+1. Schema-level structure validation.
+2. Runtime load-time semantic validation.
 
-#### `providers[].restart_policy.backoff_ms`
-
-- **Type:** `array of int`
-- **Required:** No
-- **Default:** `[100, 1000, 5000]`
-- **Constraints:** Array length must equal `max_attempts`. All values must be >= 0.
-- **Description:** Exponential backoff delays (in milliseconds) before each restart attempt.
-
-#### `providers[].restart_policy.timeout_ms`
-
-- **Type:** `int`
-- **Required:** No
-- **Default:** `30000`
-- **Constraints:** Must be at least 1000
-- **Description:** Maximum time to wait for provider restart (in milliseconds).
-
-**Example:**
-
-```yaml
-providers:
-  - id: sim0
-    command: ./build/anolis-provider-sim.exe
-    args: []
-    timeout_ms: 5000
-    restart_policy:
-      enabled: true
-      max_attempts: 3
-      backoff_ms: [200, 500, 1000]
-      timeout_ms: 30000
-
-  - id: hardware
-    command: /opt/providers/hardware-provider
-    args: ["--port", "/dev/ttyUSB0"]
-    timeout_ms: 3000
-    restart_policy:
-      enabled: true
-      max_attempts: 5
-      backoff_ms: [100, 500, 1000, 3000, 5000]
-      timeout_ms: 60000
-```
-
----
-
-## Section: `polling`
-
-**Required:** No
-
-### `polling.interval_ms`
-
-- **Type:** `int`
-- **Required:** No
-- **Default:** `500`
-- **Constraints:** Must be at least 100
-- **Description:** State cache polling interval (in milliseconds). All device signals are polled at this rate.
-
-**Example:**
-
-```yaml
-polling:
-  interval_ms: 500
-```
-
----
-
-## Section: `telemetry`
-
-**Required:** No
-
-### `telemetry.enabled`
-
-- **Type:** `bool`
-- **Required:** No
-- **Default:** `false`
-- **Description:** Whether to enable telemetry data export to InfluxDB.
-
-### `telemetry.influxdb`
-
-**Required:** Only if `telemetry.enabled` is `true`
-
-Nested configuration for InfluxDB connection.
-
-#### `telemetry.influxdb.url`
-
-- **Type:** `string`
-- **Required:** No
-- **Default:** `http://localhost:8086`
-- **Description:** InfluxDB server URL.
-
-#### `telemetry.influxdb.org`
-
-- **Type:** `string`
-- **Required:** No
-- **Default:** `anolis`
-- **Description:** InfluxDB organization name.
-
-#### `telemetry.influxdb.bucket`
-
-- **Type:** `string`
-- **Required:** No
-- **Default:** `anolis`
-- **Description:** InfluxDB bucket name where data will be written.
-
-#### `telemetry.influxdb.token`
-
-- **Type:** `string`
-- **Required:** No (can use `INFLUXDB_TOKEN` environment variable)
-- **Default:** (empty, checked from environment)
-- **Description:** InfluxDB API token for authentication. If not provided, reads from `INFLUXDB_TOKEN` environment variable.
-
-#### `telemetry.influxdb.batch_size`
-
-- **Type:** `int`
-- **Required:** No
-- **Default:** `100`
-- **Description:** Number of data points to batch before flushing to InfluxDB.
-
-#### `telemetry.influxdb.flush_interval_ms`
-
-- **Type:** `int`
-- **Required:** No
-- **Default:** `1000`
-- **Description:** Maximum time (in milliseconds) to wait before flushing batched data.
-
-#### `telemetry.influxdb.max_retry_buffer_size`
-
-- **Type:** `int`
-- **Required:** No
-- **Default:** `1000`
-- **Constraints:** Must be at least 0
-- **Description:** Maximum number of telemetry events to buffer when InfluxDB writes fail.
-- Failed batches are prepended to the next flush attempt.
-- When the buffer is full, oldest events are dropped. Set to 0 to disable retry buffering (failed batches are immediately discarded).
-
-**Retry Behavior:**
-
-- Failed batches are saved to a retry buffer (FIFO queue)
-- Next successful write attempts to send: retry_buffer + current_batch
-- If buffer exceeds `max_retry_buffer_size`, oldest events are dropped
-- Memory usage: ~200 bytes per event worst case
-
-**Example:**
-
-```yaml
-telemetry:
-  enabled: true
-  influxdb:
-    url: http://localhost:8086
-    org: anolis
-    bucket: anolis
-    token: my-secret-token # Or use INFLUXDB_TOKEN env var
-    batch_size: 100
-    flush_interval_ms: 1000
-    max_retry_buffer_size: 2000 # Buffer up to 2000 events on failure
-```
-
----
-
-## Section: `logging`
-
-**Required:** No
-
-### `logging.level`
-
-- **Type:** `string`
-- **Required:** No
-- **Default:** `info`
-- **Valid Values:** `debug`, `info`, `warn`, `error`
-- **Description:** Minimum log level to output.
-
-**Example:**
-
-```yaml
-logging:
-  level: info
-```
-
----
-
-## Section: `automation`
-
-**Required:** No
-
-### `automation.enabled`
-
-- **Type:** `bool`
-- **Required:** No
-- **Default:** `false`
-- **Description:** Whether to enable behavior tree automation.
-
-### `automation.behavior_tree`
-
-- **Type:** `string`
-- **Required:** Yes (if `automation.enabled` is `true`)
-- **Description:** Path to BehaviorTree.CPP XML file describing the automation logic.
-
-### `automation.tick_rate_hz`
-
-- **Type:** `int`
-- **Required:** No
-- **Default:** `10`
-- **Constraints:** Must be between 1 and 1000
-- **Description:** Behavior tree tick rate (in Hertz).
-
-### `automation.manual_gating_policy`
-
-- **Type:** `string`
-- **Required:** No
-- **Default:** `BLOCK`
-- **Valid Values:** `BLOCK`, `OVERRIDE`
-- **Description:** How automation handles calls when runtime is in MANUAL mode. `BLOCK` rejects automation calls, `OVERRIDE` allows them.
-
-### `automation.parameters`
-
-**Required:** No
-
-Array of runtime parameters that can be modified via HTTP API and accessed in behavior trees.
-
-#### `automation.parameters[].name`
-
-- **Type:** `string`
-- **Required:** Yes
-- **Description:** Unique parameter name.
-
-#### `automation.parameters[].type`
-
-- **Type:** `string`
-- **Required:** Yes
-- **Valid Values:** `double`, `int64`, `bool`, `string`
-- **Description:** Parameter data type.
-
-#### `automation.parameters[].default`
-
-- **Type:** Varies based on `type`
-- **Required:** No
-- **Description:** Initial parameter value.
-
-#### `automation.parameters[].min`
-
-- **Type:** `number`
-- **Required:** No (only for `double` and `int64` types)
-- **Description:** Minimum allowed value.
-
-#### `automation.parameters[].max`
-
-- **Type:** `number`
-- **Required:** No (only for `double` and `int64` types)
-- **Description:** Maximum allowed value.
-
-#### `automation.parameters[].allowed_values`
-
-- **Type:** `array of strings`
-- **Required:** No (only for `string` type)
-- **Description:** Enumeration of valid string values.
-
-**Example:**
-
-```yaml
-automation:
-  enabled: true
-  behavior_tree: ./behaviors/demo.xml
-  tick_rate_hz: 10
-  manual_gating_policy: BLOCK
-  parameters:
-    - name: temp_setpoint
-      type: double
-      default: 25.0
-      min: 10.0
-      max: 50.0
-
-    - name: motor_duty_cycle
-      type: int64
-      default: 50
-      min: 0
-      max: 100
-
-    - name: control_enabled
-      type: bool
-      default: true
-
-    - name: operating_mode
-      type: string
-      default: "normal"
-      allowed_values: ["normal", "test", "emergency"]
-```
-
----
-
-## Complete Example
-
-```yaml
-# Anolis Runtime Configuration v1.0
-
-runtime:
-  name: anolis-main
-
-http:
-  enabled: true
-  bind: 127.0.0.1
-  port: 8080
-  cors_allowed_origins:
-    - http://localhost:3000
-    - http://127.0.0.1:3000
-  cors_allow_credentials: false
-
-providers:
-  - id: sim0
-    command: ./anolis-provider-sim.exe
-    args: []
-    timeout_ms: 5000
-
-polling:
-  interval_ms: 500
-
-telemetry:
-  enabled: true
-  influxdb:
-    url: http://localhost:8086
-    org: anolis
-    bucket: anolis
-    token: dev-token
-    batch_size: 100
-    flush_interval_ms: 1000
-
-logging:
-  level: info
-
-automation:
-  enabled: true
-  behavior_tree: ./behaviors/demo.xml
-  tick_rate_hz: 10
-  manual_gating_policy: BLOCK
-  parameters:
-    - name: temp_setpoint
-      type: double
-      default: 25.0
-      min: 10.0
-      max: 50.0
-```
-
----
-
-## Schema Validation
-
-The runtime validates all configuration fields at startup. Invalid configurations will cause the runtime to exit with a clear error message.
-
-### Unknown Keys
-
-**Behavior:** Unknown keys are compatibility-warned and ignored, not hard-failed.
-
-1. Top-level unknown keys are warned.
-2. Most nested map sections also warn on unknown keys.
-3. Current runtime behavior is not fully uniform; `polling` and `logging` currently do not emit nested unknown-key warnings.
-
-This behavior is preserved for forwards compatibility in the current contract wave.
-
-### Validation Scope of `--check-config`
-
-`anolis-runtime --check-config` validates config load-time structure and semantics only.
-
-1. It validates parser/load semantics and runtime config invariants.
-2. It does not exercise the full runtime initialization path (provider process lifecycle, live inventory, etc.).
-3. Contract validation therefore uses both schema validation and `--check-config`.
-
-### Migration from v0 Flat Keys
-
-**Note:** Version 0 of the runtime accepted flat telemetry keys (`influx_url`, `influx_org`, etc.) at the `telemetry` level.
-These are **deprecated** in v1.0. Use the nested `telemetry.influxdb.*` structure instead.
-
-**Deprecated (v0):**
-
-```yaml
-telemetry:
-  enabled: true
-  influx_url: http://localhost:8086
-  influx_org: anolis
-```
-
-**Canonical (v1.0):**
-
-```yaml
-telemetry:
-  enabled: true
-  influxdb:
-    url: http://localhost:8086
-    org: anolis
-```
-
----
-
-## Environment Variables
-
-The following environment variables are supported:
-
-### `INFLUXDB_TOKEN`
-
-If `telemetry.influxdb.token` is not specified in config file, the runtime will attempt to read the InfluxDB API token from this env variable.
-
-**Example:**
+Example commands:
 
 ```bash
-export INFLUXDB_TOKEN="your-secret-token"
-./anolis-runtime --config=config/anolis-runtime.yaml
+python3 tools/contracts/validate-runtime-configs.py
+anolis-runtime --check-config --config config/anolis-runtime.yaml
 ```
+
+## Change Rule
+
+1. Runtime loader behavior (`yaml-cpp`) is authoritative when parser behavior differs across toolchains.
+2. Contract/schema updates must stay synchronized with runtime semantics and tests.
