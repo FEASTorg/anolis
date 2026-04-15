@@ -129,7 +129,7 @@ Key: BTs never bypass CallRouter or StateCache.
 
 - **Language**: C++17
 - **Build**: CMake 3.20+
-- **Dependencies**: vcpkg (protobuf 6.33.4, yaml-cpp)
+- **Dependencies**: vcpkg (protobuf, yaml-cpp, cpp-httplib, nlohmann-json, BehaviorTree.CPP)
 - **Protocol**: ADPP (protobuf over framed stdio)
 - **Platform**: Windows, Linux
 
@@ -160,7 +160,7 @@ Key: BTs never bypass CallRouter or StateCache.
 - **Synchronization**:
   - StateCache: `std::mutex` guards device state map
   - CallRouter: Per-provider `std::mutex` for call serialization
-  - EventEmitter: Lock-free queue with atomic operations
+  - EventEmitter: mutex-protected per-subscriber bounded queues
   - ModeManager: `std::mutex` guards mode transitions
 
 ## Configuration

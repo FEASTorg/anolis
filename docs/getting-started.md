@@ -62,6 +62,8 @@ ctest --preset dev-release
 ./build/dev-release/core/anolis-runtime --config ./config/anolis-runtime.yaml
 ```
 
+Before launching, verify `providers[].command` paths in `config/anolis-runtime.yaml` match your local platform/build outputs.
+
 Windows (PowerShell):
 
 ```powershell

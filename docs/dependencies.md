@@ -35,8 +35,8 @@ Rules:
 
 ## CI Lane Tiers
 
-- **Required PR lanes**: merge-blocking (core: Linux x64, Linux ARM64, Windows x64 release).
-- **Advisory lanes**: visible, non-blocking (currently `coverage-linux`).
+- **Required PR lanes**: CI workflow gates currently include formatting, Python lint/type/tests, UI/composer contracts, and core build/test matrix lanes (Linux x64, Linux ARM64, Windows x64; strict and no-automation variants).
+- **Advisory lanes**: optional non-blocking lanes may be added as needed.
 - **Nightly/periodic lanes**: heavy coverage/sanitizer/stress lanes.
 
 Promotion rule:

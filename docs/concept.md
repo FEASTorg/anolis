@@ -46,21 +46,17 @@ Building automation requires talking to all of them. This is tedious and fragile
 - Not IoT cloud platform (local-first)
 - Not real-time (soft real-time only)
 
-## Current Status
+## Current Runtime Capabilities
 
-**Core kernel functional**:
+The current runtime includes:
 
-- Provider host spawns and manages provider processes
-- Device registry stores capabilities
-- State cache polls and tracks signal values
-- Call router validates and executes control commands
-
-**Next**: Complete config system, then external layers:
-
-- HTTP gateway (reads StateCache, writes via CallRouter)
-- Behavior Trees (automation sits ABOVE kernel, same API restrictions)
-- Observability (external - Anolis exports telemetry, doesn't store it)
-- UI/CLI (manual control through same CallRouter path as automation)
+- Provider lifecycle and supervision (spawn, health, restart/backoff, circuit behavior)
+- Capability registry and state polling cache
+- Unified validated control path (`CallRouter`)
+- Runtime YAML contracts (schema + runtime semantic validation)
+- Runtime HTTP `/v0` surface for state, control, mode, parameters, and events
+- Behavior-tree automation layer with mode gating and runtime parameters
+- Contract-tested integration surfaces for Composer and Operator UI tooling
 
 ## Use Cases
 

@@ -129,7 +129,7 @@ Fields:
 3. `tick_rate_hz` (int)
 4. `manual_gating_policy` (`BLOCK|OVERRIDE`)
 5. `parameters` (array)
-6. `mode_transition_hooks` (optional array)
+6. `mode_transition_hooks` (optional object)
 
 Parameter entry fields:
 
@@ -138,6 +138,11 @@ Parameter entry fields:
 3. `default`
 4. `min` / `max` (numeric types only)
 5. `allowed_values` (string type only)
+
+`mode_transition_hooks` fields:
+
+1. `before_transition` (array of hook objects)
+2. `after_transition` (array of hook objects)
 
 Compatibility alias:
 
