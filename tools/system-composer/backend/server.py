@@ -34,9 +34,23 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    value = raw.strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    print(f"WARNING: Invalid boolean for {name}: {raw!r}; using {default}", file=sys.stderr)
+    return default
+
+
 HOST = os.getenv("ANOLIS_COMPOSER_HOST", "127.0.0.1")
 PORT = _env_int("ANOLIS_COMPOSER_PORT", 3002)
 OPERATOR_UI_BASE = os.getenv("ANOLIS_OPERATOR_UI_BASE", "http://localhost:3000").rstrip("/")
+OPEN_BROWSER = _env_bool("ANOLIS_COMPOSER_OPEN_BROWSER", True)
 FRONTEND_DIR = paths_module.FRONTEND_DIR
 
 _MIME = {
@@ -325,6 +339,11 @@ class _Handler(BaseHTTPRequestHandler):
         if err:
             self._json(400, {"error": err})
             return
+        try:
+            projects_module.get_project(name)
+        except FileNotFoundError:
+            self._json(404, {"error": f"Project '{name}' not found"})
+            return
         launcher_module.stop()
         self._json(200, {"ok": True})
 
@@ -332,6 +351,11 @@ class _Handler(BaseHTTPRequestHandler):
         err = projects_module.validate_name(name)
         if err:
             self._json(400, {"error": err})
+            return
+        try:
+            projects_module.get_project(name)
+        except FileNotFoundError:
+            self._json(404, {"error": f"Project '{name}' not found"})
             return
         project_dir = projects_module.project_dir(name)
         try:
@@ -344,6 +368,11 @@ class _Handler(BaseHTTPRequestHandler):
         err = projects_module.validate_name(name)
         if err:
             self._json(400, {"error": err})
+            return
+        try:
+            projects_module.get_project(name)
+        except FileNotFoundError:
+            self._json(404, {"error": f"Project '{name}' not found"})
             return
         launcher_module.handle_log_stream(self)
 
@@ -444,7 +473,8 @@ def main() -> None:
     url = f"http://{HOST}:{PORT}"
     print(f"Anolis System Composer is running at {url}")
     print("Close this window to stop.")
-    threading.Thread(target=_open_browser, args=(url,), daemon=True).start()
+    if OPEN_BROWSER:
+        threading.Thread(target=_open_browser, args=(url,), daemon=True).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

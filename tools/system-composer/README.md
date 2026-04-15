@@ -19,6 +19,7 @@ Optional environment overrides:
 1. `ANOLIS_COMPOSER_HOST` (default: `127.0.0.1`)
 2. `ANOLIS_COMPOSER_PORT` (default: `3002`)
 3. `ANOLIS_OPERATOR_UI_BASE` (default: `http://localhost:3000`)
+4. `ANOLIS_COMPOSER_OPEN_BROWSER` (`1` or `0`, default: `1`)
 
 ## What it does
 
@@ -87,6 +88,7 @@ Contract dependencies:
 1. Runtime config schema: `schemas/runtime-config.schema.json`
 2. Runtime HTTP OpenAPI: `schemas/http/runtime-http.openapi.v0.yaml`
 3. Runtime HTTP fixtures (shared with Operator UI tests): `tests/contracts/runtime-http/examples/`
+4. Composer control API baseline: `docs/contracts/composer-control-baseline.md`
 
 The `behaviors/` subdirectory is not managed by the composer. Place BT XMLs
 there manually and reference them by path in `behavior_tree_path`. The repo-level

@@ -32,6 +32,8 @@ python3 -m pytest tools/system-composer/tests -q
 ```
 
 This covers renderer output, template parity, and validator behavior.
+It also covers the Composer control API contract baseline (`/api/status`,
+preflight/launch/stop/restart/logs behavior).
 
 ### Operator UI fixture contract coverage
 
