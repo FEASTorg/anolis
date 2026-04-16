@@ -5,8 +5,10 @@ All public functions are called from server.py HTTP handlers.
 """
 
 import json
+import os
 import pathlib
 import queue
+import signal
 import socket
 import subprocess
 import sys
@@ -23,11 +25,11 @@ _state: dict = {
     "project": None,  # active project name
     "process": None,  # subprocess.Popen handle
     "log_file": None,  # open file handle for latest.log
-    "log_lines": [],  # ring buffer (last 200 lines) for SSE reconnect
+    "log_lines_by_project": {},  # dict[str, list[str]] ring buffers (last 200 lines)
 }
 _state_lock = threading.Lock()
 
-_sse_subscribers: list = []  # list[queue.Queue]
+_sse_subscribers: dict[str, list] = {}  # dict[project_name, list[queue.Queue]]
 _sse_lock = threading.Lock()
 
 _catalog_cache: dict | None = None
@@ -59,17 +61,165 @@ def _resolve_executable_path(path_value: str | None) -> pathlib.Path | None:
 
 def get_status() -> dict:
     """Return serialisable status dict for GET /api/status."""
-    with _state_lock:
-        proc = _state["process"]
-        running = proc is not None and proc.poll() is None
-        project = _state["project"] if running else None
-        pid = proc.pid if running else None
+    runtime = _current_runtime_snapshot(clean_stale=True)
     return {
         "version": 1,
-        "active_project": project,
-        "running": running,
-        "pid": pid,
+        "active_project": runtime["project"],
+        "running": runtime["running"],
+        "pid": runtime["pid"],
     }
+
+
+def _pid_exists(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    try:
+        import psutil
+
+        return bool(psutil.pid_exists(pid))
+    except ImportError:
+        pass
+
+    if os.name == "nt":
+        import ctypes
+
+        PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        handle = ctypes.windll.kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+        if handle == 0:
+            return False
+        ctypes.windll.kernel32.CloseHandle(handle)
+        return True
+
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+
+
+def _terminate_pid(pid: int, timeout_s: float = 5.0) -> None:
+    if pid <= 0:
+        return
+
+    try:
+        import psutil
+    except ImportError:
+        psutil = None
+
+    if psutil is not None:
+        try:
+            proc = psutil.Process(pid)
+            proc.terminate()
+            try:
+                proc.wait(timeout=timeout_s)
+            except psutil.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=timeout_s)
+            return
+        except psutil.Error:
+            return
+
+    if os.name == "nt":
+        import ctypes
+
+        PROCESS_TERMINATE = 0x0001
+        SYNCHRONIZE = 0x00100000
+        handle = ctypes.windll.kernel32.OpenProcess(PROCESS_TERMINATE | SYNCHRONIZE, False, pid)
+        if handle == 0:
+            return
+        try:
+            ctypes.windll.kernel32.TerminateProcess(handle, 1)
+            ctypes.windll.kernel32.WaitForSingleObject(handle, int(timeout_s * 1000))
+        finally:
+            ctypes.windll.kernel32.CloseHandle(handle)
+        return
+
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    except PermissionError:
+        return
+
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        if not _pid_exists(pid):
+            return
+        time.sleep(0.1)
+    if _pid_exists(pid):
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError, OSError):
+            pass
+
+
+def _discover_running_runtime(clean_stale: bool = False) -> dict | None:
+    if not _SYSTEMS_DIR.exists():
+        return None
+
+    for project_dir in sorted(_SYSTEMS_DIR.iterdir()):
+        if not project_dir.is_dir():
+            continue
+        running_path = project_dir / "running.json"
+        if not running_path.exists():
+            continue
+
+        try:
+            data = json.loads(running_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            if clean_stale:
+                try:
+                    running_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            continue
+
+        pid = data.get("pid")
+        if not isinstance(pid, int):
+            if clean_stale:
+                try:
+                    running_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            continue
+
+        if _pid_exists(pid):
+            return {
+                "running": True,
+                "project": project_dir.name,
+                "pid": pid,
+                "managed": False,
+            }
+
+        if clean_stale:
+            try:
+                running_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+    return None
+
+
+def _current_runtime_snapshot(clean_stale: bool = False) -> dict:
+    with _state_lock:
+        proc = _state["process"]
+        if proc is not None and proc.poll() is None:
+            return {
+                "running": True,
+                "project": _state["project"],
+                "pid": proc.pid,
+                "managed": True,
+            }
+
+    discovered = _discover_running_runtime(clean_stale=clean_stale)
+    if discovered is not None:
+        return discovered
+
+    return {"running": False, "project": None, "pid": None, "managed": False}
 
 
 # ---------------------------------------------------------------------------
@@ -309,10 +459,9 @@ def launch(name: str, system: dict, project_dir: pathlib.Path) -> None:
     """Start the anolis-runtime subprocess."""
     from backend import renderer
 
-    with _state_lock:
-        proc = _state["process"]
-        if proc is not None and proc.poll() is None:
-            raise RuntimeError("A system is already running.")
+    current = _current_runtime_snapshot(clean_stale=True)
+    if current["running"]:
+        raise RuntimeError("A system is already running.")
 
     # Re-render YAML to disk
     renders = renderer.render(system, name)
@@ -351,15 +500,16 @@ def launch(name: str, system: dict, project_dir: pathlib.Path) -> None:
     (project_dir / "running.json").write_text(json.dumps(running_data), encoding="utf-8")
 
     with _state_lock:
+        log_lines_by_project: dict = _state["log_lines_by_project"]
+        log_lines_by_project[name] = []
         _state.update(
             {
                 "project": name,
                 "process": proc,
                 "log_file": log_file,
-                "log_lines": [],
             }
         )
-    threading.Thread(target=_read_logs, args=(proc, log_file), daemon=True).start()
+    threading.Thread(target=_read_logs, args=(proc, log_file, name), daemon=True).start()
 
 
 # ---------------------------------------------------------------------------
@@ -371,14 +521,26 @@ def stop() -> None:
     """Gracefully terminate the running process."""
     with _state_lock:
         proc = _state["process"]
-    if proc is None or proc.poll() is not None:
-        return  # Nothing to stop
-    proc.terminate()
-    try:
-        proc.wait(timeout=5)
-    except subprocess.TimeoutExpired:
-        proc.kill()
-        proc.wait()
+    if proc is not None and proc.poll() is None:
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
+        return
+
+    detached = _discover_running_runtime(clean_stale=False)
+    if detached is None:
+        return
+
+    _terminate_pid(detached["pid"])
+    if not _pid_exists(detached["pid"]):
+        try:
+            running_json_path(detached["project"]).unlink(missing_ok=True)
+        except OSError:
+            pass
+        _notify_sse_subscribers(detached["project"], None)
 
 
 # ---------------------------------------------------------------------------
@@ -391,6 +553,14 @@ def restart(name: str, project_dir: pathlib.Path) -> None:
 
     Does NOT re-render from current system.json — uses the YAML already on disk.
     """
+    current = _current_runtime_snapshot(clean_stale=True)
+    if not current["running"]:
+        raise RuntimeError(f"Cannot restart '{name}' because no project is running.")
+    if current["project"] != name:
+        raise RuntimeError(
+            f"Cannot restart '{name}' while '{current['project']}' is running. Stop '{current['project']}' first."
+        )
+
     stop()
     time.sleep(0.5)  # Allow log reader thread to flush and clean up
 
@@ -423,15 +593,16 @@ def restart(name: str, project_dir: pathlib.Path) -> None:
     (project_dir / "running.json").write_text(json.dumps(running_data), encoding="utf-8")
 
     with _state_lock:
+        log_lines_by_project: dict = _state["log_lines_by_project"]
+        log_lines_by_project[name] = []
         _state.update(
             {
                 "project": name,
                 "process": proc,
                 "log_file": log_file,
-                "log_lines": [],
             }
         )
-    threading.Thread(target=_read_logs, args=(proc, log_file), daemon=True).start()
+    threading.Thread(target=_read_logs, args=(proc, log_file, name), daemon=True).start()
 
 
 # ---------------------------------------------------------------------------
@@ -439,27 +610,29 @@ def restart(name: str, project_dir: pathlib.Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _read_logs(proc: subprocess.Popen, log_file) -> None:
+def _read_logs(proc: subprocess.Popen, log_file, project: str) -> None:
     if proc.stdout is None:
         return
     for line in proc.stdout:
         log_file.write(line)
         with _state_lock:
-            _state["log_lines"].append(line)
-            if len(_state["log_lines"]) > 200:
-                _state["log_lines"].pop(0)
-        _notify_sse_subscribers(line)
-    _notify_sse_subscribers(None)  # sentinel: process stdout closed
+            lines = _state["log_lines_by_project"].setdefault(project, [])
+            lines.append(line)
+            if len(lines) > 200:
+                lines.pop(0)
+        _notify_sse_subscribers(project, line)
+    _notify_sse_subscribers(project, None)  # sentinel: process stdout closed
     _cleanup_after_exit(proc)
 
 
-def _notify_sse_subscribers(line) -> None:
+def _notify_sse_subscribers(project: str, line) -> None:
     with _sse_lock:
-        for q in list(_sse_subscribers):
-            try:
-                q.put_nowait(line)
-            except Exception:
-                pass
+        subscribers = list(_sse_subscribers.get(project, []))
+    for q in subscribers:
+        try:
+            q.put_nowait(line)
+        except Exception:
+            pass
 
 
 def _cleanup_after_exit(proc: subprocess.Popen) -> None:
@@ -488,7 +661,7 @@ def _cleanup_after_exit(proc: subprocess.Popen) -> None:
 # ---------------------------------------------------------------------------
 
 
-def handle_log_stream(handler) -> None:
+def handle_log_stream(handler, project_name: str) -> None:
     """Stream log output to the browser via Server-Sent Events.
 
     ``handler`` is the BaseHTTPRequestHandler instance (provides .wfile).
@@ -502,7 +675,7 @@ def handle_log_stream(handler) -> None:
 
     # Replay buffered lines first (reconnect support)
     with _state_lock:
-        buffered = list(_state["log_lines"])
+        buffered = list(_state["log_lines_by_project"].get(project_name, []))
     for line in buffered:
         try:
             handler.wfile.write(f"data: {line.rstrip()}\n\n".encode("utf-8"))
@@ -513,7 +686,7 @@ def handle_log_stream(handler) -> None:
     # Subscribe to live output
     q: queue.Queue = queue.Queue(maxsize=500)
     with _sse_lock:
-        _sse_subscribers.append(q)
+        _sse_subscribers.setdefault(project_name, []).append(q)
 
     try:
         while True:
@@ -545,6 +718,9 @@ def handle_log_stream(handler) -> None:
     finally:
         with _sse_lock:
             try:
-                _sse_subscribers.remove(q)
+                subscribers = _sse_subscribers.get(project_name, [])
+                subscribers.remove(q)
+                if not subscribers:
+                    _sse_subscribers.pop(project_name, None)
             except ValueError:
                 pass

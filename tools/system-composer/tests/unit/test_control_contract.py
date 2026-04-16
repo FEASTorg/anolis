@@ -12,12 +12,15 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, timezone
 from typing import Any
 
 import pytest
 
 _SC_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
 _SERVER_SCRIPT = _SC_DIR / "backend" / "server.py"
+_REPO_ROOT = _SC_DIR.parent.parent
+_SYSTEMS_ROOT = _REPO_ROOT / "systems"
 
 
 def _pick_free_port() -> int:
@@ -186,3 +189,130 @@ def test_control_contract_invalid_project_name_is_400(composer_server: dict[str,
     )
     assert status == 400
     assert "Project name must be" in str(payload.get("error"))
+
+
+def test_control_contract_status_detects_detached_runtime_and_stop_cleans_up(
+    composer_server: dict[str, Any],
+) -> None:
+    base_url = composer_server["base_url"]
+    project = "contract_detached_runtime"
+    runner = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(60)"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+    created_status, created = _http_json(
+        base_url,
+        "/api/projects",
+        method="POST",
+        body={"name": project, "template": "sim-quickstart"},
+    )
+    assert created_status == 201, created
+
+    running_path = _SYSTEMS_ROOT / project / "running.json"
+    running_path.write_text(
+        json.dumps(
+            {
+                "pid": runner.pid,
+                "project": project,
+                "started": datetime.now(timezone.utc).isoformat(),
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    try:
+        status_code, status_payload = _http_json(base_url, "/api/status")
+        assert status_code == 200
+        assert status_payload.get("running") is True
+        assert status_payload.get("active_project") == project
+        assert status_payload.get("pid") == runner.pid
+
+        stop_code, stop_payload = _http_json(
+            base_url,
+            f"/api/projects/{urllib.parse.quote(project)}/stop",
+            method="POST",
+            body={},
+        )
+        assert stop_code == 200, stop_payload
+
+        runner.wait(timeout=5)
+        assert runner.poll() is not None
+        assert not running_path.exists()
+
+        after_code, after_payload = _http_json(base_url, "/api/status")
+        assert after_code == 200
+        assert after_payload.get("running") is False
+        assert after_payload.get("active_project") is None
+    finally:
+        if runner.poll() is None:
+            runner.terminate()
+            try:
+                runner.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                runner.kill()
+                runner.wait(timeout=5)
+        _http_json(base_url, f"/api/projects/{urllib.parse.quote(project)}", method="DELETE")
+
+
+def test_control_contract_restart_rejects_wrong_running_project(
+    composer_server: dict[str, Any],
+) -> None:
+    base_url = composer_server["base_url"]
+    requested = "contract_restart_requested"
+    running = "contract_restart_running"
+    runner = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(60)"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+    for name in (requested, running):
+        created_status, created = _http_json(
+            base_url,
+            "/api/projects",
+            method="POST",
+            body={"name": name, "template": "sim-quickstart"},
+        )
+        assert created_status == 201, created
+
+    running_path = _SYSTEMS_ROOT / running / "running.json"
+    running_path.write_text(
+        json.dumps(
+            {
+                "pid": runner.pid,
+                "project": running,
+                "started": datetime.now(timezone.utc).isoformat(),
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    try:
+        restart_code, restart_payload = _http_json(
+            base_url,
+            f"/api/projects/{urllib.parse.quote(requested)}/restart",
+            method="POST",
+            body={},
+        )
+        assert restart_code == 409, restart_payload
+        message = str(restart_payload.get("error"))
+        assert requested in message
+        assert running in message
+    finally:
+        _http_json(
+            base_url,
+            f"/api/projects/{urllib.parse.quote(running)}/stop",
+            method="POST",
+            body={},
+        )
+        if runner.poll() is None:
+            runner.terminate()
+            try:
+                runner.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                runner.kill()
+                runner.wait(timeout=5)
+        for name in (requested, running):
+            _http_json(base_url, f"/api/projects/{urllib.parse.quote(name)}", method="DELETE")

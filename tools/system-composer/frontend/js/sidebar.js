@@ -42,7 +42,10 @@ function _renderList(projects) {
 }
 
 async function _handleClick(name) {
+  const current = state.getProject();
+  if (current?.name === name) return;
   if (state.isDirty() && !confirm(`You have unsaved changes. Switch to "${name}" anyway?`)) return;
+  if (!(await _confirmSwitchWhileAnotherProjectRuns(name))) return;
   await _loadProject(name);
 }
 
@@ -53,6 +56,27 @@ async function _loadProject(name) {
   state.setProject(name, system);
   await refresh();
   _onProjectLoaded?.(name, system);
+}
+
+async function _confirmSwitchWhileAnotherProjectRuns(targetName) {
+  try {
+    const res = await fetch(`${API}/status`);
+    if (!res.ok) return true;
+    const status = await res.json();
+    const runningProject =
+      status?.running && typeof status?.active_project === 'string'
+        ? status.active_project
+        : null;
+    if (!runningProject || runningProject === targetName) return true;
+
+    return confirm(
+      `Project "${runningProject}" is currently running. ` +
+      `Switching to "${targetName}" keeps that runtime alive but hides its live controls. ` +
+      'Switch anyway?'
+    );
+  } catch {
+    return true;
+  }
 }
 
 // ---- Context menu ----

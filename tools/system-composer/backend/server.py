@@ -361,6 +361,8 @@ class _Handler(BaseHTTPRequestHandler):
         try:
             launcher_module.restart(name, project_dir)
             self._json(200, {"ok": True})
+        except RuntimeError as exc:
+            self._json(409, {"error": str(exc)})
         except Exception as exc:
             self._json(500, {"error": str(exc)})
 
@@ -374,7 +376,7 @@ class _Handler(BaseHTTPRequestHandler):
         except FileNotFoundError:
             self._json(404, {"error": f"Project '{name}' not found"})
             return
-        launcher_module.handle_log_stream(self)
+        launcher_module.handle_log_stream(self, name)
 
     def _serve_catalog(self) -> None:
         path = paths_module.CATALOG_PATH

@@ -219,10 +219,14 @@ async function _doRestart() {
       logConnect(_name);
       startPolling(_system, _onHealthChange);
     } else {
+      const d = await res.json().catch(() => ({}));
+      const message = d.error || 'Restart failed';
+      alert(message);
       btn.disabled = false;
       btn.textContent = 'Restart';
     }
   } catch {
+    alert('Restart failed');
     btn.disabled = false;
     btn.textContent = 'Restart';
   }
