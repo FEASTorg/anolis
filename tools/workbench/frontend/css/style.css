@@ -633,6 +633,27 @@ body {
   color: #6b7280;
 }
 
+.export-package-section {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  background: var(--bg-surface);
+}
+
+.export-package-note {
+  margin: 0 0 10px 0;
+  color: var(--text-muted);
+}
+
+#export-package-feedback {
+  margin: 8px 0 0 0;
+}
+
+#export-package-feedback.error {
+  color: var(--danger);
+}
+
 #log-pane {
   display: none;
   flex-direction: column;

@@ -12,7 +12,9 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import zipfile
 from typing import Any
+from io import BytesIO
 
 import pytest
 
@@ -69,6 +71,31 @@ def _http_text(base_url: str, path: str, timeout_s: float = 5.0) -> tuple[int, s
         raw = response.read().decode("utf-8")
         content_type = response.headers.get("Content-Type", "")
         return int(response.status), raw, content_type
+
+
+def _http_bytes(
+    base_url: str,
+    path: str,
+    *,
+    method: str = "GET",
+    body: bytes | None = None,
+    timeout_s: float = 15.0,
+) -> tuple[int, bytes, dict[str, str]]:
+    request = urllib.request.Request(
+        f"{base_url}{path}",
+        data=body,
+        headers={},
+        method=method,
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout_s) as response:
+            data = response.read()
+            headers = {key: value for key, value in response.headers.items()}
+            return int(response.status), data, headers
+    except urllib.error.HTTPError as exc:
+        data = exc.read()
+        headers = {key: value for key, value in exc.headers.items()}
+        return int(exc.code), data, headers
 
 
 def _wait_for_ready(base_url: str, proc: subprocess.Popen[str], timeout_s: float = 10.0) -> None:
@@ -323,4 +350,60 @@ def test_runtime_proxy_returns_502_when_runtime_unreachable(workbench_server: di
                 runner.wait(timeout=5)
         if running_path.exists():
             running_path.unlink()
+        _http_json(base_url, f"/api/projects/{urllib.parse.quote(project_name)}", method="DELETE")
+
+
+def test_export_endpoint_and_cli_outputs_are_bit_identical(workbench_server: dict[str, Any], tmp_path: pathlib.Path) -> None:
+    base_url = workbench_server["base_url"]
+    project_name = f"wb-export-{int(time.time() * 1000)}"
+
+    created_status, created_payload = _http_json(
+        base_url,
+        "/api/projects",
+        method="POST",
+        body={"name": project_name, "template": "sim-quickstart"},
+    )
+    assert created_status == 201, created_payload
+
+    try:
+        first_status, first_data, first_headers = _http_bytes(
+            base_url,
+            f"/api/projects/{urllib.parse.quote(project_name)}/export",
+            method="POST",
+        )
+        assert first_status == 200
+        assert first_headers.get("Content-Type", "").startswith("application/zip")
+        assert ".anpkg" in first_headers.get("Content-Disposition", "")
+
+        second_status, second_data, _ = _http_bytes(
+            base_url,
+            f"/api/projects/{urllib.parse.quote(project_name)}/export",
+            method="POST",
+        )
+        assert second_status == 200
+        assert first_data == second_data
+
+        cli_out = tmp_path / f"{project_name}.anpkg"
+        cli_result = subprocess.run(
+            [sys.executable, str(_REPO_ROOT / "tools" / "package.py"), project_name, str(cli_out)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        assert cli_result.returncode == 0, cli_result.stderr
+        assert cli_out.is_file()
+        assert cli_out.read_bytes() == first_data
+
+        with zipfile.ZipFile(BytesIO(first_data), mode="r") as archive:
+            members = sorted(archive.namelist())
+            assert members == sorted(
+                [
+                    "machine-profile.yaml",
+                    "meta/checksums.sha256",
+                    "meta/provenance.json",
+                    "providers/sim0.yaml",
+                    "runtime/anolis-runtime.yaml",
+                ]
+            )
+    finally:
         _http_json(base_url, f"/api/projects/{urllib.parse.quote(project_name)}", method="DELETE")

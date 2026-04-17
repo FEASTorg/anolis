@@ -19,6 +19,13 @@ Phase 6 and 7 hardening currently includes:
 5. Operate parity panels for automation status, runtime parameters, behavior tree, and event trace.
 6. Stream-state badge semantics (`connected`, `reconnecting`, `disconnected`, `stale`) and telemetry parity path with embedded Grafana plus explicit external fallback.
 
+Phase 8 export pipeline currently includes:
+
+1. Deterministic handoff package export from Commission workspace (`.anpkg` zip).
+2. Shared pure export core: `tools/workbench/backend/exporter.py`.
+3. HTTP wrapper endpoint: `POST /api/projects/<name>/export`.
+4. CLI wrapper: `python tools/package.py <project-name> [output.anpkg]`.
+
 ## Quick Start (Linux / macOS)
 
 ```sh
@@ -56,6 +63,11 @@ Composer control endpoints are preserved under workbench:
 
 Operate workspace consumes runtime contract endpoints through workbench
 pass-through routes under `/v0/*` and `/v0/events`.
+
+Workbench-specific export route:
+
+1. `POST /api/projects/<name>/export` returns deterministic `.anpkg` bytes
+   as `application/zip`.
 
 Standalone tools remain supported:
 

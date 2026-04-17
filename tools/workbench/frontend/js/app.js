@@ -50,6 +50,8 @@ const elements = {
   saveButton: document.getElementById("btn-save"),
 
   commissionAdvisory: document.getElementById("commission-advisory"),
+  exportPackageButton: document.getElementById("btn-export-package"),
+  exportPackageFeedback: document.getElementById("export-package-feedback"),
 };
 
 async function init() {
@@ -121,6 +123,10 @@ function _bindUiHandlers() {
 
   elements.saveButton.addEventListener("click", () => {
     void _saveProject();
+  });
+
+  elements.exportPackageButton.addEventListener("click", () => {
+    void _exportPackage();
   });
 }
 
@@ -459,8 +465,47 @@ function _renderCommissionWorkspace() {
     launch.init(state.projectName, state.system);
   }
   commissionHealth.start(state.projectName);
+  _setExportFeedback("", false);
+  elements.exportPackageButton.disabled = false;
 
   state.commissionRunningForCurrent = runningForCurrent;
+}
+
+async function _exportPackage() {
+  if (!state.projectName) {
+    return;
+  }
+
+  const button = elements.exportPackageButton;
+  const originalLabel = button.textContent;
+  button.disabled = true;
+  button.textContent = "Exporting…";
+  _setExportFeedback("", false);
+
+  try {
+    const response = await fetch(`/api/projects/${encodeURIComponent(state.projectName)}/export`, {
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      const message = payload?.error || `Export failed (HTTP ${response.status})`;
+      _setExportFeedback(message, true);
+      return;
+    }
+
+    const archiveBlob = await response.blob();
+    const fallbackName = `${state.projectName}.anpkg`;
+    const contentDisposition = response.headers.get("Content-Disposition");
+    const filename = _filenameFromContentDisposition(contentDisposition, fallbackName);
+    _downloadBlob(archiveBlob, filename);
+    _setExportFeedback(`Exported ${filename}`, false);
+  } catch (err) {
+    _setExportFeedback(`Export failed: ${_message(err)}`, true);
+  } finally {
+    button.disabled = false;
+    button.textContent = originalLabel;
+  }
 }
 
 async function _saveProject() {
@@ -631,6 +676,13 @@ function _projectWorkspacePath(project, workspace) {
   return `/projects/${encodeURIComponent(project)}/${workspace}`;
 }
 
+function _setExportFeedback(message, isError) {
+  const feedback = elements.exportPackageFeedback;
+  feedback.textContent = message;
+  feedback.classList.toggle("hidden", !message);
+  feedback.classList.toggle("error", Boolean(message) && Boolean(isError));
+}
+
 function _setDirty(dirty) {
   state.dirty = Boolean(dirty);
   _syncUi();
@@ -678,6 +730,41 @@ function _message(err) {
     return err.message;
   }
   return String(err);
+}
+
+function _filenameFromContentDisposition(headerValue, fallback) {
+  if (typeof headerValue !== "string" || headerValue.trim() === "") {
+    return fallback;
+  }
+
+  const utf8Match = headerValue.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match && utf8Match[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1]);
+    } catch {
+      return utf8Match[1];
+    }
+  }
+
+  const simpleMatch = headerValue.match(/filename="?([^\";]+)"?/i);
+  if (simpleMatch && simpleMatch[1]) {
+    return simpleMatch[1];
+  }
+
+  return fallback;
+}
+
+function _downloadBlob(blob, filename) {
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => {
+    URL.revokeObjectURL(objectUrl);
+  }, 0);
 }
 
 function _esc(str) {

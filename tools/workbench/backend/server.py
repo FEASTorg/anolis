@@ -11,6 +11,7 @@ import os
 import pathlib
 import re
 import sys
+import tempfile
 import threading
 import time
 import urllib.error
@@ -28,6 +29,7 @@ if str(_SC_DIR) not in sys.path:
 from backend import launcher as launcher_module  # noqa: E402
 from backend import paths as paths_module  # noqa: E402
 from backend import projects as projects_module  # noqa: E402
+import exporter as exporter_module  # noqa: E402
 
 
 def _env_int(name: str, default: int) -> int:
@@ -149,6 +151,8 @@ class _Handler(BaseHTTPRequestHandler):
                 self._stop_project(name)
             elif sub == "restart":
                 self._restart_project(name)
+            elif sub == "export":
+                self._export_project(name)
             else:
                 self._not_found()
         elif path.startswith("/v0/"):
@@ -394,6 +398,36 @@ class _Handler(BaseHTTPRequestHandler):
             self._json(200, {"ok": True})
         except RuntimeError as exc:
             self._json(409, {"error": str(exc)})
+        except Exception as exc:  # noqa: BLE001 - HTTP boundary
+            self._json(500, {"error": str(exc)})
+
+    def _export_project(self, name: str) -> None:
+        err = projects_module.validate_name(name)
+        if err:
+            self._json(400, {"error": err})
+            return
+        try:
+            projects_module.get_project(name)
+        except FileNotFoundError:
+            self._json(404, {"error": f"Project '{name}' not found"})
+            return
+
+        project_dir = projects_module.project_dir(name)
+        filename = f"{name}.anpkg"
+        try:
+            with tempfile.TemporaryDirectory(prefix="anolis-workbench-export-") as tmp_dir:
+                out_path = pathlib.Path(tmp_dir) / filename
+                exporter_module.build_package(project_dir=project_dir, out_path=out_path)
+                payload = out_path.read_bytes()
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/zip")
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+        except exporter_module.ExportError as exc:
+            self._json(400, {"error": str(exc)})
         except Exception as exc:  # noqa: BLE001 - HTTP boundary
             self._json(500, {"error": str(exc)})
 
