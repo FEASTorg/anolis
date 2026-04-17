@@ -13,22 +13,20 @@ from typing import Any
 
 import yaml
 
+try:
+    from anolis_workbench_backend import exporter
+    from anolis_workbench_backend import package_validator
+except ModuleNotFoundError as exc:  # pragma: no cover
+    if exc.name != "anolis_workbench_backend":
+        raise
+    raise SystemExit(
+        "ERROR: Missing local package 'anolis_workbench_backend'. "
+        "Run `python -m pip install -r requirements.txt` from repo root."
+    ) from exc
+
 
 def _repo_root_from_script() -> pathlib.Path:
     return pathlib.Path(__file__).resolve().parents[2]
-
-
-def _load_backend_modules(repo_root: pathlib.Path):
-    import sys
-
-    backend_dir = repo_root / "tools" / "workbench" / "backend"
-    if str(backend_dir) not in sys.path:
-        sys.path.insert(0, str(backend_dir))
-
-    import exporter  # noqa: E402
-    import package_validator  # noqa: E402
-
-    return exporter, package_validator
 
 
 def _parse_args() -> argparse.Namespace:
@@ -176,7 +174,6 @@ def _run_fixture_checks(
 def main() -> int:
     args = _parse_args()
     repo_root = pathlib.Path(args.repo_root).resolve()
-    exporter, package_validator = _load_backend_modules(repo_root)
     runtime_bin = pathlib.Path(args.runtime_bin).resolve() if args.runtime_bin else None
 
     checks = 0

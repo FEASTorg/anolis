@@ -9,9 +9,9 @@ from datetime import datetime, timezone
 
 import jsonschema
 
-from backend import paths as paths_module
-from backend import renderer
-from backend import validator as semantic_validator
+from anolis_composer_backend import paths as paths_module
+from anolis_composer_backend import renderer
+from anolis_composer_backend import validator as semantic_validator
 
 SYSTEMS_ROOT = paths_module.SYSTEMS_ROOT
 TEMPLATES_ROOT = paths_module.TEMPLATES_ROOT

@@ -2,4 +2,4 @@
 set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/../.."
-python3 tools/system-composer/backend/server.py
+python3 -m anolis_composer_backend.server

@@ -5,19 +5,14 @@ from __future__ import annotations
 import io
 import json
 import pathlib
-import sys
 import zipfile
 
 import pytest
 import yaml
 
-_WB_DIR = pathlib.Path(__file__).resolve().parents[2]
-_REPO_ROOT = _WB_DIR.parent.parent
-_EXPORTER_DIR = _WB_DIR / "backend"
-if str(_EXPORTER_DIR) not in sys.path:
-    sys.path.insert(0, str(_EXPORTER_DIR))
+from anolis_workbench_backend import exporter
 
-import exporter  # noqa: E402
+_REPO_ROOT = pathlib.Path(__file__).resolve().parents[4]
 
 
 def test_build_package_is_deterministic_and_rewrites_runtime_paths(tmp_path: pathlib.Path) -> None:

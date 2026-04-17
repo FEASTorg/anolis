@@ -12,6 +12,11 @@ From the repo root:
 bash tools/verify-local.sh
 ```
 
+The script auto-installs local editable backend packages if missing:
+
+1. `-e ./tools/system-composer`
+2. `-e ./tools/workbench`
+
 This runs:
 
 - runtime config contract validation (schema + `anolis-runtime --check-config`) when a local runtime binary is present

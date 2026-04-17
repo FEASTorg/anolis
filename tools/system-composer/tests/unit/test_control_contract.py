@@ -260,8 +260,9 @@ def test_control_contract_restart_rejects_wrong_running_project(
     composer_server: dict[str, Any],
 ) -> None:
     base_url = composer_server["base_url"]
-    requested = "contract_restart_requested"
-    running = "contract_restart_running"
+    suffix = str(int(time.time() * 1000))
+    requested = f"contract-restart-requested-{suffix}"
+    running = f"contract-restart-running-{suffix}"
     runner = subprocess.Popen(
         [sys.executable, "-c", "import time; time.sleep(60)"],
         stdout=subprocess.DEVNULL,

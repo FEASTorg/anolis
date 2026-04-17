@@ -9,11 +9,16 @@ import sys
 
 _TOOLS_DIR = pathlib.Path(__file__).resolve().parent
 _REPO_ROOT = _TOOLS_DIR.parent
-_WB_BACKEND_DIR = _TOOLS_DIR / "workbench" / "backend"
-if str(_WB_BACKEND_DIR) not in sys.path:
-    sys.path.insert(0, str(_WB_BACKEND_DIR))
 
-import exporter  # noqa: E402
+try:
+    from anolis_workbench_backend import exporter
+except ModuleNotFoundError as exc:  # pragma: no cover
+    if exc.name != "anolis_workbench_backend":
+        raise
+    raise SystemExit(
+        "ERROR: Missing local package 'anolis_workbench_backend'. "
+        "Run `python -m pip install -r requirements.txt` from repo root."
+    ) from exc
 
 
 def _parse_args() -> argparse.Namespace:

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import importlib.util
 import json
 import socket
 import sys
@@ -98,6 +99,20 @@ _UniqueKeyLoader.add_constructor(
 
 def _repo_root_from_script() -> Path:
     return Path(__file__).resolve().parents[2]
+
+
+def _load_runtime_fixture(repo_root: Path):
+    module_path = (repo_root / "tests" / "support" / "runtime_fixture.py").resolve()
+    spec = importlib.util.spec_from_file_location("anolis_runtime_fixture_module", module_path)
+    if spec is None or spec.loader is None:
+        raise SystemExit(f"ERROR: unable to load runtime fixture module from {module_path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    runtime_fixture = getattr(module, "RuntimeFixture", None)
+    if runtime_fixture is None:
+        raise SystemExit(f"ERROR: RuntimeFixture not found in {module_path}")
+    return runtime_fixture
 
 
 def _load_yaml_mapping(path: Path) -> dict[str, Any]:
@@ -393,9 +408,7 @@ def main() -> int:
         capture_dir = candidate
         capture_dir.mkdir(parents=True, exist_ok=True)
 
-    # Import after repo-root resolution to avoid path ambiguity when script is invoked from elsewhere.
-    sys.path.insert(0, str(repo_root))
-    from tests.support.runtime_fixture import RuntimeFixture  # pylint: disable=import-outside-toplevel
+    RuntimeFixture = _load_runtime_fixture(repo_root)
 
     port = args.port if args.port > 0 else _pick_free_port()
     fixture_provider_config_path = (repo_root / "tests/integration/fixtures/provider-sim-default.yaml").resolve()

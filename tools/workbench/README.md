@@ -27,6 +27,12 @@ Phase 8 export pipeline currently includes:
 4. CLI wrapper: `python tools/package.py <project-name> [output.anpkg]`.
 5. Package validation command: `python tools/contracts/validate-handoff-packages.py`.
 
+Install Python dependencies first from repo root:
+
+```sh
+python -m pip install -r requirements.txt
+```
+
 ## Quick Start (Linux / macOS)
 
 ```sh

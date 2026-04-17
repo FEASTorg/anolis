@@ -2,14 +2,8 @@
 
 import json
 import pathlib
-import sys
 
-# Ensure tools/system-composer/ is on path so 'backend' is importable
-_SC_DIR = str(pathlib.Path(__file__).parent.parent.parent)
-if _SC_DIR not in sys.path:
-    sys.path.insert(0, _SC_DIR)
-
-from backend import validator  # noqa: E402
+from anolis_composer_backend import validator
 
 # ---------------------------------------------------------------------------
 # Helpers

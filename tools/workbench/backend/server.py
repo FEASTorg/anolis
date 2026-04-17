@@ -1,7 +1,7 @@
 """Anolis Workbench — unified commissioning shell backend.
 
 Run from any working directory:
-    python /path/to/anolis/tools/workbench/backend/server.py
+    python -m anolis_workbench_backend.server
 """
 
 from __future__ import annotations
@@ -20,16 +20,12 @@ import urllib.request
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-# Ensure tools/system-composer/ is importable as `backend`.
-_WB_DIR = pathlib.Path(__file__).resolve().parent.parent
-_SC_DIR = _WB_DIR.parent / "system-composer"
-if str(_SC_DIR) not in sys.path:
-    sys.path.insert(0, str(_SC_DIR))
+from anolis_composer_backend import launcher as launcher_module
+from anolis_composer_backend import paths as paths_module
+from anolis_composer_backend import projects as projects_module
+from anolis_workbench_backend import exporter as exporter_module
 
-from backend import launcher as launcher_module  # noqa: E402
-from backend import paths as paths_module  # noqa: E402
-from backend import projects as projects_module  # noqa: E402
-import exporter as exporter_module  # noqa: E402
+_WB_DIR = pathlib.Path(__file__).resolve().parent.parent
 
 
 def _env_int(name: str, default: int) -> int:

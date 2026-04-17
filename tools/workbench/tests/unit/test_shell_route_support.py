@@ -18,9 +18,7 @@ from io import BytesIO
 
 import pytest
 
-_WB_DIR = pathlib.Path(__file__).resolve().parents[2]
-_SERVER_SCRIPT = _WB_DIR / "backend" / "server.py"
-_REPO_ROOT = _WB_DIR.parent.parent
+_REPO_ROOT = pathlib.Path(__file__).resolve().parents[4]
 _SYSTEMS_ROOT = _REPO_ROOT / "systems"
 
 
@@ -128,7 +126,7 @@ def workbench_server(tmp_path: pathlib.Path) -> dict[str, Any]:
     env["ANOLIS_WORKBENCH_OPEN_BROWSER"] = "0"
 
     proc = subprocess.Popen(
-        [sys.executable, str(_SERVER_SCRIPT)],
+        [sys.executable, "-m", "anolis_workbench_backend.server"],
         cwd=str(tmp_path),
         env=env,
         stdout=subprocess.DEVNULL,

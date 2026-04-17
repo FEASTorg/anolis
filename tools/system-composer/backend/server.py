@@ -1,26 +1,20 @@
 """Anolis System Composer — local HTTP backend.
 
 Run from any working directory:
-    python /path/to/anolis/tools/system-composer/backend/server.py
+    python -m anolis_composer_backend.server
 """
 
 import json
 import os
-import pathlib
 import sys
 import threading
 import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-# Add tools/system-composer/ to sys.path so 'backend' is importable as a package.
-_SC_DIR = str(pathlib.Path(__file__).parent.parent)
-if _SC_DIR not in sys.path:
-    sys.path.insert(0, _SC_DIR)
-
-from backend import launcher as launcher_module  # noqa: E402
-from backend import paths as paths_module  # noqa: E402
-from backend import projects as projects_module  # noqa: E402
+from anolis_composer_backend import launcher as launcher_module
+from anolis_composer_backend import paths as paths_module
+from anolis_composer_backend import projects as projects_module
 
 
 def _env_int(name: str, default: int) -> int:

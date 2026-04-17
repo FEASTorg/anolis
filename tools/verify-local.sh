@@ -14,6 +14,11 @@ else
   exit 1
 fi
 
+if ! "$PYTHON_BIN" -c "import anolis_composer_backend, anolis_workbench_backend" >/dev/null 2>&1; then
+  echo "[verify-local] Installing local editable backend packages"
+  "$PYTHON_BIN" -m pip install --no-build-isolation -e ./tools/system-composer -e ./tools/workbench
+fi
+
 RUNTIME_BIN=""
 if [ -f build/dev-release/core/anolis-runtime ]; then
   RUNTIME_BIN="build/dev-release/core/anolis-runtime"

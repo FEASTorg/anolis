@@ -5,6 +5,12 @@ no command-line knowledge required.
 
 ## Quick Start (Windows)
 
+Install Python dependencies first from repo root:
+
+```sh
+python -m pip install -r requirements.txt
+```
+
 Double-click `start.cmd` from this directory. A browser window will open
 automatically at `http://localhost:3002`.
 

@@ -343,6 +343,11 @@ source .venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 
+# Re-assert repo-local editable package lines (keep relative paths; avoid absolute file:// entries)
+# requirements-lock.txt must contain:
+# -e ./tools/system-composer
+# -e ./tools/workbench
+
 # PowerShell (Windows PowerShell 5.x and Windows PowerShell 7+ — safe & explicit)
 python -m pip freeze | Out-File -Encoding utf8 requirements-lock.txt
 
@@ -355,6 +360,13 @@ python -m pip freeze > requirements-lock.txt
 
 # Quick verify (fails non-zero if not UTF-8)
 python -c "open('requirements-lock.txt','rb').read().decode('utf-8')"
+```
+
+After regenerating, ensure the first lines in `requirements-lock.txt` remain:
+
+```text
+-e ./tools/system-composer
+-e ./tools/workbench
 ```
 
 #### Linting & Formatting

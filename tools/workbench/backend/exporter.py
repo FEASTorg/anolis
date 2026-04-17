@@ -10,7 +10,6 @@ import hashlib
 import json
 import pathlib
 import re
-import sys
 import zipfile
 from datetime import datetime, timezone
 from typing import Any
@@ -18,14 +17,8 @@ from typing import Any
 import jsonschema
 import yaml
 
-# Ensure tools/system-composer is importable as `backend`.
-_WB_DIR = pathlib.Path(__file__).resolve().parent.parent
-_SC_DIR = _WB_DIR.parent / "system-composer"
-if str(_SC_DIR) not in sys.path:
-    sys.path.insert(0, str(_SC_DIR))
-
-from backend import paths as paths_module  # noqa: E402
-from backend import renderer as renderer_module  # noqa: E402
+from anolis_composer_backend import paths as paths_module
+from anolis_composer_backend import renderer as renderer_module
 
 
 class ExportError(RuntimeError):

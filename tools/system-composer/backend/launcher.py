@@ -16,7 +16,7 @@ import threading
 import time
 from datetime import datetime, timezone
 
-from backend import paths as paths_module
+from anolis_composer_backend import paths as paths_module
 
 _CATALOG_PATH = paths_module.CATALOG_PATH
 _SYSTEMS_DIR = paths_module.SYSTEMS_ROOT
@@ -232,7 +232,7 @@ def preflight(name: str, system: dict, project_dir: pathlib.Path) -> dict:
     Run preflight checks and return {"ok": bool, "checks": [...]}.
     Re-renders YAML to disk before running binary checks.
     """
-    from backend import (
+    from anolis_composer_backend import (
         renderer,  # local import avoids any circular at import time
         validator,
     )
@@ -457,7 +457,7 @@ def _check_config_binary(check_name: str, exe: pathlib.Path | None, yaml_path: p
 
 def launch(name: str, system: dict, project_dir: pathlib.Path) -> None:
     """Start the anolis-runtime subprocess."""
-    from backend import renderer
+    from anolis_composer_backend import renderer
 
     current = _current_runtime_snapshot(clean_stale=True)
     if current["running"]:

@@ -11,13 +11,8 @@ import subprocess
 import sys
 import tempfile
 
-# Make 'backend' importable without installing
-_SC_DIR = str(pathlib.Path(__file__).parent.parent)
-if _SC_DIR not in sys.path:
-    sys.path.insert(0, _SC_DIR)
-
 import yaml  # noqa: E402 (PyYAML must be available for the renderer already uses it)
-from backend import renderer  # noqa: E402
+from anolis_composer_backend import renderer
 
 TEMPLATES_DIR = pathlib.Path(__file__).parent.parent / "templates"
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]

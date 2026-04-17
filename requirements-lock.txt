@@ -1,4 +1,6 @@
-﻿attrs==25.3.0
+-e ./tools/system-composer
+-e ./tools/workbench
+attrs==25.3.0
 certifi==2026.1.4
 charset-normalizer==3.4.4
 colorama==0.4.6
