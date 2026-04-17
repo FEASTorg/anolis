@@ -1,4 +1,4 @@
-# Anolis Workbench (Phase 06)
+# Anolis Workbench (Phase 07)
 
 Unified commissioning shell with three workspaces:
 
@@ -10,12 +10,14 @@ This tool is implemented as a new project under `tools/workbench/` and reuses th
 existing composer backend modules for project CRUD, render/preflight, launch
 ownership, and log streaming.
 
-Phase 6 hardening currently includes:
+Phase 6 and 7 hardening currently includes:
 
 1. URL-routed shell workspaces with unsaved-change and running-runtime guard prompts.
 2. Launch hard-block guidance when another runtime is active.
 3. Commission health sourced from runtime contracts (`/v0/runtime/status`, `/v0/providers/health`).
 4. Operate contract state sourced from `/v0/*` and `/v0/events` through workbench pass-through.
+5. Operate parity panels for automation status, runtime parameters, behavior tree, and event trace.
+6. Stream-state badge semantics (`connected`, `reconnecting`, `disconnected`, `stale`) and telemetry parity path with embedded Grafana plus explicit external fallback.
 
 ## Quick Start (Linux / macOS)
 

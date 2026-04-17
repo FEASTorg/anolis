@@ -24,6 +24,7 @@ This runs:
 - the full System Composer pytest suite
 - the Workbench shell pytest suite
 - Operator UI fixture contract tests when `node` is available
+- Workbench frontend unit tests when `node` is available
 - focused C++ tests for runtime config parsing and ownership validation when a
   local CMake build directory is present
 
@@ -47,7 +48,7 @@ If `node` is present, the script also runs:
 ```bash
 node --test tools/operator-ui/tests/contracts.test.mjs
 node --test tools/system-composer/tests/unit/launch_url_resolution.test.mjs
-node --test tools/workbench/tests/unit/workbench_guards.test.mjs
+node --test tools/workbench/tests/unit/*.test.mjs
 ```
 
 If `node` is not available, this step is skipped with an explicit message.

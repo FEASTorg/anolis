@@ -4,6 +4,9 @@ A **minimal dev/operator tool** for validating the Anolis HTTP API.
 
 > **Note**: This is NOT a production UI. It is a dev-only sanity tool proving the API is human-operable.
 
+> **Deprecation status (Phase 07):** Workbench Operate is now the primary operator surface.
+> `tools/operator-ui` remains available as a fallback during parity sign-off and is planned for retirement after explicit go/no-go review in the Phase 08 handoff window.
+
 ## Quick Start
 
 ### 1. Start the Anolis Runtime

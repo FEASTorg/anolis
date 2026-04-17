@@ -194,8 +194,9 @@ def test_runtime_proxy_returns_503_when_runtime_stopped(workbench_server: dict[s
 
 def test_launch_is_hard_blocked_when_another_project_is_running(workbench_server: dict[str, Any]) -> None:
     base_url = workbench_server["base_url"]
-    requested = "wb-launch-requested"
-    running = "wb-launch-running"
+    suffix = str(int(time.time() * 1000))
+    requested = f"wb-launch-requested-{suffix}"
+    running = f"wb-launch-running-{suffix}"
 
     for name in (requested, running):
         status, payload = _http_json(
@@ -228,12 +229,6 @@ def test_launch_is_hard_blocked_when_another_project_is_running(workbench_server
         assert launch_status == 409, launch_payload
         assert "already running" in str(launch_payload.get("error")).lower()
     finally:
-        _http_json(
-            base_url,
-            f"/api/projects/{urllib.parse.quote(running)}/stop",
-            method="POST",
-            body={},
-        )
         if runner.poll() is None:
             runner.terminate()
             try:
@@ -241,6 +236,8 @@ def test_launch_is_hard_blocked_when_another_project_is_running(workbench_server
             except subprocess.TimeoutExpired:
                 runner.kill()
                 runner.wait(timeout=5)
+        if running_path.exists():
+            running_path.unlink()
         for name in (requested, running):
             _http_json(base_url, f"/api/projects/{urllib.parse.quote(name)}", method="DELETE")
 
@@ -258,7 +255,72 @@ def test_operate_proxy_endpoints_return_503_when_runtime_stopped(workbench_serve
         "/v0/runtime/status",
         "/v0/state",
         "/v0/mode",
+        "/v0/parameters",
+        "/v0/automation/status",
+        "/v0/automation/tree",
     ):
         status, payload = _http_json(base_url, path)
         assert status == 503, (path, status, payload)
         assert "Runtime is not running" in str(payload.get("error")), (path, payload)
+
+
+def test_runtime_proxy_returns_502_when_runtime_unreachable(workbench_server: dict[str, Any]) -> None:
+    """When a project is marked running but runtime bind is unreachable, /v0 proxy returns 502."""
+
+    base_url = workbench_server["base_url"]
+    project_name = f"wb-runtime-unreachable-{int(time.time() * 1000)}"
+
+    created_status, created_payload = _http_json(
+        base_url,
+        "/api/projects",
+        method="POST",
+        body={"name": project_name, "template": "sim-quickstart"},
+    )
+    assert created_status == 201, created_payload
+
+    project_status, project_payload = _http_json(
+        base_url,
+        f"/api/projects/{urllib.parse.quote(project_name)}",
+    )
+    assert project_status == 200, project_payload
+
+    runtime_port = _pick_free_port()
+    project_payload.setdefault("topology", {})
+    project_payload["topology"].setdefault("runtime", {})
+    project_payload["topology"]["runtime"]["http_bind"] = "127.0.0.1"
+    project_payload["topology"]["runtime"]["http_port"] = runtime_port
+
+    save_status, save_payload = _http_json(
+        base_url,
+        f"/api/projects/{urllib.parse.quote(project_name)}",
+        method="PUT",
+        body=project_payload,
+    )
+    assert save_status == 200, save_payload
+
+    runner = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(60)"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    running_path = _SYSTEMS_ROOT / project_name / "running.json"
+    running_path.write_text(
+        json.dumps({"pid": runner.pid, "project": project_name, "started": time.time()}),
+        encoding="utf-8",
+    )
+
+    try:
+        proxy_status, proxy_payload = _http_json(base_url, "/v0/runtime/status")
+        assert proxy_status == 502, proxy_payload
+        assert "Runtime proxy failed" in str(proxy_payload.get("error")), proxy_payload
+    finally:
+        if runner.poll() is None:
+            runner.terminate()
+            try:
+                runner.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                runner.kill()
+                runner.wait(timeout=5)
+        if running_path.exists():
+            running_path.unlink()
+        _http_json(base_url, f"/api/projects/{urllib.parse.quote(project_name)}", method="DELETE")
