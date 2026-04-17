@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  coerceParameterValue,
   extractAutomationStatus,
   extractAutomationTree,
   extractCapabilities,
@@ -113,4 +114,93 @@ test("parseSafeInt64 enforces int64 and browser-safe bounds", () => {
   assert.equal(parseSafeInt64("42"), 42);
   assert.throws(() => parseSafeInt64("9223372036854775807"), /browser-safe/i);
   assert.throws(() => parseSafeInt64("not-a-number"), /invalid integer/i);
+});
+
+test("coerceParameterValue validates and converts supported parameter types", () => {
+  assert.equal(
+    coerceParameterValue({
+      type: "double",
+      rawValue: "2.5",
+      min: "2",
+      max: "3",
+    }),
+    2.5,
+  );
+
+  assert.equal(
+    coerceParameterValue({
+      type: "int64",
+      rawValue: "17",
+      min: "10",
+      max: "20",
+    }),
+    17,
+  );
+
+  assert.equal(
+    coerceParameterValue({
+      type: "bool",
+      rawValue: "true",
+    }),
+    true,
+  );
+
+  assert.equal(
+    coerceParameterValue({
+      type: "string",
+      rawValue: "AUTO",
+      allowedValues: ["MANUAL", "AUTO"],
+    }),
+    "AUTO",
+  );
+});
+
+test("coerceParameterValue rejects invalid parameter values", () => {
+  assert.throws(
+    () =>
+      coerceParameterValue({
+        type: "double",
+        rawValue: "not-a-number",
+      }),
+    /invalid number/i,
+  );
+
+  assert.throws(
+    () =>
+      coerceParameterValue({
+        type: "double",
+        rawValue: "1.0",
+        min: "2.0",
+      }),
+    /below minimum/i,
+  );
+
+  assert.throws(
+    () =>
+      coerceParameterValue({
+        type: "int64",
+        rawValue: "999",
+        max: "10",
+      }),
+    /above maximum/i,
+  );
+
+  assert.throws(
+    () =>
+      coerceParameterValue({
+        type: "string",
+        rawValue: "UNKNOWN",
+        allowedValues: ["MANUAL", "AUTO"],
+      }),
+    /must be one of/i,
+  );
+
+  assert.throws(
+    () =>
+      coerceParameterValue({
+        type: "bytes",
+        rawValue: "AAAA",
+      }),
+    /unsupported parameter type/i,
+  );
 });

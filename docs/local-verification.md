@@ -23,8 +23,8 @@ This runs:
 - runtime HTTP live conformance smoke validation when both local runtime and provider-sim binaries are present
 - the full System Composer pytest suite
 - the Workbench shell pytest suite
-- Operator UI fixture contract tests when `node` is available
-- Workbench frontend unit tests when `node` is available
+- Operator UI and Workbench frontend unit tests when `node` is available
+  directly or via `cmd.exe /c node` fallback
 - focused C++ tests for runtime config parsing and ownership validation when a
   local CMake build directory is present
 
@@ -43,7 +43,7 @@ preflight/launch/stop/restart/logs behavior) and Workbench shell route support.
 
 ### Operator UI fixture contract coverage
 
-If `node` is present, the script also runs:
+If `node` is present, the script runs:
 
 ```bash
 node --test tools/operator-ui/tests/contracts.test.mjs
@@ -51,7 +51,10 @@ node --test tools/system-composer/tests/unit/launch_url_resolution.test.mjs
 node --test tools/workbench/tests/unit/*.test.mjs
 ```
 
-If `node` is not available, this step is skipped with an explicit message.
+If `node` is not on PATH but `cmd.exe /c node` succeeds (for example in WSL),
+the same tests run through that fallback.
+
+If neither is available, this step is skipped with an explicit message.
 
 ### Runtime config contract coverage
 

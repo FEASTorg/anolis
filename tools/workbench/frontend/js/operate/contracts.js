@@ -249,3 +249,47 @@ export function parseSafeInt64(rawValue) {
 
   return Number(parsed);
 }
+
+export function coerceParameterValue({ type, rawValue, min, max, allowedValues }) {
+  const normalizedType = normalizeParameterType(type);
+  if (!normalizedType) {
+    throw new Error("Unsupported parameter type");
+  }
+
+  const source = String(rawValue ?? "").trim();
+
+  let value;
+  if (normalizedType === "int64") {
+    value = parseSafeInt64(source);
+  } else if (normalizedType === "double") {
+    value = Number(source);
+    if (Number.isNaN(value)) {
+      throw new Error("Invalid number");
+    }
+  } else if (normalizedType === "bool") {
+    value = source.toLowerCase() === "true";
+  } else {
+    value = source;
+  }
+
+  if (normalizedType === "int64" || normalizedType === "double") {
+    const minNumber = min !== undefined ? Number(min) : null;
+    const maxNumber = max !== undefined ? Number(max) : null;
+
+    if (Number.isFinite(minNumber) && value < minNumber) {
+      throw new Error(`Value below minimum (${minNumber})`);
+    }
+    if (Number.isFinite(maxNumber) && value > maxNumber) {
+      throw new Error(`Value above maximum (${maxNumber})`);
+    }
+  }
+
+  if (normalizedType === "string" && Array.isArray(allowedValues) && allowedValues.length > 0) {
+    const allowed = allowedValues.map((entry) => String(entry));
+    if (!allowed.includes(String(value))) {
+      throw new Error(`Value must be one of: ${allowed.join(", ")}`);
+    }
+  }
+
+  return value;
+}

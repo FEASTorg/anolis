@@ -29,4 +29,10 @@ Use this file as the canonical documentation index.
 3. [cpp-documentation-standard.md](cpp-documentation-standard.md) - C++ doc style rules.
 4. [../CONTRIBUTING.md](../CONTRIBUTING.md) - Contributor workflow and repo policy.
 
+## Workbench Transition
+
+1. [workbench/operate-parity-matrix.md](workbench/operate-parity-matrix.md) - Phase 07 parity mapping for Workbench Operate and legacy Operator UI.
+2. [workbench/operator-ui-to-workbench-migration-runbook.md](workbench/operator-ui-to-workbench-migration-runbook.md) - Task-level migration runbook.
+3. [workbench/operator-ui-retirement-go-no-go.md](workbench/operator-ui-retirement-go-no-go.md) - Explicit retirement gate checklist and fallback terms.
+
 Local C++ API docs: run `doxygen docs/Doxyfile` from repo root.

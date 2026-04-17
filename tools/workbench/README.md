@@ -61,3 +61,9 @@ Standalone tools remain supported:
 
 1. `tools/system-composer/`
 2. `tools/operator-ui/`
+
+## Phase 07 Closeout Artifacts
+
+1. `docs/workbench/operate-parity-matrix.md`
+2. `docs/workbench/operator-ui-to-workbench-migration-runbook.md`
+3. `docs/workbench/operator-ui-retirement-go-no-go.md`

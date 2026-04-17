@@ -6,6 +6,7 @@ A **minimal dev/operator tool** for validating the Anolis HTTP API.
 
 > **Deprecation status (Phase 07):** Workbench Operate is now the primary operator surface.
 > `tools/operator-ui` remains available as a fallback during parity sign-off and is planned for retirement after explicit go/no-go review in the Phase 08 handoff window.
+> Retirement gate checklist: `docs/workbench/operator-ui-retirement-go-no-go.md`.
 
 ## Quick Start
 

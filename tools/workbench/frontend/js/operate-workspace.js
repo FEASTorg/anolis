@@ -1,5 +1,6 @@
 import { deriveOperateAvailability, normalizeProviderHealthQuality } from "./operate-state.js";
 import {
+  coerceParameterValue,
   extractAutomationStatus,
   extractAutomationTree,
   extractCapabilities,
@@ -10,7 +11,6 @@ import {
   extractProvidersHealth,
   extractRuntimeStatus,
   normalizeParameterType,
-  parseSafeInt64,
 } from "./operate/contracts.js";
 import {
   appendEventTrace,
@@ -967,35 +967,13 @@ async function _updateParameter(parameter, type, inputElement, feedbackElement) 
   const rawValue = String(inputElement.value).trim();
 
   try {
-    let value;
-    if (type === "int64") {
-      value = parseSafeInt64(rawValue);
-    } else if (type === "double") {
-      value = Number(rawValue);
-      if (Number.isNaN(value)) {
-        throw new Error("Invalid number");
-      }
-    } else if (type === "bool") {
-      value = rawValue.toLowerCase() === "true";
-    } else {
-      value = rawValue;
-    }
-
-    const minAttr = inputElement.dataset.paramMin;
-    const maxAttr = inputElement.dataset.paramMax;
-    if ((type === "int64" || type === "double") && minAttr !== undefined && minAttr !== "" && value < Number(minAttr)) {
-      throw new Error(`Value below minimum (${minAttr})`);
-    }
-    if ((type === "int64" || type === "double") && maxAttr !== undefined && maxAttr !== "" && value > Number(maxAttr)) {
-      throw new Error(`Value above maximum (${maxAttr})`);
-    }
-
-    if (type === "string" && Array.isArray(parameter.allowed_values) && parameter.allowed_values.length > 0) {
-      const allowed = parameter.allowed_values.map((entry) => String(entry));
-      if (!allowed.includes(String(value))) {
-        throw new Error(`Value must be one of: ${allowed.join(", ")}`);
-      }
-    }
+    const value = coerceParameterValue({
+      type,
+      rawValue,
+      min: inputElement.dataset.paramMin,
+      max: inputElement.dataset.paramMax,
+      allowedValues: parameter.allowed_values,
+    });
 
     await _fetchJson("/v0/parameters", {
       method: "POST",
