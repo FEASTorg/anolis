@@ -19,7 +19,6 @@ This runs:
 - docs local-link validation (`docs/**/*.md` + root `README.md`)
 - runtime HTTP OpenAPI structural validation
 - runtime HTTP example payload validation
-- composer control OpenAPI structural validation
 - runtime HTTP live conformance smoke validation when both local runtime and provider-sim binaries are present
 - Operator UI fixture contract tests when `node` is available, directly or via `cmd.exe /c node` fallback
 - focused C++ tests for runtime config parsing and ownership validation when a
@@ -100,21 +99,6 @@ This checks:
 3. Internal `$ref` resolution
 4. SSE media type contract on `/v0/events`
 5. Example payload schema conformance from `tests/contracts/runtime-http/examples/manifest.yaml`
-
-### Composer control contract coverage (structural)
-
-The script also runs:
-
-```bash
-python3 tools/contracts/validate-composer-control-openapi.py
-```
-
-This checks:
-
-1. OpenAPI document shape and metadata
-2. Required control endpoint/method coverage
-3. Internal `$ref` resolution
-4. SSE media type contract on `/api/projects/{name}/logs`
 
 ### Runtime HTTP conformance smoke coverage (live fixture)
 

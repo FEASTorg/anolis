@@ -197,8 +197,8 @@ jobs:
         run: |
           python -m pytest tests/integration/test_telemetry_export_service_e2e.py -vv
 
-  ui-composer-contracts:
-    name: UI and Composer Contracts
+  ui-contracts:
+    name: UI and Runtime Contracts
     runs-on: ubuntu-24.04
     timeout-minutes: 15
 
@@ -227,10 +227,6 @@ jobs:
       - name: Validate runtime HTTP OpenAPI contract (examples)
         run: |
           python tools/contracts/validate-runtime-http-examples.py
-
-      - name: Validate composer control OpenAPI contract (structural)
-        run: |
-          python tools/contracts/validate-composer-control-openapi.py
 
       - name: Validate machine profile contract
         run: |

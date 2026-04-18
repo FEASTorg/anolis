@@ -13,7 +13,9 @@ Use this document for authoring workflow and operational guidance.
 ## Where Runtime YAML Lives
 
 1. Checked-in examples: `config/anolis-runtime*.yaml`, `config/**/anolis-runtime*.yaml`
-2. Composer-generated outputs: `systems/<project>/anolis-runtime.yaml`
+2. Commissioning-generated outputs are managed in
+   [`anolis-workbench`](https://github.com/FEASTorg/anolis-workbench)
+   and are intentionally not tracked in this repository.
 
 Out of scope for this contract:
 

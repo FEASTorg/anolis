@@ -21,7 +21,7 @@ Freeze runtime YAML behavior used by `anolis-runtime --config` and `--check-conf
 ### Scope
 
 1. Applies to runtime YAML consumed by `anolis-runtime`.
-2. Targets `anolis-runtime*.yaml` under `config/` and `systems/**/anolis-runtime.yaml`.
+2. Targets `anolis-runtime*.yaml` under `config/`.
 3. Excludes provider-local YAML and telemetry-export YAML.
 
 ### Supported Top-Level Sections

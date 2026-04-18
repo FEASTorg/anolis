@@ -11,7 +11,7 @@ File:
 Scope:
 
 1. Runtime YAML consumed by `anolis-runtime --config` and `--check-config`.
-2. Targets `anolis-runtime*.yaml` files under `config/` and composer runtime outputs under `systems/`.
+2. Targets `anolis-runtime*.yaml` files under `config/`.
 3. Excludes provider-local YAML and telemetry-export YAML.
 
 Compatibility notes for current wave:
@@ -56,16 +56,7 @@ Scope:
    - `tools/contracts/validate-runtime-http-conformance.py`
 3. Human-facing guide remains at `docs/http/README.md`.
 
-## Composer Control OpenAPI Contract
+## Commissioning Contracts
 
-File:
-
-1. `tools/composer-control.openapi.v1.yaml`
-
-Scope:
-
-1. Canonical machine contract for System Composer control endpoints
-   (`/api/status`, preflight, launch, stop, restart, logs SSE).
-2. Validated by:
-   - `tools/contracts/validate-composer-control-openapi.py`
-3. Human-facing baseline remains at `docs/contracts/composer-control-baseline.md`.
+System Composer and Workbench contracts are maintained in the
+[`anolis-workbench`](https://github.com/FEASTorg/anolis-workbench) repository.

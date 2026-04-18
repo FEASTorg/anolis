@@ -50,9 +50,6 @@ echo "[verify-local] Running runtime HTTP OpenAPI structural checks"
 echo "[verify-local] Running runtime HTTP OpenAPI example checks"
 "$PYTHON_BIN" tools/contracts/validate-runtime-http-examples.py
 
-echo "[verify-local] Running composer control OpenAPI structural checks"
-"$PYTHON_BIN" tools/contracts/validate-composer-control-openapi.py
-
 if [ -n "$RUNTIME_BIN" ] && [ -n "$PROVIDER_BIN" ]; then
   echo "[verify-local] Running runtime HTTP conformance smoke checks"
   "$PYTHON_BIN" tools/contracts/validate-runtime-http-conformance.py \

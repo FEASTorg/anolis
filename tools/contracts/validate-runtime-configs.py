@@ -284,7 +284,6 @@ def main() -> int:
         (
             "config/anolis-runtime*.yaml",
             "config/**/anolis-runtime*.yaml",
-            "systems/**/anolis-runtime.yaml",
         ),
     )
     valid_fixtures = _glob_paths(repo_root, ("tests/contracts/runtime-config/valid/*.yaml",))

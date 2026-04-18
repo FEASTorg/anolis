@@ -4,9 +4,10 @@ A **minimal dev/operator tool** for validating the Anolis HTTP API.
 
 > **Note**: This is NOT a production UI. It is a dev-only sanity tool proving the API is human-operable.
 
-> **Deprecation status (Phase 07):** Workbench Operate is now the primary operator surface.
-> `tools/operator-ui` remains available as a fallback during parity sign-off and is planned for retirement after explicit go/no-go review in the Phase 08 handoff window.
-> Retirement gate checklist: `docs/workbench/operator-ui-retirement-go-no-go.md`.
+> **Status:** Workbench Operate in
+> [`anolis-workbench`](https://github.com/FEASTorg/anolis-workbench) is the
+> primary operator surface. `tools/operator-ui` remains a lightweight local API
+> smoke/debug utility for this runtime repository.
 
 ## Quick Start
 

@@ -76,8 +76,9 @@ ctest --preset dev-windows-release
 .\build\dev-windows-release\core\Release\anolis-runtime.exe --config .\config\anolis-runtime.yaml
 ```
 
-For composer-managed systems, launch the generated runtime YAML at
-`systems/<project>/anolis-runtime.yaml` instead.
+For commissioning-managed systems, use
+[`anolis-workbench`](https://github.com/FEASTorg/anolis-workbench) to prepare
+runtime YAML and launch flows.
 
 Use presets directly when needed:
 

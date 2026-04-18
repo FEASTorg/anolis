@@ -162,9 +162,9 @@ ctest --preset dev-windows-release
 .\build\dev-windows-release\core\Release\anolis-runtime.exe --config .\config\anolis-runtime.yaml
 ```
 
-Use `config/anolis-runtime.yaml` for the checked-in sample config, or point the
-runtime at `systems/<project>/anolis-runtime.yaml` for a System Composer generated
-system.
+Use `config/anolis-runtime.yaml` for the checked-in sample config. Commissioning
+flows and generated system outputs are owned by
+[`anolis-workbench`](https://github.com/FEASTorg/anolis-workbench).
 
 ### Validation & Acceptance Testing
 

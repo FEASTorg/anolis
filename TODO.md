@@ -58,12 +58,13 @@ is not building from source. Covers all artifacts:
 - [ ] **Provider binaries** (`anolis-provider-*`): same as above; each provider
   repo ships independently — define how versions are coordinated with the
   runtime they target.
-- [ ] **System configurations and behaviors**: define how a user's `systems/`
-  directory and BT XMLs are packaged, versioned, and deployed to a target
-  machine (e.g., git-based, file archive, config management tool).
-- [ ] **Tools** (`system-composer`, `operator-ui`, `grafana`): define delivery
+- [ ] **System configurations and behaviors**: define how project data under
+  the commissioning data root (`ANOLIS_DATA_DIR`) and BT XMLs are packaged,
+  versioned, and deployed to a target machine (e.g., git-based, file archive,
+  config management tool).
+- [ ] **Tools** (`anolis-workbench`, `operator-ui`, `grafana`): define delivery
   model — standalone app, web service, bundled with runtime, or separate
-  install. System-composer is currently source-run (Python + stdlib); decide
+  install. Commissioning tooling now lives in `anolis-workbench`; decide
   whether it ships as a frozen binary, container, or stays source-only.
 - [ ] **Cross-component compatibility matrix**: define which runtime version is
   compatible with which provider versions, and how that is communicated and
