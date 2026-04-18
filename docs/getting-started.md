@@ -109,10 +109,8 @@ bash tools/verify-local.sh
 
 ## Operator UI
 
-```bash
-python -m http.server 3000 -d tools/operator-ui
-# Open http://localhost:3000
-```
+The Operator UI has been extracted to [`anolis-hq/anolis-operator-ui`](https://github.com/anolis-hq/anolis-operator-ui).
+Clone that repo and follow its README to run the standalone tool.
 
 ## Automation Quickstart
 

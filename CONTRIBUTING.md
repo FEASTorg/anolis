@@ -451,7 +451,7 @@ anolis/
 ├── sdk/                # Language SDKs
 ├── spec/               # Protocol specifications
 └── tools/              # Developer tools
-    └── operator-ui/    # Web-based operator interface
+    └── contracts/      # Contract validation scripts
 ```
 
 ---

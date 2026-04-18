@@ -62,10 +62,11 @@ is not building from source. Covers all artifacts:
   the commissioning data root (`ANOLIS_DATA_DIR`) and BT XMLs are packaged,
   versioned, and deployed to a target machine (e.g., git-based, file archive,
   config management tool).
-- [ ] **Tools** (`anolis-workbench`, `operator-ui`, `grafana`): define delivery
+- [ ] **Tools** (`anolis-workbench`, `grafana`): define delivery
   model — standalone app, web service, bundled with runtime, or separate
   install. Commissioning tooling now lives in `anolis-workbench`; decide
   whether it ships as a frozen binary, container, or stays source-only.
+  (`operator-ui` extracted to `anolis-hq/anolis-operator-ui`.)
 - [ ] **Cross-component compatibility matrix**: define which runtime version is
   compatible with which provider versions, and how that is communicated and
   enforced (e.g., ADPP version negotiation, build-time checks, release notes).

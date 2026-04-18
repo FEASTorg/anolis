@@ -236,15 +236,6 @@ jobs:
         run: |
           python tools/contracts/validate-doc-links.py
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
-      - name: Run Operator UI fixture contract tests
-        run: |
-          node --test tools/operator-ui/tests/contracts.test.mjs
-
   core-build-test:
     name: ${{ matrix.lane }}
     runs-on: ${{ matrix.os }}

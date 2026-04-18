@@ -61,15 +61,7 @@ fi
 
 echo "[verify-local] Skipping System Composer + Workbench tests: moved to anolis-workbench repo"
 
-if command -v node >/dev/null 2>&1; then
-  echo "[verify-local] Running Operator UI fixture contract tests"
-  node --test tools/operator-ui/tests/contracts.test.mjs
-elif command -v cmd.exe >/dev/null 2>&1 && cmd.exe /c node -v >/dev/null 2>&1; then
-  echo "[verify-local] Running Operator UI fixture contract tests via cmd.exe node"
-  cmd.exe /c node --test tools/operator-ui/tests/contracts.test.mjs
-else
-  echo "[verify-local] Skipping UI fixture contract tests: node not found"
-fi
+echo "[verify-local] Skipping Operator UI contract tests: moved to anolis-hq/anolis-operator-ui repo"
 
 if ! command -v ctest >/dev/null 2>&1; then
   echo "[verify-local] Skipping focused C++ tests: ctest not found"

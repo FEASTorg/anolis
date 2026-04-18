@@ -31,16 +31,8 @@ This runs:
 
 ### Operator UI fixture contract coverage
 
-If `node` is present, the script runs:
-
-```bash
-node --test tools/operator-ui/tests/contracts.test.mjs
-```
-
-If `node` is not on PATH but `cmd.exe /c node` succeeds (for example in WSL),
-the same tests run through that fallback.
-
-If neither is available, this step is skipped with an explicit message.
+The Operator UI has been extracted to its own repository (`anolis-hq/anolis-operator-ui`).
+Contract tests now run in that repo's CI. This step is skipped in `verify-local.sh`.
 
 ### Runtime config contract coverage
 
