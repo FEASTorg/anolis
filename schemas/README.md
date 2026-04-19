@@ -59,4 +59,4 @@ Scope:
 ## Commissioning Contracts
 
 System Composer and Workbench contracts are maintained in the
-[`anolis-workbench`](https://github.com/FEASTorg/anolis-workbench) repository.
+[`anolis-workbench`](https://github.com/anolishq/anolis-workbench) repository.

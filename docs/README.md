@@ -32,6 +32,6 @@ Use this file as the canonical documentation index.
 ## Commissioning Tooling
 
 System Composer and Workbench planning/contracts are maintained in
-[`anolis-workbench`](https://github.com/FEASTorg/anolis-workbench).
+[`anolis-workbench`](https://github.com/anolishq/anolis-workbench).
 
 Local C++ API docs: run `doxygen docs/Doxyfile` from repo root.

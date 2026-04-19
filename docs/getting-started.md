@@ -53,7 +53,7 @@ Test-Path "$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
 Linux/macOS:
 
 ```bash
-git clone https://github.com/FEASTorg/anolis.git
+git clone https://github.com/anolishq/anolis.git
 cd anolis
 git submodule update --init --recursive
 cmake --preset dev-release
@@ -67,7 +67,7 @@ Before launching, verify `providers[].command` paths in `config/anolis-runtime.y
 Windows (PowerShell):
 
 ```powershell
-git clone https://github.com/FEASTorg/anolis.git
+git clone https://github.com/anolishq/anolis.git
 Set-Location anolis
 git submodule update --init --recursive
 cmake --preset dev-windows-release
@@ -77,7 +77,7 @@ ctest --preset dev-windows-release
 ```
 
 For commissioning-managed systems, use
-[`anolis-workbench`](https://github.com/FEASTorg/anolis-workbench) to prepare
+[`anolis-workbench`](https://github.com/anolishq/anolis-workbench) to prepare
 runtime YAML and launch flows.
 
 Use presets directly when needed:

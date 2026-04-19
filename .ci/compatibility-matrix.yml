@@ -3,18 +3,18 @@
 
 schema_version: 1
 runtime:
-  repository: FEASTorg/anolis
+  repository: anolishq/anolis
   entries:
     - runtime_ref: b6a1e6ffbaaf796cbef47396849e113436770abc
       tested_on_utc: 2026-02-22
       provider_sim:
-        repository: FEASTorg/anolis-provider-sim
+        repository: anolishq/anolis-provider-sim
         ref: main
       anolis_protocol:
-        repository: FEASTorg/anolis-protocol
+        repository: anolishq/anolis-protocol
         ref: 6987308a91fed5b968ed5124f784a42cb502d7fa
       fluxgraph:
-        repository: FEASTorg/fluxgraph
+        repository: anolishq/fluxgraph
         ref: main
         mode: optional
       ci:

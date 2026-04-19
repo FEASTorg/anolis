@@ -15,7 +15,7 @@ Baselines in this directory freeze expected behavior at a point in time so contr
 3. Machine profile schema: `schemas/machine-profile.schema.json`
 
 Commissioning-specific contracts (System Composer + Workbench) are maintained in
-[`anolis-workbench`](https://github.com/FEASTorg/anolis-workbench), including:
+[`anolis-workbench`](https://github.com/anolishq/anolis-workbench), including:
 
 1. `contracts/composer-control.openapi.v1.yaml`
 2. `contracts/validate-composer-control-openapi.py`

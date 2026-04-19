@@ -15,7 +15,7 @@ Thank you for your interest in contributing to Anolis!
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/FEASTorg/anolis.git
+   git clone https://github.com/anolishq/anolis.git
    cd anolis
    ```
 

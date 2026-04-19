@@ -3,7 +3,7 @@
 # Lock to immutable SHAs before release hardening.
 
 provider_sim:
-  repository: FEASTorg/anolis-provider-sim
+  repository: anolishq/anolis-provider-sim
   ref: main
   updated_utc: 2026-02-22
   rationale: "DEV PHASE: track latest provider-sim main branch in compatibility lane"

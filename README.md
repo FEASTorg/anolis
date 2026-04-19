@@ -1,7 +1,7 @@
 # anolis
 
-[![CI](https://github.com/FEASTorg/anolis/actions/workflows/ci.yml/badge.svg)](https://github.com/FEASTorg/anolis/actions/workflows/ci.yml)
-[![Extended](https://github.com/FEASTorg/anolis/actions/workflows/extended.yml/badge.svg)](https://github.com/FEASTorg/anolis/actions/workflows/extended.yml)
+[![CI](https://github.com/anolishq/anolis/actions/workflows/ci.yml/badge.svg)](https://github.com/anolishq/anolis/actions/workflows/ci.yml)
+[![Extended](https://github.com/anolishq/anolis/actions/workflows/extended.yml/badge.svg)](https://github.com/anolishq/anolis/actions/workflows/extended.yml)
 
 **Anolis** is a modular control runtime for building machines from heterogeneous devices.
 
@@ -141,7 +141,7 @@ Install host prerequisites (including Ninja and vcpkg) first: [docs/getting-star
 Linux/macOS:
 
 ```bash
-git clone https://github.com/FEASTorg/anolis.git
+git clone https://github.com/anolishq/anolis.git
 cd anolis
 git submodule update --init --recursive
 cmake --preset dev-release
@@ -153,7 +153,7 @@ ctest --preset dev-release
 Windows (PowerShell):
 
 ```powershell
-git clone https://github.com/FEASTorg/anolis.git
+git clone https://github.com/anolishq/anolis.git
 Set-Location anolis
 git submodule update --init --recursive
 cmake --preset dev-windows-release
@@ -164,7 +164,7 @@ ctest --preset dev-windows-release
 
 Use `config/anolis-runtime.yaml` for the checked-in sample config. Commissioning
 flows and generated system outputs are owned by
-[`anolis-workbench`](https://github.com/FEASTorg/anolis-workbench).
+[`anolis-workbench`](https://github.com/anolishq/anolis-workbench).
 
 ### Validation & Acceptance Testing
 

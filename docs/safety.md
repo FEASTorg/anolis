@@ -142,5 +142,5 @@ Production/hardware operation:
 2. [Automation Layer](automation.md)
 3. [Runtime Configuration](configuration.md)
 4. [HTTP API Reference](http-api.md)
-5. [anolis-provider-sim fault injection reference](https://github.com/FEASTorg/anolis-provider-sim/blob/main/README.md#fault-injection-api)
-6. [anolis-provider-sim safe initialization reference](https://github.com/FEASTorg/anolis-provider-sim/blob/main/README.md#safe-initialization-in-provider-sim)
+5. [anolis-provider-sim fault injection reference](https://github.com/anolishq/anolis-provider-sim/blob/main/README.md#fault-injection-api)
+6. [anolis-provider-sim safe initialization reference](https://github.com/anolishq/anolis-provider-sim/blob/main/README.md#safe-initialization-in-provider-sim)

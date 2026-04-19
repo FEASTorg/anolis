@@ -25,7 +25,7 @@ This runs:
   local CMake build directory is present
 
 > **Note:** System Composer, Workbench, and handoff package validation tests have moved to the
-> [anolis-workbench](https://github.com/FEASTorg/anolis-workbench) repository.
+> [anolis-workbench](https://github.com/anolishq/anolis-workbench) repository.
 
 ## What the Script Checks
 
