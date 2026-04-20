@@ -32,12 +32,12 @@ Automation is a consumer of kernel services, not a replacement for them.
 
 ## Runtime Modes
 
-| Mode     | Automation | Manual Calls | Control Behavior |
-| -------- | ---------- | ------------ | ---------------- |
-| `IDLE`   | Stopped    | Blocked      | Safe startup     |
-| `MANUAL` | Stopped    | Allowed      | Operator control |
-| `AUTO`   | Running    | Policy-gated | Automated control |
-| `FAULT`  | Stopped    | Allowed      | Manual recovery state |
+| Mode | Automation | Manual Calls | Control Behavior |
+| --- | --- | --- | --- |
+| `IDLE` | Stopped | Blocked | Safe startup |
+| `MANUAL` | Stopped | Allowed | Operator control |
+| `AUTO` | Running | Policy-gated | Automated control |
+| `FAULT` | Stopped | Allowed | Manual recovery state |
 
 Transition rules:
 

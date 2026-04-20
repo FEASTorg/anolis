@@ -6,12 +6,12 @@ Automation components for behavior tree orchestration.
 
 The automation layer is a **consumer of kernel services**, NOT a replacement for core IO:
 
-| Constraint                                | Implementation                                               |
-| ----------------------------------------- | ------------------------------------------------------------ |
-| **BT nodes read via StateCache**          | No direct provider access; state read through typed service context |
-| **BT nodes act via CallRouter**           | All device calls go through validated control path           |
-| **No new provider protocol features**     | Automation uses existing ADPP v1 capabilities                    |
-| **No device-specific logic in BT engine** | BT runtime is capability-agnostic                            |
+| Constraint | Implementation |
+| --- | --- |
+| **BT nodes read via StateCache** | No direct provider access; state read through typed service context |
+| **BT nodes act via CallRouter** | All device calls go through validated control path |
+| **No new provider protocol features** | Automation uses existing ADPP v1 capabilities |
+| **No device-specific logic in BT engine** | BT runtime is capability-agnostic |
 
 ## Blackboard Contract
 

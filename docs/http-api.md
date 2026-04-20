@@ -103,14 +103,14 @@ Current event names:
 
 ADPP value payload format:
 
-| Type     | Example |
-| -------- | ------- |
+| Type | Example |
+| --- | --- |
 | `double` | `{"type":"double","double":1.23}` |
-| `int64`  | `{"type":"int64","int64":-42}` |
+| `int64` | `{"type":"int64","int64":-42}` |
 | `uint64` | `{"type":"uint64","uint64":42}` |
-| `bool`   | `{"type":"bool","bool":true}` |
+| `bool` | `{"type":"bool","bool":true}` |
 | `string` | `{"type":"string","string":"AUTO"}` |
-| `bytes`  | `{"type":"bytes","base64":"AAECAw=="}` |
+| `bytes` | `{"type":"bytes","base64":"AAECAw=="}` |
 
 ## Quality Semantics
 

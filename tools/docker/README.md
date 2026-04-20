@@ -133,12 +133,12 @@ docker-compose -f docker-compose.observability.yml logs influxdb
 
 1. Verify runtime is writing to InfluxDB:
 
-   ```
+   ```text
    [InfluxSink] Written 1000 events to InfluxDB
    ```
 
 2. Check InfluxDB data explorer:
-   - Open http://localhost:8086
+   - Open <http://localhost:8086>
    - Go to Data Explorer
    - Query `anolis_signal` measurement
 
