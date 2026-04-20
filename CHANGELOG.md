@@ -1,0 +1,74 @@
+# Changelog
+
+All notable changes to the `anolis` runtime are documented in this file.
+
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+Historical note: this changelog was written retrospectively from git history at the
+time of the first tagged release (`v0.1.0`). Earlier development was tracked in
+commit messages only.
+
+---
+
+## [Unreleased]
+
+## [0.1.0] - 2026-04-20
+
+First tagged release. The runtime was developed in full before tagging; this entry
+summarizes the meaningful work that landed prior to `v0.1.0`.
+
+### Added
+
+- Runtime core: ADPP v1 proxy layer routing calls between the workbench and
+  connected device providers over gRPC.
+- Automation engine: behavior-tree (BT) execution with generic provider-agnostic
+  nodes (`GetParameterInt64`, `CheckBool`, `PulseWindow`, `EmitGating`,
+  `BuildArgsJson`). Monotonic BT timing and stage-transition hooks.
+- Bioreactor Stage 1 automation wiring: stir/feed behavior tree, multi-channel
+  DCMT/RLHT mapping to lab wiring (impeller, feed, base dosing, acid dosing).
+- Telemetry export service: streamed NDJSON, CSV, and JSON export via HTTP;
+  per-runtime scoping with `selector.runtime_names`; bounded CSV spooling with
+  deterministic memory limit; manifest endpoint.
+- `anolis_signal` tagged with `runtime_name` for multi-runtime Influx
+  disambiguation.
+- HTTP API v0 (Composer control): project lifecycle, provider attach/detach,
+  machine-profile load, automation start/stop. OpenAPI baseline locked with
+  conformance gates.
+- Machine-profile contract: YAML schema, canonical bioreactor manifest, validation
+  gate wired into CI and local verification.
+- Runtime config JSON schema with validation gate in CI; pytest fixtures for
+  config-schema edge cases.
+- System Composer→Workbench extraction: `tools/system-composer` and
+  `tools/workbench` removed from this repo; control contract migrated to
+  `anolis-workbench`.
+- Editable Python package layout (`core/` as an installable package); removed
+  `sys.path` surgery from test and tool entry points.
+- Package validator and contract script for the workbench handoff boundary.
+- `ANOLIS_DATA_DIR` env var for data directory configuration; `REPO_ROOT` decoupled
+  from assumptions about working directory.
+- Release workflow: on `v*` tag, builds `ci-linux-release-strict`, packages
+  `anolis-runtime` binary + source tarball + `manifest.json` + `SHA256SUMS`.
+- Compatibility lane CI: validates runtime against a pinned `anolis-provider-sim`
+  release tag; `dependency-pins.yml` locked to `v0.1.0` at first release.
+
+### Changed
+
+- Protocol submodule URL migrated from `FEASTorg/anolis` to
+  `anolishq/anolis-protocol` after protocol extraction.
+- Org renamed from `FEASTorg` to `anolishq` throughout.
+- Operator UI extracted to separate `anolishq/anolis-operator-ui` repository.
+- Telemetry export formats hardened: type-safe downsampling, timezone contract
+  enforcement, env-based token overrides.
+- DCMT PWM bounds aligned to `[-255, 255]` to match Nano hardware limits;
+  bioreactor automation defaults updated.
+
+### Fixed
+
+- Multi-line CSV parsing bug in JSON export path; regression test added.
+- `GetParameterInt64`→`GetParameter` fix for dual-dosing bioreactor automation
+  tree load.
+- Export e2e: module-mode startup, streamed format cleanup, response body surfaced
+  on first-query failures.
+- Composer runtime ownership: logs scoped to project; detached runtime
+  status/stop reconciliation; restart conflict and project-switch safety guards.
