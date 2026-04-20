@@ -11,7 +11,7 @@ Use this file as the canonical documentation index.
 
 ## Contracts and Schemas
 
-1. [../schemas/README.md](../schemas/README.md) - Machine-readable contract artifacts.
+1. [schemas/README.md](https://github.com/anolishq/anolis/blob/main/schemas/README.md) - Machine-readable contract artifacts.
 2. [contracts/README.md](contracts/README.md) - Contract baselines and change policy.
 3. [http/README.md](http/README.md) - Runtime HTTP contract validation workflow.
 
@@ -27,7 +27,7 @@ Use this file as the canonical documentation index.
 1. [local-verification.md](local-verification.md) - Fast local verification workflow.
 2. [dependencies.md](dependencies.md) - Dependency and toolchain expectations.
 3. [cpp-documentation-standard.md](cpp-documentation-standard.md) - C++ doc style rules.
-4. [../CONTRIBUTING.md](../CONTRIBUTING.md) - Contributor workflow and repo policy.
+4. [CONTRIBUTING.md](https://github.com/anolishq/anolis/blob/main/CONTRIBUTING.md) - Contributor workflow and repo policy.
 
 ## Commissioning Tooling
 

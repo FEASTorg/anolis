@@ -150,4 +150,4 @@ curl -s -X POST http://127.0.0.1:8080/v0/mode \
 
 - For provider integration and safety contracts: [providers.md](providers.md)
 - For runtime config details: [configuration.md](configuration.md)
-- For contributor workflow: [../CONTRIBUTING.md](../CONTRIBUTING.md)
+- For contributor workflow: [CONTRIBUTING.md](https://github.com/anolishq/anolis/blob/main/CONTRIBUTING.md)

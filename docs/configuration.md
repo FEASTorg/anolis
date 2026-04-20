@@ -97,4 +97,4 @@ automation:
 
 1. [configuration-schema.md](configuration-schema.md) - compact section-by-section schema narrative.
 2. [docs/contracts/runtime-config-baseline.md](contracts/runtime-config-baseline.md) - locked behavior baseline.
-3. [../schemas/README.md](../schemas/README.md) - canonical schema and validator map.
+3. [schemas/README.md](https://github.com/anolishq/anolis/blob/main/schemas/README.md) - canonical schema and validator map.

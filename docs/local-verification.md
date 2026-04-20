@@ -136,4 +136,4 @@ Use the broader build and test flows when:
 - touching integration or scenario suites
 - modifying platform build logic or dependencies
 
-See [../CONTRIBUTING.md](../CONTRIBUTING.md) for the full build and test flow.
+See [CONTRIBUTING.md](https://github.com/anolishq/anolis/blob/main/CONTRIBUTING.md) for the full build and test flow.
