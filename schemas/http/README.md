@@ -8,9 +8,9 @@ Files:
 
 Validation:
 
-1. `python3 tools/contracts/validate-runtime-http-openapi.py`
-2. `python3 tools/contracts/validate-runtime-http-examples.py`
-3. `python3 tools/contracts/validate-runtime-http-conformance.py`
+1. `python3 tests/contracts/runtime-http/validate-runtime-http-openapi.py`
+2. `python3 tests/contracts/runtime-http/validate-runtime-http-examples.py`
+3. `python3 tests/contracts/runtime-http/validate-runtime-http-conformance.py`
 
 Human-facing documentation:
 

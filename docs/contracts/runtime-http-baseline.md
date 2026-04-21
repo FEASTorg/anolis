@@ -13,9 +13,9 @@ Freeze implemented `/v0` HTTP behavior so OpenAPI, examples, and conformance tes
 3. OpenAPI contract: `schemas/http/runtime-http.openapi.v0.yaml`
 4. Example fixtures: `tests/contracts/runtime-http/examples/`
 5. Validators:
-   - `tools/contracts/validate-runtime-http-openapi.py`
-   - `tools/contracts/validate-runtime-http-examples.py`
-   - `tools/contracts/validate-runtime-http-conformance.py`
+   - `tests/contracts/runtime-http/validate-runtime-http-openapi.py`
+   - `tests/contracts/runtime-http/validate-runtime-http-examples.py`
+   - `tests/contracts/runtime-http/validate-runtime-http-conformance.py`
 
 ## Locked Behavior Summary
 
@@ -50,11 +50,11 @@ Freeze implemented `/v0` HTTP behavior so OpenAPI, examples, and conformance tes
 ## Validation Gates
 
 1. OpenAPI structural validation:
-   - `python3 tools/contracts/validate-runtime-http-openapi.py`
+   - `python3 tests/contracts/runtime-http/validate-runtime-http-openapi.py`
 2. Example payload validation:
-   - `python3 tools/contracts/validate-runtime-http-examples.py`
+   - `python3 tests/contracts/runtime-http/validate-runtime-http-examples.py`
 3. Live runtime conformance smoke:
-   - `python3 tools/contracts/validate-runtime-http-conformance.py --runtime-bin <...> --provider-bin <...>`
+   - `python3 tests/contracts/runtime-http/validate-runtime-http-conformance.py --runtime-bin <...> --provider-bin <...>`
 
 ## Drift Notes and Change Rule
 

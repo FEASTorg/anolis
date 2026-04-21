@@ -125,23 +125,23 @@ jobs:
 
       - name: Validate runtime HTTP OpenAPI contract (structural)
         run: |
-          python tools/contracts/validate-runtime-http-openapi.py
+          python tests/contracts/runtime-http/validate-runtime-http-openapi.py
 
       - name: Validate runtime HTTP OpenAPI contract (examples)
         run: |
-          python tools/contracts/validate-runtime-http-examples.py
+          python tests/contracts/runtime-http/validate-runtime-http-examples.py
 
       - name: Validate machine profile contract
         run: |
-          python tools/contracts/validate-machine-profiles.py
+          python tests/contracts/machine-profile/validate-machine-profiles.py
 
       - name: Validate telemetry timeseries contract
         run: |
-          python tools/contracts/validate-telemetry-timeseries.py
+          python tests/contracts/telemetry-timeseries/validate-telemetry-timeseries.py
 
       - name: Validate docs local links
         run: |
-          python tools/contracts/validate-doc-links.py
+          python tools/validate-doc-links.py
 
   core-build-test:
     name: ${{ matrix.lane }}
@@ -222,22 +222,22 @@ jobs:
       - name: Validate runtime config contract
         if: runner.os == 'Linux' && matrix.configure_preset == 'ci-linux-release-strict'
         run: |
-          python tools/contracts/validate-runtime-configs.py --runtime-bin build/ci-linux-release-strict/core/anolis-runtime
+          python tests/contracts/runtime-config/validate-runtime-configs.py --runtime-bin build/ci-linux-release-strict/core/anolis-runtime
 
       - name: Validate machine profile contract
         if: runner.os == 'Linux' && matrix.configure_preset == 'ci-linux-release-strict'
         run: |
-          python tools/contracts/validate-machine-profiles.py
+          python tests/contracts/machine-profile/validate-machine-profiles.py
 
       - name: Validate runtime HTTP OpenAPI contract (structural)
         if: runner.os == 'Linux' && matrix.configure_preset == 'ci-linux-release-strict'
         run: |
-          python tools/contracts/validate-runtime-http-openapi.py
+          python tests/contracts/runtime-http/validate-runtime-http-openapi.py
 
       - name: Validate runtime HTTP OpenAPI contract (examples)
         if: runner.os == 'Linux' && matrix.configure_preset == 'ci-linux-release-strict'
         run: |
-          python tools/contracts/validate-runtime-http-examples.py
+          python tests/contracts/runtime-http/validate-runtime-http-examples.py
 
       - name: Run CTest
         run: ctest --preset "${{ matrix.test_preset }}"
@@ -338,7 +338,7 @@ jobs:
         env:
           LD_LIBRARY_PATH: ${{ github.workspace }}/build/ci-linux-compat/vcpkg_installed/x64-linux/lib
         run: |
-          python tools/contracts/validate-runtime-http-conformance.py \
+          python tests/contracts/runtime-http/validate-runtime-http-conformance.py \
             --runtime-bin build/ci-linux-compat/core/anolis-runtime \
             --provider-bin "${{ steps.provider.outputs.exe }}"
 

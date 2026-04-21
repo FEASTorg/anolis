@@ -23,7 +23,7 @@ Canonical machine-validated artifacts live under `schemas/` and `tests/contracts
 Run structural OpenAPI validation:
 
 ```bash
-python3 tools/contracts/validate-runtime-http-openapi.py
+python3 tests/contracts/runtime-http/validate-runtime-http-openapi.py
 ```
 
 The validator checks:
@@ -37,13 +37,13 @@ The validator checks:
 Run example payload validation:
 
 ```bash
-python3 tools/contracts/validate-runtime-http-examples.py
+python3 tests/contracts/runtime-http/validate-runtime-http-examples.py
 ```
 
 Run live runtime conformance smoke validation (runtime + provider-sim required):
 
 ```bash
-python3 tools/contracts/validate-runtime-http-conformance.py \
+python3 tests/contracts/runtime-http/validate-runtime-http-conformance.py \
   --runtime-bin <path-to-anolis-runtime> \
   --provider-bin <path-to-anolis-provider-sim> \
   --capture-dir tests/contracts/runtime-http/examples/_captures

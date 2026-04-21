@@ -74,7 +74,7 @@ _UniqueKeyLoader.add_constructor(
 
 
 def _repo_root_from_script() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return Path(__file__).resolve().parents[3]
 
 
 def _load_openapi(path: Path) -> dict:

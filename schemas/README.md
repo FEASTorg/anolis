@@ -38,7 +38,7 @@ Scope:
 1. Machine package manifests at `config/**/machine-profile.yaml`.
 2. Declares package entrypoints, provider config references, optional behavior assets,
    validation metadata, and compatibility metadata.
-3. Works with `tools/contracts/validate-machine-profiles.py` to enforce schema validity,
+3. Works with `tests/contracts/machine-profile/validate-machine-profiles.py` to enforce schema validity,
    reference integrity, and runtime-profile schema compatibility.
 
 ## Runtime HTTP OpenAPI Contract
@@ -51,9 +51,9 @@ Scope:
 
 1. Canonical machine contract for runtime `/v0` HTTP operations.
 2. Validated by:
-   - `tools/contracts/validate-runtime-http-openapi.py`
-   - `tools/contracts/validate-runtime-http-examples.py`
-   - `tools/contracts/validate-runtime-http-conformance.py`
+   - `tests/contracts/runtime-http/validate-runtime-http-openapi.py`
+   - `tests/contracts/runtime-http/validate-runtime-http-examples.py`
+   - `tests/contracts/runtime-http/validate-runtime-http-conformance.py`
 3. Human-facing guide remains at `docs/http/README.md`.
 
 ## Commissioning Contracts

@@ -16,7 +16,7 @@ Fixtures for the `anolis_signal` telemetry row contract.
 Run:
 
 ```bash
-python3 tools/contracts/validate-telemetry-timeseries.py
+python3 tests/contracts/telemetry-timeseries/validate-telemetry-timeseries.py
 ```
 
 ## Coverage Goals

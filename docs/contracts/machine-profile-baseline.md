@@ -9,7 +9,7 @@ Define machine package expectations under `config/<machine_id>/` and lock manife
 ## Canonical Artifacts
 
 1. Manifest schema: `schemas/machine/machine-profile.schema.json`
-2. Validator: `tools/contracts/validate-machine-profiles.py`
+2. Validator: `tests/contracts/machine-profile/validate-machine-profiles.py`
 3. Fixtures: `tests/contracts/machine-profile/`
 4. Canonical package example: `config/bioreactor/machine-profile.yaml`
 5. Runtime config schema dependency: `schemas/runtime/runtime-config.schema.json`
@@ -31,7 +31,7 @@ Define machine package expectations under `config/<machine_id>/` and lock manife
 
 ## Validation Gates
 
-1. `python3 tools/contracts/validate-machine-profiles.py`
+1. `python3 tests/contracts/machine-profile/validate-machine-profiles.py`
 2. Runtime config contract validation remains in place for referenced profiles.
 
 ## Drift Notes and Change Rule

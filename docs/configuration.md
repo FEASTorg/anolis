@@ -5,7 +5,7 @@ Anolis runtime is configured with YAML.
 Contract authority is machine-validated:
 
 1. `schemas/runtime/runtime-config.schema.json`
-2. `tools/contracts/validate-runtime-configs.py`
+2. `tests/contracts/runtime-config/validate-runtime-configs.py`
 3. `anolis-runtime --check-config` (semantic/load-time checks)
 
 Use this document for authoring workflow and operational guidance.
@@ -27,7 +27,7 @@ Out of scope for this contract:
 1. Start from a known profile (`manual`, `telemetry`, `automation`, `full` variants when available).
 2. Edit runtime concerns only in runtime YAML.
 3. Validate schema fixtures:
-   - `python3 tools/contracts/validate-runtime-configs.py`
+   - `python3 tests/contracts/runtime-config/validate-runtime-configs.py`
 4. Validate runtime semantics:
    - `anolis-runtime --check-config --config <path>`
 5. Run runtime normally after both checks pass.

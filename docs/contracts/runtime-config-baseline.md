@@ -12,7 +12,7 @@ Freeze runtime YAML behavior used by `anolis-runtime --config` and `--check-conf
 2. Runtime loader/validation: `core/runtime/config.cpp`
 3. CLI semantic gate: `core/src/main.cpp` (`--check-config`)
 4. Runtime schema: `schemas/runtime/runtime-config.schema.json`
-5. Contract validator: `tools/contracts/validate-runtime-configs.py`
+5. Contract validator: `tests/contracts/runtime-config/validate-runtime-configs.py`
 6. Contract fixtures: `tests/contracts/runtime-config/`
 7. Unit coverage: `tests/unit/config_test.cpp`
 
@@ -72,7 +72,7 @@ Freeze runtime YAML behavior used by `anolis-runtime --config` and `--check-conf
 Run both layers:
 
 1. Schema and fixture validation:
-   - `python3 tools/contracts/validate-runtime-configs.py`
+   - `python3 tests/contracts/runtime-config/validate-runtime-configs.py`
 2. Runtime semantic validation:
    - `anolis-runtime --check-config --config <runtime-yaml>`
 

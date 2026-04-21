@@ -5,7 +5,7 @@ This is a compact human map of runtime YAML sections.
 Authoritative contract behavior comes from:
 
 1. `schemas/runtime/runtime-config.schema.json`
-2. `tools/contracts/validate-runtime-configs.py`
+2. `tests/contracts/runtime-config/validate-runtime-configs.py`
 3. `anolis-runtime --check-config`
 
 ## Top-Level Sections
@@ -158,7 +158,7 @@ Use both layers together:
 Example commands:
 
 ```bash
-python3 tools/contracts/validate-runtime-configs.py
+python3 tests/contracts/runtime-config/validate-runtime-configs.py
 anolis-runtime --check-config --config config/anolis-runtime.yaml
 ```
 

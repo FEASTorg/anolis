@@ -11,7 +11,7 @@ Freeze the telemetry row contract used between runtime emission (`anolis_signal`
 1. Machine schema: `schemas/telemetry/telemetry-timeseries.schema.v1.json`
 2. Contract fixtures: `tests/contracts/telemetry-timeseries/examples/`
 3. Fixture manifest: `tests/contracts/telemetry-timeseries/examples/manifest.yaml`
-4. Contract validator: `tools/contracts/validate-telemetry-timeseries.py`
+4. Contract validator: `tests/contracts/telemetry-timeseries/validate-telemetry-timeseries.py`
 5. Runtime emission implementation: `core/telemetry/influx_sink.hpp`
 6. Runtime emission unit coverage: `tests/unit/influx_sink_test.cpp`
 
@@ -79,7 +79,7 @@ For this baseline wave:
 Run:
 
 ```bash
-python3 tools/contracts/validate-telemetry-timeseries.py
+python3 tests/contracts/telemetry-timeseries/validate-telemetry-timeseries.py
 ```
 
 The gate must remain green in CI.

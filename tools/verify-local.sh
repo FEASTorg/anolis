@@ -40,29 +40,29 @@ done
 
 if [ -n "$RUNTIME_BIN" ]; then
   echo "[verify-local] Running runtime config contract checks"
-  "$PYTHON_BIN" tools/contracts/validate-runtime-configs.py --runtime-bin "$RUNTIME_BIN"
+  "$PYTHON_BIN" tests/contracts/runtime-config/validate-runtime-configs.py --runtime-bin "$RUNTIME_BIN"
 else
   echo "[verify-local] Skipping runtime config contract checks: runtime binary not found"
 fi
 
 echo "[verify-local] Running machine profile contract checks"
-"$PYTHON_BIN" tools/contracts/validate-machine-profiles.py
+"$PYTHON_BIN" tests/contracts/machine-profile/validate-machine-profiles.py
 
 echo "[verify-local] Running telemetry timeseries contract checks"
-"$PYTHON_BIN" tools/contracts/validate-telemetry-timeseries.py
+"$PYTHON_BIN" tests/contracts/telemetry-timeseries/validate-telemetry-timeseries.py
 
 echo "[verify-local] Running docs local-link checks"
-"$PYTHON_BIN" tools/contracts/validate-doc-links.py
+"$PYTHON_BIN" tools/validate-doc-links.py
 
 echo "[verify-local] Running runtime HTTP OpenAPI structural checks"
-"$PYTHON_BIN" tools/contracts/validate-runtime-http-openapi.py
+"$PYTHON_BIN" tests/contracts/runtime-http/validate-runtime-http-openapi.py
 
 echo "[verify-local] Running runtime HTTP OpenAPI example checks"
-"$PYTHON_BIN" tools/contracts/validate-runtime-http-examples.py
+"$PYTHON_BIN" tests/contracts/runtime-http/validate-runtime-http-examples.py
 
 if [ -n "$RUNTIME_BIN" ] && [ -n "$PROVIDER_BIN" ]; then
   echo "[verify-local] Running runtime HTTP conformance smoke checks"
-  "$PYTHON_BIN" tools/contracts/validate-runtime-http-conformance.py \
+  "$PYTHON_BIN" tests/contracts/runtime-http/validate-runtime-http-conformance.py \
     --runtime-bin "$RUNTIME_BIN" \
     --provider-bin "$PROVIDER_BIN"
 else

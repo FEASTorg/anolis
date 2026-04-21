@@ -17,7 +17,7 @@ Fixture layout:
 
 Machine-profile contract validation is performed by:
 
-1. `tools/contracts/validate-machine-profiles.py`
+1. `tests/contracts/machine-profile/validate-machine-profiles.py`
 
 The validator also checks tracked machine manifests under:
 

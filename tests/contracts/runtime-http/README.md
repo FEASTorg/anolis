@@ -13,7 +13,7 @@ Captured fixture payloads for the `/v0` HTTP contract.
 Run:
 
 ```bash
-python3 tools/contracts/validate-runtime-http-examples.py
+python3 tests/contracts/runtime-http/validate-runtime-http-examples.py
 ```
 
 The validator checks:
@@ -28,7 +28,7 @@ The validator checks:
 Examples remain curated contract anchors, but can be refreshed from live runtime captures:
 
 ```bash
-python3 tools/contracts/validate-runtime-http-conformance.py \
+python3 tests/contracts/runtime-http/validate-runtime-http-conformance.py \
   --runtime-bin <path-to-anolis-runtime> \
   --provider-bin <path-to-anolis-provider-sim> \
   --capture-dir tests/contracts/runtime-http/examples/_captures

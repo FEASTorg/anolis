@@ -49,7 +49,7 @@ def _resolve_link(base_file: Path, target: str, repo_root: Path) -> Path:
 
 
 def main() -> int:
-    repo_root = Path(__file__).resolve().parents[2]
+    repo_root = Path(__file__).resolve().parents[1]
     docs_root = repo_root / "docs"
 
     files = [repo_root / "README.md"]

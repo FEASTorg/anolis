@@ -40,7 +40,7 @@ If a local runtime binary is present (`build/dev-release/core/anolis-runtime` or
 `build/dev-windows-release/core/Release/anolis-runtime.exe`), the script runs:
 
 ```bash
-python3 tools/contracts/validate-runtime-configs.py --runtime-bin <local-runtime-binary>
+python3 tests/contracts/runtime-config/validate-runtime-configs.py --runtime-bin <local-runtime-binary>
 ```
 
 This enforces the runtime config contract across:
@@ -53,7 +53,7 @@ This enforces the runtime config contract across:
 The script always runs:
 
 ```bash
-python3 tools/contracts/validate-machine-profiles.py
+python3 tests/contracts/machine-profile/validate-machine-profiles.py
 ```
 
 This validates:
@@ -67,7 +67,7 @@ This validates:
 The script always runs:
 
 ```bash
-python3 tools/contracts/validate-telemetry-timeseries.py
+python3 tests/contracts/telemetry-timeseries/validate-telemetry-timeseries.py
 ```
 
 This validates:
@@ -81,7 +81,7 @@ This validates:
 The script always runs:
 
 ```bash
-python3 tools/contracts/validate-doc-links.py
+python3 tools/validate-doc-links.py
 ```
 
 This validates:
@@ -94,8 +94,8 @@ This validates:
 The script always runs:
 
 ```bash
-python3 tools/contracts/validate-runtime-http-openapi.py
-python3 tools/contracts/validate-runtime-http-examples.py
+python3 tests/contracts/runtime-http/validate-runtime-http-openapi.py
+python3 tests/contracts/runtime-http/validate-runtime-http-examples.py
 ```
 
 This checks:
@@ -111,7 +111,7 @@ This checks:
 If both a runtime binary and provider-sim binary are present, the script also runs:
 
 ```bash
-python3 tools/contracts/validate-runtime-http-conformance.py \
+python3 tests/contracts/runtime-http/validate-runtime-http-conformance.py \
   --runtime-bin <local-runtime-binary> \
   --provider-bin <local-provider-sim-binary>
 ```

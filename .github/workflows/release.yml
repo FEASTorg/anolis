@@ -130,7 +130,7 @@ jobs:
           SCHEMA_PATH="schemas/telemetry/telemetry-timeseries.schema.v1.json"
           BASELINE_PATH="docs/contracts/telemetry-timeseries-baseline.md"
           FIXTURE_MANIFEST_PATH="tests/contracts/telemetry-timeseries/examples/manifest.yaml"
-          VALIDATOR_PATH="tools/contracts/validate-telemetry-timeseries.py"
+          VALIDATOR_PATH="tests/contracts/telemetry-timeseries/validate-telemetry-timeseries.py"
 
           for path in "${SCHEMA_PATH}" "${BASELINE_PATH}" "${FIXTURE_MANIFEST_PATH}" "${VALIDATOR_PATH}"; do
             if [ ! -f "${path}" ]; then
@@ -142,12 +142,11 @@ jobs:
           mkdir -p schema-staging/schemas/telemetry
           mkdir -p schema-staging/docs/contracts
           mkdir -p schema-staging/tests/contracts/telemetry-timeseries/examples
-          mkdir -p schema-staging/tools/contracts
 
           cp "${SCHEMA_PATH}" schema-staging/schemas/telemetry/
           cp "${BASELINE_PATH}" schema-staging/docs/contracts/
           cp "${FIXTURE_MANIFEST_PATH}" schema-staging/tests/contracts/telemetry-timeseries/examples/
-          cp "${VALIDATOR_PATH}" schema-staging/tools/contracts/
+          cp "${VALIDATOR_PATH}" schema-staging/tests/contracts/telemetry-timeseries/
 
           tar -czf "${SCHEMA_ARTIFACT}" -C schema-staging .
           echo "artifact=${SCHEMA_ARTIFACT}" >> "$GITHUB_OUTPUT"
