@@ -49,12 +49,15 @@ File:
 
 Scope:
 
-1. Canonical machine contract for runtime `/v0` HTTP operations.
-2. Validated by:
+1. Canonical machine-validated OpenAPI contract for runtime `/v0` HTTP operations.
+2. Source is OpenAPI 3.x.
+3. Validated by:
    - `tests/contracts/runtime-http/validate-runtime-http-openapi.py`
    - `tests/contracts/runtime-http/validate-runtime-http-examples.py`
    - `tests/contracts/runtime-http/validate-runtime-http-conformance.py`
-3. Human-facing guide remains at `docs/http/README.md`.
+4. Human-facing documentation:
+   - `docs/http/README.md`
+   - `docs/http-api.md`
 
 ## Commissioning Contracts
 
