@@ -220,6 +220,10 @@ jobs:
         run: |
           python tools/contracts/validate-machine-profiles.py
 
+      - name: Validate telemetry timeseries contract
+        run: |
+          python tools/contracts/validate-telemetry-timeseries.py
+
       - name: Validate docs local links
         run: |
           python tools/contracts/validate-doc-links.py

@@ -62,6 +62,20 @@ This validates:
 2. referenced file existence
 3. referenced runtime profile compatibility checks
 
+### Telemetry timeseries contract coverage
+
+The script always runs:
+
+```bash
+python3 tools/contracts/validate-telemetry-timeseries.py
+```
+
+This validates:
+
+1. `anolis_signal` telemetry row schema conformance
+2. fixture coverage for typed value fields and quality-only rows
+3. contract-invalid fixture rejection (missing quality, bad measurement, invalid typed-value combinations)
+
 ### Docs local-link coverage
 
 The script always runs:

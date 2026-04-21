@@ -1,0 +1,13 @@
+{
+  "measurement": "anolis_signal",
+  "timestamp_ms": 1711929600050,
+  "tags": {
+    "runtime_name": "bioreactor-telemetry",
+    "provider_id": "ezo0",
+    "device_id": "ph0",
+    "signal_id": "ph.value"
+  },
+  "fields": {
+    "quality": "FAULT"
+  }
+}

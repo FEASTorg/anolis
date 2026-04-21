@@ -1,0 +1,15 @@
+{
+  "measurement": "anolis_signal",
+  "timestamp_ms": 1711929601010,
+  "tags": {
+    "runtime_name": "bioreactor-telemetry",
+    "provider_id": "bread0",
+    "device_id": "dcmt0",
+    "signal_id": "motor.rpm"
+  },
+  "fields": {
+    "quality": "OK",
+    "value_double": 120.5,
+    "value_int": 120
+  }
+}

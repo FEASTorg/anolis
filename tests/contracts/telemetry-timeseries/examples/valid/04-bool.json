@@ -1,0 +1,14 @@
+{
+  "measurement": "anolis_signal",
+  "timestamp_ms": 1711929600030,
+  "tags": {
+    "runtime_name": "bioreactor-telemetry",
+    "provider_id": "bread0",
+    "device_id": "relay0",
+    "signal_id": "enabled"
+  },
+  "fields": {
+    "quality": "STALE",
+    "value_bool": false
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "measurement": "anolis_signal",
+  "timestamp_ms": 1711929601030,
+  "tags": {
+    "runtime_name": "",
+    "provider_id": "bread0",
+    "device_id": "rlht0",
+    "signal_id": "tc1_temp"
+  },
+  "fields": {
+    "quality": "OK",
+    "value_double": 22.1
+  }
+}

@@ -1,0 +1,40 @@
+schema: schemas/telemetry/telemetry-timeseries.schema.v1.json
+
+examples:
+  - file: tests/contracts/telemetry-timeseries/examples/valid/01-double.json
+    expect: valid
+    note: nominal double value row
+  - file: tests/contracts/telemetry-timeseries/examples/valid/02-int.json
+    expect: valid
+    note: nominal int64 value row
+  - file: tests/contracts/telemetry-timeseries/examples/valid/03-uint.json
+    expect: valid
+    note: nominal uint64 value row
+  - file: tests/contracts/telemetry-timeseries/examples/valid/04-bool.json
+    expect: valid
+    note: nominal bool value row
+  - file: tests/contracts/telemetry-timeseries/examples/valid/05-string.json
+    expect: valid
+    note: nominal string value row
+  - file: tests/contracts/telemetry-timeseries/examples/valid/06-quality-only.json
+    expect: valid
+    note: quality-only row for exceptional runtime write path
+  - file: tests/contracts/telemetry-timeseries/examples/valid/07-extra-field-forward-compatible.json
+    expect: valid
+    note: additive metadata in fields should stay forward-compatible
+
+  - file: tests/contracts/telemetry-timeseries/examples/invalid/01-missing-quality.json
+    expect: invalid
+    note: quality field is required
+  - file: tests/contracts/telemetry-timeseries/examples/invalid/02-multiple-typed-values.json
+    expect: invalid
+    note: at most one typed value field is allowed
+  - file: tests/contracts/telemetry-timeseries/examples/invalid/03-negative-uint.json
+    expect: invalid
+    note: uint cannot be negative
+  - file: tests/contracts/telemetry-timeseries/examples/invalid/04-empty-runtime-name.json
+    expect: invalid
+    note: required tag values must be non-empty
+  - file: tests/contracts/telemetry-timeseries/examples/invalid/05-wrong-measurement.json
+    expect: invalid
+    note: measurement must be anolis_signal

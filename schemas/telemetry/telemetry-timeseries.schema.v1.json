@@ -1,0 +1,301 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://schemas.anolishq.dev/anolis/telemetry/telemetry-timeseries.schema.v1.json",
+  "title": "Anolis Telemetry Timeseries Contract v1",
+  "description": "Logical row contract for anolis_signal telemetry records consumed by the telemetry exporter.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "measurement",
+    "timestamp_ms",
+    "tags",
+    "fields"
+  ],
+  "properties": {
+    "measurement": {
+      "type": "string",
+      "const": "anolis_signal"
+    },
+    "timestamp_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "tags": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "runtime_name",
+        "provider_id",
+        "device_id",
+        "signal_id"
+      ],
+      "properties": {
+        "runtime_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "device_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "signal_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "fields": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "quality"
+      ],
+      "properties": {
+        "quality": {
+          "type": "string",
+          "enum": [
+            "OK",
+            "STALE",
+            "UNAVAILABLE",
+            "FAULT"
+          ]
+        },
+        "value_double": {
+          "type": "number"
+        },
+        "value_int": {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "value_uint": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "value_bool": {
+          "type": "boolean"
+        },
+        "value_string": {
+          "type": "string"
+        }
+      },
+      "allOf": [
+        {
+          "oneOf": [
+            {
+              "allOf": [
+                {
+                  "required": [
+                    "value_double"
+                  ]
+                },
+                {
+                  "not": {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "value_int"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "value_uint"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "value_bool"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "value_string"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "allOf": [
+                {
+                  "required": [
+                    "value_int"
+                  ]
+                },
+                {
+                  "not": {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "value_double"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "value_uint"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "value_bool"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "value_string"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "allOf": [
+                {
+                  "required": [
+                    "value_uint"
+                  ]
+                },
+                {
+                  "not": {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "value_double"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "value_int"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "value_bool"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "value_string"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "allOf": [
+                {
+                  "required": [
+                    "value_bool"
+                  ]
+                },
+                {
+                  "not": {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "value_double"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "value_int"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "value_uint"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "value_string"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "allOf": [
+                {
+                  "required": [
+                    "value_string"
+                  ]
+                },
+                {
+                  "not": {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "value_double"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "value_int"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "value_uint"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "value_bool"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "not": {
+                "anyOf": [
+                  {
+                    "required": [
+                      "value_double"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "value_int"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "value_uint"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "value_bool"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "value_string"
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

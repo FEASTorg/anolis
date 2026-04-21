@@ -39,6 +39,9 @@ fi
 echo "[verify-local] Running machine profile contract checks"
 "$PYTHON_BIN" tools/contracts/validate-machine-profiles.py
 
+echo "[verify-local] Running telemetry timeseries contract checks"
+"$PYTHON_BIN" tools/contracts/validate-telemetry-timeseries.py
+
 echo "[verify-local] Skipping handoff package contract checks: moved to anolis-workbench repo"
 
 echo "[verify-local] Running docs local-link checks"
