@@ -252,13 +252,16 @@ TEST_F(ProviderRegistryTest, ConcurrentReadersAndWriters) {
     const int OPERATIONS_PER_THREAD = 500;
 #endif
 
-    std::atomic<bool> stop_flag{false};
+    std::atomic<int> active_writers{NUM_WRITERS};
+    std::atomic<int> completed_writer_operations{0};
+    std::atomic<int> reader_iterations{0};
     std::vector<std::thread> threads;
     threads.reserve(NUM_WRITERS + NUM_READERS);
 
     // Writer threads: add/remove/replace providers
     for (int t = 0; t < NUM_WRITERS; ++t) {
-        threads.emplace_back([this, t, &stop_flag, operations_per_thread = OPERATIONS_PER_THREAD]() {
+        threads.emplace_back([this, t, &active_writers, &completed_writer_operations,
+                              operations_per_thread = OPERATIONS_PER_THREAD]() {
             for (int i = 0; i < operations_per_thread; ++i) {
                 std::string provider_id = "writer" + std::to_string(t) + "_" + std::to_string(i % 10);
                 auto mock = create_mock_provider(provider_id);
@@ -271,15 +274,16 @@ TEST_F(ProviderRegistryTest, ConcurrentReadersAndWriters) {
 
                 // Remove provider
                 registry->remove_provider(provider_id);
+                ++completed_writer_operations;
             }
-            stop_flag = true;
+            active_writers.fetch_sub(1, std::memory_order_release);
         });
     }
 
     // Reader threads: read while writers modify
     for (int t = 0; t < NUM_READERS; ++t) {
-        threads.emplace_back([this, &stop_flag]() {
-            while (!stop_flag.load()) {
+        threads.emplace_back([this, &active_writers, &reader_iterations]() {
+            while (active_writers.load(std::memory_order_acquire) > 0) {
                 // Various read operations - each is individually thread-safe
                 auto count = registry->provider_count();
                 auto all = registry->get_all_providers();
@@ -288,12 +292,15 @@ TEST_F(ProviderRegistryTest, ConcurrentReadersAndWriters) {
                 // Try to get specific provider (may or may not exist)
                 auto provider = registry->get_provider("writer0_5");
 
-                // These operations should never crash
-                // Note: count, all.size(), and ids.size() MAY differ due to concurrent modification
-                // This is correct behavior - each call is atomic, but state changes between calls
-                EXPECT_GE(count, 0);
-                EXPECT_GE(all.size(), 0);
-                EXPECT_GE(ids.size(), 0);
+                static_cast<void>(count);
+                static_cast<void>(all);
+                static_cast<void>(ids);
+                static_cast<void>(provider);
+                ++reader_iterations;
+
+                // Prevent shared-lock monopolization and reduce writer starvation
+                // sensitivity from platform scheduler/stdlib behavior.
+                std::this_thread::yield();
             }
         });
     }
@@ -302,7 +309,8 @@ TEST_F(ProviderRegistryTest, ConcurrentReadersAndWriters) {
         thread.join();
     }
 
-    // No assertions needed - test passes if no crashes/data races
+    EXPECT_EQ(completed_writer_operations.load(), NUM_WRITERS * OPERATIONS_PER_THREAD);
+    EXPECT_GT(reader_iterations.load(), 0);
 }
 
 // ============================================================================
