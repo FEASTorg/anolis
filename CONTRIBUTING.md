@@ -31,7 +31,7 @@ Thank you for your interest in contributing to Anolis!
    cmake --build --preset dev-windows-release --parallel
    ```
 
-4. Run the tests:
+3. Run the tests:
 
    ```bash
    # Linux/macOS
