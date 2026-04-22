@@ -13,6 +13,14 @@ commit messages only.
 
 ## [Unreleased]
 
+### Changed
+
+- `config/bioreactor/` and `behaviors/` removed from platform repo; all machine
+  realizations now live in `anolis-projects`. Platform repo retains only
+  `config/conformance/` (sim-based self-compliance fixture).
+- `config/anolis-runtime*.yaml` moved to `examples/`.
+- `behaviors/demo.xml`, `test_noop.xml` moved to `tests/integration/fixtures/behaviors/`.
+
 ## [0.1.5] - 2026-04-21
 
 ### Changed
