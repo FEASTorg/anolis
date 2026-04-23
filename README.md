@@ -132,16 +132,66 @@ Use [docs/README.md](docs/README.md) as the canonical docs root for runtime usag
 
 ## Quick Start
 
-### Preset Quickstart
+### Download and run (recommended)
 
-Install host prerequisites (including Ninja and vcpkg) first: [docs/getting-started.md](docs/getting-started.md).
+Download the latest release binary (Linux x86_64):
+
+```bash
+VERSION=$(curl -fsSL https://api.github.com/repos/anolishq/anolis/releases/latest | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
+curl -fsSL "https://github.com/anolishq/anolis/releases/download/v${VERSION}/anolis-${VERSION}-linux-x86_64.tar.gz" \
+  | tar -xz
+# binary is at ./bin/anolis-runtime
+```
+
+Verify and check help:
+
+```bash
+./bin/anolis-runtime --help
+```
+
+To run with a simulation provider, also download
+[`anolis-provider-sim`](https://github.com/anolishq/anolis-provider-sim/releases/latest)
+and write a minimal config:
+
+```yaml
+# anolis-runtime.yaml
+runtime:
+  name: "my-machine"
+http:
+  enabled: true
+  bind: 127.0.0.1
+  port: 8080
+providers:
+  - id: sim0
+    command: ./bin/anolis-provider-sim
+    args: ["--config", "./provider-sim.yaml"]
+    timeout_ms: 5000
+polling:
+  interval_ms: 500
+telemetry:
+  enabled: false
+automation:
+  enabled: false
+```
+
+```bash
+./bin/anolis-runtime --config anolis-runtime.yaml
+# Runtime is ready at http://127.0.0.1:8080
+curl -s http://127.0.0.1:8080/v0/runtime/status | jq
+```
+
+Commissioning flows and project outputs are managed by
+[`anolis-workbench`](https://github.com/anolishq/anolis-workbench).
+
+### Build from source (contributors / custom targets)
+
+Install host prerequisites first: [docs/getting-started.md](docs/getting-started.md).
 
 Linux/macOS:
 
 ```bash
 git clone https://github.com/anolishq/anolis.git
 cd anolis
-git submodule update --init --recursive
 cmake --preset dev-release
 cmake --build --preset dev-release --parallel
 ctest --preset dev-release
@@ -153,16 +203,13 @@ Windows (PowerShell):
 ```powershell
 git clone https://github.com/anolishq/anolis.git
 Set-Location anolis
-git submodule update --init --recursive
 cmake --preset dev-windows-release
 cmake --build --preset dev-windows-release --parallel
 ctest --preset dev-windows-release
 .\build\dev-windows-release\core\Release\anolis-runtime.exe --config .\examples\anolis-runtime.yaml
 ```
 
-Use `examples/anolis-runtime.yaml` for the checked-in sample config. Commissioning
-flows and generated system outputs are owned by
-[`anolis-workbench`](https://github.com/anolishq/anolis-workbench).
+Build/dependency/CI governance: [docs/dependencies.md](docs/dependencies.md).
 
 ### Validation & Acceptance Testing
 
@@ -184,8 +231,6 @@ python -m pytest tests/scenarios/test_scenarios.py -m "not stress and not slow"
 # Stress/slow coverage
 python -m pytest tests/integration/test_integration.py tests/scenarios/test_scenarios.py -m "stress or slow"
 ```
-
-Build/dependency/CI governance: [docs/dependencies.md](docs/dependencies.md).
 
 Cross-repo compatibility is validated in CI via the pinned `anolis-provider-compat` lane (see `.ci/dependency-pins.yml`).
 
