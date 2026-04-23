@@ -13,6 +13,8 @@ commit messages only.
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-04-23
+
 ### Changed
 
 - `config/bioreactor/` and `behaviors/` removed from platform repo; all machine
@@ -20,6 +22,14 @@ commit messages only.
   `config/conformance/` (sim-based self-compliance fixture).
 - `config/anolis-runtime*.yaml` moved to `examples/`.
 - `behaviors/demo.xml`, `test_noop.xml` moved to `tests/integration/fixtures/behaviors/`.
+- README and index documentation reorganised; README is now the human-facing landing page.
+
+### CI
+
+- Version-sync check wired: `version-locations.txt` added tracking `CMakeLists.txt`
+  and `vcpkg.json`; CI calls reusable `version-sync` workflow from `anolishq/.github`.
+- `vcpkg.json` version aligned to `v0.1.5` (was stale at `0.1.0`).
+- `.anpkg` added to `.gitignore`.
 
 ## [0.1.5] - 2026-04-21
 
