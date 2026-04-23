@@ -972,3 +972,17 @@ python -m pytest tests/integration/test_integration.py \
 ## License
 
 By contributing, you agree that your contributions will be licensed under the project's license.
+
+---
+
+## Platform Fixtures vs Realization Assets
+
+**Platform fixtures** are generic, reusable configuration/data files that define the structure, topology, or expected behavior of a platform or device type. They are intended to be shared across environments and serve as canonical examples or templates (e.g., `tests/fixtures/bioreactor/expected_output.yaml`).
+
+**Realization assets** are concrete, environment-specific files that represent actual deployments, hardware mappings, or site-specific overrides. These are not intended for reuse outside their original context and may contain sensitive or proprietary information (e.g., `anolis-projects/bioreactor-v1/realization.yaml`).
+
+**Guidelines:**
+
+- Platform fixtures belong in the main repo under `tests/fixtures/` or `examples/` and should be generic.
+- Realization assets should be kept in private or deployment-specific repos and never committed to the main repo.
+- When in doubt, prefer documenting new fixture types in this section and clarifying their intended scope.
