@@ -353,6 +353,144 @@ jobs:
             anolis-*-runtime-http-schema.tar.gz
             runtime-http-schema-manifest.json
 
+  validate-artifact:
+    name: Validate release artifact
+    runs-on: ubuntu-24.04
+    needs: [release-linux-x86_64]
+
+    steps:
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Download release artifact and checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "${{ github.ref_name }}" \
+            --repo "${{ github.repository }}" \
+            --pattern "anolis-*-linux-x86_64.tar.gz" \
+            --pattern "SHA256SUMS"
+
+      - name: Verify SHA256
+        run: |
+          ARTIFACT=$(ls anolis-*-linux-x86_64.tar.gz)
+          grep "${ARTIFACT}" SHA256SUMS | sha256sum --check
+
+      - name: Extract runtime binary
+        run: |
+          mkdir -p anolis-bin
+          tar -xzf anolis-*-linux-x86_64.tar.gz -C anolis-bin
+          chmod +x anolis-bin/bin/anolis-runtime
+
+      - name: Smoke - help exits 0
+        run: ./anolis-bin/bin/anolis-runtime --help
+
+      - name: Download provider-sim artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p sim-dl
+          gh release download \
+            --repo anolishq/anolis-provider-sim \
+            --latest \
+            --pattern "anolis-provider-sim-*-linux-x86_64.tar.gz" \
+            --dir sim-dl
+
+      - name: Extract provider-sim binary
+        run: |
+          mkdir -p sim-bin
+          tar -xzf sim-dl/anolis-provider-sim-*-linux-x86_64.tar.gz -C sim-bin
+          chmod +x sim-bin/bin/anolis-provider-sim
+
+      - name: Write smoke configs
+        run: |
+          cat > provider-sim.yaml << 'EOF'
+          devices:
+            - id: tempctl0
+              type: tempctl
+              initial_temp: 25.0
+            - id: motorctl0
+              type: motorctl
+              max_speed: 3000.0
+          simulation:
+            mode: non_interacting
+            tick_rate_hz: 10.0
+          EOF
+
+          cat > smoke-runtime.yaml << 'EOF'
+          runtime:
+            name: "artifact-smoke"
+            shutdown_timeout_ms: 2000
+            startup_timeout_ms: 10000
+          http:
+            enabled: true
+            bind: 127.0.0.1
+            port: 18080
+          providers:
+            - id: sim0
+              command: ./sim-bin/bin/anolis-provider-sim
+              args: ["--config", "./provider-sim.yaml"]
+              timeout_ms: 5000
+          polling:
+            interval_ms: 500
+          telemetry:
+            enabled: false
+          automation:
+            enabled: false
+          EOF
+
+      - name: Check config parses cleanly
+        run: ./anolis-bin/bin/anolis-runtime --check-config ./smoke-runtime.yaml
+
+      - name: Start runtime, run health checks, and shut down
+        run: |
+          set -euo pipefail
+          ./anolis-bin/bin/anolis-runtime --config ./smoke-runtime.yaml > runtime.log 2>&1 &
+          RUNTIME_PID=$!
+
+          STATUS_URL="http://127.0.0.1:18080/v0/runtime/status"
+          DEADLINE=$(( $(date +%s) + 30 ))
+          until curl -sf "${STATUS_URL}" > /dev/null 2>&1; do
+            if [ "$(date +%s)" -ge "${DEADLINE}" ]; then
+              echo "ERROR: runtime did not become healthy within 30s" >&2
+              cat runtime.log >&2
+              kill "${RUNTIME_PID}" 2>/dev/null || true
+              exit 1
+            fi
+            sleep 1
+          done
+
+          # /v0/runtime/status
+          STATUS_RESP=$(curl -sf "${STATUS_URL}")
+          echo "status response: ${STATUS_RESP}"
+          STATUS_CODE=$(echo "${STATUS_RESP}" | jq -r '.status.code')
+          PROVIDER_STATE=$(echo "${STATUS_RESP}" | jq -r '.providers[0].state')
+          DEVICE_COUNT=$(echo "${STATUS_RESP}" | jq -r '.device_count')
+          [ "${STATUS_CODE}" = "OK" ]
+          [ "${PROVIDER_STATE}" = "AVAILABLE" ]
+          [ "${DEVICE_COUNT}" -ge 1 ]
+
+          # /v0/devices
+          DEVICES_RESP=$(curl -sf "http://127.0.0.1:18080/v0/devices")
+          echo "devices response: ${DEVICES_RESP}"
+          DEVICES_STATUS=$(echo "${DEVICES_RESP}" | jq -r '.status.code')
+          DEVICE_LIST_LEN=$(echo "${DEVICES_RESP}" | jq '.devices | length')
+          [ "${DEVICES_STATUS}" = "OK" ]
+          [ "${DEVICE_LIST_LEN}" -ge 1 ]
+
+          # /v0/state
+          STATE_RESP=$(curl -sf "http://127.0.0.1:18080/v0/state")
+          echo "state response: ${STATE_RESP}"
+          STATE_STATUS=$(echo "${STATE_RESP}" | jq -r '.status.code')
+          [ "${STATE_STATUS}" = "OK" ]
+
+          echo "All artifact health checks passed"
+
+          # Graceful shutdown
+          kill "${RUNTIME_PID}"
+          wait "${RUNTIME_PID}" || true
+          cat runtime.log
+
   upload-metrics:
     name: Upload metrics to release
     runs-on: ubuntu-24.04
