@@ -162,6 +162,7 @@ private:
     std::unique_ptr<httplib::Server> server_;
     std::unique_ptr<std::thread> server_thread_;
     std::atomic<bool> running_{false};
+    std::chrono::steady_clock::time_point start_time_;
 
     // Route setup
     void setup_routes();

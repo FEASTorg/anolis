@@ -155,6 +155,9 @@ bool HttpServer::start(std::string &error) {
         res.set_content(response.dump(), "application/json");
     });
 
+    // Record server start time for uptime reporting
+    start_time_ = std::chrono::steady_clock::now();
+
     // Bind first (bind_to_port returns the actual port used, or -1 on error)
     if (!server_->bind_to_port(config_.bind.c_str(), config_.port)) {
         error = "Failed to bind to " + config_.bind + ":" + std::to_string(config_.port);
