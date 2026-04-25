@@ -632,7 +632,7 @@ TEST(EventEmitterTest, MultipleSubscriptionsQueueClosedOnEmitterDestroy) {
 //             subscriptions succeed → PASSES.
 TEST(EventEmitterTest, SseCapacityNotReducedByTelemetrySubscription) {
     const size_t sse_limit = 32;
-    const size_t emitter_cap = 32;  // current (broken) value — fix raises this to 33
+    const size_t emitter_cap = 33;  // fixed value: 32 SSE + 1 telemetry sink
 
     EventEmitter emitter(100, emitter_cap);
 

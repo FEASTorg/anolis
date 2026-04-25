@@ -111,8 +111,15 @@ bool Runtime::init_core_services(std::string & /*error*/) {
     registry_ = std::make_unique<registry::DeviceRegistry>();
 
     // Create event emitter
-    // Default: 100 events per subscriber queue, max 32 SSE clients
-    event_emitter_ = std::make_shared<events::EventEmitter>(100, 32);
+    // Subscriber budget:
+    //   32  SSE clients   (HttpServer::MAX_SSE_CLIENTS)
+    //    1  telemetry sink (InfluxSink, when enabled)
+    //   ─────────────────
+    //   33  total
+    // Using 33 keeps MAX_SSE_CLIENTS accurate: 32 SSE connections are always
+    // available regardless of whether telemetry is enabled.
+    static constexpr size_t kMaxEventSubscribers = 33;
+    event_emitter_ = std::make_shared<events::EventEmitter>(100, kMaxEventSubscribers);
     LOG_INFO("[Runtime] Event emitter created (max " << event_emitter_->max_subscribers() << " subscribers)");
 
     // Create state cache
