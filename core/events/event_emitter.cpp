@@ -145,7 +145,12 @@ size_t Subscription::dropped_count() const { return queue_ ? queue_->dropped_cou
 
 void Subscription::unsubscribe() {
     if (id_ != 0 && unsubscribe_fn_) {
-        unsubscribe_fn_(id_);
+        // Guard against calling into a destroyed emitter: if the emitter was
+        // destroyed before this subscription, it will have closed the queue.
+        // Only fire the raw-this lambda when the queue is still open.
+        if (queue_ && !queue_->is_closed()) {
+            unsubscribe_fn_(id_);
+        }
         id_ = 0;
         if (queue_) {
             queue_->close();
@@ -196,6 +201,16 @@ EventEmitter::EventEmitter(size_t default_queue_size, size_t max_subscribers)
       max_subscribers_(max_subscribers),
       next_subscription_id_(1),
       next_event_id_(1) {}
+
+EventEmitter::~EventEmitter() {
+    // Close all subscriber queues so that any surviving Subscription objects
+    // see is_active() == false and skip the raw-this unsubscribe_fn_ call in
+    // their destructors, preventing use-after-free.
+    std::lock_guard<std::mutex> lock(mutex_);
+    for (auto &[id, info] : subscribers_) {
+        info.queue->close();
+    }
+}
 
 std::unique_ptr<Subscription> EventEmitter::subscribe(const EventFilter &filter, size_t queue_size,
                                                       const std::string &name) {
