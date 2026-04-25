@@ -13,6 +13,18 @@ commit messages only.
 
 ## [Unreleased]
 
+## [0.1.20] - 2026-04-25
+
+### Fixed
+
+- F7: `EventEmitter` was created with `max_subscribers = 32`, matching
+  `HttpServer::MAX_SSE_CLIENTS`. When telemetry is enabled, `InfluxSink`
+  subscribes to the same emitter during `init_telemetry`, consuming one slot
+  and reducing effective SSE capacity to 31. The 32nd SSE client passed the
+  HTTP-layer gate but received `nullptr` from `subscribe()`, resulting in a
+  503 response. Fixed by raising the emitter cap to 33 (32 SSE + 1 internal
+  subscriber) with an explicit budget comment.
+
 ## [0.1.19] - 2026-04-25
 
 ### Fixed
