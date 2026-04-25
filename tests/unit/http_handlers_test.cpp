@@ -910,6 +910,140 @@ TEST_F(HttpHandlersBoundsEncodingBugTest, MinOnlyUint64_JsonHasMinButNotMax) {
     EXPECT_EQ(5ULL, counter["min"].get<uint64_t>());
 }
 
+//=============================================================================
+// F2: Base64 validation tests (POST /v0/call with bytes argument)
+//=============================================================================
+
+// Registers a device with a single bytes-type function argument.
+// Used by all F2 tests below.
+void RegisterMockDeviceWithBytesArg(anolis::tests::MockProviderHandle& mock_provider,
+                                    anolis::registry::DeviceRegistry& registry,
+                                    const std::string& device_id = "test_device") {
+    using Device = anolis::deviceprovider::v1::Device;
+    using DescribeDeviceResponse = anolis::deviceprovider::v1::DescribeDeviceResponse;
+
+    EXPECT_CALL(mock_provider, list_devices(_)).WillOnce(Invoke([device_id](std::vector<Device>& devices) {
+        Device dev;
+        dev.set_device_id(device_id);
+        devices.push_back(dev);
+        return true;
+    }));
+
+    EXPECT_CALL(mock_provider, describe_device(device_id, _))
+        .WillOnce(Invoke([device_id](const std::string&, DescribeDeviceResponse& response) {
+            auto* device = response.mutable_device();
+            device->set_device_id(device_id);
+
+            auto* caps = response.mutable_capabilities();
+            auto* fn = caps->add_functions();
+            fn->set_name("send_raw");
+            fn->set_function_id(300);
+
+            auto* arg = fn->add_args();
+            arg->set_name("payload");
+            arg->set_type(anolis::deviceprovider::v1::VALUE_TYPE_BYTES);
+            arg->set_required(true);
+
+            return true;
+        }));
+
+    registry.discover_provider("test_provider", mock_provider);
+}
+
+// Valid Base64 with standard padding must succeed (regression guard).
+TEST_F(HttpHandlersTest, PostCallBytesArg_ValidBase64WithPadding_Succeeds) {
+    RegisterMockDeviceWithBytesArg(*mock_provider, *registry);
+
+    EXPECT_CALL(*mock_provider, call("test_device", _, "send_raw", _, _)).WillOnce(Return(true));
+
+    // "hello" in Base64 = "aGVsbG8="
+    nlohmann::json request_body = {{"provider_id", "test_provider"},
+                                   {"device_id", "test_device"},
+                                   {"function_id", 300},
+                                   {"args", {{"payload", {{"type", "bytes"}, {"base64", "aGVsbG8="}}}}}};
+
+    auto res = client->Post("/v0/call", request_body.dump(), "application/json");
+
+    ASSERT_TRUE(res);
+    EXPECT_EQ(200, res->status);
+    auto json = nlohmann::json::parse(res->body);
+    EXPECT_EQ("OK", json["status"]["code"]);
+}
+
+// Valid Base64 without padding must succeed (regression guard).
+TEST_F(HttpHandlersTest, PostCallBytesArg_ValidBase64NoPadding_Succeeds) {
+    RegisterMockDeviceWithBytesArg(*mock_provider, *registry);
+
+    EXPECT_CALL(*mock_provider, call("test_device", _, "send_raw", _, _)).WillOnce(Return(true));
+
+    // "hel" in Base64 = "aGVs" (no padding needed for 3-byte input)
+    nlohmann::json request_body = {{"provider_id", "test_provider"},
+                                   {"device_id", "test_device"},
+                                   {"function_id", 300},
+                                   {"args", {{"payload", {{"type", "bytes"}, {"base64", "aGVs"}}}}}};
+
+    auto res = client->Post("/v0/call", request_body.dump(), "application/json");
+
+    ASSERT_TRUE(res);
+    EXPECT_EQ(200, res->status);
+    auto json = nlohmann::json::parse(res->body);
+    EXPECT_EQ("OK", json["status"]["code"]);
+}
+
+// Illegal characters mid-string must be rejected with 400. Currently FAILS (returns 200).
+TEST_F(HttpHandlersTest, PostCallBytesArg_MalformedBase64MidString_Returns400) {
+    RegisterMockDeviceWithBytesArg(*mock_provider, *registry);
+
+    // "aGVs##bG8=" — the ## are not valid Base64 characters
+    nlohmann::json request_body = {{"provider_id", "test_provider"},
+                                   {"device_id", "test_device"},
+                                   {"function_id", 300},
+                                   {"args", {{"payload", {{"type", "bytes"}, {"base64", "aGVs##bG8="}}}}}};
+
+    auto res = client->Post("/v0/call", request_body.dump(), "application/json");
+
+    ASSERT_TRUE(res);
+    EXPECT_EQ(400, res->status);
+    auto json = nlohmann::json::parse(res->body);
+    EXPECT_EQ("INVALID_ARGUMENT", json["status"]["code"]);
+}
+
+// Fully invalid Base64 must be rejected with 400. Currently FAILS (returns 200).
+TEST_F(HttpHandlersTest, PostCallBytesArg_FullyInvalidBase64_Returns400) {
+    RegisterMockDeviceWithBytesArg(*mock_provider, *registry);
+
+    // "!!!" — no valid Base64 characters at all
+    nlohmann::json request_body = {{"provider_id", "test_provider"},
+                                   {"device_id", "test_device"},
+                                   {"function_id", 300},
+                                   {"args", {{"payload", {{"type", "bytes"}, {"base64", "!!!"}}}}}};
+
+    auto res = client->Post("/v0/call", request_body.dump(), "application/json");
+
+    ASSERT_TRUE(res);
+    EXPECT_EQ(400, res->status);
+    auto json = nlohmann::json::parse(res->body);
+    EXPECT_EQ("INVALID_ARGUMENT", json["status"]["code"]);
+}
+
+// Space character mid-string must be rejected with 400. Currently FAILS (returns 200).
+TEST_F(HttpHandlersTest, PostCallBytesArg_SpaceMidString_Returns400) {
+    RegisterMockDeviceWithBytesArg(*mock_provider, *registry);
+
+    // "aGVs bG8=" — space is not a valid Base64 character
+    nlohmann::json request_body = {{"provider_id", "test_provider"},
+                                   {"device_id", "test_device"},
+                                   {"function_id", 300},
+                                   {"args", {{"payload", {{"type", "bytes"}, {"base64", "aGVs bG8="}}}}}};
+
+    auto res = client->Post("/v0/call", request_body.dump(), "application/json");
+
+    ASSERT_TRUE(res);
+    EXPECT_EQ(400, res->status);
+    auto json = nlohmann::json::parse(res->body);
+    EXPECT_EQ("INVALID_ARGUMENT", json["status"]["code"]);
+}
+
 #else  // ANOLIS_SKIP_HTTP_TESTS
 TEST(HttpHandlersTest, DISABLED_SkippedUnderThreadSanitizer) {
     // This test exists to document that HttpHandlersTest suite is disabled

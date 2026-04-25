@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <iomanip>
+#include <optional>
 #include <sstream>
 
 namespace anolis {
@@ -15,7 +16,7 @@ static const std::string base64_chars =
 
 static std::string base64_encode(const std::string &bytes) {
     std::string encoded;
-    int val = 0;
+    unsigned int val = 0;
     int bits = -6;
 
     for (unsigned char c : bytes) {
@@ -35,20 +36,19 @@ static std::string base64_encode(const std::string &bytes) {
     return encoded;
 }
 
-static std::string base64_decode(const std::string &encoded) {
+static std::optional<std::string> base64_decode(const std::string &encoded) {
     std::string decoded;
     std::vector<int> T(256, -1);
     for (int i = 0; i < 64; i++) {
         T[base64_chars[i]] = i;
     }
 
-    int val = 0;
+    unsigned int val = 0;
     int bits = -8;
     for (unsigned char c : encoded) {
-        if (T[c] == -1) {
-            break;
-        }
-        val = (val << 6) + T[c];
+        if (c == '=') break;                  // valid padding — stop
+        if (T[c] == -1) return std::nullopt;  // illegal character — fail
+        val = (val << 6) + static_cast<unsigned int>(T[c]);
         bits += 6;
         if (bits >= 0) {
             decoded.push_back(char((val >> bits) & 0xFF));
@@ -306,8 +306,13 @@ bool decode_value(const nlohmann::json &json, anolis::deviceprovider::v1::Value 
                 error = "Value type 'bytes' missing 'base64' field";
                 return false;
             }
+            auto decoded = base64_decode(json.at("base64").get<std::string>());
+            if (!decoded.has_value()) {
+                error = "Invalid Base64 encoding in 'base64' field";
+                return false;
+            }
             value.set_type(VT::VALUE_TYPE_BYTES);
-            value.set_bytes_value(base64_decode(json.at("base64").get<std::string>()));
+            value.set_bytes_value(decoded.value());
         } else {
             error = "Unknown value type: " + type;
             return false;
