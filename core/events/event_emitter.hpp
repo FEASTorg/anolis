@@ -212,6 +212,14 @@ public:
                           size_t max_subscribers = 32);  // NOLINT(bugprone-easily-swappable-parameters)
 
     /**
+     * @brief Destroy emitter, closing all subscriber queues.
+     *
+     * Surviving Subscription objects will see is_active() == false and their
+     * destructors will skip the raw-this unsubscribe callback, preventing UAF.
+     */
+    ~EventEmitter();
+
+    /**
      * @brief Subscribe to events
      *
      * Creates a new subscription with its own bounded queue.
