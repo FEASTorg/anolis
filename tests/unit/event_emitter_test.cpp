@@ -620,3 +620,38 @@ TEST(EventEmitterTest, MultipleSubscriptionsQueueClosedOnEmitterDestroy) {
         EXPECT_FALSE(sub->is_active());
     }
 }
+
+// F7 regression: emitter cap was 32 (matching MAX_SSE_CLIENTS), but the
+// telemetry sink also subscribes to the same emitter, consuming one slot.
+// With cap = 32 the 32nd SSE subscription returns nullptr and the client
+// receives 503 even though the HTTP-layer gate has not been reached.
+//
+// Before fix: emitter cap = 32, telemetry takes slot 1, 32nd SSE
+//             subscribe() returns nullptr → FAILS.
+// After fix:  emitter cap = 33 (32 SSE + 1 internal), all 32 SSE
+//             subscriptions succeed → PASSES.
+TEST(EventEmitterTest, SseCapacityNotReducedByTelemetrySubscription) {
+    const size_t sse_limit = 32;
+    const size_t emitter_cap = 33;  // fixed value: 32 SSE + 1 telemetry sink
+
+    EventEmitter emitter(100, emitter_cap);
+
+    // Step 1: telemetry sink subscribes (mirrors init_telemetry).
+    auto telemetry_sub = emitter.subscribe(EventFilter::all(), 10000, "telemetry-sink");
+    ASSERT_NE(nullptr, telemetry_sub) << "Telemetry subscription must succeed";
+
+    // Step 2: SSE clients connect one by one up to the advertised limit.
+    std::vector<std::unique_ptr<Subscription>> sse_subs;
+    for (size_t i = 0; i < sse_limit; ++i) {
+        auto sub = emitter.subscribe(EventFilter::all(), 100, "sse-" + std::to_string(i + 1));
+        EXPECT_NE(nullptr, sub) << "SSE subscription " << (i + 1) << " of " << sse_limit
+                                << " must succeed — emitter cap must accommodate telemetry + " << sse_limit
+                                << " SSE clients";
+        if (sub) {
+            sse_subs.push_back(std::move(sub));
+        }
+    }
+
+    EXPECT_EQ(sse_limit, sse_subs.size())
+        << "All " << sse_limit << " SSE subscriptions must succeed when telemetry is also subscribed";
+}
