@@ -13,6 +13,17 @@ commit messages only.
 
 ## [Unreleased]
 
+## [0.1.18] - 2026-04-25
+
+### Fixed
+
+- F5: `HttpServer::handle_get_runtime_status` used a `static` local
+  `start_time` that was initialised on the first call to the handler, not at
+  server construction or start. `uptime_seconds` in `GET /v0/runtime/status`
+  therefore reported time-since-first-request rather than time-since-start.
+  Fixed by adding a `start_time_` member to `HttpServer`, set at the top of
+  `HttpServer::start()` (when the socket binds), and using it in the handler.
+
 ## [0.1.17] - 2026-04-25
 
 ### Fixed
