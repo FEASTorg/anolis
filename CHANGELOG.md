@@ -13,6 +13,18 @@ commit messages only.
 
 ## [Unreleased]
 
+## [0.1.16] - 2026-04-25
+
+### Fixed
+
+- F3: `EventEmitter::~EventEmitter()` now closes all subscriber queues before
+  destruction. Surviving `Subscription` objects detect the closed queue and
+  skip the raw-`this` unsubscribe callback in their destructors, preventing a
+  use-after-free when a subscription outlives its emitter.
+- `Subscription::unsubscribe()` guards the raw-`this` lambda call with
+  `!queue_->is_closed()`, making the emitter-destroyed-first path safe without
+  requiring shared ownership of the emitter.
+
 ## [0.1.15] - 2026-04-25
 
 ### Fixed
