@@ -857,13 +857,12 @@ TEST_F(HttpHandlersProvidersHealthTest, DevicesArrayAlwaysPresent) {
 class HttpHandlersBoundsEncodingBugTest : public HttpHandlersTest {
 protected:
     void RegisterDeviceWithMinOnlyUint64(const std::string& device_id = "test_device") {
-        EXPECT_CALL(*mock_provider, list_devices(_))
-            .WillOnce(Invoke([device_id](std::vector<Device>& devices) {
-                Device dev;
-                dev.set_device_id(device_id);
-                devices.push_back(dev);
-                return true;
-            }));
+        EXPECT_CALL(*mock_provider, list_devices(_)).WillOnce(Invoke([device_id](std::vector<Device>& devices) {
+            Device dev;
+            dev.set_device_id(device_id);
+            devices.push_back(dev);
+            return true;
+        }));
 
         EXPECT_CALL(*mock_provider, describe_device(device_id, _))
             .WillOnce(Invoke([device_id](const std::string&, DescribeDeviceResponse& response) {
