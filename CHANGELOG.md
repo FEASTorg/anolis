@@ -13,6 +13,20 @@ commit messages only.
 
 ## [Unreleased]
 
+## [0.1.14] - 2026-04-24
+
+### Fixed
+
+- F1: Argument range validation bugs in `CallRouter::validate_argument_range` and
+  `encode_function_spec` (HTTP capabilities response).
+  - Copy-paste error: `has_min` and `has_max` were identical `||` expressions,
+    causing one-sided bounds to silently become two-sided (a spec declaring only
+    `min=5.0` would phantom-enforce `max=0.0`).
+  - Structural: zero-valued bounds were inexpressible under proto3 implicit presence.
+  - Fix: `anolis-protocol` bumped to v1.2.0, which adds `optional` to the six
+    `ArgSpec` bounds fields, generating `has_*()` presence methods used in both
+    `call_router.cpp` and `json.cpp`.
+
 ## [0.1.13] - 2026-04-24
 
 ### CI
