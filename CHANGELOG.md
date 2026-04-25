@@ -13,6 +13,18 @@ commit messages only.
 
 ## [Unreleased]
 
+## [0.1.15] - 2026-04-25
+
+### Fixed
+
+- F2: `base64_decode` in `core/http/json.cpp` now returns `std::nullopt` on
+  illegal characters rather than silently returning a partial decoded string.
+  `decode_value` propagates the error as HTTP 400 INVALID_ARGUMENT.
+  Previously, any non-Base64 character (e.g. `#`, `!`, space) was treated as
+  end-of-input and the truncated bytes were accepted as valid.
+- Fixed signed integer overflow (UBSan) in `base64_encode` and `base64_decode`
+  by changing the accumulator `val` from `int` to `unsigned int`.
+
 ## [0.1.14] - 2026-04-24
 
 ### Fixed
