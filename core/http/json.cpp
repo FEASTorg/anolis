@@ -16,7 +16,7 @@ static const std::string base64_chars =
 
 static std::string base64_encode(const std::string &bytes) {
     std::string encoded;
-    int val = 0;
+    unsigned int val = 0;
     int bits = -6;
 
     for (unsigned char c : bytes) {
@@ -43,12 +43,12 @@ static std::optional<std::string> base64_decode(const std::string &encoded) {
         T[base64_chars[i]] = i;
     }
 
-    int val = 0;
+    unsigned int val = 0;
     int bits = -8;
     for (unsigned char c : encoded) {
         if (c == '=') break;                  // valid padding — stop
         if (T[c] == -1) return std::nullopt;  // illegal character — fail
-        val = (val << 6) + T[c];
+        val = (val << 6) + static_cast<unsigned int>(T[c]);
         bits += 6;
         if (bits >= 0) {
             decoded.push_back(char((val >> bits) & 0xFF));
