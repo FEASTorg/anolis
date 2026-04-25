@@ -1,8 +1,8 @@
-#include <csignal>
+#include "runtime/signal_handler.hpp"
 
 #include <gtest/gtest.h>
 
-#include "runtime/signal_handler.hpp"
+#include <csignal>
 
 using anolis::runtime::SignalHandler;
 
