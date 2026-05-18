@@ -1,153 +1,84 @@
-# Local Verification
+# Contract Validation
 
-Use this workflow before lab sessions, branch handoff, or config-contract work.
-It is intentionally narrower than full CI and focused on the checks most likely
-to catch local drift quickly.
+All contract checks run automatically in CI on every push and pull request.
+To run any validator locally, invoke it directly from the repo root.
 
-## Fast Path
+## Runtime config contracts
 
-From the repo root:
-
-```bash
-bash scripts/verify-local.sh
-```
-
-This runs:
-
-- runtime config contract validation (schema + `anolis-runtime --check-config`) when a local runtime binary is present
-- machine profile contract validation
-- docs local-link validation (`docs/**/*.md` + root `README.md`)
-- runtime HTTP OpenAPI structural validation
-- runtime HTTP example payload validation
-- runtime HTTP live conformance smoke validation when both local runtime and provider-sim binaries are present
-- Operator UI fixture contract tests when `node` is available, directly or via `cmd.exe /c node` fallback
-- focused C++ tests for runtime config parsing and ownership validation when a
-  local CMake build directory is present
-
-> **Note:** System Composer, Workbench, and handoff package validation tests have moved to the
-> [anolis-workbench](https://github.com/anolishq/anolis-workbench) repository.
-
-## What the Script Checks
-
-### Operator UI fixture contract coverage
-
-The Operator UI has been extracted to its own repository (`anolis-hq/anolis-operator-ui`).
-Contract tests now run in that repo's CI. This step is skipped in `verify-local.sh`.
-
-### Runtime config contract coverage
-
-If a local runtime binary is present (`build/dev-release/core/anolis-runtime` or
-`build/dev-windows-release/core/Release/anolis-runtime.exe`), the script runs:
+Requires a local runtime binary (`build/dev-release/core/anolis-runtime`):
 
 ```bash
-python3 tests/contracts/runtime-config/validate-runtime-configs.py --runtime-bin <local-runtime-binary>
+python3 tests/contracts/runtime-config/validate-runtime-configs.py --runtime-bin build/dev-release/core/anolis-runtime
 ```
 
-This enforces the runtime config contract across:
+Enforces:
 
-1. tracked runtime YAML profiles
-2. contract fixture sets (`valid`, `invalid/schema`, `invalid/runtime`)
+1. JSON Schema conformance across all tracked runtime YAML config files
+2. Runtime loader acceptance via `anolis-runtime --check-config` on each file
+3. Contract fixture sets (`valid`, `invalid/schema`, `invalid/runtime`)
 
-### Machine profile contract coverage
-
-The script always runs:
+## Machine profile contracts
 
 ```bash
 python3 tests/contracts/machine-profile/validate-machine-profiles.py
 ```
 
-This validates:
+Enforces:
 
-1. machine profile schema conformance
-2. referenced file existence
-3. referenced runtime profile compatibility checks
+1. Machine profile schema conformance
+2. Referenced file existence
+3. Referenced runtime profile compatibility
 
-### Telemetry timeseries contract coverage
-
-The script always runs:
+## Telemetry timeseries contracts
 
 ```bash
 python3 tests/contracts/telemetry-timeseries/validate-telemetry-timeseries.py
 ```
 
-This validates:
+Enforces:
 
 1. `anolis_signal` telemetry row schema conformance
-2. fixture coverage for typed value fields and quality-only rows
-3. contract-invalid fixture rejection (missing quality, bad measurement, invalid typed-value combinations)
+2. Fixture coverage for typed value fields and quality-only rows
+3. Invalid fixture rejection
 
-### Docs local-link coverage
-
-The script always runs:
+## Runtime HTTP contracts
 
 ```bash
-python3 scripts/validate-doc-links.py
-```
-
-This validates:
-
-1. local markdown links under `docs/`
-2. local markdown links in root `README.md`
-
-### Runtime HTTP contract coverage (structural + examples)
-
-The script always runs:
-
-```bash
+# Structural + example checks (no binary needed)
 python3 tests/contracts/runtime-http/validate-runtime-http-openapi.py
 python3 tests/contracts/runtime-http/validate-runtime-http-examples.py
 ```
 
-This checks:
+Enforces:
 
-1. OpenAPI document shape and metadata
-2. Required `/v0` endpoint/method coverage
-3. Internal `$ref` resolution
-4. SSE media type contract on `/v0/events`
-5. Example payload schema conformance from `tests/contracts/runtime-http/examples/manifest.yaml`
+1. OpenAPI document shape and required `/v0` endpoint coverage
+2. Internal `$ref` resolution
+3. SSE media type on `/v0/events`
+4. Example payload conformance from `tests/contracts/runtime-http/examples/manifest.yaml`
 
-### Runtime HTTP conformance smoke coverage (live fixture)
+## Runtime HTTP live conformance
 
-If both a runtime binary and provider-sim binary are present, the script also runs:
+Requires both a runtime binary and a provider-sim binary:
 
 ```bash
 python3 tests/contracts/runtime-http/validate-runtime-http-conformance.py \
-  --runtime-bin <local-runtime-binary> \
-  --provider-bin <local-provider-sim-binary>
+  --runtime-bin build/dev-release/core/anolis-runtime \
+  --provider-bin ../anolis-provider-sim/build/dev-release/anolis-provider-sim
 ```
 
-This starts a runtime fixture and validates live endpoint responses against the
-OpenAPI schema declared for each observed status code.
+Starts a live runtime fixture and validates responses against the OpenAPI schema,
+including negative cases (400, 404, 503).
 
-The conformance run also includes deterministic negative checks for:
+## Docs link check
 
-1. `400` (`POST /v0/call` invalid payload)
-2. `404` (missing device capabilities path)
-3. `503` (automation endpoints with automation disabled)
+Dead links in `docs/` and root markdown files are checked by the `docs.yml`
+workflow via `lycheeverse/lychee-action` (offline mode). No local tooling needed.
 
-### Focused runtime coverage
-
-If a build directory exists, the script also runs:
+## Focused C++ tests
 
 ```bash
 ctest --test-dir build/dev-release --output-on-failure -R "ConfigTest|RuntimeOwnershipValidationTest"
 ```
 
-or, on Windows builds:
-
-```bash
-ctest --test-dir build/dev-windows-release --output-on-failure -R "ConfigTest|RuntimeOwnershipValidationTest"
-```
-
-These tests cover runtime YAML parsing, restart-policy validation, automation
-config handling, and I2C ownership invariants.
-
-## When to Run Full CI-Style Coverage Instead
-
-Use the broader build and test flows when:
-
-- changing core runtime execution behavior beyond config/restart hardening
-- touching integration or scenario suites
-- modifying platform build logic or dependencies
-
-See [CONTRIBUTING.md](https://github.com/anolishq/anolis/blob/main/CONTRIBUTING.md) for the full build and test flow.
+Covers runtime YAML parsing, restart-policy validation, automation config
+handling, and I2C ownership invariants.

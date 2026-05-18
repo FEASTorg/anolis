@@ -139,10 +139,6 @@ jobs:
         run: |
           python tests/contracts/telemetry-timeseries/validate-telemetry-timeseries.py
 
-      - name: Validate docs local links
-        run: |
-          python scripts/validate-doc-links.py
-
   core-build-test:
     name: ${{ matrix.lane }}
     runs-on: ${{ matrix.os }}

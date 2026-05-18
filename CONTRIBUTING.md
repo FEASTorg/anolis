@@ -78,9 +78,6 @@ cmake --build --preset dev-release --parallel
 ### Testing
 
 ```bash
-# Focused local drift check (composer + key runtime tests)
-bash scripts/verify-local.sh
-
 # Run all tests (includes unit + integration)
 ctest --preset dev-release                           # Linux/macOS
 ctest --preset dev-windows-release                   # Windows

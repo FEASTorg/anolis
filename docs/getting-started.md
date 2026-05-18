@@ -99,14 +99,6 @@ curl -s http://127.0.0.1:8080/v0/state/sim0/motorctl0 | jq
 
 See [http-api.md](http-api.md) for full API details.
 
-## Local Verification
-
-Run the focused local verification bundle before lab work or branch handoff:
-
-```bash
-bash scripts/verify-local.sh
-```
-
 ## Operator UI
 
 The Operator UI has been extracted to [`anolis-hq/anolis-operator-ui`](https://github.com/anolis-hq/anolis-operator-ui).

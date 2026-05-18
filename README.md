@@ -213,12 +213,6 @@ Build/dependency/CI governance: [docs/dependencies.md](docs/dependencies.md).
 
 ### Validation & Acceptance Testing
 
-For the shortest high-signal local verification bundle, run:
-
-```bash
-bash scripts/verify-local.sh
-```
-
 ```bash
 # Integration suites (non-stress)
 python -m pytest tests/integration/test_integration.py -m "not stress and not slow"
