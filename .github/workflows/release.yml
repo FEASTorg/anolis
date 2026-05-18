@@ -113,6 +113,87 @@ jobs:
             manifest.json
           generate_release_notes: true
 
+  release-linux-arm64:
+    name: Release (linux-arm64)
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build g++ jq
+
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Python and dependencies
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: requirements-lock.txt
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-lock.txt
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+          doNotCache: false
+
+      - name: Configure
+        run: cmake --preset ci-linux-arm64-release-strict
+
+      - name: Build
+        run: cmake --build --preset ci-linux-arm64-release-strict --parallel
+
+      - name: Test
+        run: ctest --preset ci-linux-arm64-release-strict
+
+      - name: Package binary artifact
+        id: package
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ARTIFACT="anolis-${VERSION}-linux-arm64.tar.gz"
+          BINARY="build/ci-linux-arm64-release-strict/core/anolis-runtime"
+          if [ ! -f "${BINARY}" ]; then
+            echo "ERROR: binary not found at ${BINARY}" >&2
+            exit 1
+          fi
+          mkdir -p staging/bin
+          cp "${BINARY}" staging/bin/
+          tar -czf "${ARTIFACT}" -C staging .
+          echo "artifact=${ARTIFACT}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate manifest
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ARTIFACT="${{ steps.package.outputs.artifact }}"
+          SHA=$(sha256sum "${ARTIFACT}" | awk '{print $1}')
+          jq -n \
+            --argjson schema_version 1 \
+            --arg repo "anolishq/anolis" \
+            --arg component "anolis" \
+            --arg version "${VERSION}" \
+            --arg platform "linux-arm64" \
+            --arg asset "${ARTIFACT}" \
+            --arg sha256 "${SHA}" \
+            '{schema_version: $schema_version, repo: $repo, component: $component, version: $version, platform: $platform, asset: $asset, sha256: $sha256}' \
+            > manifest-linux-arm64.json
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            anolis-*-linux-arm64.tar.gz
+            manifest-linux-arm64.json
+
   release-contracts:
     name: Release (contracts)
     runs-on: ubuntu-24.04
@@ -494,7 +575,7 @@ jobs:
   upload-metrics:
     name: Upload metrics to release
     runs-on: ubuntu-24.04
-    needs: [release-linux-x86_64, metrics]
+    needs: [release-linux-x86_64, release-linux-arm64, metrics]
     steps:
       - name: Download metrics artifact
         uses: actions/download-artifact@v4
