@@ -12,7 +12,7 @@ Quick guide for testing the Anolis telemetry stack on Windows with WSL2.
 
 ```bash
 # In WSL2 terminal
-cd /mnt/d/repos_feast/anolis/tools/docker
+cd /path/to/anolis/observability
 
 # Start InfluxDB + Grafana
 docker compose -f docker-compose.observability.yml up -d
@@ -80,7 +80,7 @@ Open <http://localhost:3000> in browser:
 
 ```bash
 # In WSL2
-cd /mnt/d/repos_feast/anolis/tools/docker
+cd /path/to/anolis/observability
 docker compose -f docker-compose.observability.yml down
 
 # To also remove data volumes:

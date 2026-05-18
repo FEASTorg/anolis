@@ -4,9 +4,9 @@
 # NOT for production use - uses insecure default credentials.
 #
 # Usage:
-#   cd tools/docker
+#   cd observability
 #   cp .env.example .env  # Optional: customize credentials
-#   docker-compose -f docker-compose.observability.yml up -d
+#   docker compose -f docker-compose.observability.yml up -d
 #
 # Access:
 #   - InfluxDB: http://localhost:8086 (admin / anolis123)
@@ -39,8 +39,8 @@ services:
     ports:
       - "3001:3000"
     volumes:
-      - ../grafana/provisioning:/etc/grafana/provisioning:ro
-      - ../grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-anolis123}

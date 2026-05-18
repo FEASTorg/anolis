@@ -3,7 +3,7 @@
 #
 # PREREQUISITES:
 #   1. Start InfluxDB + Grafana:
-#      cd tools/docker && docker-compose -f docker-compose.observability.yml up -d
+#      cd observability && docker compose -f docker-compose.observability.yml up -d
 #   2. Set INFLUXDB_TOKEN environment variable OR use token below
 #
 # DASHBOARDS:

@@ -52,7 +52,7 @@ echo "[verify-local] Running telemetry timeseries contract checks"
 "$PYTHON_BIN" tests/contracts/telemetry-timeseries/validate-telemetry-timeseries.py
 
 echo "[verify-local] Running docs local-link checks"
-"$PYTHON_BIN" tools/validate-doc-links.py
+"$PYTHON_BIN" scripts/validate-doc-links.py
 
 echo "[verify-local] Running runtime HTTP OpenAPI structural checks"
 "$PYTHON_BIN" tests/contracts/runtime-http/validate-runtime-http-openapi.py

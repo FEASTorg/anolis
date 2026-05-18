@@ -9,7 +9,7 @@ to catch local drift quickly.
 From the repo root:
 
 ```bash
-bash tools/verify-local.sh
+bash scripts/verify-local.sh
 ```
 
 This runs:
@@ -81,7 +81,7 @@ This validates:
 The script always runs:
 
 ```bash
-python3 tools/validate-doc-links.py
+python3 scripts/validate-doc-links.py
 ```
 
 This validates:

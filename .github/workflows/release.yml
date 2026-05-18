@@ -209,6 +209,20 @@ jobs:
         id: version
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
+      - name: Package observability artifact
+        id: obs_package
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          OBS_ARTIFACT="anolis-${VERSION}-observability.tar.gz"
+          if [ ! -d "observability" ]; then
+            echo "ERROR: observability/ directory not found" >&2
+            exit 1
+          fi
+          mkdir -p obs-staging
+          cp -r observability/. obs-staging/
+          tar -czf "${OBS_ARTIFACT}" -C obs-staging .
+          echo "artifact=${OBS_ARTIFACT}" >> "$GITHUB_OUTPUT"
+
       - name: Package telemetry schema artifact
         id: schema_package
         run: |
@@ -425,6 +439,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
+            anolis-*-observability.tar.gz
             anolis-*-telemetry-schema.tar.gz
             telemetry-schema-manifest.json
             anolis-*-runtime-config-schema.tar.gz

@@ -104,7 +104,7 @@ See [http-api.md](http-api.md) for full API details.
 Run the focused local verification bundle before lab work or branch handoff:
 
 ```bash
-bash tools/verify-local.sh
+bash scripts/verify-local.sh
 ```
 
 ## Operator UI

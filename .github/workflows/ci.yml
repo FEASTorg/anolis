@@ -141,7 +141,7 @@ jobs:
 
       - name: Validate docs local links
         run: |
-          python tools/validate-doc-links.py
+          python scripts/validate-doc-links.py
 
   core-build-test:
     name: ${{ matrix.lane }}

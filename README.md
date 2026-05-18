@@ -216,10 +216,8 @@ Build/dependency/CI governance: [docs/dependencies.md](docs/dependencies.md).
 For the shortest high-signal local verification bundle, run:
 
 ```bash
-bash tools/verify-local.sh
+bash scripts/verify-local.sh
 ```
-
-Run pytest integration/scenario suites directly:
 
 ```bash
 # Integration suites (non-stress)

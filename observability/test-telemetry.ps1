@@ -39,12 +39,12 @@ if (-not (Get-Command docker-compose -ErrorAction SilentlyContinue)) {
 Write-Success "Docker Compose available"
 
 # Check if runtime is built
-$runtimePath = "..\..\build\dev-windows-release\core\Release\anolis-runtime.exe"
+$runtimePath = ".\build\dev-windows-release\core\Release\anolis-runtime.exe"
 if (-not (Test-Path $runtimePath)) {
     Write-Warning "Runtime not built at $runtimePath"
     if (-not $SkipBuild) {
         Write-Step "Building runtime..."
-        Push-Location ..\..
+        Push-Location ..
         cmake --preset dev-windows-release
         cmake --build --preset dev-windows-release --parallel
         Pop-Location
@@ -56,7 +56,7 @@ if (-not (Test-Path $runtimePath)) {
 Write-Success "Runtime executable found"
 
 # Check provider-sim
-$providerPath = "..\..\..\anolis-provider-sim\build\dev-windows-release\Release\anolis-provider-sim.exe"
+$providerPath = "..\..\anolis-provider-sim\build\dev-windows-release\Release\anolis-provider-sim.exe"
 if (-not (Test-Path $providerPath)) {
     Write-Error "Provider-sim not found at $providerPath"
     Write-Host "Run: cd ..\anolis-provider-sim; cmake --preset dev-windows-release; cmake --build --preset dev-windows-release --parallel"
@@ -122,7 +122,7 @@ Write-Step "Step 4: Starting Anolis runtime with telemetry..."
 Write-Host ""
 
 # Resolve telemetry config path from repo root
-$runtimeConfigPath = Resolve-Path "..\..\anolis-runtime-telemetry.yaml"
+$runtimeConfigPath = Resolve-Path ".\anolis-runtime-telemetry.yaml"
 
 # Start runtime in background
 $runtimeJob = Start-Job -ScriptBlock {
